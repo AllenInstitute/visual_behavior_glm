@@ -61,7 +61,7 @@ if __name__=="__main__":
     dff_trace_arr = m.get_dff_arr(session, timestamps_to_use)
 
     # Make design matrix
-    design = m.DesignMat(dff_trace_timestamps[:-1], intercept=True)
+    design = m.DesignMatrix(dff_trace_timestamps[:-1], intercept=True)
 
     # Get event times
     event_times = session.trials.query('go')['change_time'].values

@@ -2,9 +2,11 @@ import json
 import xarray as xr
 import numpy as np
 
+# TODO What are these values for?
 test_timebase = np.arange(1000)
 test_values = np.random.random(1000)
 
+# TODO What does this function do?
 def split_time(timebase, subsplits_per_split=10, output_splits=6):
     num_timepoints = len(timebase)
     total_splits = output_splits * subsplits_per_split
@@ -23,7 +25,7 @@ def split_time(timebase, subsplits_per_split=10, output_splits=6):
         output_split_inds.append(inds_this_split)
     return output_split_inds
 
-class DesignMat(object):
+class DesignMatrix(object):
     def __init__(self, event_timestamps, intercept=True):
         '''
         A toeplitz-matrix builder for running regression with multiple temporal kernels. 
@@ -158,6 +160,7 @@ def get_ophys_frames_to_use(session):
     Returns:
         ophys_frames_to_use (np.array of bool): Boolean mask with which ophys frames to use
     '''
+    #TODO what does this do when there is a random early omission?
     ophys_frames_to_use = (
         session.ophys_timestamps > session.stimulus_presentations.iloc[0]['start_time']
     ) & (
@@ -267,6 +270,7 @@ def split_filters(W, image_names):
     all_filters.update({'change':W[start:]})
     return all_filters
 
+# TODO what does this function do?
 def compare_filter_and_psth(ind_cell, dff_traces_arr, ophys_timestamps, flash_time_gb, change_events, all_W):
     all_psths = all_cells_psth(dff_traces_arr.T, ophys_timestamps, flash_time_gb, change_events)
     image_names = flash_time_gb.index.levels[0].values

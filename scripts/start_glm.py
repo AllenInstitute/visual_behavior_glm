@@ -4,23 +4,25 @@ from pbstools import pbstools
 import os
 import numpy as np
 import json
-
 python_executable = r"/home/nick.ponvert/anaconda3/envs/allen/bin/python"
-run_param_json = sys.argv[1]
 
+# Load json file that contains the parameters for this model iteration
+#   as well as a list of sessions to fit
+run_param_json = sys.argv[1]
 with open(run_param_json, 'r') as json_file:
     run_params = json.load(json_file)
-    
+ophys_session_ids = run_params['ophys_sessions']   
+
+# Settings for HPC Job
 job_settings = {'queue': 'braintv',
                 'mem': '15g',
                 'walltime': '2:00:00',
                 'ppn':4,
                 }
 
-ophys_sessions = run_params['ophys_sessions']
-
+# Start a job for each session
 if __name__=="__main__":
-    for osid in ophys_sessions:
+    for osid in ophys_session_ids:
 
         args = ['--ophys-session-id {}'.format(osid),
                 '--output-dir {}'.format(run_params['output_dir']),

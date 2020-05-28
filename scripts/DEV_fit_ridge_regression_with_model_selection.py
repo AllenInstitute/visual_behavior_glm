@@ -1,3 +1,17 @@
+###
+###
+###
+###
+###
+###
+###
+###
+###
+###
+###
+### READ ME READ ME
+### This file is outdated, and will be removed once its code is stripped for scraps
+
 import pandas as pd
 import sys
 sys.path.append('/home/nick.ponvert/src/nick-allen/projects/ophys_glm')

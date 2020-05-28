@@ -1,10 +1,102 @@
+import os
+import pwd
 import json
+import shutil
 import xarray as xr
 import numpy as np
+import datetime
+
+#OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
+OUTPUT_DIR_BASE ='/Users/alex.piet/Desktop/'
+#CODEBASE = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/ophys_glm/' # TODO FIX
+CODEBASE = '/Users/alex.piet/visual_behavior_glm/'
+DEFAULT_OPHYS_SESSION_IDS = [881236651, 880753403] 
+
+def load_run_json(VERSION):
+    '''
+        Loads the run parameters for model v_<VERSION>
+        Assumes verion is saved with root directory global OUTPUT_DIR_BASE       
+        returns a dictionary of run parameters
+    '''
+    json_path           = OUTPUT_DIR_BASE + 'v_'+str(VERSION) +'/' +'run_params.json'
+    with open(json_path,'r') as json_file:
+        run_params = json.load(json_file)
+    return run_params
+
+def make_run_json(VERSION,label='',username=None):
+    '''
+        Freezes model files, parameters, and ophys session ids
+        If the model iteration already exists, throws an error
+        root directory is global OUTPUT_DIR_BASE
+
+        v_<VERSION>             contains the model iteration
+        ./frozen_model_files/   contains the model files
+        ./session_model_files/  contains the output for each session
+        ./README.txt            contains information about the model creation
+        ./run_params.json       contains a dictionary of the model parameters
+
+        <username>  include a string to README.txt who created each model iteration. If none is provided
+                    attempts to load linux username. Will default to "unknown" on error
+        <label>     include a string to README.txt with a brief summary of the model iteration
+    '''
+
+    # Make directory, will throw an error if already exists
+    output_dir          = OUTPUT_DIR_BASE + 'v_'+str(VERSION) +'/'
+    model_freeze_dir    = output_dir +'frozen_model_files/'
+    session_output_dir  = output_dir +'session_model_files/'
+    json_path           = output_dir +'run_params.json'
+    os.mkdir(output_dir)
+    os.mkdir(model_freeze_dir)
+    os.mkdir(session_output_dir)
+    
+    # Add a readme file with information about when the model was created
+    if username is None:
+        try:
+            username = pwd.getpwuid(os.getuid())[0]
+        except:
+            username = 'unknown'
+    readme = open(output_dir+'README.txt','w')
+    readme.writelines([ 'OPHYS GLM  v',str(VERSION),
+                        '\nCreated on ',str(datetime.datetime.now()), 
+                        '\nCreated by ',username,
+                        '\nComment    ',label,'\n\n'])
+    readme.close()
+
+    # Copy model files to frozen directory
+    python_file_full_path = model_freeze_dir+'GLM_fit_tools_v_'+str(VERSION)+'.py'
+    shutil.copyfile(CODEBASE+'src/GLM_fit_tools.py',   python_file_full_path)
+    shutil.copyfile(CODEBASE+'scripts/collect_glm.py', model_freeze_dir +'collect_glm_v_'+str(VERSION)+'.py')
+    shutil.copyfile(CODEBASE+'scripts/start_glm.py',   model_freeze_dir +'start_glm_v_'+str(VERSION)+'.py')
+    shutil.copyfile(CODEBASE+'scripts/fit_glm.py',     model_freeze_dir +'fit_glm_v_'+str(VERSION)+'.py')
+
+    # Make JSON file with parameters
+    manifest_full_path = '' # TODO need to define manifest
+    run_params = {
+        'output_dir':output_dir,
+        'model_freeze_dir':model_freeze_dir,
+        'session_output_dir':session_output_dir,
+        'json_path':json_path,
+        'version':VERSION,
+        'creation_time':str(datetime.datetime.now()),
+        'user':username,
+        'label':label,
+        'manifest':manifest_full_path,
+        'python_file':python_file_full_path,
+        'regularization_lambda':0, # TODO need to define the regularization strength
+        'ophys_sessions':DEFAULT_OPHYS_SESSION_IDS # TODO need to define which sessions get fit
+    }
+    with open(json_path, 'w') as json_file:
+        json.dump(run_params, json_file, indent=4)
+
+    # Print Success
+    print('Model Successfully Saved, version '+str(VERSION))
+
+######## DEV AFTER HERE
 
 # TODO What are these values for?
-test_timebase = np.arange(1000)
-test_values = np.random.random(1000)
+#test_timebase = np.arange(1000)
+#test_values = np.random.random(1000)
+
 
 # TODO What does this function do?
 def split_time(timebase, subsplits_per_split=10, output_splits=6):

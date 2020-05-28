@@ -14,6 +14,7 @@ with open(run_param_json, 'r') as json_file:
 ophys_session_ids = run_params['ophys_sessions']   
 
 # Settings for HPC Job
+# TODO these settings should be in run_params
 job_settings = {'queue': 'braintv',
                 'mem': '15g',
                 'walltime': '2:00:00',

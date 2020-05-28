@@ -69,6 +69,7 @@ default_ophys_sessions = [881236651, 880753403, 879897824, 878918807, 877946125,
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Make a new run JSON')
+    # TODO Update this!
     default_model="/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/src/nick-allen/projects/ophys_glm/ophys_glm_toeplitz.py"
     default_manifest='/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/data/behavior_project_cache_20200127/manifest.json'
 
@@ -82,10 +83,16 @@ if __name__=="__main__":
                         metavar='my_model_run',
                         help='name of the model run')
     args = parser.parse_args()
-
-    model_freeze_dir = "/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/src/nick-allen/projects/ophys_glm/frozen_model_files"
-    job_dir_base = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/cluster_output/'
-    output_dir_base = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/ophys_glm'
+    
+    # TODO Update paths
+    output_dir_base = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
+    output_dir = output_dir_base + 'v_'+str(VERSION)
+    os.mkdir(output_dir)
+    model_freeze_dir = output_dir +'/frozen_model_files/'
+    os.mkdir(model_freeze_dir)
+    #model_freeze_dir = "/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/src/nick-allen/projects/ophys_glm/frozen_model_files"
+    #job_dir_base = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/cluster_output/'
+    #output_dir_base = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/ophys_glm'
 
     now = datetime.datetime.now().strftime('%Y%m%d')
     python_file_name = '{}_{}.py'.format(args.run_name, now)

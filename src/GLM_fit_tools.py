@@ -114,7 +114,31 @@ def get_manifest():     # TODO need to define manifest
     return pd.DataFrame(index =DEFAULT_OPHYS_SESSION_IDS)
 
 def fit_experiment(oeid, run_params):
-   print(oeid) 
+    print(oeid) 
+    # Load Data
+        # load SDK session object
+        # Filter invalid ROIs
+        # Add stimulus_presentations_analysis
+        # add stimulus_response_df
+        # clip gray screen periods off dff_timestamps
+    
+    # Make Design Matrix
+        # Add kernels
+    
+    # Set up CV splits
+    
+    # Set up kernels to drop for model selection
+
+    # Iterate over model selections
+        # Iterate CV
+
+    # Save Results
+
+
+
+
+
+
 
 ######## DEV AFTER HERE
 

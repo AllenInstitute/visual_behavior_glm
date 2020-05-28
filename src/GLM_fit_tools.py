@@ -66,16 +66,14 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
     readme.close()
 
     # Copy model files to frozen directory
-    python_file_full_path = model_freeze_dir+'GLM_fit_tools_v_'+str(VERSION)+'.py'
+    python_file_full_path = model_freeze_dir+'GLM_fit_tools.py'
     python_fit_script = model_freeze_dir +'fit_glm_v_'+str(VERSION)+'.py'
     if src_path is None:
         print('WARNING, no path provided, defaulting to: '+CODEBASE)
         src_path = CODEBASE
     shutil.copyfile(src_path+'src/GLM_fit_tools.py',   python_file_full_path)
     shutil.copyfile(src_path+'scripts/fit_glm.py',     python_fit_script)
-    shutil.copyfile(src_path+'scripts/collect_glm.py', model_freeze_dir +'collect_glm_v_'+str(VERSION)+'.py')
-    shutil.copyfile(src_path+'scripts/start_glm.py',   model_freeze_dir +'start_glm_v_'+str(VERSION)+'.py')
-
+    
     # Define list of experiments to fit
     manifest = get_manifest()
     manifest.to_csv(manifest_path)
@@ -114,6 +112,9 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
 def get_manifest():     # TODO need to define manifest
     # Should include ophys_experiment_ids as index, and include ophys_session_ids for each experiment
     return pd.DataFrame(index =DEFAULT_OPHYS_SESSION_IDS)
+
+def fit_experiment(oeid, run_params):
+   print(oeid) 
 
 ######## DEV AFTER HERE
 

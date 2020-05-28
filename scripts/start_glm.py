@@ -1,14 +1,14 @@
 import os
-import numpy as np
 import json
 import sys
-sys.path.append('/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/src/') # TODO, update?
-from pbstools import pbstools
-python_executable = r"/home/nick.ponvert/anaconda3/envs/allen/bin/python" # TODO, update?
+sys.path.append('/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/src/pbstools')
+from pbstools import PythonJob
+python_executable = '/home/alex.piet/codebase/miniconda3/envs/visbeh/bin/python'
 
 # Load json file that contains the parameters for this model iteration
-#   as well as a list of sessions to fit
-run_param_json = sys.argv[1]
+VERSION = sys.argv[1]
+OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
+run_param_json = OUTPUT_DIR_BASE +'v_'+str(VERSION)+'/run_params.json'
 with open(run_param_json, 'r') as json_file:
     run_params = json.load(json_file)
 ophys_experiment_ids = run_params['ophys_experiment_ids']   
@@ -24,8 +24,8 @@ if __name__=="__main__":
         args_string = ' '.join(args)
 
         job_title = 'oeid_{}'.format(oeid)
-        pbstools.PythonJob(
-            run_params['python_fit_script'],
+        PythonJob(
+            run_params['fit_script'],
             python_executable,
             python_args = args_string,
             jobname = job_title,

@@ -2,8 +2,8 @@
 Fits a kernel regression model to df/f traces during visual behavior. 
 
 ## Fit the model
-- Make the run json using `src/GLM_fit_tools.make_run_json.py`
-- Start the run using `scripts/start_glm.py`
+- Make the run json using `make_run_json(<version>)` in  `src/GLM_fit_tools.py`
+- Start the run using `scripts/start_glm.py` with `python start_glm.py <version>`
 - Collect the results across sessions using `scripts/collect_glm.py`
 
 ## Model Iteration System

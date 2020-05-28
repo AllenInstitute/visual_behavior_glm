@@ -4,6 +4,7 @@ import json
 import shutil
 import xarray as xr
 import numpy as np
+import pandas as pd
 import datetime
 
 CODEBASE = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 
@@ -45,6 +46,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
     experiment_output_dir   = output_dir +'experiment_model_files/'
     job_dir                 = output_dir +'log_files/'
     json_path               = output_dir +'run_params.json'
+    manifest_path           = output_dir +'manifest_v_'+str(VERSION)+'.csv'
     os.mkdir(output_dir)
     os.mkdir(model_freeze_dir)
     os.mkdir(experiment_output_dir)
@@ -74,14 +76,18 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
     shutil.copyfile(src_path+'scripts/collect_glm.py', model_freeze_dir +'collect_glm_v_'+str(VERSION)+'.py')
     shutil.copyfile(src_path+'scripts/start_glm.py',   model_freeze_dir +'start_glm_v_'+str(VERSION)+'.py')
 
-
-    # Make JSON file with parameters
+    # Define list of experiments to fit
     manifest = get_manifest()
+    manifest.to_csv(manifest_path)
+    
+    # Define job settings
     job_settings = {'queue': 'braintv',
                     'mem': '15g',
                     'walltime': '2:00:00',
                     'ppn':4,
                     }
+
+    # Make JSON file with parameters
     run_params = {
         'output_dir':output_dir,
         'model_freeze_dir':model_freeze_dir,
@@ -92,11 +98,11 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
         'creation_time':str(datetime.datetime.now()),
         'user':username,
         'label':label,
-        'manifest':manifest,
+        'manifest_path':manifest_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'regularization_lambda':0,  # TODO need to define the regularization strength
-        'ophys_experiment_ids':manifest.index.values,
+        'ophys_experiment_ids':manifest.index.values.tolist(),
         'job_settings':job_settings
     }
     with open(json_path, 'w') as json_file:
@@ -107,7 +113,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
 
 def get_manifest():     # TODO need to define manifest
     # Should include ophys_experiment_ids as index, and include ophys_session_ids for each experiment
-    return pd.DataFrame()
+    return pd.DataFrame(index =DEFAULT_OPHYS_SESSION_IDS)
 
 ######## DEV AFTER HERE
 

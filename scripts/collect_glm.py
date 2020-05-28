@@ -1,25 +1,27 @@
-import json
-from tqdm import tqdm
-import pandas as pd
-import numpy as np
 import os
 import sys
-from json import JSONDecodeError
-from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
-from matplotlib import pyplot as plt
-import argparse
+import json
 import mlflow
+import argparse
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+from json import JSONDecodeError
+from matplotlib import pyplot as plt
+from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache # TODO need to update?
 
-
+# Parse input arguments
 parser = argparse.ArgumentParser(description='GLM Fitter')
 parser.add_argument('--run-json', type=str, default='',
                     metavar='/path/to/run/json',
                     help='output data path')
 args = parser.parse_args()
 
+# Load JSON file with parameters for this run
 with open(args.run_json, 'r') as json_file:
     run_json = json.load(json_file)
 
+# TODO need to update?
 cache = BehaviorProjectCache.from_lims(manifest=run_json['manifest'])
 ophys_sessions = run_json['ophys_sessions']
 output_dir = run_json['output_dir']

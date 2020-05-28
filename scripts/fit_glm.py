@@ -1,25 +1,24 @@
-import pandas as pd
 import sys
 sys.path.append('/home/nick.ponvert/src/nick-allen/projects/ophys_glm')
+# TODO remove this, and include an import of the repo
 
 import os
 import json
-from matplotlib import pyplot as plt
-from tqdm import tqdm
 import scipy
-import model_utils as m
+import argparse
 import numpy as np
+import pandas as pd
+from tqdm import tqdm
+import model_utils as m
+from matplotlib import pyplot as plt
 
+# TODO this needs to be updated
 from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
 from visual_behavior.translator.allensdk_sessions import sdk_utils
 from visual_behavior.translator.allensdk_sessions import session_attributes
 from visual_behavior.ophys.response_analysis import response_processing as rp
 
-#  from allensdk.brain_observatory.behavior import behavior_project_cache as bpc
-#  from allensdk.brain_observatory.behavior import response_processing as rp
-
-import argparse
-
+# TODO this needs to be updated
 manifest_default = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/data/behavior_project_cache_20200127/manifest.json'
 
 parser = argparse.ArgumentParser(description='GLM Fitter')
@@ -38,19 +37,19 @@ args = parser.parse_args()
 
 
 if __name__=="__main__":
+    # Extract variables for starting script
     osid = args.ophys_session_id
     output_dir = args.output_dir
 
+    # Load data
     cache = BehaviorProjectCache.from_lims(manifest=args.manifest)
-    oeid = sdk_utils.get_oeid_from_osid(osid, cache)
-
+    oeid = sdk_utils.get_oeid_from_osid(osid, cache) # TODO Update
     session = cache.get_session_data(oeid)
 
     # Add stim response / extended stim information
     session_attributes.filter_invalid_rois_inplace(session)
     sdk_utils.add_stimulus_presentations_analysis(session)
     session.stimulus_response_df = rp.stimulus_response_df(rp.stimulus_response_xr(session))
-
     dff_trace_timestamps = session.ophys_timestamps
 
     # clip off the grey screen periods
@@ -124,7 +123,6 @@ if __name__=="__main__":
     train_mean_all_models = np.empty((dff_trace_arr.shape[1], len(drop_labels)))
 
     for ind_model, model_label in enumerate(drop_labels):
-
         labels_to_use = [label for label in design.labels if label not in to_drop[ind_model]]
 
         # Design matrix to use for this reduced model fit
@@ -220,3 +218,6 @@ if __name__=="__main__":
     with open(output_full_path, 'w') as json_file:
         json.dump(output_dict, json_file, indent=4)
     print('saved file to: {}'.format(output_full_path))
+
+
+

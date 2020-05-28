@@ -23,7 +23,7 @@ def load_run_json(VERSION):
 
 def make_run_json(VERSION,label='',username=None,src_path=None):
     '''
-        Freezes model files, parameters, and ophys session ids
+        Freezes model files, parameters, and ophys experiment ids
         If the model iteration already exists, throws an error
         root directory is global OUTPUT_DIR_BASE
 
@@ -40,13 +40,15 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
     '''
 
     # Make directory, will throw an error if already exists
-    output_dir          = OUTPUT_DIR_BASE + 'v_'+str(VERSION) +'/'
-    model_freeze_dir    = output_dir +'frozen_model_files/'
-    session_output_dir  = output_dir +'session_model_files/'
-    json_path           = output_dir +'run_params.json'
+    output_dir              = OUTPUT_DIR_BASE + 'v_'+str(VERSION) +'/'
+    model_freeze_dir        = output_dir +'frozen_model_files/'
+    experiment_output_dir   = output_dir +'experiment_model_files/'
+    job_dir                 = output_dir +'log_files/'
+    json_path               = output_dir +'run_params.json'
     os.mkdir(output_dir)
     os.mkdir(model_freeze_dir)
-    os.mkdir(session_output_dir)
+    os.mkdir(experiment_output_dir)
+    os.mkdir(job_dir)
     
     # Add a readme file with information about when the model was created
     if username is None:
@@ -63,35 +65,49 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
 
     # Copy model files to frozen directory
     python_file_full_path = model_freeze_dir+'GLM_fit_tools_v_'+str(VERSION)+'.py'
+    python_fit_script = model_freeze_dir +'fit_glm_v_'+str(VERSION)+'.py'
     if src_path is None:
         print('WARNING, no path provided, defaulting to: '+CODEBASE)
         src_path = CODEBASE
     shutil.copyfile(src_path+'src/GLM_fit_tools.py',   python_file_full_path)
+    shutil.copyfile(src_path+'scripts/fit_glm.py',     python_fit_script)
     shutil.copyfile(src_path+'scripts/collect_glm.py', model_freeze_dir +'collect_glm_v_'+str(VERSION)+'.py')
     shutil.copyfile(src_path+'scripts/start_glm.py',   model_freeze_dir +'start_glm_v_'+str(VERSION)+'.py')
-    shutil.copyfile(src_path+'scripts/fit_glm.py',     model_freeze_dir +'fit_glm_v_'+str(VERSION)+'.py')
+
 
     # Make JSON file with parameters
-    manifest_full_path = '' # TODO need to define manifest
+    manifest = get_manifest()
+    job_settings = {'queue': 'braintv',
+                    'mem': '15g',
+                    'walltime': '2:00:00',
+                    'ppn':4,
+                    }
     run_params = {
         'output_dir':output_dir,
         'model_freeze_dir':model_freeze_dir,
-        'session_output_dir':session_output_dir,
+        'experiment_output_dir':experiment_output_dir,
+        'job_dir':job_dir,
         'json_path':json_path,
         'version':VERSION,
         'creation_time':str(datetime.datetime.now()),
         'user':username,
         'label':label,
-        'manifest':manifest_full_path,
-        'python_file':python_file_full_path,
-        'regularization_lambda':0, # TODO need to define the regularization strength
-        'ophys_sessions':DEFAULT_OPHYS_SESSION_IDS # TODO need to define which sessions get fit
+        'manifest':manifest,
+        'src_file':python_file_full_path,
+        'fit_script':python_fit_script,
+        'regularization_lambda':0,  # TODO need to define the regularization strength
+        'ophys_experiment_ids':manifest.index.values,
+        'job_settings':job_settings
     }
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
 
     # Print Success
     print('Model Successfully Saved, version '+str(VERSION))
+
+def get_manifest():     # TODO need to define manifest
+    # Should include ophys_experiment_ids as index, and include ophys_session_ids for each experiment
+    return pd.DataFrame()
 
 ######## DEV AFTER HERE
 

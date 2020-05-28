@@ -6,10 +6,8 @@ import xarray as xr
 import numpy as np
 import datetime
 
-#OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
-OUTPUT_DIR_BASE ='/Users/alex.piet/Desktop/'
-#CODEBASE = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/ophys_glm/' # TODO FIX
-CODEBASE = '/Users/alex.piet/visual_behavior_glm/'
+CODEBASE = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 
+OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
 DEFAULT_OPHYS_SESSION_IDS = [881236651, 880753403] 
 
 def load_run_json(VERSION):
@@ -23,7 +21,7 @@ def load_run_json(VERSION):
         run_params = json.load(json_file)
     return run_params
 
-def make_run_json(VERSION,label='',username=None):
+def make_run_json(VERSION,label='',username=None,src_path=None):
     '''
         Freezes model files, parameters, and ophys session ids
         If the model iteration already exists, throws an error
@@ -38,6 +36,7 @@ def make_run_json(VERSION,label='',username=None):
         <username>  include a string to README.txt who created each model iteration. If none is provided
                     attempts to load linux username. Will default to "unknown" on error
         <label>     include a string to README.txt with a brief summary of the model iteration
+        <src_path>  path to repo home. Will default to alex's path
     '''
 
     # Make directory, will throw an error if already exists
@@ -64,10 +63,13 @@ def make_run_json(VERSION,label='',username=None):
 
     # Copy model files to frozen directory
     python_file_full_path = model_freeze_dir+'GLM_fit_tools_v_'+str(VERSION)+'.py'
-    shutil.copyfile(CODEBASE+'src/GLM_fit_tools.py',   python_file_full_path)
-    shutil.copyfile(CODEBASE+'scripts/collect_glm.py', model_freeze_dir +'collect_glm_v_'+str(VERSION)+'.py')
-    shutil.copyfile(CODEBASE+'scripts/start_glm.py',   model_freeze_dir +'start_glm_v_'+str(VERSION)+'.py')
-    shutil.copyfile(CODEBASE+'scripts/fit_glm.py',     model_freeze_dir +'fit_glm_v_'+str(VERSION)+'.py')
+    if src_path is None:
+        print('WARNING, no path provided, defaulting to: '+CODEBASE)
+        src_path = CODEBASE
+    shutil.copyfile(src_path+'src/GLM_fit_tools.py',   python_file_full_path)
+    shutil.copyfile(src_path+'scripts/collect_glm.py', model_freeze_dir +'collect_glm_v_'+str(VERSION)+'.py')
+    shutil.copyfile(src_path+'scripts/start_glm.py',   model_freeze_dir +'start_glm_v_'+str(VERSION)+'.py')
+    shutil.copyfile(src_path+'scripts/fit_glm.py',     model_freeze_dir +'fit_glm_v_'+str(VERSION)+'.py')
 
     # Make JSON file with parameters
     manifest_full_path = '' # TODO need to define manifest

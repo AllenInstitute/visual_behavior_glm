@@ -17,8 +17,7 @@ from visual_behavior.ophys.response_analysis import response_processing as rp
 
 CODEBASE = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
-DEFAULT_OPHYS_SESSION_IDS = [881236651, 880753403] 
-MANIFEST = ''# TODO
+DEFAULT_OPHYS_EXPERIMENT_IDS =[862023618,862848084] 
 
 def load_run_json(VERSION):
     '''
@@ -53,13 +52,16 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
     output_dir              = OUTPUT_DIR_BASE + 'v_'+str(VERSION) +'/'
     model_freeze_dir        = output_dir +'frozen_model_files/'
     experiment_output_dir   = output_dir +'experiment_model_files/'
+    manifest_dir            = output_dir +'manifest/'
+    manifest                = output_dir +'manifest/manifest.json'
     job_dir                 = output_dir +'log_files/'
     json_path               = output_dir +'run_params.json'
-    manifest_path           = output_dir +'manifest_v_'+str(VERSION)+'.csv'
+    experiment_table_path   = output_dir +'experiment_table_v_'+str(VERSION)+'.csv'
     os.mkdir(output_dir)
     os.mkdir(model_freeze_dir)
     os.mkdir(experiment_output_dir)
     os.mkdir(job_dir)
+    os.mkdir(manifest_dir)
     
     # Add a readme file with information about when the model was created
     if username is None:
@@ -84,8 +86,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
     shutil.copyfile(src_path+'scripts/fit_glm.py',     python_fit_script)
     
     # Define list of experiments to fit
-    manifest = get_manifest()
-    manifest.to_csv(manifest_path)
+    experiment_table = get_experiment_table()
+    experiment_table.to_csv(experiment_table_path)
     
     # Define job settings
     job_settings = {'queue': 'braintv',
@@ -100,16 +102,17 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
         'model_freeze_dir':model_freeze_dir,
         'experiment_output_dir':experiment_output_dir,
         'job_dir':job_dir,
+        'manifest':manifest,
         'json_path':json_path,
         'version':VERSION,
         'creation_time':str(datetime.datetime.now()),
         'user':username,
         'label':label,
-        'manifest_path':manifest_path,
+        'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'regularization_lambda':0,  # TODO need to define the regularization strength
-        'ophys_experiment_ids':manifest.index.values.tolist(),
+        'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings
     }
     with open(json_path, 'w') as json_file:
@@ -118,9 +121,9 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
     # Print Success
     print('Model Successfully Saved, version '+str(VERSION))
 
-def get_manifest():     # TODO need to define manifest
+def get_experiment_table():     # TODO need to define experiment_table
     # Should include ophys_experiment_ids as index, and include ophys_session_ids for each experiment
-    return pd.DataFrame(index =DEFAULT_OPHYS_SESSION_IDS)
+    return pd.DataFrame(index =DEFAULT_OPHYS_EXPERIMENT_IDS)
 
 def fit_experiment(oeid, run_params):
     print(oeid) 
@@ -130,8 +133,8 @@ def fit_experiment(oeid, run_params):
         # Add stimulus_presentations_analysis
         # add stimulus_response_df
         # clip gray screen periods off dff_timestamps
-    #session = load_data(session,run_params)
-    #dff_trace_arry, dff_trace_timestamps = process_data(session)
+    session = load_data(oeid,run_params)
+    dff_trace_arr, dff_trace_timestamps = process_data(session)
     
     # Make Design Matrix
     #design = DesignMatrix(dff_trace_timestamps[:-1])
@@ -150,14 +153,16 @@ def fit_experiment(oeid, run_params):
     file_temp = open(filepath, 'wb')
     pickle.dump(fit, file_temp)
     file_temp.close()  
+    
+    return session
 
 def load_data(oeid,run_params):
     '''
         Returns SDK session object
     '''
-    cache = BehaviorProjectCache.from_lims(manifest=MANIFEST)
+    cache = BehaviorProjectCache.from_lims(manifest=run_params['manifest'])
     session = cache.get_session_data(oeid)
-    # TODO, update this block to use the new VBA things?
+    # TODO, update this block to use the new VBA things
     session_attributes.filter_invalid_rois_inplace(session)
     sdk_utils.add_stimulus_presentations_analysis(session)
     session.stimulus_response_df = rp.stimulus_response_df(rp.stimulus_response_xr(session))

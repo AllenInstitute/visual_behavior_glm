@@ -8,4 +8,4 @@ Fits a kernel regression model to df/f traces during visual behavior.
 
 ## Model Iteration System
 - `make_run_json(<version>)` saves a copy of current files, as well as a JSON file with run parameters to `../nc-ophys/visual_behavior/ophys_glm/v_<version>/`
-   use as: `make_run_json(1, label='Brief description of version #1')
+- use as: `make_run_json(1, label='Brief description of version #1')`

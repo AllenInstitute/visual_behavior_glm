@@ -130,11 +130,11 @@ def fit_experiment(oeid, run_params):
         # Add stimulus_presentations_analysis
         # add stimulus_response_df
         # clip gray screen periods off dff_timestamps
-    session = load_data(session,run_params)
-    dff_trace_arry, dff_trace_timestamps = process_data(session)
+    #session = load_data(session,run_params)
+    #dff_trace_arry, dff_trace_timestamps = process_data(session)
     
     # Make Design Matrix
-    design = DesignMatrix(dff_trace_timestamps[:-1])
+    #design = DesignMatrix(dff_trace_timestamps[:-1])
         # Add kernels
     
     # Set up CV splits
@@ -151,7 +151,7 @@ def fit_experiment(oeid, run_params):
     pickle.dump(fit, file_temp)
     file_temp.close()  
 
-def load_data(oeid,run_params)
+def load_data(oeid,run_params):
     '''
         Returns SDK session object
     '''
@@ -163,7 +163,7 @@ def load_data(oeid,run_params)
     session.stimulus_response_df = rp.stimulus_response_df(rp.stimulus_response_xr(session))
     return session
 
-def process_data(session)
+def process_data(session):
     '''
         Adds stimulus response and extended stimulus information
         clips off gray screen periods

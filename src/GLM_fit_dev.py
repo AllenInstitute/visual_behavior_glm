@@ -7,7 +7,10 @@ gft.make_run_json(VERSION, label='Demonstration of make run json',src_path=src_p
 # Load existing parameters
 run_params = gft.load_run_json(VERSION)
 
-# To start run:
+# To start all experiments on hpc:
 # cd visual_behavior_glm/scripts/
 # python start_glm.py VERSION
 
+# To run just one session:
+oeid = 881236651
+gft.fit_experiment(oeid, run_params)

@@ -2,14 +2,23 @@ import os
 import pwd
 import json
 import shutil
+import pickle
 import xarray as xr
 import numpy as np
 import pandas as pd
 import datetime
 
+from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
+from visual_behavior.translator.allensdk_sessions import sdk_utils
+from visual_behavior.translator.allensdk_sessions import session_attributes
+from visual_behavior.ophys.response_analysis import response_processing as rp
+
+
+
 CODEBASE = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
 DEFAULT_OPHYS_SESSION_IDS = [881236651, 880753403] 
+MANIFEST = ''# TODO
 
 def load_run_json(VERSION):
     '''
@@ -121,8 +130,11 @@ def fit_experiment(oeid, run_params):
         # Add stimulus_presentations_analysis
         # add stimulus_response_df
         # clip gray screen periods off dff_timestamps
+    session = load_data(session,run_params)
+    dff_trace_arry, dff_trace_timestamps = process_data(session)
     
     # Make Design Matrix
+    design = DesignMatrix(dff_trace_timestamps[:-1])
         # Add kernels
     
     # Set up CV splits
@@ -133,10 +145,40 @@ def fit_experiment(oeid, run_params):
         # Iterate CV
 
     # Save Results
+    fit = dict()
+    filepath = run_params['experiment_output_dir']+str(oeid)+'.pkl' 
+    file_temp = open(filepath, 'wb')
+    pickle.dump(fit, file_temp)
+    file_temp.close()  
 
+def load_data(oeid,run_params)
+    '''
+        Returns SDK session object
+    '''
+    cache = BehaviorProjectCache.from_lims(manifest=MANIFEST)
+    session = cache.get_session_data(oeid)
+    # TODO, update this block to use the new VBA things?
+    session_attributes.filter_invalid_rois_inplace(session)
+    sdk_utils.add_stimulus_presentations_analysis(session)
+    session.stimulus_response_df = rp.stimulus_response_df(rp.stimulus_response_xr(session))
+    return session
 
+def process_data(session)
+    '''
+        Adds stimulus response and extended stimulus information
+        clips off gray screen periods
+        returns the proper timestamps and dff
+    '''
+    dff_trace_timestamps = session.ophys_timestamps
 
+    # clip off the grey screen periods
+    timestamps_to_use = get_ophys_frames_to_use(session)
+    dff_trace_timestamps = dff_trace_timestamps[timestamps_to_use]
 
+    # Get the matrix of dff traces
+    dff_trace_arr = get_dff_arr(session, timestamps_to_use)
+
+    return dff_trace_arr, dff_trace_timestamps
 
 
 

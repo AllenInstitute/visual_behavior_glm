@@ -12,7 +12,7 @@ from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorP
 from visual_behavior.translator.allensdk_sessions import sdk_utils
 from visual_behavior.translator.allensdk_sessions import session_attributes
 from visual_behavior.ophys.response_analysis import response_processing as rp
-
+import visual_behavior.data_access.loading as loading
 
 
 CODEBASE = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 
@@ -121,9 +121,19 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
     # Print Success
     print('Model Successfully Saved, version '+str(VERSION))
 
-def get_experiment_table():     # TODO need to define experiment_table
-    # Should include ophys_experiment_ids as index, and include ophys_session_ids for each experiment
-    return pd.DataFrame(index =DEFAULT_OPHYS_EXPERIMENT_IDS)
+def get_experiment_table(require_model_outputs = True):
+    """
+    get a list of filtered experiments and associated attributes
+    returns only experiments that have relevant project codes and have passed QC
+
+    Keyword arguments:
+    require_model_outputs (bool) -- if True, limits returned experiments to those that have been fit with behavior model
+    """
+    experiments_table = loading.get_filtered_ophys_experiment_table()
+    if require_model_outputs:
+        return experiments_table.query('model_outputs_available == True')
+    else:
+        return experiments_table
 
 def fit_experiment(oeid, run_params):
     print(oeid) 

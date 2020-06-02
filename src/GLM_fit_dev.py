@@ -12,5 +12,5 @@ run_params = gft.load_run_json(VERSION)
 # python start_glm.py VERSION
 
 # To run just one session:
-oeid = 862023618
+oeid = run_params['ophys_experiment_ids'][-1]
 gft.fit_experiment(oeid, run_params)

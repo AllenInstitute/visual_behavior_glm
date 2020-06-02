@@ -15,7 +15,6 @@ from visual_behavior.ophys.response_analysis import response_processing as rp
 import visual_behavior.data_access.loading as loading
 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
-DEFAULT_OPHYS_EXPERIMENT_IDS =[862023618,862848084] 
 
 def load_run_json(VERSION):
     '''
@@ -87,7 +86,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
     # Define list of experiments to fit
     experiment_table = get_experiment_table()
     if TESTING:
-        experiment_table = experiment_table.head(5)
+        experiment_table = experiment_table.query('project_code == "VisualBehavior"').tail(5)
     experiment_table.to_csv(experiment_table_path)
     
     # Define job settings

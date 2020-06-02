@@ -28,7 +28,7 @@ def load_run_json(VERSION):
         run_params = json.load(json_file)
     return run_params
 
-def make_run_json(VERSION,label='',username=None,src_path=None):
+def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
     '''
         Freezes model files, parameters, and ophys experiment ids
         If the model iteration already exists, throws an error
@@ -44,6 +44,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
                     attempts to load linux username. Will default to "unknown" on error
         <label>     include a string to README.txt with a brief summary of the model iteration
         <src_path>  path to repo home. Will throw an error if not passed in 
+        <TESTING>   if true, will only include 5 sessions in the experiment list
     '''
 
     # Make directory, will throw an error if already exists
@@ -85,6 +86,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None):
     
     # Define list of experiments to fit
     experiment_table = get_experiment_table()
+    if TESTING:
+        experiment_table = experiment_table.head(5)
     experiment_table.to_csv(experiment_table_path)
     
     # Define job settings

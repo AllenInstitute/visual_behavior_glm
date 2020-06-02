@@ -1,1 +1,8 @@
 src/__pycache__
+
+# vs code
+.idea/
+.vscode/
+
+#notebook checkpoints
+.ipynb_checkpoints/

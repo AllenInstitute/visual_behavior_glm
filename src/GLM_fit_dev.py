@@ -13,7 +13,7 @@ run_params = gft.load_run_json(VERSION)
 
 # To run just one session:
 oeid = run_params['ophys_experiment_ids'][-1]
-gft.fit_experiment(oeid, run_params)
+session, fit = gft.fit_experiment(oeid, run_params)
 
 
 

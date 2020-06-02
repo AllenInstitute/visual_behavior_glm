@@ -153,15 +153,13 @@ def fit_experiment(oeid, run_params):
     print(oeid) 
     # Load Data
         # load SDK session object
-        # Filter invalid ROIs
-        # Add stimulus_presentations_analysis
-        # add stimulus_response_df
-        # clip gray screen periods off dff_timestamps
+
     session = load_data(oeid,run_params)
-    dff_trace_arr, dff_trace_timestamps = process_data(session)
+    fit= dict()
+    fit['dff_trace_arr'], fit['dff_trace_timestamps'] = process_data(session)
     
     # Make Design Matrix
-    #design = DesignMatrix(dff_trace_timestamps[:-1])
+    design = DesignMatrix(dff_trace_timestamps[:-1])
         # Add kernels
     
     # Set up CV splits
@@ -172,17 +170,18 @@ def fit_experiment(oeid, run_params):
         # Iterate CV
 
     # Save Results
-    fit = dict()
     filepath = run_params['experiment_output_dir']+str(oeid)+'.pkl' 
     file_temp = open(filepath, 'wb')
     pickle.dump(fit, file_temp)
     file_temp.close()  
     
-    return session
+    return session, fit
 
 def load_data(oeid,run_params):
     '''
         Returns SDK session object
+        # Adds stimulus response and extended stimulus information
+        # Filter invalid ROIs
     '''
     cache = BehaviorProjectCache.from_lims(manifest=run_params['manifest'])
     session = cache.get_session_data(oeid)
@@ -194,7 +193,7 @@ def load_data(oeid,run_params):
 
 def process_data(session):
     '''
-        Adds stimulus response and extended stimulus information
+        TODO what else needs to be here?
         clips off gray screen periods
         returns the proper timestamps and dff
     '''
@@ -212,30 +211,6 @@ def process_data(session):
 
 
 ######## DEV AFTER HERE
-
-# TODO What are these values for?
-#test_timebase = np.arange(1000)
-#test_values = np.random.random(1000)
-
-
-# TODO What does this function do?
-def split_time(timebase, subsplits_per_split=10, output_splits=6):
-    num_timepoints = len(timebase)
-    total_splits = output_splits * subsplits_per_split
-
-    # all the split inds broken into the small subsplits
-    split_inds = np.array_split(np.arange(num_timepoints), total_splits)
-
-    # make output splits by combining random subsplits
-    random_subsplit_inds = np.random.choice(np.arange(total_splits), size=total_splits, replace=False)
-    subsplit_inds_per_split = np.array_split(random_subsplit_inds, output_splits)
-
-    output_split_inds = []
-    for ind_output in range(output_splits):
-        subsplits_this_split = subsplit_inds_per_split[ind_output]
-        inds_this_split = np.concatenate([split_inds[sub_ind] for sub_ind in subsplits_this_split])
-        output_split_inds.append(inds_this_split)
-    return output_split_inds
 
 class DesignMatrix(object):
     def __init__(self, event_timestamps, intercept=True):
@@ -345,6 +320,27 @@ class DesignMatrix(object):
                                        offset=kernel_dict['kernel_offset']
                                        )
         return this_design_mat
+
+# TODO What does this function do?
+def split_time(timebase, subsplits_per_split=10, output_splits=6):
+    num_timepoints = len(timebase)
+    total_splits = output_splits * subsplits_per_split
+
+    # all the split inds broken into the small subsplits
+    split_inds = np.array_split(np.arange(num_timepoints), total_splits)
+
+    # make output splits by combining random subsplits
+    random_subsplit_inds = np.random.choice(np.arange(total_splits), size=total_splits, replace=False)
+    subsplit_inds_per_split = np.array_split(random_subsplit_inds, output_splits)
+
+    output_split_inds = []
+    for ind_output in range(output_splits):
+        subsplits_this_split = subsplit_inds_per_split[ind_output]
+        inds_this_split = np.concatenate([split_inds[sub_ind] for sub_ind in subsplits_this_split])
+        output_split_inds.append(inds_this_split)
+    return output_split_inds
+
+
 
 def toeplitz(events, kernel_length):
     '''

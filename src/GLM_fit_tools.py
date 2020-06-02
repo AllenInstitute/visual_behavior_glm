@@ -27,6 +27,20 @@ def load_run_json(VERSION):
         run_params = json.load(json_file)
     return run_params
 
+def check_run_fits(VERSION):
+    '''
+        Returns the experiment table for this model version with a column 'GLM_fit' 
+        appended that is a bool of whether the output pkl file exists for that 
+        experiment. It does not try to load the file, or determine if the fit is good.
+    '''
+    run_params = load_run_json(VERSION)
+    experiment_table = pd.read_csv(run_params['experiment_table_path']).reset_index(drop=True).set_index('ophys_experiment_id')
+    experiment_table['GLM_fit'] = False
+    for index, oeid in enumerate(experiment_table.index.values):
+        filename = run_params['experiment_output_dir']+str(oeid)+".pkl" 
+        experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filename) 
+    return experiment_table
+
 def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
     '''
         Freezes model files, parameters, and ophys experiment ids

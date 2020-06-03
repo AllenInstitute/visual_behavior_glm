@@ -224,9 +224,14 @@ def load_data(oeid, dataframe_format='wide'):
 
 def process_data(session):
     '''
-        TODO what else needs to be here?
-        clips off gray screen periods
-        returns the proper timestamps and dff
+    Processes dff traces by trimming off portions of recording session outside of the task period. These include:
+        * a ~5 minute gray screen period before the task begins
+        * a ~5 minute gray screen period after the task ends
+        * a 5-10 minute movie following the second gray screen period
+    
+    input -- session object
+
+    returns -- an xarray of of deltaF/F traces with dimensions [timestamps, cell_specimen_ids]
     '''
     dff_trace_timestamps = session.ophys_timestamps
 

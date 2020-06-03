@@ -13,6 +13,7 @@ from visual_behavior.translator.allensdk_sessions import sdk_utils
 from visual_behavior.translator.allensdk_sessions import session_attributes
 from visual_behavior.ophys.response_analysis import response_processing as rp
 import visual_behavior.data_access.loading as loading
+from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
 
@@ -165,7 +166,7 @@ def fit_experiment(oeid, run_params):
     print("Fitting ophys_experiment_id: "+str(oeid)) 
 
     # Load Data
-    session = load_data(oeid,run_params)
+    session = load_data(oeid)
     fit= dict()
     fit['dff_trace_arr'], fit['dff_trace_timestamps'] = process_data(session)
     
@@ -190,18 +191,23 @@ def fit_experiment(oeid, run_params):
     
     return session, fit, design
 
-def load_data(oeid,run_params):
+def load_data(oeid, dataframe_format='wide'):
     '''
-        Returns SDK session object
-        # Adds stimulus response and extended stimulus information
-        # Filter invalid ROIs
+        Returns Visual Behavior ResponseAnalysis object
+        Allen SDK dataset is an attribute of this object (session.dataset)
+        Keyword arguments:
+            oeid (int) -- ophys_experiment_id
+            dataframe_format (str) -- whether the response dataframes should be in 'wide' or 'tidy'/'long' formats (default = 'wide')
+                                      'wide' format is one row per stimulus/cell, with all timestamps and dff traces in a single cell
+                                      'tidy' or 'long' format has one row per timepoint (this format conforms to seaborn standards)
     '''
-    cache = BehaviorProjectCache.from_lims(manifest=run_params['manifest'])
-    session = cache.get_session_data(oeid)
-    # TODO, update this block to use the new VBA things
-    session_attributes.filter_invalid_rois_inplace(session)
-    sdk_utils.add_stimulus_presentations_analysis(session)
-    session.stimulus_response_df = rp.stimulus_response_df(rp.stimulus_response_xr(session))
+    dataset = loading.get_ophys_dataset(oeid, include_invalid_rois=False)
+    session = ResponseAnalysis(
+        dataset, 
+        overwrite_analysis_files=False, 
+        use_extended_stimulus_presentations=True, 
+        dataframe_format = dataframe_format
+    ) 
     return session
 
 def process_data(session):
@@ -444,6 +450,9 @@ def get_dff_arr(session, timestamps_to_use):
     dff_trace_timestamps = session.ophys_timestamps
     dff_trace_timestamps = dff_trace_timestamps[timestamps_to_use]
 
+    # Note: it may be more efficient to get the xarrays directly, rather than extracting/building them from session.dff_traces
+    #       The dataframes are built from xarrays to start with, so we are effectively converting them twice by doing this
+    #       But if there's no big time penalty to doing it this way, then maybe just leave it be.
     dff_trace_xr = xr.DataArray(
             data = all_dff_to_use.T,
             dims = ("dff_trace_timestamps", "cell_specimen_id"),

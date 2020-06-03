@@ -110,6 +110,17 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
                     'ppn':4,
                     }
 
+    # Define Kernels
+    # TODO specify length and offset in units of seconds, rather than bin size?
+    # TODO do mesoscope and scientific have different sampling rates?
+    kernels = {
+        'licks':        {'length':30, 'offset':-10},
+        'rewards':      {'length':115, 'offset':-15}, 
+        'change':       {'length':100, 'offset':0}
+        #'any-image':    {'length':30, 'offset':0},
+        #'each-image':   {'length':30, 'offset':0}
+    }
+
     # Make JSON file with parameters
     run_params = {
         'output_dir':output_dir,
@@ -127,7 +138,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'fit_script':python_fit_script,
         'regularization_lambda':0,  # TODO need to define the regularization strength
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
-        'job_settings':job_settings
+        'job_settings':job_settings,
+        'kernels':kernels,
     }
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
@@ -150,18 +162,19 @@ def get_experiment_table(require_model_outputs = True):
         return experiments_table
 
 def fit_experiment(oeid, run_params):
-    print(oeid) 
-    # Load Data
-        # load SDK session object
+    print("Fitting ophys_experiment_id: "+str(oeid)) 
 
+    # Load Data
     session = load_data(oeid,run_params)
     fit= dict()
     fit['dff_trace_arr'], fit['dff_trace_timestamps'] = process_data(session)
     
     # Make Design Matrix
-    design = DesignMatrix(dff_trace_timestamps[:-1])
-        # Add kernels
+    design = DesignMatrix(fit['dff_trace_timestamps'][:-1])
     
+    # Add kernels
+    design = add_kernels(design, run_params, session, fit) 
+
     # Set up CV splits
     
     # Set up kernels to drop for model selection
@@ -175,7 +188,7 @@ def fit_experiment(oeid, run_params):
     pickle.dump(fit, file_temp)
     file_temp.close()  
     
-    return session, fit
+    return session, fit, design
 
 def load_data(oeid,run_params):
     '''
@@ -207,6 +220,46 @@ def process_data(session):
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
 
     return dff_trace_arr, dff_trace_timestamps
+
+def add_kernels(design, run_params,session, fit):
+    '''
+        Iterates through the kernels in run_params['kernels'] and adds
+        each to the design matrix
+        Each kernel must have fields:
+            offset:
+            length:
+    
+        design          the design matrix for this model
+        run_params      the run_json for this model
+        session         the SDK session object for this experiment
+        fit             the fit object for this model
+    '''
+    for kernel in run_params['kernels']:
+        design = add_kernel_by_label(kernel, design, run_params, session, fit)
+    return design
+
+def add_kernel_by_label(kernel,design, run_params,session,fit):
+    '''
+        Adds the kernel specified by <kernel> to the design matrix
+        kernel          <str> the label for this kernel, will raise an error if not implemented
+        design          the design matrix for this model
+        run_params      the run_json for this model
+        session         the SDK session object for this experiment
+        fit             the fit object for this model       
+    ''' 
+    print('Adding kernel: '+kernel)
+    if kernel == 'licks':
+        event_times = session.licks['timestamps'].values
+    elif kernel == 'rewards':
+        event_times = session.rewards['timestamps'].values
+    elif kernel == 'change':
+        event_times = session.trials.query('go')['change_time'].values
+        event_times = event_times[~np.isnan(event_times)]
+    else:
+        raise Exception('Could not resolve kernel label')
+    events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_timestamps'])
+    design.add_kernel(events_vec, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
+    return design
 
 
 

@@ -174,7 +174,9 @@ def fit_experiment(oeid, run_params):
     # Processing df/f data
     print('Processing df/f data')
     fit= dict()
-    fit['dff_trace_arr'], fit['dff_trace_timestamps'] = process_data(session)
+    fit['dff_trace_arr'] = process_data(session)
+    # extract shortened timestamp array from the 'dff_trace_arr' xarray
+    fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
     
     # Make Design Matrix
     print('Build Design Matrix')
@@ -235,7 +237,12 @@ def process_data(session):
     # Get the matrix of dff traces
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
 
-    return dff_trace_arr, dff_trace_timestamps
+    # some assert statements to ensure that dimensions are correct
+    assert len(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
+    assert len(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
+    assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
+
+    return dff_trace_arr
 
 def add_kernels(design, run_params,session, fit):
     '''

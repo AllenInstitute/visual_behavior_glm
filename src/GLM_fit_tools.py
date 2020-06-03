@@ -124,8 +124,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
 
     # Make JSON file with parameters
     run_params = {
-        'output_dir':output_dir,
-        'model_freeze_dir':model_freeze_dir,
+        'output_dir':output_dir,                        
+        'model_freeze_dir':model_freeze_dir,            
         'experiment_output_dir':experiment_output_dir,
         'job_dir':job_dir,
         'manifest':manifest,
@@ -141,6 +141,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'kernels':kernels,
+        'CV_splits':5,
+        'CV_subsplits':10
     }
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
@@ -166,29 +168,37 @@ def fit_experiment(oeid, run_params):
     print("Fitting ophys_experiment_id: "+str(oeid)) 
 
     # Load Data
+    print('Loading data')
     session = load_data(oeid)
+
+    # Processing df/f data
+    print('Processing df/f data')
     fit= dict()
     fit['dff_trace_arr'], fit['dff_trace_timestamps'] = process_data(session)
     
     # Make Design Matrix
+    print('Build Design Matrix')
     design = DesignMatrix(fit['dff_trace_timestamps'][:-1])
     
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
 
     # Set up CV splits
-    
+    splits = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
+
     # Set up kernels to drop for model selection
 
     # Iterate over model selections
         # Iterate CV
 
     # Save Results
+    print('Saving results')
     filepath = run_params['experiment_output_dir']+str(oeid)+'.pkl' 
     file_temp = open(filepath, 'wb')
     pickle.dump(fit, file_temp)
     file_temp.close()  
-    
+   
+    print('Finished') 
     return session, fit, design
 
 def load_data(oeid, dataframe_format='wide'):
@@ -354,34 +364,45 @@ class DesignMatrix(object):
         #Keep track of labels
         self.labels.append(label)
 
-    def test_get_kernel(self, label):
-        kernel_ind = self.labels.index(label)
-        kernel_start = self.ind_start[kernel_ind]
-        kernel_stop = self.ind_stop[kernel_ind]
-        assert np.all(self.get_X[kernel_start:kernel_stop, :] == self.kernel_list[kernel_ind])
+#    def test_get_kernel(self, label):
+#        kernel_ind = self.labels.index(label)
+#        kernel_start = self.ind_start[kernel_ind]
+#        kernel_stop = self.ind_stop[kernel_ind]
+#        assert np.all(self.get_X[kernel_start:kernel_stop, :] == self.kernel_list[kernel_ind])
 
-    #TODO: I need to define the schema somehow. Perhaps just have a complementary `write_json` method.
-    @classmethod
-    def from_json(cls, json_path):
-        '''
-        Make a design matrix from a json file. 
-        The json schema has individual timestamps, so need to histogram them. 
-        '''
-        with open(json_path, 'r') as json_data:
-            json_data = json.load(json_data)
+#    #TODO: I need to define the schema somehow. Perhaps just have a complementary `write_json` method.
+#    @classmethod
+#    def from_json(cls, json_path):
+#        '''
+#        Make a design matrix from a json file. 
+#        The json schema has individual timestamps, so need to histogram them. 
+#        '''
+#        with open(json_path, 'r') as json_data:
+#            json_data = json.load(json_data)
+#
+#        this_design_mat = cls(np.array(json_data['timestamps'])[:-1])
+#        for kernel_dict in json_data['kernels']:
+#            events_vec, _ = np.histogram(kernel_dict['times'], bins=json_data['timestamps'])
+#            this_design_mat.add_kernel(events=events_vec,
+#                                       label=kernel_dict['label'],
+#                                       kernel_length=kernel_dict['kernel_length'],
+#                                       offset=kernel_dict['kernel_offset']
+#                                       )
+#        return this_design_mat
 
-        this_design_mat = cls(np.array(json_data['timestamps'])[:-1])
-        for kernel_dict in json_data['kernels']:
-            events_vec, _ = np.histogram(kernel_dict['times'], bins=json_data['timestamps'])
-            this_design_mat.add_kernel(events=events_vec,
-                                       label=kernel_dict['label'],
-                                       kernel_length=kernel_dict['kernel_length'],
-                                       offset=kernel_dict['kernel_offset']
-                                       )
-        return this_design_mat
-
-# TODO What does this function do?
 def split_time(timebase, subsplits_per_split=10, output_splits=6):
+    '''
+        Defines the timepoints for each cross validation split
+        timebase        vector for timestamps
+        output_splits   number of cross validation splits
+        subsplits_per_split     each cv split will be composed of this many continuous blocks
+
+        We have to compose each CV split of a bunch of subsplits to prevent issues  
+        time in session from distorting each CV split
+    
+        returns:
+        a list of CV splits. For each list element, a list of the timestamps in that CV split
+    '''
     num_timepoints = len(timebase)
     total_splits = output_splits * subsplits_per_split
 

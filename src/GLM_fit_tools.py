@@ -461,8 +461,10 @@ def get_ophys_frames_to_use(session, end_buffer=0.5):
     Returns:
         ophys_frames_to_use (np.array of bool): Boolean mask with which ophys frames to use
     '''
-    # filter out omitted flashes to avoid omitted flashes at start/end of session from affecting analysis range
-    filtered_stimulus_presentations = session.stimulus_presentations.query('omitted == False')
+    # filter out omitted flashes to avoid omitted flashes at the start of the session from affecting analysis range
+    filtered_stimulus_presentations = session.stimulus_presentations
+    while filtered_stimulus_presentations.iloc[0]['omitted'] == True:
+        filtered_stimulus_presentations = filtered_stimulus_presentations.iloc[1:]
     
     ophys_frames_to_use = (
         (session.ophys_timestamps > filtered_stimulus_presentations.iloc[0]['start_time']) 

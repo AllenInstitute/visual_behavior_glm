@@ -13,6 +13,7 @@ from visual_behavior.translator.allensdk_sessions import sdk_utils
 from visual_behavior.translator.allensdk_sessions import session_attributes
 from visual_behavior.ophys.response_analysis import response_processing as rp
 import visual_behavior.data_access.loading as loading
+from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
 
@@ -168,12 +169,14 @@ def fit_experiment(oeid, run_params):
 
     # Load Data
     print('Loading data')
-    session = load_data(oeid,run_params)
+    session = load_data(oeid)
 
     # Processing df/f data
     print('Processing df/f data')
     fit= dict()
-    fit['dff_trace_arr'], fit['dff_trace_timestamps'] = process_data(session)
+    fit['dff_trace_arr'] = process_data(session)
+    # extract shortened timestamp array from the 'dff_trace_arr' xarray
+    fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
     
     # Make Design Matrix
     print('Build Design Matrix')
@@ -200,25 +203,35 @@ def fit_experiment(oeid, run_params):
     print('Finished') 
     return session, fit, design
 
-def load_data(oeid,run_params):
+def load_data(oeid, dataframe_format='wide'):
     '''
-        Returns SDK session object
-        # Adds stimulus response and extended stimulus information
-        # Filter invalid ROIs
+        Returns Visual Behavior ResponseAnalysis object
+        Allen SDK dataset is an attribute of this object (session.dataset)
+        Keyword arguments:
+            oeid (int) -- ophys_experiment_id
+            dataframe_format (str) -- whether the response dataframes should be in 'wide' or 'tidy'/'long' formats (default = 'wide')
+                                      'wide' format is one row per stimulus/cell, with all timestamps and dff traces in a single cell
+                                      'tidy' or 'long' format has one row per timepoint (this format conforms to seaborn standards)
     '''
-    cache = BehaviorProjectCache.from_lims(manifest=run_params['manifest'])
-    session = cache.get_session_data(oeid)
-    # TODO, update this block to use the new VBA things
-    session_attributes.filter_invalid_rois_inplace(session)
-    sdk_utils.add_stimulus_presentations_analysis(session)
-    session.stimulus_response_df = rp.stimulus_response_df(rp.stimulus_response_xr(session))
+    dataset = loading.get_ophys_dataset(oeid, include_invalid_rois=False)
+    session = ResponseAnalysis(
+        dataset, 
+        overwrite_analysis_files=False, 
+        use_extended_stimulus_presentations=True, 
+        dataframe_format = dataframe_format
+    ) 
     return session
 
 def process_data(session):
     '''
-        TODO what else needs to be here?
-        clips off gray screen periods
-        returns the proper timestamps and dff
+    Processes dff traces by trimming off portions of recording session outside of the task period. These include:
+        * a ~5 minute gray screen period before the task begins
+        * a ~5 minute gray screen period after the task ends
+        * a 5-10 minute movie following the second gray screen period
+    
+    input -- session object
+
+    returns -- an xarray of of deltaF/F traces with dimensions [timestamps, cell_specimen_ids]
     '''
     dff_trace_timestamps = session.ophys_timestamps
 
@@ -229,7 +242,12 @@ def process_data(session):
     # Get the matrix of dff traces
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
 
-    return dff_trace_arr, dff_trace_timestamps
+    # some assert statements to ensure that dimensions are correct
+    assert len(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
+    assert len(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
+    assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
+
+    return dff_trace_arr
 
 def add_kernels(design, run_params,session, fit):
     '''
@@ -434,19 +452,23 @@ def toeplitz(events, kernel_length):
         arrays_list.append(np.roll(events, i+1))
     return np.vstack(arrays_list)[:,:total_len]
 
-def get_ophys_frames_to_use(session):
+def get_ophys_frames_to_use(session, end_buffer=0.5):
     '''
     Trims out the grey period at start, end, and the fingerprint.
     Args:
         session (allensdk.brain_observatory.behavior.behavior_ophys_session.BehaviorOphysSession)
+        end_buffer (float): duration in seconds to extend beyond end of last stimulus presentation (default = 0.5)
     Returns:
         ophys_frames_to_use (np.array of bool): Boolean mask with which ophys frames to use
     '''
-    #TODO what does this do when there is a random early omission?
+    # filter out omitted flashes to avoid omitted flashes at the start of the session from affecting analysis range
+    filtered_stimulus_presentations = session.stimulus_presentations
+    while filtered_stimulus_presentations.iloc[0]['omitted'] == True:
+        filtered_stimulus_presentations = filtered_stimulus_presentations.iloc[1:]
+    
     ophys_frames_to_use = (
-        session.ophys_timestamps > session.stimulus_presentations.iloc[0]['start_time']
-    ) & (
-        session.ophys_timestamps < session.stimulus_presentations.iloc[-1]['stop_time']+0.5
+        (session.ophys_timestamps > filtered_stimulus_presentations.iloc[0]['start_time']) 
+        & (session.ophys_timestamps < filtered_stimulus_presentations.iloc[-1]['stop_time'] + end_buffer)
     )
     return ophys_frames_to_use
 
@@ -465,6 +487,9 @@ def get_dff_arr(session, timestamps_to_use):
     dff_trace_timestamps = session.ophys_timestamps
     dff_trace_timestamps = dff_trace_timestamps[timestamps_to_use]
 
+    # Note: it may be more efficient to get the xarrays directly, rather than extracting/building them from session.dff_traces
+    #       The dataframes are built from xarrays to start with, so we are effectively converting them twice by doing this
+    #       But if there's no big time penalty to doing it this way, then maybe just leave it be.
     dff_trace_xr = xr.DataArray(
             data = all_dff_to_use.T,
             dims = ("dff_trace_timestamps", "cell_specimen_id"),

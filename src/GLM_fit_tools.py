@@ -145,6 +145,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'job_settings':job_settings,
         'kernels':kernels,
         'dropouts':dropouts,
+        'frame_duration':0.32,
         'CV_splits':5,
         'CV_subsplits':10
     }
@@ -182,9 +183,9 @@ def fit_experiment(oeid, run_params,load_with_SDK_utils=False):
     print('Processing df/f data')
     fit= dict()
     fit['dff_trace_arr'] = process_data(session)
-    # extract shortened timestamp array from the 'dff_trace_arr' xarray
     fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
-    
+    fit['dff_trace_bins'] = np.concatenate([fit['dff_trace_timestamps'],[fit['dff_trace_timestamps'][-1]+run_params['frame_duration']]])  
+ 
     # Make Design Matrix
     print('Build Design Matrix')
     design = DesignMatrix(fit['dff_trace_timestamps']) 
@@ -232,7 +233,7 @@ def evaluate_models(fit, design, run_params):
         n_params = X.shape[0]
         n_neurons= fit['dff_trace_arr'].shape[1]
 
-        dff = fit['dff_trace_arr'][:-1,:]
+        dff = fit['dff_trace_arr']
         X = X.T
         W = fit_regularized(dff, X,run_params['regularization_lambda'])     
         var_explain = variance_ratio(dff, W,X)
@@ -345,7 +346,7 @@ def add_kernel_by_label(kernel,design, run_params,session,fit):
         event_times = event_times[~np.isnan(event_times)]
     else:
         raise Exception('Could not resolve kernel label')
-    events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_timestamps'])
+    events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
     design.add_kernel(events_vec, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
     return design
 

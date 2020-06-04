@@ -7,13 +7,14 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import datetime
+from tqdm import tqdm
 
 from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
 from visual_behavior.translator.allensdk_sessions import sdk_utils
 from visual_behavior.translator.allensdk_sessions import session_attributes
 from visual_behavior.ophys.response_analysis import response_processing as rp
-import visual_behavior.data_access.loading as loading
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
+import visual_behavior.data_access.loading as loading
 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
 
@@ -164,17 +165,20 @@ def get_experiment_table(require_model_outputs = True):
     else:
         return experiments_table
 
-def fit_experiment(oeid, run_params):
+def fit_experiment(oeid, run_params,ALEX_TESTING=False):
     print("Fitting ophys_experiment_id: "+str(oeid)) 
 
     # Load Data
     print('Loading data')
-    session = load_data(oeid)
+    if ALEX_TESTING:
+        session = load_data_SDK_utils(oeid, run_params)
+    else:
+        session = load_data(oeid)
 
     # Processing df/f data
     print('Processing df/f data')
     fit= dict()
-    fit['dff_trace_arr'] = process_data(session)
+    fit['dff_trace_arr'] = process_data(session,ALEX_TESTING=ALEX_TESTING)
     # extract shortened timestamp array from the 'dff_trace_arr' xarray
     fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
     
@@ -189,9 +193,25 @@ def fit_experiment(oeid, run_params):
     splits = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
 
     # Set up kernels to drop for model selection
+        # Is a dictionary with keys the label for each dropout, and the value is a list
+        # of what to INCLUDE
+        # Should this actually get defined in the run JSON?
+    dropouts = {'Full':design.labels}
 
     # Iterate over model selections
+    for model_label in dropouts.keys():
+        print(model_label)    
+        # Set up design matrix for this dropout
+        X = design.get_X(kernels=dropouts[model_label])
+        n_params = X.shape[0]
+        n_neurons= fit['dff_trace_arr'].shape[1]
+
         # Iterate CV
+        cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(splits)))
+        cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(splits)))
+
+        for index, test_split in tqdm(enumerate(splits), total=len(splits), desc='Fitting model: {}'.format(model_label)):
+            x =2
 
     # Save Results
     print('Saving results')
@@ -202,6 +222,13 @@ def fit_experiment(oeid, run_params):
    
     print('Finished') 
     return session, fit, design
+
+def load_data_SDK_utils(oeid,run_params): # Adding in a hack to deal with VBA issues right now
+    cache = BehaviorProjectCache.from_lims(manifest=run_params['manifest'])
+    session = cache.get_session_data(oeid)
+    session_attributes.filter_invalid_rois_inplace(session)
+    sdk_utils.add_stimulus_presentations_analysis(session)
+    return session
 
 def load_data(oeid, dataframe_format='wide'):
     '''
@@ -222,7 +249,7 @@ def load_data(oeid, dataframe_format='wide'):
     ) 
     return session
 
-def process_data(session):
+def process_data(session,ALEX_TESTING=False):
     '''
     Processes dff traces by trimming off portions of recording session outside of the task period. These include:
         * a ~5 minute gray screen period before the task begins
@@ -242,10 +269,11 @@ def process_data(session):
     # Get the matrix of dff traces
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
 
-    # some assert statements to ensure that dimensions are correct
-    assert len(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
-    assert len(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
-    assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
+    if not ALEX_TESTING:
+        # some assert statements to ensure that dimensions are correct
+        assert len(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
+        assert len(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
+        assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
 
     return dff_trace_arr
 

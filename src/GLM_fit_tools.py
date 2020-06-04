@@ -274,6 +274,12 @@ def define_dropouts(kernels,kernel_definitions):
     return dropouts
 
 def evaluate_models(fit, design, run_params):
+    '''
+        Fits and evaluates each model defined in fit['dropouts']
+    
+        For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
+            It does this for the entire dataset as test and train. As well as CV, saving each test/train split
+    '''
     for model_label in fit['dropouts'].keys():
 
         # Set up design matrix for this dropout
@@ -312,6 +318,11 @@ def evaluate_models(fit, design, run_params):
     return fit 
 
 def build_dataframe_from_dropouts(fit):
+    '''
+        Returns a dataframe with 
+        Index: Cell specimen id
+        Columns: Average (across CV folds) variance explained on the test and training sets for each model defined in fit['dropouts']
+    '''
     cellids = fit['dff_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=cellids)
     for model_label in fit['dropouts'].keys():
@@ -321,7 +332,11 @@ def build_dataframe_from_dropouts(fit):
 
 
 def load_data_SDK_utils(oeid,run_params): 
-    # Adding in a hack to deal with VBA issues right now
+    '''
+        This function was used to development to load the session object from the SDK_utils function.
+        It will be removed soon. Do not use. 
+    '''
+    # TODO Remove this function
     print('Warning! Data is being loaded with SDK utils')
     cache = BehaviorProjectCache.from_lims(manifest=run_params['manifest'])
     session = cache.get_session_data(oeid)
@@ -420,10 +435,6 @@ def add_kernel_by_label(kernel,design, run_params,session,fit):
     design.add_kernel(events_vec, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
     return design
 
-
-
-######## DEV AFTER HERE
-
 class DesignMatrix(object):
     def __init__(self, event_timestamps, intercept=True):
         '''
@@ -449,6 +460,9 @@ class DesignMatrix(object):
             self.add_kernel(np.ones(len(event_timestamps)), 1, 'intercept', 0)
 
     def kernel_dict(self):
+        '''
+            Returns a dictionary of the kernels that have been added. 
+        '''
         return {label:kernel for label, kernel in zip(self.labels, self.kernel_list)}
 
     def get_X(self, kernels=None):
@@ -507,32 +521,6 @@ class DesignMatrix(object):
         #Keep track of labels
         self.labels.append(label)
 
-#    def test_get_kernel(self, label):
-#        kernel_ind = self.labels.index(label)
-#        kernel_start = self.ind_start[kernel_ind]
-#        kernel_stop = self.ind_stop[kernel_ind]
-#        assert np.all(self.get_X[kernel_start:kernel_stop, :] == self.kernel_list[kernel_ind])
-
-#    #TODO: I need to define the schema somehow. Perhaps just have a complementary `write_json` method.
-#    @classmethod
-#    def from_json(cls, json_path):
-#        '''
-#        Make a design matrix from a json file. 
-#        The json schema has individual timestamps, so need to histogram them. 
-#        '''
-#        with open(json_path, 'r') as json_data:
-#            json_data = json.load(json_data)
-#
-#        this_design_mat = cls(np.array(json_data['timestamps'])[:-1])
-#        for kernel_dict in json_data['kernels']:
-#            events_vec, _ = np.histogram(kernel_dict['times'], bins=json_data['timestamps'])
-#            this_design_mat.add_kernel(events=events_vec,
-#                                       label=kernel_dict['label'],
-#                                       kernel_length=kernel_dict['kernel_length'],
-#                                       offset=kernel_dict['kernel_offset']
-#                                       )
-#        return this_design_mat
-
 def split_time(timebase, subsplits_per_split=10, output_splits=6):
     '''
         Defines the timepoints for each cross validation split
@@ -562,8 +550,6 @@ def split_time(timebase, subsplits_per_split=10, output_splits=6):
         inds_this_split = np.concatenate([split_inds[sub_ind] for sub_ind in subsplits_this_split])
         output_split_inds.append(inds_this_split)
     return output_split_inds
-
-
 
 def toeplitz(events, kernel_length):
     '''
@@ -607,15 +593,14 @@ def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
 def get_dff_arr(session, timestamps_to_use):
     '''
     Get the dff traces from a session in xarray format (preserves cell ids and timestamps)
+
+    timestamps_to_use is a boolean vector that contains which timestamps to use in the analysis
     '''
+    # Get dff and trim off ends
     all_dff = np.stack(session.dff_traces['dff'].values)
     all_dff_to_use = all_dff[:, timestamps_to_use]
 
-    #Predictors get binned against dff timestamps, so throw the last bin edge
-    #all_dff_to_use = all_dff_to_use[:, :-1]
-
-    # Return a (n_timepoints, n_cells) array
-
+    # Get the timestamps
     dff_trace_timestamps = session.ophys_timestamps
     dff_trace_timestamps_to_use = dff_trace_timestamps[timestamps_to_use]
 
@@ -669,151 +654,5 @@ def variance_ratio(dff_trace_arr, W, X): # TODO Double check this function
     var_resid = np.var(dff_trace_arr-Y, axis=0) #Residual variance
     return (var_total - var_resid) / var_total
 
-##### Evaluation/visualization functions (potentially not up to date) below here #######
 
-def all_cells_psth(dff_traces_arr, ophys_timestamps, flash_time_gb, change_events):
 
-    # Get psth for each flash
-    all_psth = {}
-    for image_name in flash_time_gb.index.levels[0].values:
-        times_this_image = flash_time_gb[image_name].values
-        dff_frames_this_image = rp.index_of_nearest_value(ophys_timestamps, times_this_image)
-        dff_frames_this_image = dff_frames_this_image[
-            (len(ophys_timestamps) - dff_frames_this_image > 31)
-        ]
-        data_this_image = rp.eventlocked_traces(dff_traces_arr, dff_frames_this_image,
-                                                0, 30)
-        psth_this_image = data_this_image.mean(axis=1)
-        all_psth.update({image_name:psth_this_image})
-
-    # Get psth for average change effect
-    dff_frames_changes = rp.index_of_nearest_value(ophys_timestamps, change_events)
-    dff_frames_changes = dff_frames_changes[
-        (len(ophys_timestamps) - dff_frames_changes > 101)
-    ]
-    data_changes = rp.eventlocked_traces(dff_traces_arr, dff_frames_changes,
-                                            0, 100)
-    psth_changes = data_changes.mean(axis=1)
-    all_psth.update({'change':psth_changes})
-    
-    return all_psth
-
-def split_filters(W, image_names):
-    '''
-    W: n_params, n_cells
-    image_names: list of strings
-    '''
-
-    start=0
-    all_filters = {}
-    for ind_image, image_name in enumerate(image_names):
-        all_filters.update({image_name:W[start:start+30, :]})
-        start += 30
-    all_filters.update({'change':W[start:]})
-    return all_filters
-
-# TODO what does this function do?
-def compare_filter_and_psth(ind_cell, dff_traces_arr, ophys_timestamps, flash_time_gb, change_events, all_W):
-    all_psths = all_cells_psth(dff_traces_arr.T, ophys_timestamps, flash_time_gb, change_events)
-    image_names = flash_time_gb.index.levels[0].values
-    all_filters_mean = split_filters(all_W.mean(axis=2), image_names)
-    all_filters_std = split_filters(all_W.std(axis=2), image_names)
-    plt.figure()
-    num_images = len(image_names)
-    for ind_image, image_name in enumerate(image_names):
-        plt.subplot(num_images+1, 1, ind_image+1)
-        this_psth = all_psths[image_name][:,ind_cell]
-        this_filter_mean = all_filters_mean[image_name][:,ind_cell]
-        this_filter_std = all_filters_std[image_name][:,ind_cell]
-        plt.plot(this_psth, 'k-')
-        plt.plot(this_filter_mean, 'r--')
-        plt.plot(this_filter_mean+this_filter_std, 'r--', alpha=0.5)
-        plt.plot(this_filter_mean-this_filter_std, 'r--', alpha=0.5)
-        plt.ylabel(image_name)
-
-    # Average change
-    plt.subplot(num_images+1, 1, ind_image+2)
-    this_psth = all_psths['change'][:,ind_cell]
-    this_filter_mean = all_filters_mean['change'][:,ind_cell]
-    this_filter_std = all_filters_std['change'][:,ind_cell]
-    plt.plot(this_psth, 'k-')
-    plt.plot(this_filter_mean, 'r--')
-    plt.plot(this_filter_mean+this_filter_std, 'r--', alpha=0.5)
-    plt.plot(this_filter_mean-this_filter_std, 'r--', alpha=0.5)
-    plt.ylabel('change')
-
-def compare_all_filters_and_psth(ind_cell, dff_traces_arr, ophys_timestamps, flash_time_gb, change_events, all_W):
-    all_psths = all_cells_psth(dff_traces_arr.T, ophys_timestamps, flash_time_gb, change_events)
-    image_names = flash_time_gb.index.levels[0].values
-    #  all_filters_mean = split_filters(all_W.mean(axis=2), image_names)
-    #  all_filters_std = split_filters(all_W.std(axis=2), image_names)
-    plt.figure()
-    num_images = len(image_names)
-    for ind_split in range(6):
-        filters_this_split = split_filters(all_W[:, :, ind_split], image_names)
-        for ind_image, image_name in enumerate(image_names):
-            plt.subplot(num_images+1, 1, ind_image+1)
-            this_psth = all_psths[image_name][:,ind_cell]
-
-            this_filter = filters_this_split[image_name][:,ind_cell]
-            plt.plot(this_psth, 'k-')
-            plt.plot(this_filter, 'r--')
-            plt.ylabel(image_name)
-
-def plot_filters(w, image_names):
-    num_subplots = len(image_names)+2
-    fig, axes = plt.subplots(3, 1)
-    start=0
-    for ind_image, image_name in enumerate(image_names):
-        #  plt.subplot(num_subplots, 1, ind_image+1)
-        axes[0].plot(np.linspace(0, 1-1/31, 30), w[start:start+30], label=image_name)
-        #  plt.title(image_name)
-        #  plt.plot(w[start:start+30])
-        start += 30
-    axes[0].legend()
-
-    #  plt.subplot(num_subplots, 1, num_subplots)
-    axes[1].plot(np.arange(0, 100/31, 1/31), w[start:start+100], label='change')
-    start += 100
-    axes[1].legend()
-    
-    axes[2].plot(np.arange(0, 100/31, 1/31), w[start:], label='reward')
-    axes[2].legend()
-
-def pref_stim(session, cell_ind):
-    csid = session.dff_traces.iloc[cell_ind].name
-    stim_id = session.stimulus_response_df.query('cell_specimen_id==@csid and pref_stim').iloc[0]['stimulus_presentations_id']
-    return session.stimulus_presentations.loc[stim_id]['image_name']
-
-def fit_and_evaluate(session, ind_cell, X):
-    dff_trace, w = fit_cell(session, ind_cell, X)
-    plot_filters(w, image_names)
-    var_explained = variance_ratio(dff_trace, w, X)
-    actual_pref = pref_stim(session, ind_cell)
-    plt.suptitle('var explained: {}\npref stim: {}'.format(var_explained, actual_pref))
-    plt.tight_layout()
-
-def pref_image_filter(w, image_names):
-    start=0
-    filter_sums = np.empty(len(image_names))
-    for ind_image, image_name in enumerate(image_names):
-        filter_sums[ind_image] = np.sum(w[start:start+30])
-        start += 30
-    return image_names[np.argmax(filter_sums)]
-
-def plot_cv_train_test(cv_train, cv_test, lambda_vals):
-    train_mean = cv_train.mean((0, 1))
-    test_mean = cv_test.mean((0, 1))
-    fig, ax1 = plt.subplots()
-    ax1.plot(test_mean, color='r')
-    ax1.set_ylabel('cv var explained, test')
-    ax1.tick_params(axis='y', labelcolor='r')
-
-    ax2 = ax1.twinx()
-    ax2.plot(train_mean, 'k')
-    ax2.set_ylabel('cv var explained, train')
-    ax2.tick_params(axis='y', labelcolor='k')
-
-    ax1.set_xticks(range(len(lambda_vals)))
-    ax1.set_xticklabels(np.round(lambda_vals, 2), rotation='vertical')
-    ax1.set_xlabel('lambdas')

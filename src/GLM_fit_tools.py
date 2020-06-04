@@ -237,12 +237,13 @@ def evaluate_models(fit, design, run_params):
         Xall = X.T
         Wall = fit_regularized(dff, Xall,run_params['regularization_lambda'])     
         var_explain = variance_ratio(dff, Wall,Xall)
-        fit['dropouts'][model_label]['variance_explained']=var_explain
         fit['dropouts'][model_label]['weights'] = Wall
+        fit['dropouts'][model_label]['variance_explained']=var_explain
 
         # Iterate CV
         cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        cv_weights = np.empty((np.shape(Wall)[0], np.shape(Wall)[1], len(fit['splits'])))
 
         for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
             train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
@@ -253,9 +254,12 @@ def evaluate_models(fit, design, run_params):
             W = fit_regularized(dff_train, X_train, run_params['regularization_lambda'])
             cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
             cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
+            cv_weights[:,:,index] = W
 
+        fit['dropouts'][model_label]['cv_weights'] = cv_weights
         fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
         fit['dropouts'][model_label]['cv_var_test'] = cv_var_test
+
     return fit 
 
 def build_dataframe_from_dropouts(fit):

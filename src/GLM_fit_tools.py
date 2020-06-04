@@ -123,6 +123,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         #'any-image':    {'length':30, 'offset':0},
         #'each-image':   {'length':30, 'offset':0}
     }
+    dropouts = define_dropouts(kernels)
 
     # Make JSON file with parameters
     run_params = {
@@ -143,6 +144,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'kernels':kernels,
+        'dropouts':dropouts,
         'CV_splits':5,
         'CV_subsplits':10
     }
@@ -196,7 +198,7 @@ def fit_experiment(oeid, run_params,ALEX_TESTING=False):
 
     # Set up kernels to drop for model selection
     print('Setting up model selection dropout')
-    fit = define_dropouts(fit,design)
+    fit['dropouts'] = run_params['dropouts']
 
     # Iterate over model selections
     print('Iterating over model selection')
@@ -212,17 +214,15 @@ def fit_experiment(oeid, run_params,ALEX_TESTING=False):
     print('Finished') 
     return session, fit, design
 
-def define_dropouts(fit, design):
+def define_dropouts(kernels):
         # Is a dictionary with keys the label for each dropout, and the value is a list
         # of what to INCLUDE
-        # This should be defined in the run JSON
         # TODO This needs to be implemented properly
-    fit['dropouts'] = {
-        'Full': {'kernels':copy(design.labels)},
-        'licks':{'kernels':copy(design.labels)} 
-        }
-    fit['dropouts']['licks']['kernels'].remove('licks')
-    return fit
+    dropouts = {'Full': {'kernels':list(kernels.keys())}}
+    for kernel in kernels.keys():
+        dropouts[kernel]={'kernels':list(kernels.keys())}
+        dropouts[kernel]['kernels'].remove(kernel)
+    return dropouts
 
 def evaluate_models(fit, design, run_params):
     for model_label in fit['dropouts'].keys():

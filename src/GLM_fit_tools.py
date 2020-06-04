@@ -115,12 +115,14 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
 
     # Define Kernels
     # TODO specify length and offset in units of seconds, rather than bin size?
-    # TODO do mesoscope and scientific have different sampling rates?
+    # TODO mesoscope and scientific have different sampling rates
+    # TODO intelligently pick the offset and length for each kernel
     kernels = {
         'licks':        {'length':30, 'offset':-10},
         'rewards':      {'length':115, 'offset':-15}, 
-        'change':       {'length':100, 'offset':0}
-        #'any-image':    {'length':30, 'offset':0},
+        'change':       {'length':100, 'offset':0},
+        'any-image':    {'length':30, 'offset':0},
+        'omissions':    {'length':30, 'offset':0}
         #'each-image':   {'length':30, 'offset':0}
     }
     dropouts = define_dropouts(kernels)
@@ -145,7 +147,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'job_settings':job_settings,
         'kernels':kernels,
         'dropouts':dropouts,
-        'frame_duration':0.32,
+        'frame_duration':0.32, # TODO this depends on the imaging rig, so needs to get added later
         'CV_splits':5,
         'CV_subsplits':10
     }
@@ -359,6 +361,10 @@ def add_kernel_by_label(kernel,design, run_params,session,fit):
     elif kernel == 'change':
         event_times = session.dataset.trials.query('go')['change_time'].values
         event_times = event_times[~np.isnan(event_times)]
+    elif kernel == 'any-image':
+        event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
+    elif kernel == 'omissions':
+        event_times = session.dataset.stimulus_presentations.query('omitted')['start_time'].values
     else:
         raise Exception('Could not resolve kernel label')
     events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])

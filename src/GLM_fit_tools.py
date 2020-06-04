@@ -121,9 +121,9 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'licks':        {'length':30, 'offset':-10},
         'rewards':      {'length':115, 'offset':-15}, 
         'change':       {'length':100, 'offset':0},
-        'any-image':    {'length':30, 'offset':0},
-        'omissions':    {'length':30, 'offset':0},
-        'each-image':   {'length':30, 'offset':0}
+        #'any-image':    {'length':23, 'offset':0},
+        'omissions':    {'length':23, 'offset':0},
+        'each-image':   {'length':23, 'offset':0}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -222,6 +222,8 @@ def process_kernels(kernels):
     '''
         Replaces the 'each-image' kernel with each individual image (not omissions), with the same parameters
     '''
+    if ('each-image' in kernels) & ('any-image' in kernels):
+        raise Exception('Including both each-image and any-image kernels makes the model unstable')
     if 'each-image' in kernels:
         specs = kernels.pop('each-image')
         for index, val in enumerate(range(0,8)):

@@ -185,8 +185,8 @@ def fit_experiment(oeid, run_params,ALEX_TESTING=False):
     
     # Make Design Matrix
     print('Build Design Matrix')
-    design = DesignMatrix(fit['dff_trace_timestamps'][:-1])
-    
+    design = DesignMatrix(fit['dff_trace_timestamps'][:-1]) 
+
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
 
@@ -218,25 +218,41 @@ def define_dropouts(fit, design):
         # This should be defined in the run JSON
         # TODO This needs to be implemented properly
     fit['dropouts'] = {
-        'Full':copy(design.labels),
-        'licks':copy(design.labels) 
+        'Full': {'kernels':copy(design.labels)},
+        'licks':{'kernels':copy(design.labels)} 
         }
-    fit['dropouts']['licks'].remove('licks')
+    fit['dropouts']['licks']['kernels'].remove('licks')
     return fit
 
 def evaluate_models(fit, design, run_params):
     for model_label in fit['dropouts'].keys():
+
         # Set up design matrix for this dropout
-        X = design.get_X(kernels=fit['dropouts'][model_label])
+        X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
         n_params = X.shape[0]
         n_neurons= fit['dff_trace_arr'].shape[1]
 
-        # Iterate CV
-        cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
-        cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        dff = fit['dff_trace_arr'][:-1,:]
+        X = X.T
+        W = fit_regularized(dff, X,run_params['regularization_lambda'])     
+        var_explain = variance_ratio(dff, W,X)
+        fit['dropouts'][model_label]['variance_explained']=var_explain
 
-        for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
-            x =2
+        # Iterate CV
+        #cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        #cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+
+        #for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
+        #    train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
+            #X_test = X[:,test_split].T
+            #X_train = X[:,train_split].T
+            #dff_train = dff_trace_arr[train_split,:]
+            #dff_test = dff_trace_arr[test_split,:]
+            #X_train = X.T
+            #dff_train = fit['dff_trace_arr']
+            #W = fit_regularized(dff_train, X_train, run_params['regularization_lambda'])
+            #cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
+            #cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
     return fit 
 
 def load_data_SDK_utils(oeid,run_params): # Adding in a hack to deal with VBA issues right now
@@ -563,9 +579,12 @@ def fit_regularized(dff_trace_arr, X, lam):
     X: shape (n_timestamps * n_kernel_params)
     lam (float): Strength of L2 regularization (hyperparameter to tune)
     '''
-    W = np.dot(np.linalg.inv(np.dot(X.T, X) + lam * np.eye(X.shape[-1])),
+    if lam == 0:
+        return fit(dff_trace_arr,X)
+    else:
+        W = np.dot(np.linalg.inv(np.dot(X.T, X) + lam * np.eye(X.shape[-1])),
                np.dot(X.T, dff_trace_arr))
-    return W
+        return W
 
 def variance_ratio(dff_trace_arr, W, X):
     '''

@@ -173,15 +173,12 @@ def get_experiment_table(require_model_outputs = True):
     else:
         return experiments_table
 
-def fit_experiment(oeid, run_params,load_with_SDK_utils=False):
+def fit_experiment(oeid, run_params):
     print("Fitting ophys_experiment_id: "+str(oeid)) 
 
     # Load Data
     print('Loading data')
-    if load_with_SDK_utils:
-        session = load_data_SDK_utils(oeid, run_params)
-    else:
-        session = load_data(oeid)
+    session = load_data(oeid)
 
     # Processing df/f data
     print('Processing df/f data')
@@ -329,20 +326,6 @@ def build_dataframe_from_dropouts(fit):
         results[model_label+"_avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1)
         results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1)
     return results
-
-
-def load_data_SDK_utils(oeid,run_params): 
-    '''
-        This function was used to development to load the session object from the SDK_utils function.
-        It will be removed soon. Do not use. 
-    '''
-    # TODO Remove this function
-    print('Warning! Data is being loaded with SDK utils')
-    cache = BehaviorProjectCache.from_lims(manifest=run_params['manifest'])
-    session = cache.get_session_data(oeid)
-    session_attributes.filter_invalid_rois_inplace(session)
-    sdk_utils.add_stimulus_presentations_analysis(session)
-    return session
 
 def load_data(oeid, dataframe_format='wide'):
     '''

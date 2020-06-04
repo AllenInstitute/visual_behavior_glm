@@ -6,6 +6,7 @@ import pickle
 import xarray as xr
 import numpy as np
 import pandas as pd
+import scipy 
 import datetime
 from tqdm import tqdm
 from copy import copy
@@ -214,7 +215,18 @@ def fit_experiment(oeid, run_params,load_with_SDK_utils=False):
     file_temp = open(filepath, 'wb')
     pickle.dump(fit, file_temp)
     file_temp.close()  
-   
+    
+    # Save Design Matrix
+    print('Saving Design Matrix')  
+    sparse_X = scipy.sparse.csc_matrix(design.get_X().T)
+    filepath = run_params['experiment_output_dir']+'X_sparse_csc_'+str(oeid)+'.npz'
+    scipy.sparse.save_npz(filepath, sparse_X)
+
+    # Save Event Table
+    print('Saving Events Table')
+    filepath = run_params['experiment_output_dir']+'event_times_'+str(oeid)+'.h5'
+    pd.DataFrame(design.events).to_hdf(filepath,key='df')
+
     print('Finished') 
     return session, fit, design
 
@@ -275,6 +287,7 @@ def evaluate_models(fit, design, run_params):
         var_explain = variance_ratio(dff, Wall,Xall)
         fit['dropouts'][model_label]['weights'] = Wall
         fit['dropouts'][model_label]['variance_explained']=var_explain
+        fit['dropouts'][model_label]['full_model_train_prediction'] =  Xall @ Wall
 
         # Iterate CV
         cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))

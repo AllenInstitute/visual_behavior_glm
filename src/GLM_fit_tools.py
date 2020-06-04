@@ -217,7 +217,7 @@ def fit_experiment(oeid, run_params,ALEX_TESTING=False):
 def define_dropouts(kernels):
         # Is a dictionary with keys the label for each dropout, and the value is a list
         # of what to INCLUDE
-        # TODO This needs to be implemented properly
+        # TODO This needs to handle more complicated dropouts, as well as each-image and any-image 
     dropouts = {'Full': {'kernels':list(kernels.keys())}}
     for kernel in kernels.keys():
         dropouts[kernel]={'kernels':list(kernels.keys())}

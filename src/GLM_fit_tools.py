@@ -149,7 +149,6 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'job_settings':job_settings,
         'kernels':kernels,
         'dropouts':dropouts,
-        'frame_duration':0.32, # TODO this depends on the imaging rig, so needs to get added later
         'CV_splits':5,
         'CV_subsplits':10
     }
@@ -185,6 +184,7 @@ def fit_experiment(oeid, run_params):
     fit= dict()
     fit['dff_trace_arr'] = process_data(session)
     fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
+    run_params['frame_duration'] = np.mean(np.diff(fit['dff_trace_timestamps']))
     fit['dff_trace_bins'] = np.concatenate([fit['dff_trace_timestamps'],[fit['dff_trace_timestamps'][-1]+run_params['frame_duration']]])  
  
     # Make Design Matrix

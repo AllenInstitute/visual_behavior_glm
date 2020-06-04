@@ -7,13 +7,15 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import datetime
+from tqdm import tqdm
+from copy import copy
 
 from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
 from visual_behavior.translator.allensdk_sessions import sdk_utils
 from visual_behavior.translator.allensdk_sessions import session_attributes
 from visual_behavior.ophys.response_analysis import response_processing as rp
-import visual_behavior.data_access.loading as loading
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
+import visual_behavior.data_access.loading as loading
 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
 
@@ -121,6 +123,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         #'any-image':    {'length':30, 'offset':0},
         #'each-image':   {'length':30, 'offset':0}
     }
+    dropouts = define_dropouts(kernels)
 
     # Make JSON file with parameters
     run_params = {
@@ -141,6 +144,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'kernels':kernels,
+        'dropouts':dropouts,
         'CV_splits':5,
         'CV_subsplits':10
     }
@@ -164,12 +168,15 @@ def get_experiment_table(require_model_outputs = True):
     else:
         return experiments_table
 
-def fit_experiment(oeid, run_params):
+def fit_experiment(oeid, run_params,load_with_SDK_utils=False):
     print("Fitting ophys_experiment_id: "+str(oeid)) 
 
     # Load Data
     print('Loading data')
-    session = load_data(oeid)
+    if load_with_SDK_utils:
+        session = load_data_SDK_utils(oeid, run_params)
+    else:
+        session = load_data(oeid)
 
     # Processing df/f data
     print('Processing df/f data')
@@ -180,18 +187,22 @@ def fit_experiment(oeid, run_params):
     
     # Make Design Matrix
     print('Build Design Matrix')
-    design = DesignMatrix(fit['dff_trace_timestamps'][:-1])
-    
+    design = DesignMatrix(fit['dff_trace_timestamps']) 
+
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
 
     # Set up CV splits
-    splits = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
+    print('Setting up CV')
+    fit['splits'] = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
 
     # Set up kernels to drop for model selection
+    print('Setting up model selection dropout')
+    fit['dropouts'] = run_params['dropouts']
 
     # Iterate over model selections
-        # Iterate CV
+    print('Iterating over model selection')
+    fit = evaluate_models(fit, design, run_params)
 
     # Save Results
     print('Saving results')
@@ -202,6 +213,56 @@ def fit_experiment(oeid, run_params):
    
     print('Finished') 
     return session, fit, design
+
+def define_dropouts(kernels):
+        # Is a dictionary with keys the label for each dropout, and the value is a list
+        # of what to INCLUDE
+        # TODO This needs to handle more complicated dropouts, as well as each-image and any-image 
+    dropouts = {'Full': {'kernels':list(kernels.keys())}}
+    for kernel in kernels.keys():
+        dropouts[kernel]={'kernels':list(kernels.keys())}
+        dropouts[kernel]['kernels'].remove(kernel)
+    return dropouts
+
+def evaluate_models(fit, design, run_params):
+    for model_label in fit['dropouts'].keys():
+
+        # Set up design matrix for this dropout
+        X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
+        n_params = X.shape[0]
+        n_neurons= fit['dff_trace_arr'].shape[1]
+
+        dff = fit['dff_trace_arr'][:-1,:]
+        X = X.T
+        W = fit_regularized(dff, X,run_params['regularization_lambda'])     
+        var_explain = variance_ratio(dff, W,X)
+        fit['dropouts'][model_label]['variance_explained']=var_explain
+
+        # Iterate CV
+        #cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        #cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+
+        #for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
+        #    train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
+            #X_test = X[:,test_split].T
+            #X_train = X[:,train_split].T
+            #dff_train = dff_trace_arr[train_split,:]
+            #dff_test = dff_trace_arr[test_split,:]
+            #X_train = X.T
+            #dff_train = fit['dff_trace_arr']
+            #W = fit_regularized(dff_train, X_train, run_params['regularization_lambda'])
+            #cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
+            #cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
+    return fit 
+
+def load_data_SDK_utils(oeid,run_params): 
+    # Adding in a hack to deal with VBA issues right now
+    print('Warning! Data is being loaded with SDK utils')
+    cache = BehaviorProjectCache.from_lims(manifest=run_params['manifest'])
+    session = cache.get_session_data(oeid)
+    session_attributes.filter_invalid_rois_inplace(session)
+    sdk_utils.add_stimulus_presentations_analysis(session)
+    return session
 
 def load_data(oeid, dataframe_format='wide'):
     '''
@@ -222,7 +283,7 @@ def load_data(oeid, dataframe_format='wide'):
     ) 
     return session
 
-def process_data(session):
+def process_data(session,ignore_errors=False):
     '''
     Processes dff traces by trimming off portions of recording session outside of the task period. These include:
         * a ~5 minute gray screen period before the task begins
@@ -233,18 +294,17 @@ def process_data(session):
 
     returns -- an xarray of of deltaF/F traces with dimensions [timestamps, cell_specimen_ids]
     '''
-    dff_trace_timestamps = session.ophys_timestamps
 
     # clip off the grey screen periods
+    dff_trace_timestamps = session.ophys_timestamps
     timestamps_to_use = get_ophys_frames_to_use(session)
-    dff_trace_timestamps = dff_trace_timestamps[timestamps_to_use]
 
     # Get the matrix of dff traces
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
 
     # some assert statements to ensure that dimensions are correct
-    assert len(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
-    assert len(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
+    assert np.sum(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
+    assert np.sum(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
     assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
 
     return dff_trace_arr
@@ -275,13 +335,13 @@ def add_kernel_by_label(kernel,design, run_params,session,fit):
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
-    print('Adding kernel: '+kernel)
+    print('    Adding kernel: '+kernel)
     if kernel == 'licks':
-        event_times = session.licks['timestamps'].values
+        event_times = session.dataset.licks['timestamps'].values
     elif kernel == 'rewards':
-        event_times = session.rewards['timestamps'].values
+        event_times = session.dataset.rewards['timestamps'].values
     elif kernel == 'change':
-        event_times = session.trials.query('go')['change_time'].values
+        event_times = session.dataset.trials.query('go')['change_time'].values
         event_times = event_times[~np.isnan(event_times)]
     else:
         raise Exception('Could not resolve kernel label')
@@ -452,12 +512,13 @@ def toeplitz(events, kernel_length):
         arrays_list.append(np.roll(events, i+1))
     return np.vstack(arrays_list)[:,:total_len]
 
-def get_ophys_frames_to_use(session, end_buffer=0.5):
+def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
     '''
     Trims out the grey period at start, end, and the fingerprint.
     Args:
         session (allensdk.brain_observatory.behavior.behavior_ophys_session.BehaviorOphysSession)
         end_buffer (float): duration in seconds to extend beyond end of last stimulus presentation (default = 0.5)
+        stim_dur (float): duration in seconds of stimulus presentations
     Returns:
         ophys_frames_to_use (np.array of bool): Boolean mask with which ophys frames to use
     '''
@@ -468,7 +529,7 @@ def get_ophys_frames_to_use(session, end_buffer=0.5):
     
     ophys_frames_to_use = (
         (session.ophys_timestamps > filtered_stimulus_presentations.iloc[0]['start_time']) 
-        & (session.ophys_timestamps < filtered_stimulus_presentations.iloc[-1]['stop_time'] + end_buffer)
+        & (session.ophys_timestamps < filtered_stimulus_presentations.iloc[-1]['start_time'] +stim_dur+ end_buffer)
     )
     return ophys_frames_to_use
 
@@ -480,12 +541,12 @@ def get_dff_arr(session, timestamps_to_use):
     all_dff_to_use = all_dff[:, timestamps_to_use]
 
     #Predictors get binned against dff timestamps, so throw the last bin edge
-    all_dff_to_use = all_dff_to_use[:, :-1]
+    #all_dff_to_use = all_dff_to_use[:, :-1]
 
     # Return a (n_timepoints, n_cells) array
 
     dff_trace_timestamps = session.ophys_timestamps
-    dff_trace_timestamps = dff_trace_timestamps[timestamps_to_use]
+    dff_trace_timestamps_to_use = dff_trace_timestamps[timestamps_to_use]
 
     # Note: it may be more efficient to get the xarrays directly, rather than extracting/building them from session.dff_traces
     #       The dataframes are built from xarrays to start with, so we are effectively converting them twice by doing this
@@ -494,7 +555,7 @@ def get_dff_arr(session, timestamps_to_use):
             data = all_dff_to_use.T,
             dims = ("dff_trace_timestamps", "cell_specimen_id"),
             coords = {
-                "dff_trace_timestamps": dff_trace_timestamps[:-1],
+                "dff_trace_timestamps": dff_trace_timestamps_to_use,
                 "cell_specimen_id": session.cell_specimen_table.index.values
             }
         )
@@ -519,11 +580,14 @@ def fit_regularized(dff_trace_arr, X, lam):
     X: shape (n_timestamps * n_kernel_params)
     lam (float): Strength of L2 regularization (hyperparameter to tune)
     '''
-    W = np.dot(np.linalg.inv(np.dot(X.T, X) + lam * np.eye(X.shape[-1])),
+    if lam == 0:
+        return fit(dff_trace_arr,X)
+    else:
+        W = np.dot(np.linalg.inv(np.dot(X.T, X) + lam * np.eye(X.shape[-1])),
                np.dot(X.T, dff_trace_arr))
-    return W
+        return W
 
-def variance_ratio(dff_trace_arr, W, X):
+def variance_ratio(dff_trace_arr, W, X): # TODO Double check this function
     '''
     dff_trace_arr: (n_timepoints, n_cells)
     W: (n_kernel_params, n_cells)

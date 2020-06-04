@@ -117,15 +117,16 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
     # TODO specify length and offset in units of seconds, rather than bin size?
     # TODO mesoscope and scientific have different sampling rates
     # TODO intelligently pick the offset and length for each kernel
-    kernels = {
+    kernels_orig = {
         'licks':        {'length':30, 'offset':-10},
         'rewards':      {'length':115, 'offset':-15}, 
         'change':       {'length':100, 'offset':0},
         'any-image':    {'length':30, 'offset':0},
-        'omissions':    {'length':30, 'offset':0}
-        #'each-image':   {'length':30, 'offset':0}
+        'omissions':    {'length':30, 'offset':0},
+        'each-image':   {'length':30, 'offset':0}
     }
-    dropouts = define_dropouts(kernels)
+    kernels = process_kernels(copy(kernels_orig))
+    dropouts = define_dropouts(kernels,kernels_orig)
 
     # Make JSON file with parameters
     run_params = {
@@ -201,7 +202,7 @@ def fit_experiment(oeid, run_params,load_with_SDK_utils=False):
 
     # Set up kernels to drop for model selection
     print('Setting up model selection dropout')
-    fit['dropouts'] = run_params['dropouts']
+    fit['dropouts'] = copy(run_params['dropouts'])
 
     # Iterate over model selections
     print('Iterating over model selection')
@@ -217,14 +218,45 @@ def fit_experiment(oeid, run_params,load_with_SDK_utils=False):
     print('Finished') 
     return session, fit, design
 
-def define_dropouts(kernels):
-        # Is a dictionary with keys the label for each dropout, and the value is a list
-        # of what to INCLUDE
-        # TODO This needs to handle more complicated dropouts, as well as each-image and any-image 
+def process_kernels(kernels):
+    '''
+        Replaces the 'each-image' kernel with each individual image (not omissions), with the same parameters
+    '''
+    if 'each-image' in kernels:
+        specs = kernels.pop('each-image')
+        for index, val in enumerate(range(0,8)):
+            kernels['image'+str(val)] = copy(specs)
+    return kernels
+ 
+def define_dropouts(kernels,kernel_definitions):
+    '''
+        Creates a dropout dictionary. Each key is the label for the dropout, and the value is a list of kernels to include
+        Creates a dropout for each kernel by removing just that kernel.
+        In addition creates a 'visual' dropout by removing 'any-image' and 'each-image' and 'omissions'
+        If 'each-image' is in the kernel_definitions, then creates a dropout 'each-image' with all 8 images removed
+    '''
+    # Remove each kernel one-by-one
     dropouts = {'Full': {'kernels':list(kernels.keys())}}
     for kernel in kernels.keys():
         dropouts[kernel]={'kernels':list(kernels.keys())}
         dropouts[kernel]['kernels'].remove(kernel)
+
+    # Removes all individual image kernels
+    if 'each-image' in kernel_definitions:
+        dropouts['all-images'] = {'kernels':list(kernels.keys())}
+        for i in range(0,8):
+            dropouts['all-images']['kernels'].remove('image'+str(i))
+
+    # Removes all Stimulus Kernels
+    dropouts['visual'] = {'kernels':list(kernels.keys())}
+    if 'each-image' in kernel_definitions:
+        for i in range(0,8):
+            dropouts['visual']['kernels'].remove('image'+str(i))
+    if 'omissions' in kernel_definitions:
+        dropouts['visual']['kernels'].remove('omissions')
+    if 'any-image' in kernel_definitions:
+        dropouts['visual']['kernels'].remove('any-image')
+
     return dropouts
 
 def evaluate_models(fit, design, run_params):
@@ -365,6 +397,8 @@ def add_kernel_by_label(kernel,design, run_params,session,fit):
         event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
     elif kernel == 'omissions':
         event_times = session.dataset.stimulus_presentations.query('omitted')['start_time'].values
+    elif (len(kernel)>5) & (kernel[0:5] == 'image'):
+        event_times = session.dataset.stimulus_presentations.query('image_index == @kernel[-1]')['start_time'].values
     else:
         raise Exception('Could not resolve kernel label')
     events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])

@@ -1,6 +1,6 @@
 from setuptools import setup
 
-setup(name='visual_behavior_glm',
+setup(name='visual-behavior-glm',
       version='0.0.0',
       description='GLM for Visual Behavior ophys data',
       url='https://github.com/AllenInstitute/visual_behavior_glm',

@@ -1,8 +1,15 @@
 src/__pycache__
 
+#package info
+*.pyc
+visual_behavior_glm.egg-info/
+
 # vs code
 .idea/
 .vscode/
 
 #notebook checkpoints
 .ipynb_checkpoints/
+
+#untitled notebooks
+Untitled*

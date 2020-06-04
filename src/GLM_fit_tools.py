@@ -234,26 +234,27 @@ def evaluate_models(fit, design, run_params):
         n_neurons= fit['dff_trace_arr'].shape[1]
 
         dff = fit['dff_trace_arr']
-        X = X.T
-        W = fit_regularized(dff, X,run_params['regularization_lambda'])     
-        var_explain = variance_ratio(dff, W,X)
+        Xall = X.T
+        Wall = fit_regularized(dff, Xall,run_params['regularization_lambda'])     
+        var_explain = variance_ratio(dff, Wall,Xall)
         fit['dropouts'][model_label]['variance_explained']=var_explain
 
         # Iterate CV
-        #cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
-        #cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
 
-        #for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
-        #    train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
-            #X_test = X[:,test_split].T
-            #X_train = X[:,train_split].T
-            #dff_train = dff_trace_arr[train_split,:]
-            #dff_test = dff_trace_arr[test_split,:]
-            #X_train = X.T
-            #dff_train = fit['dff_trace_arr']
-            #W = fit_regularized(dff_train, X_train, run_params['regularization_lambda'])
-            #cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
-            #cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
+        for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
+            train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
+            X_test = X[:,test_split].T
+            X_train = X[:,train_split].T
+            dff_train = fit['dff_trace_arr'][train_split,:]
+            dff_test = fit['dff_trace_arr'][test_split,:]
+            W = fit_regularized(dff_train, X_train, run_params['regularization_lambda'])
+            cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
+            cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
+
+        fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
+        fit['dropouts'][model_label]['cv_var_test'] = cv_var_test
     return fit 
 
 def load_data_SDK_utils(oeid,run_params): 

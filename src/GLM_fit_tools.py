@@ -294,20 +294,18 @@ def process_data(session,ignore_errors=False):
 
     returns -- an xarray of of deltaF/F traces with dimensions [timestamps, cell_specimen_ids]
     '''
-    dff_trace_timestamps = session.ophys_timestamps
 
     # clip off the grey screen periods
+    dff_trace_timestamps = session.ophys_timestamps
     timestamps_to_use = get_ophys_frames_to_use(session)
-    dff_trace_timestamps = dff_trace_timestamps[timestamps_to_use]
 
     # Get the matrix of dff traces
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
 
-    if not ignore_errors:
-        # some assert statements to ensure that dimensions are correct
-        assert len(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
-        assert len(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
-        assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
+    # some assert statements to ensure that dimensions are correct
+    assert np.sum(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
+    assert np.sum(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
+    assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
 
     return dff_trace_arr
 
@@ -543,12 +541,12 @@ def get_dff_arr(session, timestamps_to_use):
     all_dff_to_use = all_dff[:, timestamps_to_use]
 
     #Predictors get binned against dff timestamps, so throw the last bin edge
-    all_dff_to_use = all_dff_to_use[:, :-1]
+    #all_dff_to_use = all_dff_to_use[:, :-1]
 
     # Return a (n_timepoints, n_cells) array
 
     dff_trace_timestamps = session.ophys_timestamps
-    dff_trace_timestamps = dff_trace_timestamps[timestamps_to_use]
+    dff_trace_timestamps_to_use = dff_trace_timestamps[timestamps_to_use]
 
     # Note: it may be more efficient to get the xarrays directly, rather than extracting/building them from session.dff_traces
     #       The dataframes are built from xarrays to start with, so we are effectively converting them twice by doing this
@@ -557,7 +555,7 @@ def get_dff_arr(session, timestamps_to_use):
             data = all_dff_to_use.T,
             dims = ("dff_trace_timestamps", "cell_specimen_id"),
             coords = {
-                "dff_trace_timestamps": dff_trace_timestamps[:-1],
+                "dff_trace_timestamps": dff_trace_timestamps_to_use,
                 "cell_specimen_id": session.cell_specimen_table.index.values
             }
         )

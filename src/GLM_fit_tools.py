@@ -168,12 +168,12 @@ def get_experiment_table(require_model_outputs = True):
     else:
         return experiments_table
 
-def fit_experiment(oeid, run_params,ALEX_TESTING=False):
+def fit_experiment(oeid, run_params,load_with_SDK_utils=False):
     print("Fitting ophys_experiment_id: "+str(oeid)) 
 
     # Load Data
     print('Loading data')
-    if ALEX_TESTING:
+    if load_with_SDK_utils:
         session = load_data_SDK_utils(oeid, run_params)
     else:
         session = load_data(oeid)
@@ -181,7 +181,7 @@ def fit_experiment(oeid, run_params,ALEX_TESTING=False):
     # Processing df/f data
     print('Processing df/f data')
     fit= dict()
-    fit['dff_trace_arr'] = process_data(session,ALEX_TESTING=ALEX_TESTING)
+    fit['dff_trace_arr'] = process_data(session)
     # extract shortened timestamp array from the 'dff_trace_arr' xarray
     fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
     
@@ -255,7 +255,9 @@ def evaluate_models(fit, design, run_params):
             #cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
     return fit 
 
-def load_data_SDK_utils(oeid,run_params): # Adding in a hack to deal with VBA issues right now
+def load_data_SDK_utils(oeid,run_params): 
+    # Adding in a hack to deal with VBA issues right now
+    print('Warning! Data is being loaded with SDK utils')
     cache = BehaviorProjectCache.from_lims(manifest=run_params['manifest'])
     session = cache.get_session_data(oeid)
     session_attributes.filter_invalid_rois_inplace(session)
@@ -281,7 +283,7 @@ def load_data(oeid, dataframe_format='wide'):
     ) 
     return session
 
-def process_data(session,ALEX_TESTING=False):
+def process_data(session,ignore_errors=False):
     '''
     Processes dff traces by trimming off portions of recording session outside of the task period. These include:
         * a ~5 minute gray screen period before the task begins
@@ -301,7 +303,7 @@ def process_data(session,ALEX_TESTING=False):
     # Get the matrix of dff traces
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
 
-    if not ALEX_TESTING:
+    if not ignore_errors:
         # some assert statements to ensure that dimensions are correct
         assert len(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
         assert len(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'

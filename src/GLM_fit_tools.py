@@ -238,6 +238,7 @@ def evaluate_models(fit, design, run_params):
         Wall = fit_regularized(dff, Xall,run_params['regularization_lambda'])     
         var_explain = variance_ratio(dff, Wall,Xall)
         fit['dropouts'][model_label]['variance_explained']=var_explain
+        fit['dropouts'][model_label]['weights'] = Wall
 
         # Iterate CV
         cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
@@ -256,6 +257,15 @@ def evaluate_models(fit, design, run_params):
         fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
         fit['dropouts'][model_label]['cv_var_test'] = cv_var_test
     return fit 
+
+def build_dataframe_from_dropouts(fit):
+    cellids = fit['dff_trace_arr']['cell_specimen_id'].values
+    results = pd.DataFrame(index=cellids)
+    for model_label in fit['dropouts'].keys():
+        results[model_label+"_avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1)
+        results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1)
+    return results
+
 
 def load_data_SDK_utils(oeid,run_params): 
     # Adding in a hack to deal with VBA issues right now

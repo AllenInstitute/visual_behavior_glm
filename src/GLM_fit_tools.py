@@ -514,12 +514,13 @@ def toeplitz(events, kernel_length):
         arrays_list.append(np.roll(events, i+1))
     return np.vstack(arrays_list)[:,:total_len]
 
-def get_ophys_frames_to_use(session, end_buffer=0.5):
+def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
     '''
     Trims out the grey period at start, end, and the fingerprint.
     Args:
         session (allensdk.brain_observatory.behavior.behavior_ophys_session.BehaviorOphysSession)
         end_buffer (float): duration in seconds to extend beyond end of last stimulus presentation (default = 0.5)
+        stim_dur (float): duration in seconds of stimulus presentations
     Returns:
         ophys_frames_to_use (np.array of bool): Boolean mask with which ophys frames to use
     '''
@@ -530,7 +531,7 @@ def get_ophys_frames_to_use(session, end_buffer=0.5):
     
     ophys_frames_to_use = (
         (session.ophys_timestamps > filtered_stimulus_presentations.iloc[0]['start_time']) 
-        & (session.ophys_timestamps < filtered_stimulus_presentations.iloc[-1]['stop_time'] + end_buffer)
+        & (session.ophys_timestamps < filtered_stimulus_presentations.iloc[-1]['start_time'] +stim_dur+ end_buffer)
     )
     return ophys_frames_to_use
 

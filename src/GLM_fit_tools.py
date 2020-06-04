@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import datetime
 from tqdm import tqdm
+from copy import copy
 
 from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
 from visual_behavior.translator.allensdk_sessions import sdk_utils
@@ -190,28 +191,16 @@ def fit_experiment(oeid, run_params,ALEX_TESTING=False):
     design = add_kernels(design, run_params, session, fit) 
 
     # Set up CV splits
-    splits = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
+    print('Setting up CV')
+    fit['splits'] = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
 
     # Set up kernels to drop for model selection
-        # Is a dictionary with keys the label for each dropout, and the value is a list
-        # of what to INCLUDE
-        # Should this actually get defined in the run JSON?
-    dropouts = {'Full':design.labels}
+    print('Setting up model selection dropout')
+    fit = define_dropouts(fit,design)
 
     # Iterate over model selections
-    for model_label in dropouts.keys():
-        print(model_label)    
-        # Set up design matrix for this dropout
-        X = design.get_X(kernels=dropouts[model_label])
-        n_params = X.shape[0]
-        n_neurons= fit['dff_trace_arr'].shape[1]
-
-        # Iterate CV
-        cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(splits)))
-        cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(splits)))
-
-        for index, test_split in tqdm(enumerate(splits), total=len(splits), desc='Fitting model: {}'.format(model_label)):
-            x =2
+    print('Iterating over model selection')
+    fit = evaluate_models(fit, design, run_params)
 
     # Save Results
     print('Saving results')
@@ -222,6 +211,33 @@ def fit_experiment(oeid, run_params,ALEX_TESTING=False):
    
     print('Finished') 
     return session, fit, design
+
+def define_dropouts(fit, design):
+        # Is a dictionary with keys the label for each dropout, and the value is a list
+        # of what to INCLUDE
+        # This should be defined in the run JSON
+        # TODO This needs to be implemented properly
+    fit['dropouts'] = {
+        'Full':copy(design.labels),
+        'licks':copy(design.labels) 
+        }
+    fit['dropouts']['licks'].remove('licks')
+    return fit
+
+def evaluate_models(fit, design, run_params):
+    for model_label in fit['dropouts'].keys():
+        # Set up design matrix for this dropout
+        X = design.get_X(kernels=fit['dropouts'][model_label])
+        n_params = X.shape[0]
+        n_neurons= fit['dff_trace_arr'].shape[1]
+
+        # Iterate CV
+        cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+
+        for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
+            x =2
+    return fit 
 
 def load_data_SDK_utils(oeid,run_params): # Adding in a hack to deal with VBA issues right now
     cache = BehaviorProjectCache.from_lims(manifest=run_params['manifest'])
@@ -303,7 +319,7 @@ def add_kernel_by_label(kernel,design, run_params,session,fit):
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
-    print('Adding kernel: '+kernel)
+    print('    Adding kernel: '+kernel)
     if kernel == 'licks':
         event_times = session.licks['timestamps'].values
     elif kernel == 'rewards':

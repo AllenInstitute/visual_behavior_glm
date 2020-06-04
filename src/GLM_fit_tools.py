@@ -187,7 +187,7 @@ def fit_experiment(oeid, run_params,load_with_SDK_utils=False):
     
     # Make Design Matrix
     print('Build Design Matrix')
-    design = DesignMatrix(fit['dff_trace_timestamps'][:-1]) 
+    design = DesignMatrix(fit['dff_trace_timestamps']) 
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
@@ -337,11 +337,11 @@ def add_kernel_by_label(kernel,design, run_params,session,fit):
     ''' 
     print('    Adding kernel: '+kernel)
     if kernel == 'licks':
-        event_times = session.licks['timestamps'].values
+        event_times = session.dataset.licks['timestamps'].values
     elif kernel == 'rewards':
-        event_times = session.rewards['timestamps'].values
+        event_times = session.dataset.rewards['timestamps'].values
     elif kernel == 'change':
-        event_times = session.trials.query('go')['change_time'].values
+        event_times = session.dataset.trials.query('go')['change_time'].values
         event_times = event_times[~np.isnan(event_times)]
     else:
         raise Exception('Could not resolve kernel label')
@@ -587,7 +587,7 @@ def fit_regularized(dff_trace_arr, X, lam):
                np.dot(X.T, dff_trace_arr))
         return W
 
-def variance_ratio(dff_trace_arr, W, X):
+def variance_ratio(dff_trace_arr, W, X): # TODO Double check this function
     '''
     dff_trace_arr: (n_timepoints, n_cells)
     W: (n_kernel_params, n_cells)

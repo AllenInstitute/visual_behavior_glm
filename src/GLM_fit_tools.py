@@ -115,7 +115,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
                     }
 
     # Define Kernels
-    # TODO specify length and offset in units of seconds, rather than bin size?
+    # TODO specify length and offset in units of seconds, rather than bin size
     # TODO mesoscope and scientific have different sampling rates
     # TODO intelligently pick the offset and length for each kernel
     kernels_orig = {
@@ -466,7 +466,6 @@ class DesignMatrix(object):
                 kernels_to_use.append(kernel_dict[kernel_name])
             return np.vstack(kernels_to_use)
 
-    #TODO: Allow kernel length/offset to be specified in actual time if you want
     def add_kernel(self, events, kernel_length, label, offset=0):
         '''
         Add a temporal kernel. 

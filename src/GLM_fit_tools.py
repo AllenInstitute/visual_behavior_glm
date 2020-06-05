@@ -126,7 +126,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'change':       {'type':'discrete', 'length':100, 'offset':0},
         #'any-image':    {'type':'discrete', 'length':23, 'offset':0},
         'omissions':    {'type':'discrete', 'length':23, 'offset':0},
-        'each-image':   {'type':'discrete', 'length':23, 'offset':0}
+        'each-image':   {'type':'discrete', 'length':23, 'offset':0},
+        'running':      {'type':'continuous','length':5, 'offset':0}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -414,6 +415,10 @@ def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
     elif kernel == 'time':
         timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
         timeseries = timeseries/len(timeseries)
+    elif kernel == 'running':
+        running_df = session.dataset.running_speed
+        running_df.rename(columns={'speed':'values'})
+        timeseries = rebase_to_dff_timestamps(fit,running_df)
     else:
         raise Exception('Could not resolve kernel label')
 
@@ -453,13 +458,12 @@ def add_discrete_kernel_by_label(kernel,design, run_params,session,fit):
     return design
 
 class DesignMatrix(object):
-    def __init__(self, event_timestamps):#, intercept=True):
+    def __init__(self, event_timestamps):
         '''
         A toeplitz-matrix builder for running regression with multiple temporal kernels. 
 
         Args
             event_timestamps: The actual timestamps for each time bin that will be used in the regression model. 
-            #intercept: Whether to fit an intercept term.
         '''
 
         # Add some kernels
@@ -470,11 +474,6 @@ class DesignMatrix(object):
         self.ind_stop = []
         self.running_stop = 0
         self.events = {'timestamps':event_timestamps}
-        #self.include_intercept=intercept
-        #if self.include_intercept:
-        #    # Add an intercept column by adding a 'kernel' of length 1 starting at every time point.
-        #    # This allows us to do model selection like usual if we want and registers start/stop inds.
-        #    self.add_kernel(np.ones(len(event_timestamps)), 1, 'intercept', 0)
 
     def kernel_dict(self):
         '''
@@ -633,6 +632,15 @@ def get_dff_arr(session, timestamps_to_use):
         )
     return dff_trace_xr
 
+def rebase_to_dff_timestamps(fit,df):
+    # figure out if we need to interpolate, or average
+    # Should have 'timestamps' and 'values'
+    start = fit['dff_trace_timestamps'][0]
+    end = fit['dff_trace_timestamps'][-1]
+    df = df.query('(timestamps >= @start) & (timestamps <= @end)')
+    # If Interpolate:
+    # If average:
+    return 
 
 def fit(dff_trace_arr, X):
     '''

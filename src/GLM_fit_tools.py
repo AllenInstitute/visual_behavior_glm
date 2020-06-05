@@ -119,12 +119,14 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
     # TODO mesoscope and scientific have different sampling rates
     # TODO intelligently pick the offset and length for each kernel
     kernels_orig = {
-        'licks':        {'length':30, 'offset':-10},
-        'rewards':      {'length':115, 'offset':-15}, 
-        'change':       {'length':100, 'offset':0},
-        #'any-image':    {'length':23, 'offset':0},
-        'omissions':    {'length':23, 'offset':0},
-        'each-image':   {'length':23, 'offset':0}
+        'intercept':    {'type':'continuous','length':1, 'offset':0},
+        'time':         {'type':'continuous','length':1, 'offset':0},
+        'licks':        {'type':'discrete', 'length':30, 'offset':-10},
+        'rewards':      {'type':'discrete', 'length':115, 'offset':-15}, 
+        'change':       {'type':'discrete', 'length':100, 'offset':0},
+        #'any-image':    {'type':'discrete', 'length':23, 'offset':0},
+        'omissions':    {'type':'discrete', 'length':23, 'offset':0},
+        'each-image':   {'type':'discrete', 'length':23, 'offset':0}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -183,9 +185,7 @@ def fit_experiment(oeid, run_params):
     print('Processing df/f data')
     fit= dict()
     fit['dff_trace_arr'] = process_data(session)
-    fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
-    run_params['frame_duration'] = np.mean(np.diff(fit['dff_trace_timestamps']))
-    fit['dff_trace_bins'] = np.concatenate([fit['dff_trace_timestamps'],[fit['dff_trace_timestamps'][-1]+run_params['frame_duration']]])  
+    fit = annotate_dff(fit)
  
     # Make Design Matrix
     print('Build Design Matrix')
@@ -269,6 +269,8 @@ def define_dropouts(kernels,kernel_definitions):
         dropouts['visual']['kernels'].remove('any-image')
 
     return dropouts
+
+
 
 def evaluate_models(fit, design, run_params):
     '''
@@ -372,6 +374,11 @@ def process_data(session,ignore_errors=False):
 
     return dff_trace_arr
 
+def annotate_dff(fit):
+    fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
+    fit['dff_trace_bins'] = np.concatenate([fit['dff_trace_timestamps'],[fit['dff_trace_timestamps'][-1]+np.mean(np.diff(fit['dff_trace_timestamps']))]])  
+    return fit
+
 def add_kernels(design, run_params,session, fit):
     '''
         Iterates through the kernels in run_params['kernels'] and adds
@@ -386,10 +393,37 @@ def add_kernels(design, run_params,session, fit):
         fit             the fit object for this model
     '''
     for kernel in run_params['kernels']:
-        design = add_kernel_by_label(kernel, design, run_params, session, fit)
+        if run_params['kernels'][kernel]['type'] == 'discrete':
+            design = add_discrete_kernel_by_label(kernel, design, run_params, session, fit)
+        else:
+            design = add_continuous_kernel_by_label(kernel, design, run_params, session, fit)   
     return design
 
-def add_kernel_by_label(kernel,design, run_params,session,fit):
+def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
+    '''
+        Adds the kernel specified by <kernel> to the design matrix
+        kernel          <str> the label for this kernel, will raise an error if not implemented
+        design          the design matrix for this model
+        run_params      the run_json for this model
+        session         the SDK session object for this experiment
+        fit             the fit object for this model       
+    ''' 
+    print('    Adding kernel: '+kernel)
+    if kernel == 'intercept':
+        timeseries = np.ones(len(fit['dff_trace_timestamps']))
+    elif kernel == 'time':
+        timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
+        timeseries = timeseries/len(timeseries)
+    else:
+        raise Exception('Could not resolve kernel label')
+
+    #assert length of values is same as length of timestamps
+    assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
+
+    design.add_kernel(timeseries, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
+    return design
+
+def add_discrete_kernel_by_label(kernel,design, run_params,session,fit):
     '''
         Adds the kernel specified by <kernel> to the design matrix
         kernel          <str> the label for this kernel, will raise an error if not implemented
@@ -419,13 +453,13 @@ def add_kernel_by_label(kernel,design, run_params,session,fit):
     return design
 
 class DesignMatrix(object):
-    def __init__(self, event_timestamps, intercept=True):
+    def __init__(self, event_timestamps):#, intercept=True):
         '''
         A toeplitz-matrix builder for running regression with multiple temporal kernels. 
 
         Args
             event_timestamps: The actual timestamps for each time bin that will be used in the regression model. 
-            intercept: Whether to fit an intercept term.
+            #intercept: Whether to fit an intercept term.
         '''
 
         # Add some kernels
@@ -436,11 +470,11 @@ class DesignMatrix(object):
         self.ind_stop = []
         self.running_stop = 0
         self.events = {'timestamps':event_timestamps}
-        self.include_intercept=intercept
-        if self.include_intercept:
-            # Add an intercept column by adding a 'kernel' of length 1 starting at every time point.
-            # This allows us to do model selection like usual if we want and registers start/stop inds.
-            self.add_kernel(np.ones(len(event_timestamps)), 1, 'intercept', 0)
+        #self.include_intercept=intercept
+        #if self.include_intercept:
+        #    # Add an intercept column by adding a 'kernel' of length 1 starting at every time point.
+        #    # This allows us to do model selection like usual if we want and registers start/stop inds.
+        #    self.add_kernel(np.ones(len(event_timestamps)), 1, 'intercept', 0)
 
     def kernel_dict(self):
         '''

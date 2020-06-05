@@ -184,9 +184,7 @@ def fit_experiment(oeid, run_params):
     print('Processing df/f data')
     fit= dict()
     fit['dff_trace_arr'] = process_data(session)
-    fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
-    run_params['frame_duration'] = np.mean(np.diff(fit['dff_trace_timestamps']))
-    fit['dff_trace_bins'] = np.concatenate([fit['dff_trace_timestamps'],[fit['dff_trace_timestamps'][-1]+run_params['frame_duration']]])  
+    fit = annotate_dff(fit)
  
     # Make Design Matrix
     print('Build Design Matrix')
@@ -270,6 +268,8 @@ def define_dropouts(kernels,kernel_definitions):
         dropouts['visual']['kernels'].remove('any-image')
 
     return dropouts
+
+
 
 def evaluate_models(fit, design, run_params):
     '''
@@ -373,6 +373,11 @@ def process_data(session,ignore_errors=False):
 
     return dff_trace_arr
 
+def annotate_dff(fit):
+    fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
+    fit['dff_trace_bins'] = np.concatenate([fit['dff_trace_timestamps'],[fit['dff_trace_timestamps'][-1]+np.mean(np.diff(fit['dff_trace_timestamps']))]])  
+    return fit
+
 def add_kernels(design, run_params,session, fit):
     '''
         Iterates through the kernels in run_params['kernels'] and adds
@@ -387,7 +392,7 @@ def add_kernels(design, run_params,session, fit):
         fit             the fit object for this model
     '''
     for kernel in run_params['kernels']:
-        if run_params['kernels'][kernel]['type'] is 'discrete':
+        if run_params['kernels'][kernel]['type'] == 'discrete':
             design = add_discrete_kernel_by_label(kernel, design, run_params, session, fit)
         else:
             design = add_continuous_kernel_by_label(kernel, design, run_params, session, fit)   
@@ -403,14 +408,15 @@ def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
     ''' 
     print('    Adding kernel: '+kernel)
     if kernel == 'time':
-        #values = ?? 
-        pass
+        timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
+        timeseries = timeseries/len(timeseries)
     else:
         raise Exception('Could not resolve kernel label')
+
     #assert length of values is same as length of timestamps
-    ##events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
-    # Not sure if we can re-use this function, or need to add a new method to add_kernel
-    ##design.add_kernel(events_vec, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
+    assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
+
+    design.add_kernel(timeseries, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
     return design
 
 def add_discrete_kernel_by_label(kernel,design, run_params,session,fit):

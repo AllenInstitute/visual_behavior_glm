@@ -124,7 +124,6 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'licks':        {'type':'discrete', 'length':30, 'offset':-10},
         'rewards':      {'type':'discrete', 'length':115, 'offset':-15}, 
         'change':       {'type':'discrete', 'length':100, 'offset':0},
-        #'any-image':    {'type':'discrete', 'length':23, 'offset':0},
         'omissions':    {'type':'discrete', 'length':23, 'offset':0},
         'each-image':   {'type':'discrete', 'length':23, 'offset':0},
         'running':      {'type':'continuous','length':5, 'offset':0}

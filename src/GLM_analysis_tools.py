@@ -22,11 +22,11 @@ def moving_mean(values, window):
     mm = np.convolve(values, weights, 'valid')
     return mm
 
-def compute_full_mean(session_ids):
+def compute_full_mean(experiment_ids):
     x = []
-    for sess_dex, sess_id in enumerate(tqdm(session_ids)):
+    for exp_dex, exp_id in enumerate(tqdm(experiment_ids)):
         try:
-            fit_data = compute_response(sess_id)
+            fit_data = compute_response(exp_id)
             x = x + compute_mean_error(fit_data)
         except:
             pass
@@ -55,28 +55,28 @@ def plot_cell(fit_data,cell_id):
     plt.plot(fit_data['data_dff'][cell_id],'r',label='Cell')
     plt.plot(fit_data['model_dff'][cell_id],'b',label='Model')
     plt.ylabel('dff')
-    plt.xlabel('time in session')
+    plt.xlabel('time in experiment')
 
-def get_session_design_matrix_temp(osid,model_dir):
-    return np.load(model_dir+'X_sparse_csc_'+str(osid)+'.npz')
+def get_experiment_design_matrix_temp(oeid,model_dir):
+    return np.load(model_dir+'X_sparse_csc_'+str(oeid)+'.npz')
 
-def get_session_design_matrix(osid,model_dir):
-    return sparse.load_npz(model_dir+'X_sparse_csc_'+str(osid)+'.npz').todense()
+def get_experiment_design_matrix(oeid,model_dir):
+    return sparse.load_npz(model_dir+'X_sparse_csc_'+str(oeid)+'.npz').todense()
 
-def get_session_fit(osid,model_dir):
-    filepath = 'osid_'+str(osid)+'.json'
+def get_experiment_fit(oeid,model_dir):
+    filepath = 'oeid_'+str(oeid)+'.json'
     with open(model_dir+'/'+filepath) as json_file:
         data = json.load(json_file)
     return data
 
-def get_session_dff(osid):
-    filepath = dff_dirc+str(osid)+'_dff_array.cd'
+def get_experiment_dff(oeid):
+    filepath = dff_dirc+str(oeid)+'_dff_array.cd'
     return xr.open_dataarray(filepath)
 
-def compute_response(osid,model_dir):
-    design_matrix = get_session_design_matrix(osid,model_dir)
-    fit_data = get_session_fit(osid)
-    dff_data = get_session_dff(osid)
+def compute_response(oeid,model_dir):
+    design_matrix = get_experiment_design_matrix(oeid,model_dir)
+    fit_data = get_experiment_fit(oeid)
+    dff_data = get_experiment_dff(oeid)
     model_dff, model_err,data_dff = compute_response_inner(design_matrix, fit_data, dff_data)
     fit_data['model_dff'] = model_dff
     fit_data['model_err'] = model_err
@@ -260,17 +260,17 @@ def shuffle_session(fit_data,session):
     return cv_df, cv_shuf_df, threshold
 
 # Need a function for concatenating cv_df, and cv_shuf_df across sessions
-def shuffle_across_sessions(session_list,cache,model_dir=None):
+def shuffle_across_sessions(experiment_list,cache,model_dir=None):
     if type(model_dir) == type(None):
         model_dir = global_dir
     all_cv = []
     all_shuf = []
-    ophys_sessions = cache.get_session_table()
-    for dex, osid in enumerate(tqdm(session_list)):
-        fit_data = compute_response(osid,model_dir)
-        oeid = ophys_sessions.loc[osid]['ophys_experiment_id'][0]
-        session = cache.get_session_data(oeid) 
-        flash_df = process_to_flashes(fit_data,session)
+    ophys_experiments = cache.get_experiment_table()
+    for dex, oeid in enumerate(tqdm(experiment_list)):
+        fit_data = compute_response(oeid,model_dir)
+        oeid = ophys_experiments.loc[oeid]['ophys_experiment_id'][0]
+        experiment = cache.get_experiment_data(oeid) 
+        flash_df = process_to_flashes(fit_data,experiment)
         compute_variance_explained(flash_df)
         cv_df,cv_shuf_df = compute_shuffle(flash_df)
         all_cv.append(strip_dict(cv_df))

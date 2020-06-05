@@ -417,8 +417,8 @@ def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
         timeseries = timeseries/len(timeseries)
     elif kernel == 'running':
         running_df = session.dataset.running_speed
-        running_df.rename(columns={'speed':'values'})
-        timeseries = rebase_to_dff_timestamps(fit,running_df)
+        running_df = running_df.rename(columns={'speed':'values'})
+        timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
     else:
         raise Exception('Could not resolve kernel label')
 
@@ -632,39 +632,32 @@ def get_dff_arr(session, timestamps_to_use):
         )
     return dff_trace_xr
 
-def rebase_to_dff_timestamps(fit,df):
-    # figure out if we need to interpolate, or average
-    # Should have 'timestamps' and 'values'
-    start = fit['dff_trace_timestamps'][0]
-    end = fit['dff_trace_timestamps'][-1]
-    df = df.query('(timestamps >= @start) & (timestamps <= @end)')
-    # If Interpolate:
-    # If average:
-    return 
-
-def get_interpolated_running_speed(session):
+def interpolate_to_dff_timestamps(fit,df):
     '''
-    interpolate running speed on ophys timesteps
+    interpolate timeseries onto ophys timestamps
 
-    input: session object
+    input:  fit, dictionary containing 'dff_trace_timestamps':<array of timestamps>
+            df, dataframe with columns:
+                timestamps (timestamps of signal)
+                values  (signal of interest)
+
     returns: dataframe with columns:
-                time (ophys timestamps)
-                speed (running speed in cm/s)
+                timestamps (dff_trace_timestamps)
+                values (values interpolated onto dff_trace_timestamps)
+   
     '''
-
     f = scipy.interpolate.interp1d(
-        session.dataset.running_data_df.index.values,
-        session.dataset.running_data_df['speed'],
+        df['timestamps'],
+        df['values'],
         bounds_error=False
     )
 
-    interpolated_running = pd.DataFrame({
-        'time':session.ophys_timestamps,
-        'speed':f(session.ophys_timestamps)
+    interpolated = pd.DataFrame({
+        'timestamps':fit['dff_trace_timestamps'],
+        'values':f(fit['dff_trace_timestamps'])
     })
 
-    return interpolated_running
-
+    return interpolated
 
 def fit(dff_trace_arr, X):
     '''

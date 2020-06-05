@@ -7,8 +7,6 @@ import h5py
 import xarray as xr
 from scipy import sparse
 from tqdm import tqdm
-from visual_behavior_analysis.visual_behavior.translator.allensdk_sessions import extended_stimulus_processing as esp
-from visual_behavior_analysis.visual_behavior.translator.allensdk_sessions import attribute_formatting as af
 
 
 

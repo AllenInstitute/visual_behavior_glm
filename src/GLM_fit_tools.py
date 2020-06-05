@@ -119,12 +119,13 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
     # TODO mesoscope and scientific have different sampling rates
     # TODO intelligently pick the offset and length for each kernel
     kernels_orig = {
-        'licks':        {'length':30, 'offset':-10},
-        'rewards':      {'length':115, 'offset':-15}, 
-        'change':       {'length':100, 'offset':0},
-        #'any-image':    {'length':23, 'offset':0},
-        'omissions':    {'length':23, 'offset':0},
-        'each-image':   {'length':23, 'offset':0}
+        'licks':        {'type':'discrete', 'length':30, 'offset':-10},
+        'rewards':      {'type':'discrete', 'length':115, 'offset':-15}, 
+        'change':       {'type':'discrete', 'length':100, 'offset':0},
+        #'any-image':    {'type':'discrete', 'length':23, 'offset':0},
+        'omissions':    {'type':'discrete', 'length':23, 'offset':0},
+        'each-image':   {'type':'discrete', 'length':23, 'offset':0},
+        'time':         {'type':'continuous','length':23, 'offset':0}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -386,10 +387,33 @@ def add_kernels(design, run_params,session, fit):
         fit             the fit object for this model
     '''
     for kernel in run_params['kernels']:
-        design = add_kernel_by_label(kernel, design, run_params, session, fit)
+        if run_params['kernels'][kernel]['type'] is 'discrete':
+            design = add_discrete_kernel_by_label(kernel, design, run_params, session, fit)
+        else:
+            design = add_continuous_kernel_by_label(kernel, design, run_params, session, fit)   
+    return design
+def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
+    '''
+        Adds the kernel specified by <kernel> to the design matrix
+        kernel          <str> the label for this kernel, will raise an error if not implemented
+        design          the design matrix for this model
+        run_params      the run_json for this model
+        session         the SDK session object for this experiment
+        fit             the fit object for this model       
+    ''' 
+    print('    Adding kernel: '+kernel)
+    if kernel == 'time':
+        #values = ?? 
+        pass
+    else:
+        raise Exception('Could not resolve kernel label')
+    #assert length of values is same as length of timestamps
+    ##events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
+    # Not sure if we can re-use this function, or need to add a new method to add_kernel
+    ##design.add_kernel(events_vec, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
     return design
 
-def add_kernel_by_label(kernel,design, run_params,session,fit):
+def add_discrete_kernel_by_label(kernel,design, run_params,session,fit):
     '''
         Adds the kernel specified by <kernel> to the design matrix
         kernel          <str> the label for this kernel, will raise an error if not implemented

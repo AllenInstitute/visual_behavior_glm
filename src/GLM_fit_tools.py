@@ -635,14 +635,21 @@ def get_dff_arr(session, timestamps_to_use):
 
 
 def get_interpolated_running_speed(session):
-    '''interpolate running speed on ophys timesteps'''
+    '''
+    interpolate running speed on ophys timesteps
+
+    input: session object
+    returns: dataframe with columns:
+                time (ophys timestamps)
+                speed (running speed in cm/s)
+    '''
 
     f = scipy.interpolate.interp1d(
         session.dataset.running_data_df.index.values,
         session.dataset.running_data_df['speed'],
         bounds_error=False
     )
-    
+
     interpolated_running = pd.DataFrame({
         'time':session.ophys_timestamps,
         'speed':f(session.ophys_timestamps)

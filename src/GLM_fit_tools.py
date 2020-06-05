@@ -600,6 +600,23 @@ def get_dff_arr(session, timestamps_to_use):
     return dff_trace_xr
 
 
+def get_interpolated_running_speed(session):
+    '''interpolate running speed on ophys timesteps'''
+
+    f = scipy.interpolate.interp1d(
+        session.dataset.running_data_df.index.values,
+        session.dataset.running_data_df['speed'],
+        bounds_error=False
+    )
+    
+    interpolated_running = pd.DataFrame({
+        'time':session.ophys_timestamps,
+        'speed':f(session.ophys_timestamps)
+    })
+
+    return interpolated_running
+
+
 def fit(dff_trace_arr, X):
     '''
     Analytical OLS solution to linear regression. 

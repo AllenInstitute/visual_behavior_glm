@@ -125,7 +125,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         #'any-image':    {'type':'discrete', 'length':23, 'offset':0},
         'omissions':    {'type':'discrete', 'length':23, 'offset':0},
         'each-image':   {'type':'discrete', 'length':23, 'offset':0},
-        'time':         {'type':'continuous','length':23, 'offset':0}
+        'time':         {'type':'continuous','length':1, 'offset':0}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)

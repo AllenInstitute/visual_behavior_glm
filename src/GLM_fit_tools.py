@@ -128,8 +128,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'omissions':    {'type':'discrete', 'length':23, 'offset':0},
         'each-image':   {'type':'discrete', 'length':23, 'offset':0},
         'running':      {'type':'continuous','length':5, 'offset':0},
-        #'population_mean':{'type':'continuous','length':5,'offset':0},
-        'PCA_1':        {'type':'continuous','length':5,'offset':0}
+        #'population_mean':{'type':'continuous','length':11,'offset':-5},
+        'PCA_1':        {'type':'continuous','length':11,'offset':-5}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -272,8 +272,6 @@ def define_dropouts(kernels,kernel_definitions):
         dropouts['visual']['kernels'].remove('any-image')
 
     return dropouts
-
-
 
 def evaluate_models(fit, design, run_params):
     '''

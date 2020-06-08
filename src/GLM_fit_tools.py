@@ -126,7 +126,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'change':       {'type':'discrete', 'length':100, 'offset':0},
         'omissions':    {'type':'discrete', 'length':23, 'offset':0},
         'each-image':   {'type':'discrete', 'length':23, 'offset':0},
-        'running':      {'type':'continuous','length':5, 'offset':0}
+        'running':      {'type':'continuous','length':5, 'offset':0},
+        'population_mean':{'type':'continuous','length':5,'offset':0}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -308,7 +309,7 @@ def evaluate_models(fit, design, run_params):
             W = fit_regularized(dff_train, X_train, run_params['regularization_lambda'])
             cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
             cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
-            cv_weights[:,:,index] = W
+            cv_weights[:,:,index] = W # TODO this should be either a list of xarrays, or one big xarray
 
         fit['dropouts'][model_label]['cv_weights'] = cv_weights
         fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
@@ -418,6 +419,8 @@ def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
         running_df = session.dataset.running_speed
         running_df = running_df.rename(columns={'speed':'values'})
         timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
+    elif kernel == 'population_mean':
+        timeseries = np.mean(fit['dff_trace_arr'],1).values
     else:
         raise Exception('Could not resolve kernel label')
 

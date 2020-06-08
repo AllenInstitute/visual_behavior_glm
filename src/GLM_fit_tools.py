@@ -215,7 +215,7 @@ def fit_experiment(oeid, run_params):
     
     # Save Design Matrix
     print('Saving Design Matrix')  
-    sparse_X = scipy.sparse.csc_matrix(design.get_X().T)
+    sparse_X = scipy.sparse.csc_matrix(design.get_X()[0].T)
     filepath = run_params['experiment_output_dir']+'X_sparse_csc_'+str(oeid)+'.npz'
     scipy.sparse.save_npz(filepath, sparse_X)
 
@@ -481,7 +481,9 @@ class DesignMatrix(object):
         return {label:kernel for label, kernel in zip(self.labels, self.kernel_list)}
 
     def make_labels(self, label, num_weights):
-        return [label] * num_weights 
+        base = [label] * num_weights 
+        numbers = [str(x) for x in range(1,num_weights+1)]
+        return [x[0] + '_'+ x[1] for x in zip(base, numbers)]
 
     def get_X(self, kernels=None):
         '''
@@ -505,7 +507,7 @@ class DesignMatrix(object):
 
         X = np.vstack(kernels_to_use) 
         x_labels = np.hstack(param_labels)
-        assert np.shape(X)[0] == np.shape(x_labels)[0] 'Weight Matrix must have the correct number of labels'
+        assert np.shape(X)[0] == np.shape(x_labels)[0], 'Weight Matrix must have the same length as the weight labels'
         return X, x_labels
 
     def add_kernel(self, events, kernel_length, label, offset=0):

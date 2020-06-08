@@ -39,19 +39,19 @@ def demonstration():
     events_vec[10] = 1
     design.add_kernel(events_vec,3,'discrete',offset=0)
     plt.figure()
-    plt.imshow(design.get_X().T)
+    plt.imshow(design.get_X())
     plt.xlabel('Weights')
     plt.ylabel('Time')
 
-    W = [1,2,1,.1,.2,.3]
-    Y = design.get_X().T.values @ W
+    W =[1,2,1,.1,.2,.3]
+    Y = design.get_X().values @ W
     plt.figure()
     plt.plot(Y, 'k',label='full')
-    Y_noIntercept = design.get_X(kernels=['time','discrete']).T.values@ np.array(W)[1:]
+    Y_noIntercept = design.get_X(kernels=['time','discrete']).values@ np.array(W)[1:]
     plt.plot(Y_noIntercept,'r',label='No Intercept')
-    Y_noTime = design.get_X(kernels=['intercept','discrete']).T.values@ np.array(W)[[0,3,4,5]]
+    Y_noTime = design.get_X(kernels=['intercept','discrete']).values@ np.array(W)[[0,3,4,5]]
     plt.plot(Y_noTime,'b',label='No Time')
-    Y_noDiscrete = design.get_X(kernels=['intercept','time']).T.values@ np.array(W)[0:3]
+    Y_noDiscrete = design.get_X(kernels=['intercept','time']).values@ np.array(W)[0:3]
     plt.plot(Y_noDiscrete,'m',label='No discrete')
     plt.ylabel('dff')
     plt.xlabel('time')

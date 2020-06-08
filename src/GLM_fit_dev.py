@@ -18,6 +18,7 @@ if False:
     # To run just one session:
     oeid = run_params['ophys_experiment_ids'][-1]
     session, fit, design = gft.fit_experiment(oeid, run_params)
+    results = gft.build_dataframe_from_dropouts(fit)
 
 def demonstration():
     # Make demonstration of design kernel, and model structure

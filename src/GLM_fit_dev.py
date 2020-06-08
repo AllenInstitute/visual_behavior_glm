@@ -3,6 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.ion()
 
+# Branch notes:
+# 1) W is now an xarray, so if you want to do Y = X @ W, replace with Y = X @ W.values
+# 2) design.get_X() returns the matrix X and a vector of labels
+#
+#
+
 if False:
     # Make run JSON
     src_path = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 

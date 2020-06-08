@@ -480,6 +480,9 @@ class DesignMatrix(object):
         '''
         return {label:kernel for label, kernel in zip(self.labels, self.kernel_list)}
 
+    def make_labels(self, label, num_weights):
+        return [label] * num_weights 
+
     def get_X(self, kernels=None):
         '''
         Get the design matrix. 
@@ -490,15 +493,19 @@ class DesignMatrix(object):
             X (np.array): The design matrix
         '''
         if kernels is None:
-            X = np.vstack(self.kernel_list)
-        else:
-            kernel_dict = self.kernel_dict()
-            kernels_to_use = []
-            for kernel_name in kernels:
-                kernels_to_use.append(kernel_dict[kernel_name])
-            X = np.vstack(kernels_to_use)
-        
-        x_labels = np.array(range(0,len(X)))
+            kernels = self.kernel_dict().keys()
+            #X = np.vstack(self.kernel_list)
+        #else:
+        kernel_dict = self.kernel_dict()
+        kernels_to_use = []
+        param_labels = []
+        for kernel_name in kernels:
+            kernels_to_use.append(kernel_dict[kernel_name])
+            param_labels.append(self.make_labels(kernel_name, np.shape(kernel_dict[kernel_name])[0]))
+
+        X = np.vstack(kernels_to_use) 
+        x_labels = np.hstack(param_labels)
+        assert np.shape(X)[0] == np.shape(x_labels)[0] 'Weight Matrix must have the correct number of labels'
         return X, x_labels
 
     def add_kernel(self, events, kernel_length, label, offset=0):

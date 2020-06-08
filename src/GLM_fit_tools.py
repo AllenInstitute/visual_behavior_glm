@@ -10,6 +10,7 @@ import scipy
 import datetime
 from tqdm import tqdm
 from copy import copy
+from sklearn.decomposition import PCA
 
 from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
 from visual_behavior.translator.allensdk_sessions import sdk_utils
@@ -127,7 +128,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'omissions':    {'type':'discrete', 'length':23, 'offset':0},
         'each-image':   {'type':'discrete', 'length':23, 'offset':0},
         'running':      {'type':'continuous','length':5, 'offset':0},
-        'population_mean':{'type':'continuous','length':5,'offset':0}
+        #'population_mean':{'type':'continuous','length':5,'offset':0},
+        'PCA_1':        {'type':'continuous','length':5,'offset':0}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -420,6 +422,11 @@ def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
         timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
     elif kernel == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values
+    elif kernel == 'PCA_1':
+        pca = PCA()
+        pca.fit(fit['dff_trace_arr'].values)
+        dff_pca = pca.transform(fit['dff_trace_arr'].values)
+        timeseries = dff_pca[:,0]
     else:
         raise Exception('Could not resolve kernel label')
 

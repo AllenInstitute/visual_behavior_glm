@@ -122,7 +122,9 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
     kernels_orig = {
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':1,     'offset':0},
         'time':         {'event':'time',        'type':'continuous',    'length':1,     'offset':0},
-        'licks':        {'event':'licks',       'type':'discrete',      'length':30,    'offset':-10},
+        #'licks':        {'event':'licks',       'type':'discrete',      'length':30,    'offset':-10},
+        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':10,    'offset':-10},
+        'post_licks':   {'event':'licks',       'type':'discrete',      'length':20,    'offset':0},
         'rewards':      {'event':'rewards',     'type':'discrete',      'length':115,   'offset':-15}, 
         'change':       {'event':'change',      'type':'discrete',      'length':100,   'offset':0},
         'omissions':    {'event':'omissions',   'type':'discrete',      'length':23,    'offset':0},
@@ -177,7 +179,7 @@ def get_experiment_table(require_model_outputs = True):
     else:
         return experiments_table
 
-def fit_experiment(oeid, run_params):
+def fit_experiment(oeid, run_params,NO_DROPOUTS=False):
     print("Fitting ophys_experiment_id: "+str(oeid)) 
 
     # Load Data
@@ -204,6 +206,8 @@ def fit_experiment(oeid, run_params):
     # Set up kernels to drop for model selection
     print('Setting up model selection dropout')
     fit['dropouts'] = copy(run_params['dropouts'])
+    if NO_DROPOUTS:
+        fit['dropouts'] = {'Full':copy(fit['dropouts']['Full'])}
 
     # Iterate over model selections
     print('Iterating over model selection')

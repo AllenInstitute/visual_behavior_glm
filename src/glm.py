@@ -56,10 +56,7 @@ class GLM(object):
 
     @property
     def X(self):
-        if self.current_model == 'Full':
-            return self.design.get_X()
-        else:
-            assert False, 'NOT IMPLEMENTED FOR ANYTHING OTHER THAN FULL MODEL YET'
+        return self.design.get_X(kernels=self.fit['dropouts'][self.current_model]['kernels'])
 
     @property
     def W(self):

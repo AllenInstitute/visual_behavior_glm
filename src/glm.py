@@ -32,7 +32,7 @@ class GLM(object):
 
     @cached_property
     def df_full(self):
-        '''creates a tidy dataframe with columns ['dff_trace_timestamps', 'cell_specimen_id', 'dff', 'dff_predicted] using the full model'''
+        '''creates a tidy dataframe with columns ['dff_trace_timestamps', 'frame_index', 'cell_specimen_id', 'dff', 'dff_predicted] using the full model'''
         df = self.fit['dff_trace_arr'].to_dataframe(name='dff')
 
         xrt = self.fit['dff_trace_arr'].copy()
@@ -44,7 +44,20 @@ class GLM(object):
             right_on=['dff_trace_timestamps', 'cell_specimen_id'],
         ).reset_index()
 
-        self._dataframe_updated = True
+        time_df = (
+            self
+            .fit['dff_trace_arr']['dff_trace_timestamps']
+            .to_dataframe()
+            .reset_index(drop=True)
+            .reset_index()
+            .rename(columns = {'index':'frame_index'})
+        )
+
+        df = df.merge(
+            time_df,
+            left_on = 'dff_trace_timestamps',
+            right_on = 'dff_trace_timestamps',
+        )
 
         return df
 

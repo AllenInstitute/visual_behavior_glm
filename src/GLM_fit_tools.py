@@ -120,16 +120,16 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
     # TODO mesoscope and scientific have different sampling rates
     # TODO intelligently pick the offset and length for each kernel
     kernels_orig = {
-        'intercept':    {'type':'continuous','length':1, 'offset':0},
-        'time':         {'type':'continuous','length':1, 'offset':0},
-        'licks':        {'type':'discrete', 'length':30, 'offset':-10},
-        'rewards':      {'type':'discrete', 'length':115, 'offset':-15}, 
-        'change':       {'type':'discrete', 'length':100, 'offset':0},
-        'omissions':    {'type':'discrete', 'length':23, 'offset':0},
-        'each-image':   {'type':'discrete', 'length':23, 'offset':0},
-        'running':      {'type':'continuous','length':5, 'offset':0},
-        #'population_mean':{'type':'continuous','length':11,'offset':-5},
-        'PCA_1':        {'type':'continuous','length':11,'offset':-5}
+        'intercept':    {'event':'intercept',   'type':'continuous',    'length':1,     'offset':0},
+        'time':         {'event':'time',        'type':'continuous',    'length':1,     'offset':0},
+        'licks':        {'event':'licks',       'type':'discrete',      'length':30,    'offset':-10},
+        'rewards':      {'event':'rewards',     'type':'discrete',      'length':115,   'offset':-15}, 
+        'change':       {'event':'change',      'type':'discrete',      'length':100,   'offset':0},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':23,    'offset':0},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':23,    'offset':0},
+        'running':      {'event':'running',     'type':'continuous',    'length':5,     'offset':0},
+        #'population_mean':{'event':'population_mean','type':'continuous','length':11,'offset':-5},
+        'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':11,    'offset':-5}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -240,6 +240,7 @@ def process_kernels(kernels):
         specs = kernels.pop('each-image')
         for index, val in enumerate(range(0,8)):
             kernels['image'+str(val)] = copy(specs)
+            kernels['image'+str(val)]['event'] = 'image'+str(val)
     return kernels
  
 def define_dropouts(kernels,kernel_definitions):
@@ -392,35 +393,36 @@ def add_kernels(design, run_params,session, fit):
         session         the SDK session object for this experiment
         fit             the fit object for this model
     '''
-    for kernel in run_params['kernels']:
-        if run_params['kernels'][kernel]['type'] == 'discrete':
-            design = add_discrete_kernel_by_label(kernel, design, run_params, session, fit)
+    for kernel_name in run_params['kernels']:
+        if run_params['kernels'][kernel_name]['type'] == 'discrete':
+            design = add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit)
         else:
-            design = add_continuous_kernel_by_label(kernel, design, run_params, session, fit)   
+            design = add_continuous_kernel_by_label(kernel_name, design, run_params, session, fit)   
     return design
 
-def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
+def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit):
     '''
-        Adds the kernel specified by <kernel> to the design matrix
-        kernel          <str> the label for this kernel, will raise an error if not implemented
+        Adds the kernel specified by <kernel_name> to the design matrix
+        kernel_name          <str> the label for this kernel, will raise an error if not implemented
         design          the design matrix for this model
         run_params      the run_json for this model
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
-    print('    Adding kernel: '+kernel)
-    if kernel == 'intercept':
+    print('    Adding kernel: '+kernel_name)
+    event = run_params['kernels'][kernel_name]['event']
+    if event == 'intercept':
         timeseries = np.ones(len(fit['dff_trace_timestamps']))
-    elif kernel == 'time':
+    elif event == 'time':
         timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
         timeseries = timeseries/len(timeseries)
-    elif kernel == 'running':
+    elif event == 'running':
         running_df = session.dataset.running_speed
         running_df = running_df.rename(columns={'speed':'values'})
         timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
-    elif kernel == 'population_mean':
+    elif event == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values
-    elif kernel == 'PCA_1':
+    elif event == 'PCA_1':
         pca = PCA()
         pca.fit(fit['dff_trace_arr'].values)
         dff_pca = pca.transform(fit['dff_trace_arr'].values)
@@ -431,36 +433,37 @@ def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
     #assert length of values is same as length of timestamps
     assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
 
-    design.add_kernel(timeseries, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
+    design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
     return design
 
-def add_discrete_kernel_by_label(kernel,design, run_params,session,fit):
+def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     '''
-        Adds the kernel specified by <kernel> to the design matrix
-        kernel          <str> the label for this kernel, will raise an error if not implemented
+        Adds the kernel specified by <kernel_name> to the design matrix
+        kernel_name     <str> the label for this kernel, will raise an error if not implemented
         design          the design matrix for this model
         run_params      the run_json for this model
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
-    print('    Adding kernel: '+kernel)
-    if kernel == 'licks':
+    print('    Adding kernel: '+kernel_name)
+    event = run_params['kernels'][kernel_name]['event']
+    if event == 'licks':
         event_times = session.dataset.licks['timestamps'].values
-    elif kernel == 'rewards':
+    elif event == 'rewards':
         event_times = session.dataset.rewards['timestamps'].values
-    elif kernel == 'change':
+    elif event == 'change':
         event_times = session.dataset.trials.query('go')['change_time'].values
         event_times = event_times[~np.isnan(event_times)]
-    elif kernel == 'any-image':
+    elif event == 'any-image':
         event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
-    elif kernel == 'omissions':
+    elif event == 'omissions':
         event_times = session.dataset.stimulus_presentations.query('omitted')['start_time'].values
-    elif (len(kernel)>5) & (kernel[0:5] == 'image'):
-        event_times = session.dataset.stimulus_presentations.query('image_index == @kernel[-1]')['start_time'].values
+    elif (len(event)>5) & (event[0:5] == 'image'):
+        event_times = session.dataset.stimulus_presentations.query('image_index == @event[-1]')['start_time'].values
     else:
         raise Exception('Could not resolve kernel label')
     events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
-    design.add_kernel(events_vec, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
+    design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
     return design
 
 class DesignMatrix(object):

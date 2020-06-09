@@ -10,6 +10,7 @@ import scipy
 import datetime
 from tqdm import tqdm
 from copy import copy
+from sklearn.decomposition import PCA
 
 from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
 from visual_behavior.translator.allensdk_sessions import sdk_utils
@@ -126,7 +127,9 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'change':       {'type':'discrete', 'length':100, 'offset':0},
         'omissions':    {'type':'discrete', 'length':23, 'offset':0},
         'each-image':   {'type':'discrete', 'length':23, 'offset':0},
-        'running':      {'type':'continuous','length':5, 'offset':0}
+        'running':      {'type':'continuous','length':5, 'offset':0},
+        #'population_mean':{'type':'continuous','length':11,'offset':-5},
+        'PCA_1':        {'type':'continuous','length':11,'offset':-5}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -215,7 +218,7 @@ def fit_experiment(oeid, run_params):
     
     # Save Design Matrix
     print('Saving Design Matrix')  
-    sparse_X = scipy.sparse.csc_matrix(design.get_X().T)
+    sparse_X = scipy.sparse.csc_matrix(design.get_X().values)
     filepath = run_params['experiment_output_dir']+'X_sparse_csc_'+str(oeid)+'.npz'
     scipy.sparse.save_npz(filepath, sparse_X)
 
@@ -270,8 +273,6 @@ def define_dropouts(kernels,kernel_definitions):
 
     return dropouts
 
-
-
 def evaluate_models(fit, design, run_params):
     '''
         Fits and evaluates each model defined in fit['dropouts']
@@ -287,12 +288,11 @@ def evaluate_models(fit, design, run_params):
         n_neurons= fit['dff_trace_arr'].shape[1]
 
         dff = fit['dff_trace_arr']
-        Xall = X.T
-        Wall = fit_regularized(dff, Xall,run_params['regularization_lambda'])     
-        var_explain = variance_ratio(dff, Wall,Xall)
+        Wall = fit_regularized(dff, X,run_params['regularization_lambda'])     
+        var_explain = variance_ratio(dff, Wall,X)
         fit['dropouts'][model_label]['weights'] = Wall
         fit['dropouts'][model_label]['variance_explained']=var_explain
-        fit['dropouts'][model_label]['full_model_train_prediction'] =  Xall @ Wall
+        fit['dropouts'][model_label]['full_model_train_prediction'] =  X.values @ Wall.values
 
         # Iterate CV
         cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
@@ -301,14 +301,14 @@ def evaluate_models(fit, design, run_params):
 
         for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
             train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
-            X_test = X[:,test_split].T
-            X_train = X[:,train_split].T
+            X_test = X[test_split,:]
+            X_train = X[train_split,:]
             dff_train = fit['dff_trace_arr'][train_split,:]
             dff_test = fit['dff_trace_arr'][test_split,:]
             W = fit_regularized(dff_train, X_train, run_params['regularization_lambda'])
             cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
             cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
-            cv_weights[:,:,index] = W
+            cv_weights[:,:,index] = W # TODO this should be either a list of xarrays, or one big xarray
 
         fit['dropouts'][model_label]['cv_weights'] = cv_weights
         fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
@@ -418,6 +418,13 @@ def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
         running_df = session.dataset.running_speed
         running_df = running_df.rename(columns={'speed':'values'})
         timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
+    elif kernel == 'population_mean':
+        timeseries = np.mean(fit['dff_trace_arr'],1).values
+    elif kernel == 'PCA_1':
+        pca = PCA()
+        pca.fit(fit['dff_trace_arr'].values)
+        dff_pca = pca.transform(fit['dff_trace_arr'].values)
+        timeseries = dff_pca[:,0]
     else:
         raise Exception('Could not resolve kernel label')
 
@@ -480,6 +487,11 @@ class DesignMatrix(object):
         '''
         return {label:kernel for label, kernel in zip(self.labels, self.kernel_list)}
 
+    def make_labels(self, label, num_weights):
+        base = [label] * num_weights 
+        numbers = [str(x) for x in range(1,num_weights+1)]
+        return [x[0] + '_'+ x[1] for x in zip(base, numbers)]
+
     def get_X(self, kernels=None):
         '''
         Get the design matrix. 
@@ -490,13 +502,26 @@ class DesignMatrix(object):
             X (np.array): The design matrix
         '''
         if kernels is None:
-            return np.vstack(self.kernel_list)
-        else:
-            kernel_dict = self.kernel_dict()
-            kernels_to_use = []
-            for kernel_name in kernels:
-                kernels_to_use.append(kernel_dict[kernel_name])
-            return np.vstack(kernels_to_use)
+            kernels = self.kernel_dict().keys()
+        kernel_dict = self.kernel_dict()
+        kernels_to_use = []
+        param_labels = []
+        for kernel_name in kernels:
+            kernels_to_use.append(kernel_dict[kernel_name])
+            param_labels.append(self.make_labels(kernel_name, np.shape(kernel_dict[kernel_name])[0]))
+
+        X = np.vstack(kernels_to_use) 
+        x_labels = np.hstack(param_labels)
+
+        assert np.shape(X)[0] == np.shape(x_labels)[0], 'Weight Matrix must have the same length as the weight labels'
+
+        X_array = xr.DataArray(
+            X, 
+            dims =('weights','timestamps'), 
+            coords = {  'weights':x_labels, 
+                        'timestamps':self.events['timestamps']}
+            )
+        return X_array.T
 
     def add_kernel(self, events, kernel_length, label, offset=0):
         '''
@@ -675,21 +700,32 @@ def fit_regularized(dff_trace_arr, X, lam):
     dff_trace_arr: shape (n_timestamps * n_cells)
     X: shape (n_timestamps * n_kernel_params)
     lam (float): Strength of L2 regularization (hyperparameter to tune)
+
+    Returns: XArray
     '''
+    # Compute the weights
     if lam == 0:
-        return fit(dff_trace_arr,X)
+        W = fit(dff_trace_arr,X)
     else:
         W = np.dot(np.linalg.inv(np.dot(X.T, X) + lam * np.eye(X.shape[-1])),
                np.dot(X.T, dff_trace_arr))
-        return W
+
+    # Make xarray
+    W_xarray= xr.DataArray(
+            W, 
+            dims =('weights','cell_specimen_id'), 
+            coords = {  'weights':X.weights.values, 
+                        'cell_specimen_id':dff_trace_arr['cell_specimen_id'].values}
+            )
+    return W_xarray
 
 def variance_ratio(dff_trace_arr, W, X): # TODO Double check this function
     '''
     dff_trace_arr: (n_timepoints, n_cells)
-    W: (n_kernel_params, n_cells)
-    X: (n_timepoints, n_kernel_params)
+    W: Xarray (n_kernel_params, n_cells)
+    X: Xarray (n_timepoints, n_kernel_params)
     '''
-    Y = X @ W
+    Y = X.values @ W.values
     var_total = np.var(dff_trace_arr, axis=0) #Total variance in the dff trace for each cell
     var_resid = np.var(dff_trace_arr-Y, axis=0) #Residual variance
     return (var_total - var_resid) / var_total

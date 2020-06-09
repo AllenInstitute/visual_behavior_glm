@@ -488,7 +488,7 @@ class DesignMatrix(object):
         self.running_stop = 0
         self.events = {'timestamps':event_timestamps}
 
-    def kernel_dict(self):
+    def kernel_dict(self): 
         '''
             Returns a dictionary of the kernels that have been added. 
         '''

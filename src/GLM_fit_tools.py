@@ -276,15 +276,15 @@ def define_dropouts(kernels,kernel_definitions):
             dropouts['all-images']['kernels'].remove('image'+str(i))
 
     # Removes all Stimulus Kernels
-    # TODO this should only happen if one of these kernels is in the model
-    dropouts['visual'] = {'kernels':list(kernels.keys())}
-    if 'each-image' in kernel_definitions:
-        for i in range(0,8):
-            dropouts['visual']['kernels'].remove('image'+str(i))
-    if 'omissions' in kernel_definitions:
-        dropouts['visual']['kernels'].remove('omissions')
-    if 'any-image' in kernel_definitions:
-        dropouts['visual']['kernels'].remove('any-image')
+    if ('each-image' in kernel_definitions) or ('any-image' in kernel_definitions) or ('omissions' in kernel_definitions):
+        dropouts['visual'] = {'kernels':list(kernels.keys())}
+        if 'each-image' in kernel_definitions:
+            for i in range(0,8):
+                dropouts['visual']['kernels'].remove('image'+str(i))
+        if 'omissions' in kernel_definitions:
+            dropouts['visual']['kernels'].remove('omissions')
+        if 'any-image' in kernel_definitions:
+            dropouts['visual']['kernels'].remove('any-image')
 
     # Remove all behavior model kernels
     if 'beh_model' in kernel_definitions:

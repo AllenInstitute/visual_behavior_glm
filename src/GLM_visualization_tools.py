@@ -237,8 +237,12 @@ class GLM_Movie(object):
             blit=False
         )
 
-        save_folder = '/home/dougo'
+        base_path = self.glm.run_params['output_dir'].split('/v_')[0]
+        save_folder = os.path.join(base_path, 'output_files')
+        if os.path.exists(save_folder) == False:
+            os.mkdir(save_folder)
+        filename = 'oeid={}_cell_id={}_frame_{}_to_{}.mp4'.format(self.glm.oeid, self.cell_to_plot, self.start_frame, self.end_frame)
         a.save(
-            os.path.join(save_folder, 'test_output_movie.mp4'),
+            os.path.join(save_folder, filename),
             writer=self.writer
         )

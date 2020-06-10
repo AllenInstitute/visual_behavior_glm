@@ -133,10 +133,11 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'running':      {'event':'running',     'type':'continuous',    'length':5,     'offset':0},
         #'population_mean':{'event':'population_mean','type':'continuous','length':11,'offset':-5},
         'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':11,    'offset':-5},
-        'model_bias':   {'event':'model_bias',  'type':'continuous',    'length':1,     'offset':0},
-        'model_task0':   {'event':'model_task0',  'type':'continuous',    'length':1,     'offset':0},
-        'model_timing1D':   {'event':'model_timing1D',  'type':'continuous',    'length':1,     'offset':0},
-        'model_omissions1':   {'event':'model_omissions1',  'type':'continuous',    'length':1,     'offset':0}
+        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':1,     'offset':0},
+        #'model_bias':   {'event':'model_bias',  'type':'continuous',    'length':1,     'offset':0},
+        #'model_task0':   {'event':'model_task0',  'type':'continuous',    'length':1,     'offset':0},
+        #'model_timing1D':   {'event':'model_timing1D',  'type':'continuous',    'length':1,     'offset':0},
+        #'model_omissions1':   {'event':'model_omissions1',  'type':'continuous',    'length':1,     'offset':0}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -251,6 +252,12 @@ def process_kernels(kernels):
         for index, val in enumerate(range(0,8)):
             kernels['image'+str(val)] = copy(specs)
             kernels['image'+str(val)]['event'] = 'image'+str(val)
+    if 'beh_model' in kernels:
+        specs = kernels.pop('beh_model')
+        weight_names = ['bias','task0','omissions1','timing1D']
+        for index, val in enumerate(weight_names):
+            kernels['model_'+str(val)] = copy(specs)
+            kernels['model_'+str(val)]['event'] = 'model_'+str(val)
     return kernels
  
 def define_dropouts(kernels,kernel_definitions):

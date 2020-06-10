@@ -74,6 +74,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
     job_dir                 = output_dir +'log_files/'
     json_path               = output_dir +'run_params.json'
     experiment_table_path   = output_dir +'experiment_table_v_'+str(VERSION)+'.csv'
+    beh_model_dir           = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/model_output/'
     os.mkdir(output_dir)
     os.mkdir(model_freeze_dir)
     os.mkdir(experiment_output_dir)
@@ -131,7 +132,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':23,    'offset':0},
         'running':      {'event':'running',     'type':'continuous',    'length':5,     'offset':0},
         #'population_mean':{'event':'population_mean','type':'continuous','length':11,'offset':-5},
-        'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':11,    'offset':-5}
+        'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':11,    'offset':-5},
+        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':1,     'offset':0} 
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -144,6 +146,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'job_dir':job_dir,
         'manifest':manifest,
         'json_path':json_path,
+        'beh_model_dir':beh_model_dir,
         'version':VERSION,
         'creation_time':str(datetime.datetime.now()),
         'user':username,
@@ -245,6 +248,12 @@ def process_kernels(kernels):
         for index, val in enumerate(range(0,8)):
             kernels['image'+str(val)] = copy(specs)
             kernels['image'+str(val)]['event'] = 'image'+str(val)
+    if 'beh_model' in kernels:
+        specs = kernels.pop('beh_model')
+        weight_names = ['bias','task0','omissions1','timing1D']
+        for index, val in enumerate(weight_names):
+            kernels['model_'+str(val)] = copy(specs)
+            kernels['model_'+str(val)]['event'] = 'model_'+str(val)
     return kernels
  
 def define_dropouts(kernels,kernel_definitions):
@@ -267,14 +276,23 @@ def define_dropouts(kernels,kernel_definitions):
             dropouts['all-images']['kernels'].remove('image'+str(i))
 
     # Removes all Stimulus Kernels
-    dropouts['visual'] = {'kernels':list(kernels.keys())}
-    if 'each-image' in kernel_definitions:
-        for i in range(0,8):
-            dropouts['visual']['kernels'].remove('image'+str(i))
-    if 'omissions' in kernel_definitions:
-        dropouts['visual']['kernels'].remove('omissions')
-    if 'any-image' in kernel_definitions:
-        dropouts['visual']['kernels'].remove('any-image')
+    if ('each-image' in kernel_definitions) or ('any-image' in kernel_definitions) or ('omissions' in kernel_definitions):
+        dropouts['visual'] = {'kernels':list(kernels.keys())}
+        if 'each-image' in kernel_definitions:
+            for i in range(0,8):
+                dropouts['visual']['kernels'].remove('image'+str(i))
+        if 'omissions' in kernel_definitions:
+            dropouts['visual']['kernels'].remove('omissions')
+        if 'any-image' in kernel_definitions:
+            dropouts['visual']['kernels'].remove('any-image')
+
+    # Remove all behavior model kernels
+    if 'beh_model' in kernel_definitions:
+        dropouts['beh_model'] = {'kernels':list(kernels.keys())}
+        dropouts['beh_model']['kernels'].remove('model_bias')
+        dropouts['beh_model']['kernels'].remove('model_task0')
+        dropouts['beh_model']['kernels'].remove('model_timing1D')
+        dropouts['beh_model']['kernels'].remove('model_omissions1')
 
     return dropouts
 
@@ -431,6 +449,16 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         pca.fit(fit['dff_trace_arr'].values)
         dff_pca = pca.transform(fit['dff_trace_arr'].values)
         timeseries = dff_pca[:,0]
+    elif (len(event) > 6) & ( event[0:6] == 'model_'):
+        bsid = session.dataset.metadata['behavior_session_id']
+        weight_name = event[6:]
+        weight = get_model_weight(bsid, weight_name, run_params)
+        weight_df = pd.DataFrame()
+        weight_df['timestamps'] = session.dataset.stimulus_presentations.start_time.values
+        weight_df['values'] = weight.values
+        timeseries = interpolate_to_dff_timestamps(fit, weight_df)
+        timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
+        timeseries = timeseries['values'].values
     else:
         raise Exception('Could not resolve kernel label')
 
@@ -683,6 +711,10 @@ def interpolate_to_dff_timestamps(fit,df):
     })
 
     return interpolated
+
+def get_model_weight(bsid, weight_name, run_params):
+    beh_model = pd.read_csv(run_params['beh_model_dir']+str(bsid)+'.csv')
+    return beh_model[weight_name].copy()
 
 def fit(dff_trace_arr, X):
     '''

@@ -133,7 +133,10 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'running':      {'event':'running',     'type':'continuous',    'length':5,     'offset':0},
         #'population_mean':{'event':'population_mean','type':'continuous','length':11,'offset':-5},
         'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':11,    'offset':-5},
-        'model_bias':   {'event':'model_bias',  'type':'continuous',    'length':1,     'offset':0}
+        'model_bias':   {'event':'model_bias',  'type':'continuous',    'length':1,     'offset':0},
+        'model_task0':   {'event':'model_task0',  'type':'continuous',    'length':1,     'offset':0},
+        'model_timing1D':   {'event':'model_timing1D',  'type':'continuous',    'length':1,     'offset':0},
+        'model_omissions1':   {'event':'model_omissions1',  'type':'continuous',    'length':1,     'offset':0}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)

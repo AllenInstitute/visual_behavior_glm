@@ -120,16 +120,18 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
     # TODO mesoscope and scientific have different sampling rates
     # TODO intelligently pick the offset and length for each kernel
     kernels_orig = {
-        'intercept':    {'type':'continuous','length':1, 'offset':0},
-        'time':         {'type':'continuous','length':1, 'offset':0},
-        'licks':        {'type':'discrete', 'length':30, 'offset':-10},
-        'rewards':      {'type':'discrete', 'length':115, 'offset':-15}, 
-        'change':       {'type':'discrete', 'length':100, 'offset':0},
-        'omissions':    {'type':'discrete', 'length':23, 'offset':0},
-        'each-image':   {'type':'discrete', 'length':23, 'offset':0},
-        'running':      {'type':'continuous','length':5, 'offset':0},
-        #'population_mean':{'type':'continuous','length':11,'offset':-5},
-        'PCA_1':        {'type':'continuous','length':11,'offset':-5}
+        'intercept':    {'event':'intercept',   'type':'continuous',    'length':1,     'offset':0},
+        'time':         {'event':'time',        'type':'continuous',    'length':1,     'offset':0},
+        #'licks':        {'event':'licks',       'type':'discrete',      'length':30,    'offset':-10},
+        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':10,    'offset':-10},
+        'post_licks':   {'event':'licks',       'type':'discrete',      'length':20,    'offset':0},
+        'rewards':      {'event':'rewards',     'type':'discrete',      'length':115,   'offset':-15}, 
+        'change':       {'event':'change',      'type':'discrete',      'length':100,   'offset':0},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':23,    'offset':0},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':23,    'offset':0},
+        'running':      {'event':'running',     'type':'continuous',    'length':5,     'offset':0},
+        #'population_mean':{'event':'population_mean','type':'continuous','length':11,'offset':-5},
+        'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':11,    'offset':-5}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -177,7 +179,7 @@ def get_experiment_table(require_model_outputs = True):
     else:
         return experiments_table
 
-def fit_experiment(oeid, run_params):
+def fit_experiment(oeid, run_params,NO_DROPOUTS=False):
     print("Fitting ophys_experiment_id: "+str(oeid)) 
 
     # Load Data
@@ -204,6 +206,8 @@ def fit_experiment(oeid, run_params):
     # Set up kernels to drop for model selection
     print('Setting up model selection dropout')
     fit['dropouts'] = copy(run_params['dropouts'])
+    if NO_DROPOUTS:
+        fit['dropouts'] = {'Full':copy(fit['dropouts']['Full'])}
 
     # Iterate over model selections
     print('Iterating over model selection')
@@ -240,6 +244,7 @@ def process_kernels(kernels):
         specs = kernels.pop('each-image')
         for index, val in enumerate(range(0,8)):
             kernels['image'+str(val)] = copy(specs)
+            kernels['image'+str(val)]['event'] = 'image'+str(val)
     return kernels
  
 def define_dropouts(kernels,kernel_definitions):
@@ -392,35 +397,36 @@ def add_kernels(design, run_params,session, fit):
         session         the SDK session object for this experiment
         fit             the fit object for this model
     '''
-    for kernel in run_params['kernels']:
-        if run_params['kernels'][kernel]['type'] == 'discrete':
-            design = add_discrete_kernel_by_label(kernel, design, run_params, session, fit)
+    for kernel_name in run_params['kernels']:
+        if run_params['kernels'][kernel_name]['type'] == 'discrete':
+            design = add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit)
         else:
-            design = add_continuous_kernel_by_label(kernel, design, run_params, session, fit)   
+            design = add_continuous_kernel_by_label(kernel_name, design, run_params, session, fit)   
     return design
 
-def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
+def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit):
     '''
-        Adds the kernel specified by <kernel> to the design matrix
-        kernel          <str> the label for this kernel, will raise an error if not implemented
+        Adds the kernel specified by <kernel_name> to the design matrix
+        kernel_name          <str> the label for this kernel, will raise an error if not implemented
         design          the design matrix for this model
         run_params      the run_json for this model
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
-    print('    Adding kernel: '+kernel)
-    if kernel == 'intercept':
+    print('    Adding kernel: '+kernel_name)
+    event = run_params['kernels'][kernel_name]['event']
+    if event == 'intercept':
         timeseries = np.ones(len(fit['dff_trace_timestamps']))
-    elif kernel == 'time':
+    elif event == 'time':
         timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
         timeseries = timeseries/len(timeseries)
-    elif kernel == 'running':
+    elif event == 'running':
         running_df = session.dataset.running_speed
         running_df = running_df.rename(columns={'speed':'values'})
         timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
-    elif kernel == 'population_mean':
+    elif event == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values
-    elif kernel == 'PCA_1':
+    elif event == 'PCA_1':
         pca = PCA()
         pca.fit(fit['dff_trace_arr'].values)
         dff_pca = pca.transform(fit['dff_trace_arr'].values)
@@ -431,36 +437,37 @@ def add_continuous_kernel_by_label(kernel, design, run_params, session,fit):
     #assert length of values is same as length of timestamps
     assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
 
-    design.add_kernel(timeseries, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
+    design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
     return design
 
-def add_discrete_kernel_by_label(kernel,design, run_params,session,fit):
+def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     '''
-        Adds the kernel specified by <kernel> to the design matrix
-        kernel          <str> the label for this kernel, will raise an error if not implemented
+        Adds the kernel specified by <kernel_name> to the design matrix
+        kernel_name     <str> the label for this kernel, will raise an error if not implemented
         design          the design matrix for this model
         run_params      the run_json for this model
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
-    print('    Adding kernel: '+kernel)
-    if kernel == 'licks':
+    print('    Adding kernel: '+kernel_name)
+    event = run_params['kernels'][kernel_name]['event']
+    if event == 'licks':
         event_times = session.dataset.licks['timestamps'].values
-    elif kernel == 'rewards':
+    elif event == 'rewards':
         event_times = session.dataset.rewards['timestamps'].values
-    elif kernel == 'change':
+    elif event == 'change':
         event_times = session.dataset.trials.query('go')['change_time'].values
         event_times = event_times[~np.isnan(event_times)]
-    elif kernel == 'any-image':
+    elif event == 'any-image':
         event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
-    elif kernel == 'omissions':
+    elif event == 'omissions':
         event_times = session.dataset.stimulus_presentations.query('omitted')['start_time'].values
-    elif (len(kernel)>5) & (kernel[0:5] == 'image'):
-        event_times = session.dataset.stimulus_presentations.query('image_index == @kernel[-1]')['start_time'].values
+    elif (len(event)>5) & (event[0:5] == 'image'):
+        event_times = session.dataset.stimulus_presentations.query('image_index == @event[-1]')['start_time'].values
     else:
         raise Exception('Could not resolve kernel label')
     events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
-    design.add_kernel(events_vec, run_params['kernels'][kernel]['length'], kernel, offset=run_params['kernels'][kernel]['offset'])   
+    design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
     return design
 
 class DesignMatrix(object):
@@ -474,22 +481,13 @@ class DesignMatrix(object):
 
         # Add some kernels
         self.X = None
-        self.kernel_list = []
-        self.labels = []
-        self.ind_start = []
-        self.ind_stop = []
+        self.kernel_dict = {}
         self.running_stop = 0
         self.events = {'timestamps':event_timestamps}
 
-    def kernel_dict(self):
-        '''
-            Returns a dictionary of the kernels that have been added. 
-        '''
-        return {label:kernel for label, kernel in zip(self.labels, self.kernel_list)}
-
-    def make_labels(self, label, num_weights):
+    def make_labels(self, label, num_weights,offset, length): 
         base = [label] * num_weights 
-        numbers = [str(x) for x in range(1,num_weights+1)]
+        numbers = [str(x) for x in np.array(range(0,length+1))+offset]
         return [x[0] + '_'+ x[1] for x in zip(base, numbers)]
 
     def get_X(self, kernels=None):
@@ -502,13 +500,16 @@ class DesignMatrix(object):
             X (np.array): The design matrix
         '''
         if kernels is None:
-            kernels = self.kernel_dict().keys()
-        kernel_dict = self.kernel_dict()
+            kernels = self.kernel_dict.keys()
+
         kernels_to_use = []
         param_labels = []
         for kernel_name in kernels:
-            kernels_to_use.append(kernel_dict[kernel_name])
-            param_labels.append(self.make_labels(kernel_name, np.shape(kernel_dict[kernel_name])[0]))
+            kernels_to_use.append(self.kernel_dict[kernel_name]['kernel'])
+            param_labels.append(self.make_labels(   kernel_name, 
+                                                    np.shape(self.kernel_dict[kernel_name]['kernel'])[0], 
+                                                    self.kernel_dict[kernel_name]['offset'],
+                                                    self.kernel_dict[kernel_name]['kernel_length'] ))
 
         X = np.vstack(kernels_to_use) 
         x_labels = np.hstack(param_labels)
@@ -535,7 +536,7 @@ class DesignMatrix(object):
                           to overhang before the event
         '''
         #Enforce unique labels
-        if label in self.labels:
+        if label in self.kernel_dict.keys():
             raise ValueError('Labels must be unique')
 
         self.events[label] = events
@@ -550,15 +551,15 @@ class DesignMatrix(object):
             this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset))], axis=1)
             this_kernel = np.roll(this_kernel, offset)[:, :-offset]
 
-        self.kernel_list.append(this_kernel)
-
-        #Keep track of start and stop inds
-        self.ind_start.append(self.running_stop)
-        self.ind_stop.append(self.running_stop + kernel_length)
+        self.kernel_dict[label] = {
+            'kernel':this_kernel,
+            'kernel_length':kernel_length,
+            'offset':offset,
+            'ind_start':self.running_stop,
+            'ind_stop':self.running_stop+kernel_length
+            }
         self.running_stop += kernel_length
 
-        #Keep track of labels
-        self.labels.append(label)
 
 def split_time(timebase, subsplits_per_split=10, output_splits=6):
     '''

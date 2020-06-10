@@ -481,22 +481,13 @@ class DesignMatrix(object):
 
         # Add some kernels
         self.X = None
-        self.kernel_list = []
-        self.labels = []
-        self.ind_start = []
-        self.ind_stop = []
+        self.kernel_dict = {}
         self.running_stop = 0
         self.events = {'timestamps':event_timestamps}
 
-    def kernel_dict(self): 
-        '''
-            Returns a dictionary of the kernels that have been added. 
-        '''
-        return {label:kernel for label, kernel in zip(self.labels, self.kernel_list)}
-
-    def make_labels(self, label, num_weights):
+    def make_labels(self, label, num_weights,offset, length): 
         base = [label] * num_weights 
-        numbers = [str(x) for x in range(1,num_weights+1)]
+        numbers = [str(x) for x in np.array(range(0,length+1))+offset]
         return [x[0] + '_'+ x[1] for x in zip(base, numbers)]
 
     def get_X(self, kernels=None):
@@ -509,13 +500,16 @@ class DesignMatrix(object):
             X (np.array): The design matrix
         '''
         if kernels is None:
-            kernels = self.kernel_dict().keys()
-        kernel_dict = self.kernel_dict()
+            kernels = self.kernel_dict.keys()
+
         kernels_to_use = []
         param_labels = []
         for kernel_name in kernels:
-            kernels_to_use.append(kernel_dict[kernel_name])
-            param_labels.append(self.make_labels(kernel_name, np.shape(kernel_dict[kernel_name])[0]))
+            kernels_to_use.append(self.kernel_dict[kernel_name]['kernel'])
+            param_labels.append(self.make_labels(   kernel_name, 
+                                                    np.shape(self.kernel_dict[kernel_name]['kernel'])[0], 
+                                                    self.kernel_dict[kernel_name]['offset'],
+                                                    self.kernel_dict[kernel_name]['kernel_length'] ))
 
         X = np.vstack(kernels_to_use) 
         x_labels = np.hstack(param_labels)
@@ -542,7 +536,7 @@ class DesignMatrix(object):
                           to overhang before the event
         '''
         #Enforce unique labels
-        if label in self.labels:
+        if label in self.kernel_dict.keys():
             raise ValueError('Labels must be unique')
 
         self.events[label] = events
@@ -557,15 +551,15 @@ class DesignMatrix(object):
             this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset))], axis=1)
             this_kernel = np.roll(this_kernel, offset)[:, :-offset]
 
-        self.kernel_list.append(this_kernel)
-
-        #Keep track of start and stop inds
-        self.ind_start.append(self.running_stop)
-        self.ind_stop.append(self.running_stop + kernel_length)
+        self.kernel_dict[label] = {
+            'kernel':this_kernel,
+            'kernel_length':kernel_length,
+            'offset':offset,
+            'ind_start':self.running_stop,
+            'ind_stop':self.running_stop+kernel_length
+            }
         self.running_stop += kernel_length
 
-        #Keep track of labels
-        self.labels.append(label)
 
 def split_time(timebase, subsplits_per_split=10, output_splits=6):
     '''

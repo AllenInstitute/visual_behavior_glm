@@ -37,19 +37,20 @@ def demonstration():
     events_vec = np.zeros(np.shape(time))
     events_vec[0] = 1
     events_vec[10] = 1
-    design.add_kernel(events_vec,3,'discrete',offset=0)
+    design.add_kernel(events_vec,3,'discrete-post',offset=0)
+    design.add_kernel(events_vec,3,'discrete-pre',offset=-3)
     plt.figure()
     plt.imshow(design.get_X())
     plt.xlabel('Weights')
     plt.ylabel('Time')
 
-    W =[1,2,1,.1,.2,.3]
+    W =[1,2,1,.1,.2,.3,.4,.5,.6]
     Y = design.get_X().values @ W
     plt.figure()
     plt.plot(Y, 'k',label='full')
-    Y_noIntercept = design.get_X(kernels=['time','discrete']).values@ np.array(W)[1:]
+    Y_noIntercept = design.get_X(kernels=['time','discrete-post','discrete-pre']).values@ np.array(W)[1:]
     plt.plot(Y_noIntercept,'r',label='No Intercept')
-    Y_noTime = design.get_X(kernels=['intercept','discrete']).values@ np.array(W)[[0,3,4,5]]
+    Y_noTime = design.get_X(kernels=['intercept','discrete-post','discrete-pre']).values@ np.array(W)[[0,3,4,5,6,7,8]]
     plt.plot(Y_noTime,'b',label='No Time')
     Y_noDiscrete = design.get_X(kernels=['intercept','time']).values@ np.array(W)[0:3]
     plt.plot(Y_noDiscrete,'m',label='No discrete')

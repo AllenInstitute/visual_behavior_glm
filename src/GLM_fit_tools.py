@@ -289,6 +289,14 @@ def define_dropouts(kernels,kernel_definitions):
     if 'any-image' in kernel_definitions:
         dropouts['visual']['kernels'].remove('any-image')
 
+    # Remove all behavior model kernels
+    if 'beh_model' in kernel_definitions:
+        dropouts['beh_model'] = {'kernels':list(kernels.keys())}
+        dropouts['beh_model']['kernels'].remove('model_bias')
+        dropouts['beh_model']['kernels'].remove('model_task0')
+        dropouts['beh_model']['kernels'].remove('model_timing1D')
+        dropouts['beh_model']['kernels'].remove('model_omissions1')
+
     return dropouts
 
 def evaluate_models(fit, design, run_params):

@@ -24,6 +24,19 @@ def plot_licks(session, ax, y_loc=0, t_span=None):
         'ok', 
         alpha=0.5
     )
+
+
+def plot_running(session, ax, t_span=None):
+    if t_span:
+        running_df = session.dataset.running_speed.query('timestamps >= {} and timestamps <= {}'.format(t_span[0], t_span[1]))
+    else:
+        running_df = session.dataset.running_speed
+    ax.plot(
+        running_df['timestamps'],
+        running_df['speed'],
+        color='blue'
+    )
+
     
 def plot_omissions(session, ax, y_loc=0, t_span=None):
     omissions = session.stimulus_presentations.query('omitted == True')
@@ -116,6 +129,8 @@ class GLM_Movie(object):
         mpl.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
         plt.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
 
+        plt.style.use('fivethirtyeight')
+
         self.glm = glm
         self.cell_to_plot = cell_to_plot
         self.start_frame = start_frame
@@ -126,7 +141,7 @@ class GLM_Movie(object):
         self.frames = np.arange(self.start_frame, self.end_frame)
         self.fps = fps
 
-        self.fig,  self.ax = self.set_up_axes()
+        self.fig, self.ax = self.set_up_axes()
         self.writer = self.set_up_writer()
 
 
@@ -144,22 +159,19 @@ class GLM_Movie(object):
         for axis in ['licks','cell_response']:
             ax[axis].axvline(t_now,color='black',linewidth=3,alpha=0.5)
 
-        X = glm.design.get_X()
-        W = glm.fit['dropouts']['Full']['weights']
-        y = X.values @ W.values
+        dft = glm.df_full.query('frame_index == @F_index').set_index('cell_specimen_id')
+        dff_pred = dft.loc[glm.W['cell_specimen_id'].values]['dff_predicted'].values
 
-        simulated_fov = build_simulated_FOV(glm.session, y[F_index,:])
+        simulated_fov = build_simulated_FOV(glm.session, dff_pred)
         ax['simulated_fov'].imshow(simulated_fov,cmap='gray',clim=[0,.25])
         ax['simulated_fov'].set_xticks([])
         ax['simulated_fov'].set_yticks([])
-        ax['simulated_fov'].set_title('Simulated FOV')
-
+        
         real_fov = self.real_2p_movie[F_index]
         ax['real_fov'].imshow(real_fov,cmap='gray',clim=[0,15000])
         ax['real_fov'].set_xticks([])
         ax['real_fov'].set_yticks([])
-        ax['real_fov'].set_title('Real FOV')
-
+        
         plot_weights(glm, ax['model_weights'], cell_index = cell_index, F_index=F_index)
 
         t_span = [t_now-t_before, t_now+t_after]
@@ -181,18 +193,24 @@ class GLM_Movie(object):
         )
 
         plot_licks(glm.session, ax['licks'], t_span=t_span)
-        plot_stimuli(glm.session, ax['cell_response'], t_span=t_span)
+        plot_running(glm.session, ax['running'], t_span=t_span)
+        for axis_name in ['cell_response','licks','running']:
+            plot_stimuli(glm.session, ax[axis_name], t_span=t_span)
 
-        ax['licks'].get_shared_x_axes().join(ax['licks'], ax['cell_response'])
         ax['licks'].set_xlim(t_span[0],t_span[1])
+        ax['licks'].set_yticks([])
 
         ax['cell_response'].set_xticklabels('')
-        ax['licks'].set_yticks([])
+        
         ax['licks'].set_xlabel('time')
 
-        ax['licks'].set_ylabel('licks')
-        ax['cell_response'].set_ylabel('$\Delta$F/F')
+        ax['licks'].set_ylabel('licks       ', rotation=0,ha='right',va='center')
+        ax['cell_response'].set_ylabel('$\Delta$F/F', rotation=0,ha='right',va='center')
+        ax['running'].set_ylabel('Running\nSpeed\n(cm/s)', rotation=0,ha='right',va='center')
         ax['licks'].ticklabel_format(useOffset=False, style='plain')
+
+        ax['simulated_fov'].set_title('Simulated FOV')
+        ax['real_fov'].set_title('Real FOV')
 
 
     def update(self, frame_number):
@@ -211,9 +229,16 @@ class GLM_Movie(object):
             'real_fov':vbp.placeAxesOnGrid(fig, xspan=(0,0.25), yspan=(0,0.4)),
             'simulated_fov':vbp.placeAxesOnGrid(fig, xspan=(0.25,0.5), yspan=(0,0.4)),
             'model_weights':vbp.placeAxesOnGrid(fig, xspan=(0.6,0.95), yspan=(0.05,0.4)),
-            'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0,1], yspan = [0.5,0.9]),
-            'licks': vbp.placeAxesOnGrid(fig, xspan=[0,1], yspan = [0.90,1]),
+            'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0,1], yspan = [0.45,0.75]),
+            'licks': vbp.placeAxesOnGrid(fig, xspan=[0,1], yspan = [0.75,0.8]),
+            'running': vbp.placeAxesOnGrid(fig, xspan=[0,1], yspan = [0.8,1]),
         }
+
+
+        ax['licks'].get_shared_x_axes().join(ax['licks'], ax['cell_response'])
+        ax['running'].get_shared_x_axes().join(ax['running'], ax['cell_response'])
+
+
 
         return fig, ax
 

@@ -128,12 +128,13 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'post_licks':   {'event':'licks',       'type':'discrete',      'length':20,    'offset':0},
         'rewards':      {'event':'rewards',     'type':'discrete',      'length':115,   'offset':-15}, 
         'change':       {'event':'change',      'type':'discrete',      'length':100,   'offset':0},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':23,    'offset':0},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':50,    'offset':0},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':23,    'offset':0},
-        'running':      {'event':'running',     'type':'continuous',    'length':5,     'offset':0},
+        'running':      {'event':'running',     'type':'continuous',    'length':61,     'offset':-30},
         #'population_mean':{'event':'population_mean','type':'continuous','length':11,'offset':-5},
         'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':11,    'offset':-5},
-        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':1,     'offset':0} 
+        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':11,     'offset':-5},
+        'pupil':        {'event':'pupil',       'type':'continuous',    'length':61,    'offset':-30}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -154,7 +155,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'regularization_lambda':0,  # TODO need to define the regularization strength
+        'regularization_lambda':1,  # TODO need to define the regularization strength
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'kernels':kernels,
@@ -458,6 +459,13 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         weight_df['values'] = weight.values
         timeseries = interpolate_to_dff_timestamps(fit, weight_df)
         timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
+        timeseries = timeseries['values'].values
+    elif event == 'pupil':
+        pupil_df = session.dataset.eye_tracking
+        pupil_df = pupil_df.rename(columns={'time':'timestamps','pupil_area':'values'})
+        timeseries = interpolate_to_dff_timestamps(fit, pupil_df)
+        timeseries['values'].fillna(method='ffill',inplace=True)
+        timeseries['values'].fillna(method='bfill',inplace=True)
         timeseries = timeseries['values'].values
     else:
         raise Exception('Could not resolve kernel label')

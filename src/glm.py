@@ -24,11 +24,15 @@ class GLM(object):
         self.current_model = 'Full'
 
         self.fit_model()
+        self.collect_results()
 
     def fit_model(self):
 
         self.session, self.fit, self.design = gft.fit_experiment(
             self.oeid, self.run_params)
+
+    def collect_results(self):
+        self.results = gft.build_dataframe_from_dropouts(self.fit)
 
     @cached_property
     def df_full(self):

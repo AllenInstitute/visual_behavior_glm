@@ -117,24 +117,23 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
                     }
 
     # Define Kernels
-    # TODO specify length and offset in units of seconds, rather than bin size
     # TODO mesoscope and scientific have different sampling rates
     # TODO intelligently pick the offset and length for each kernel
     kernels_orig = {
-        'intercept':    {'event':'intercept',   'type':'continuous',    'length':1,     'offset':0},
-        'time':         {'event':'time',        'type':'continuous',    'length':1,     'offset':0},
-        #'licks':        {'event':'licks',       'type':'discrete',      'length':30,    'offset':-10},
-        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':10,    'offset':-10},
-        'post_licks':   {'event':'licks',       'type':'discrete',      'length':20,    'offset':0},
-        'rewards':      {'event':'rewards',     'type':'discrete',      'length':115,   'offset':-15}, 
-        'change':       {'event':'change',      'type':'discrete',      'length':100,   'offset':0},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':50,    'offset':0},
-        'each-image':   {'event':'each-image',  'type':'discrete',      'length':23,    'offset':0},
-        'running':      {'event':'running',     'type':'continuous',    'length':61,     'offset':-30},
-        #'population_mean':{'event':'population_mean','type':'continuous','length':11,'offset':-5},
-        'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':11,    'offset':-5},
-        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':11,     'offset':-5},
-        'pupil':        {'event':'pupil',       'type':'continuous',    'length':61,    'offset':-30}
+        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0},
+        'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0},
+        #'licks':        {'event':'licks',       'type':'discrete',      'length':1.5,   'offset':-0.5},
+        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':0.5,   'offset':-0.5},
+        'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0},
+        'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5},
+        'change':       {'event':'change',      'type':'discrete',      'length':4,     'offset':0},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':2,     'offset':0},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.75,  'offset':0},
+        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1},
+        #'population_mean':{'event':'population_mean','type':'continuous','length':.5,   'offset':-.25},
+        'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':.5,    'offset':-.25},
+        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25},
+        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -195,10 +194,11 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False):
     fit= dict()
     fit['dff_trace_arr'] = process_data(session)
     fit = annotate_dff(fit)
- 
+    fit['ophys_frame_rate'] = session.dataset.metadata['ophys_frame_rate'] 
+
     # Make Design Matrix
     print('Build Design Matrix')
-    design = DesignMatrix(fit['dff_trace_timestamps']) 
+    design = DesignMatrix(fit) 
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
@@ -507,19 +507,22 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     return design
 
 class DesignMatrix(object):
-    def __init__(self, event_timestamps):
+    def __init__(self, fit_dict):
         '''
         A toeplitz-matrix builder for running regression with multiple temporal kernels. 
 
         Args
-            event_timestamps: The actual timestamps for each time bin that will be used in the regression model. 
+            fit_dict, a dictionary with:
+                event_timestamps: The actual timestamps for each time bin that will be used in the regression model. 
+                ophys_frame_rate: the number of ophys timestamps per second
         '''
 
         # Add some kernels
         self.X = None
         self.kernel_dict = {}
         self.running_stop = 0
-        self.events = {'timestamps':event_timestamps}
+        self.events = {'timestamps':fit_dict['dff_trace_timestamps']}
+        self.ophys_frame_rate = fit_dict['ophys_frame_rate']
 
     def make_labels(self, label, num_weights,offset, length): 
         base = [label] * num_weights 
@@ -544,8 +547,8 @@ class DesignMatrix(object):
             kernels_to_use.append(self.kernel_dict[kernel_name]['kernel'])
             param_labels.append(self.make_labels(   kernel_name, 
                                                     np.shape(self.kernel_dict[kernel_name]['kernel'])[0], 
-                                                    self.kernel_dict[kernel_name]['offset'],
-                                                    self.kernel_dict[kernel_name]['kernel_length'] ))
+                                                    self.kernel_dict[kernel_name]['offset_samples'],
+                                                    self.kernel_dict[kernel_name]['kernel_length_samples'] ))
 
         X = np.vstack(kernels_to_use) 
         x_labels = np.hstack(param_labels)
@@ -566,10 +569,10 @@ class DesignMatrix(object):
 
         Args:
             events (np.array): The timestamps of each event that the kernel will align to. 
-            kernel_length (int): NUMBER OF SAMPLES length of the kernel. 
+            kernel_length (int): length of the kernel (in SECONDS). 
             label (string): Name of the kernel. 
-            offset (int) :NUMBER OF SAMPLES offset relative to the events. Negative offsets cause the kernel
-                          to overhang before the event
+            offset (int) :offset relative to the events. Negative offsets cause the kernel
+                          to overhang before the event (in SECONDS)
         '''
         #Enforce unique labels
         if label in self.kernel_dict.keys():
@@ -577,24 +580,35 @@ class DesignMatrix(object):
 
         self.events[label] = events
 
-        this_kernel = toeplitz(events, kernel_length)
+        # CONVERT kernel_length to kernel_length_samples
+        if kernel_length == 0:
+            kernel_length_samples = 1
+        else:
+            kernel_length_samples = int(np.ceil(self.ophys_frame_rate*kernel_length)) 
 
-        #Pad with zeros, roll offset, and truncate to length
-        if offset < 0:
-            this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset))), this_kernel], axis=1)
-            this_kernel = np.roll(this_kernel, offset)[:, np.abs(offset):]
-        elif offset > 0:
-            this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset))], axis=1)
-            this_kernel = np.roll(this_kernel, offset)[:, :-offset]
+        # CONVERT offset to offset_samples
+        offset_samples = int(np.floor(self.ophys_frame_rate*offset))
+
+        this_kernel = toeplitz(events, kernel_length_samples)
+
+        #Pad with zeros, roll offset_samples, and truncate to length
+        if offset_samples < 0:
+            this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset_samples))), this_kernel], axis=1)
+            this_kernel = np.roll(this_kernel, offset_samples)[:, np.abs(offset_samples):]
+        elif offset_samples > 0:
+            this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
+            this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
 
         self.kernel_dict[label] = {
             'kernel':this_kernel,
-            'kernel_length':kernel_length,
-            'offset':offset,
+            'kernel_length_samples':kernel_length_samples,
+            'offset_samples':offset_samples,
+            'kernel_length_seconds':kernel_length,
+            'offset_seconds':offset,
             'ind_start':self.running_stop,
-            'ind_stop':self.running_stop+kernel_length
+            'ind_stop':self.running_stop+kernel_length_samples
             }
-        self.running_stop += kernel_length
+        self.running_stop += kernel_length_samples
 
 
 def split_time(timebase, subsplits_per_split=10, output_splits=6):
@@ -627,21 +641,21 @@ def split_time(timebase, subsplits_per_split=10, output_splits=6):
         output_split_inds.append(inds_this_split)
     return output_split_inds
 
-def toeplitz(events, kernel_length):
+def toeplitz(events, kernel_length_samples):
     '''
     Build a toeplitz matrix aligned to events.
 
     Args:
         events (np.array of 1/0): Array with 1 if the event happened at that time, and 0 otherwise.
-        kernel_length (int): How many kernel parameters
+        kernel_length_samples (int): How many kernel parameters
     Returns
-        np.array, size(len(events), kernel_length) of 1/0
+        np.array, size(len(events), kernel_length_samples) of 1/0
     '''
 
     total_len = len(events)
-    events = np.concatenate([events, np.zeros(kernel_length)])
+    events = np.concatenate([events, np.zeros(kernel_length_samples)])
     arrays_list = [events]
-    for i in range(kernel_length-1):
+    for i in range(kernel_length_samples-1):
         arrays_list.append(np.roll(events, i+1))
     return np.vstack(arrays_list)[:,:total_len]
 

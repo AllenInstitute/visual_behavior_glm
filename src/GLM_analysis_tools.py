@@ -33,8 +33,7 @@ def build_kernel_df(glm, cell_specimen_id):
         kernel = glm.design.kernel_dict[kernel_name]['kernel']
 
         # get the weight matrix for the weights associated with this kernel and cell (dims = 1 x n_weights)
-        kernel_weight_names = np.sort(
-            [w for w in all_weight_names if w.startswith(kernel_name)])
+        kernel_weight_names = [w for w in all_weight_names if w.startswith(kernel_name)]
         w_kernel = np.expand_dims(glm.W.loc[dict(
             weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)], axis=0)
 
@@ -43,6 +42,7 @@ def build_kernel_df(glm, cell_specimen_id):
         kernel_df.append(
             pd.DataFrame({
                 'timestamps': model_timestamps,
+                'timestamp_index':np.arange(len(model_timestamps)),
                 'kernel_outputs': (w_kernel @ kernel).squeeze(),
                 'kernel_name': [kernel_name]*len(model_timestamps)
             })

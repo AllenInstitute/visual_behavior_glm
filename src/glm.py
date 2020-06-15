@@ -25,6 +25,7 @@ class GLM(object):
 
         self.fit_model()
         self.collect_results()
+        self.timestamps = glm.fit['dff_trace_arr']['dff_trace_timestamps'].values
 
     def fit_model(self):
 

@@ -11,6 +11,7 @@ import datetime
 from tqdm import tqdm
 from copy import copy
 from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
 
 from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
 from visual_behavior.translator.allensdk_sessions import sdk_utils
@@ -309,19 +310,17 @@ def evaluate_ridge(fit, design,run_params):
     if run_params['L2_use_fixed_value']:
         fit['regularization'] = run_params['L2_fixed_lambda']
     else:
-        fit['L2_grid'] = np.concatenate([np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
+        fit['L2_grid'] = np.concatenate([[0],np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
         train_cv = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
         test_cv  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
         X = design.get_X()
-        dff = fit['dff_trace_arr']
-       
+      
+        # Iterate over L2 Values 
         for L2_index, L2_value in enumerate(fit['L2_grid']):
-            Wall = fit_regularized(dff, X,L2_value)     
-            var_explain = variance_ratio(dff, Wall,X)
-
             cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['ridge_splits'])))
             cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['ridge_splits'])))
 
+            # Iterate over CV splits
             for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Fitting L2, {}'.format(L2_value)):
                 train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
                 X_test  = X[test_split,:]
@@ -396,6 +395,25 @@ def build_dataframe_from_dropouts(fit):
         results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1)
     return results
 
+def L2_report(fit):
+    plt.figure()
+    plt.plot(fit['L2_grid'], np.mean(fit['L2_train_cv'],0), 'b-')
+    plt.plot(fit['L2_grid'], np.mean(fit['L2_test_cv'],0), 'r-')
+    plt.gca().set_xscale('log')
+    plt.ylabel('Session avg test CV')
+    plt.xlabel('L2 Strength')
+    plt.axvline(fit['regularization'], color='k', linestyle='--', alpha = 0.5)
+    plt.ylim(0,.15) 
+
+    cellids = fit['dff_trace_arr']['cell_specimen_id'].values
+    results = pd.DataFrame(index=cellids)
+    for index, value in enumerate(fit['L2_grid']):
+        results["cv_train_"+str(index)] = fit['L2_train_cv'][:,index]
+        results["cv_test_"+str(index)]  = fit['L2_test_cv'][:,index]
+    results.plot.scatter('cv_test_1','cv_test_'+str(index))
+    plt.plot([0,1],[0,1],'k--')
+    return results
+ 
 def load_data(oeid, dataframe_format='wide'):
     '''
         Returns Visual Behavior ResponseAnalysis object

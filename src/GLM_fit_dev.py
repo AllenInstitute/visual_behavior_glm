@@ -21,49 +21,6 @@ if False:
     session, fit, design = gft.fit_experiment(oeid, run_params)
     results = gft.build_dataframe_from_dropouts(fit)
 
-
-def evaluate_optimal_lambda(oeid, run_params):
-    # Exploring regularization
-    run_params['L2_use_fixed_value'] = True
-    run_params['L2_fixed_lambda'] = 70
-    session,fit,design = gft.fit_experiment(oeid, run_params, NO_DROPOUTS=True)
-
-    run_params['L2_use_fixed_value'] = True
-    run_params['L2_fixed_lambda'] = 0
-    session,fit2,design = gft.fit_experiment(oeid, run_params, NO_DROPOUTS=True)
-    results = gft.build_dataframe_from_dropouts(fit)
-    results2 = gft.build_dataframe_from_dropouts(fit2)
-    results_full = pd.concat([  results.rename(columns={'Full_avg_cv_var_train':'lambda_train', 'Full_avg_cv_var_test':'lambda_test'}), 
-                                results2.rename(columns={'Full_avg_cv_var_train':'fixed_train', 'Full_avg_cv_var_test':'fixed_test'})
-                            ],axis=1)
-    results_full.plot.scatter('fixed_test','lambda_test')
-    plt.plot([0,1],[0,1], 'k--')
-    results_full['diff'] = results_full['lambda_test'] - results_full['fixed_test']
-    print(np.mean(results_full['diff']))
-    return results_full
-
-def evaluate_any_lambda(oeid, run_params):
-    # Exploring regularization
-    run_params['L2_use_fixed_value'] = True
-    run_params['L2_fixed_lambda'] = 1 
-    session,fit,design = gft.fit_experiment(oeid, run_params, NO_DROPOUTS=True)
-
-    run_params['L2_use_fixed_value'] = True
-    run_params['L2_fixed_lambda'] = 0
-    session,fit2,design = gft.fit_experiment(oeid, run_params, NO_DROPOUTS=True)
-    results = gft.build_dataframe_from_dropouts(fit)
-    results2 = gft.build_dataframe_from_dropouts(fit2)
-    results_full = pd.concat([  results.rename(columns={'Full_avg_cv_var_train':'lambda_train', 'Full_avg_cv_var_test':'lambda_test'}), 
-                                results2.rename(columns={'Full_avg_cv_var_train':'no_train', 'Full_avg_cv_var_test':'no_test'})
-                            ],axis=1)
-    results_full.plot.scatter('no_test','lambda_test')
-    plt.plot([0,1],[0,1], 'k--')
-    results_full['diff'] = results_full['lambda_test'] - results_full['no_test']
-    print(np.mean(results_full['diff']))
-    return results_full
-
-
-
 def demonstration():
     # Make demonstration of design kernel, and model structure
     fit_demo = {}

@@ -347,7 +347,7 @@ def build_dataframe_from_dropouts(fit):
         Columns: Average (across CV folds) variance explained on the test and training sets for each model defined in fit['dropouts']
     '''
     cellids = fit['dff_trace_arr']['cell_specimen_id'].values
-    results = pd.DataFrame(index=cellids)
+    results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
     for model_label in fit['dropouts'].keys():
         results[model_label+"_avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1)
         results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1)
@@ -445,7 +445,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
     elif event == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values
-    elif event == 'PCA_1':
+    elif event == 'Population_Activity_PC1':
         pca = PCA()
         pca.fit(fit['dff_trace_arr'].values)
         dff_pca = pca.transform(fit['dff_trace_arr'].values)

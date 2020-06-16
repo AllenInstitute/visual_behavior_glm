@@ -154,7 +154,10 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'regularization_lambda':1,  # TODO need to define the regularization strength
+        'L2_fixed_lambda':1,  # This value is used if L2_use_fixed_value
+        'L2_use_fixed_value':False, # If False, find average value over grid
+        'L2_grid_range':[.1, 500],
+        'L2_grid_num': 20,
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'kernels':kernels,
@@ -206,6 +209,10 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False):
     # Set up CV splits
     print('Setting up CV')
     fit['splits'] = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
+
+    # Determine Regularization Strength
+    print('Evaluating Regularization values')
+    fit = evaluate_ridge(fit, design, run_params)
 
     # Set up kernels to drop for model selection
     print('Setting up model selection dropout')
@@ -297,6 +304,42 @@ def define_dropouts(kernels,kernel_definitions):
 
     return dropouts
 
+def evaluate_ridge(fit, design,run_params):
+    if run_params['L2_use_fixed_value']:
+        fit['regularization'] = run_params['L2_fixed_lambda']
+    else:
+        fit['L2_grid'] = np.concatenate([np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
+        train_cv = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
+        test_cv  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
+        X = design.get_X()
+        dff = fit['dff_trace_arr']
+       
+        for L2_index, L2_value in enumerate(fit['L2_grid']):
+            Wall = fit_regularized(dff, X,L2_value)     
+            var_explain = variance_ratio(dff, Wall,X)
+
+            cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+            cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+
+            # TODO, should these be different CV splits from the evaluate_model?
+            for split_index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting L2, {}'.format(L2_value)):
+                train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=split_index])
+                X_test  = X[test_split,:]
+                X_train = X[train_split,:]
+                dff_train = fit['dff_trace_arr'][train_split,:]
+                dff_test  = fit['dff_trace_arr'][test_split,:]
+                W = fit_regularized(dff_train, X_train, L2_value)
+                cv_var_train[:,split_index] = variance_ratio(dff_train, W, X_train)
+                cv_var_test[:,split_index]  = variance_ratio(dff_test, W, X_test)
+
+            train_cv[:,L2_index] = np.mean(cv_var_train,1)
+            test_cv[:,L2_index]  = np.mean(cv_var_test,1)
+
+        fit['regularization'] = np.mean([fit['L2_grid'][x] for x in np.argmax(test_cv,1)])      
+        fit['L2_test_cv'] = test_cv
+        fit['L2_train_cv'] = train_cv
+    return fit
+
 def evaluate_models(fit, design, run_params):
     '''
         Fits and evaluates each model defined in fit['dropouts']
@@ -308,11 +351,11 @@ def evaluate_models(fit, design, run_params):
 
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
-        n_params = X.shape[0]
-        n_neurons= fit['dff_trace_arr'].shape[1]
+        #n_params = X.shape[0]
+        #n_neurons= fit['dff_trace_arr'].shape[1]
 
         dff = fit['dff_trace_arr']
-        Wall = fit_regularized(dff, X,run_params['regularization_lambda'])     
+        Wall = fit_regularized(dff, X,fit['regularization'])     
         var_explain = variance_ratio(dff, Wall,X)
         fit['dropouts'][model_label]['weights'] = Wall
         fit['dropouts'][model_label]['variance_explained']=var_explain
@@ -329,7 +372,7 @@ def evaluate_models(fit, design, run_params):
             X_train = X[train_split,:]
             dff_train = fit['dff_trace_arr'][train_split,:]
             dff_test = fit['dff_trace_arr'][test_split,:]
-            W = fit_regularized(dff_train, X_train, run_params['regularization_lambda'])
+            W = fit_regularized(dff_train, X_train, fit['regularization'])
             cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
             cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
             cv_weights[:,:,index] = W # TODO this should be either a list of xarrays, or one big xarray

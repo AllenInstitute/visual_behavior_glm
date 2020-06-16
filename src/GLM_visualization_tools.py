@@ -40,8 +40,34 @@ def plot_running(session, ax, t_span=None):
     ax.plot(
         running_df['timestamps'],
         running_df['speed'],
-        color='blue'
+        color='blue',
+        linewidth=3
     )
+
+def plot_pupil(session, ax, t_span=None):
+    '''shares axis with running'''
+    ax2 = ax.twinx()
+    vbp.initialize_legend(ax=ax2, colors=['blue','black'],linewidth=3)
+    if t_span:
+        pupil_df = session.dataset.eye_tracking.query(
+            'time >= {} and time <= {}'.format(t_span[0], t_span[1]))
+    else:
+        pupil_df = session.dataset.eye_tracking
+    ax2.plot(
+        pupil_df['time'],
+        pupil_df['pupil_area'],
+        color='black',
+        linewidth=3
+    )
+
+    ax2.legend(
+        ['running','pupil'],
+        loc='upper left',
+        ncol=10, 
+    )
+
+    return ax2
+
 
 
 def plot_omissions(session, ax, y_loc=0, t_span=None):
@@ -96,8 +122,10 @@ def build_simulated_FOV(session, F_dataframe, column):
 
 
 def plot_kernels(kernel_df,ax,t_span=None):
-    kernels_to_exclude_from_plot = ['intercept','time',]#['intercept','time','model_task0','model_timing1D','model_bias','model_omissions1']
-    
+    # kernels_to_exclude_from_plot = []#['intercept','time',]#['intercept','time','model_task0','model_timing1D','model_bias','model_omissions1']
+    # kernels_to_exclude_from_plot = ['intercept','time',]#['intercept','time','model_task0','model_timing1D','model_bias','model_omissions1']
+    kernels_to_exclude_from_plot = ['intercept','time','model_task0','model_timing1D','model_bias','model_omissions1']
+
     if t_span:
         t0,t1 = t_span
         data_to_plot = kernel_df.query('timestamps >= @t0 and timestamps <= @t1 and kernel_name not in @kernels_to_exclude_from_plot')
@@ -107,7 +135,7 @@ def plot_kernels(kernel_df,ax,t_span=None):
         len(data_to_plot['kernel_name'].unique()), 
         lightness_range=(0.1,.65), 
         saturation_range=(0.5,1), 
-        random_seed=0, 
+        random_seed=3, 
         order_colors=False
     )
     sns.lineplot(
@@ -120,16 +148,70 @@ def plot_kernels(kernel_df,ax,t_span=None):
         ax=ax,
         palette = palette,
         alpha=0.75,
-        legend=False
+        legend=False,
+        linewidth=3,
     )
     ax.legend(
         data_to_plot['kernel_name'].unique(),
         loc='upper left',
         ncol=10, 
         mode="expand", 
-        framealpha = 0.2,
+        framealpha = 0.5,
     )
-    plt.setp(ax.lines,linewidth=2)
+    # plt.setp(ax.lines,linewidth=4)
+
+
+def plot_dropout_summary(results_summary, cell_specimen_id, ax):
+    '''
+    makes bar plots of results summary
+    inputs:
+        glm -- glm object
+        cell_specimen_id -- cell to plot
+        ax -- a vector of three matplotlib axis handles
+    '''
+    data_to_plot = (
+        results_summary
+        .query('cell_specimen_id == @cell_specimen_id')
+        .sort_values(by='fraction_change_from_full', ascending=False)
+    )
+
+    mixed_dropout_color = 'DimGray'
+    special_dropout_colors = {
+        'Full':'DarkGreen',
+        'beh_model':mixed_dropout_color,
+        'all-images':mixed_dropout_color,
+        'visual':mixed_dropout_color,
+        
+    }
+    palette = [special_dropout_colors[key] if key in special_dropout_colors else 'black' for key in data_to_plot['dropout']]
+
+    sns.barplot(
+        data = data_to_plot,
+        x = 'variance_explained',
+        y = 'dropout',
+        ax=ax[0],
+        palette=palette
+    )
+    sns.barplot(
+        data = data_to_plot,
+        x = 'absolute_change_from_full',
+        y = 'dropout',
+        ax=ax[1],
+        palette=palette
+    )
+    sns.barplot(
+        data = data_to_plot,
+        x = 'fraction_change_from_full',
+        y = 'dropout',
+        ax=ax[2],
+        palette=palette
+    )
+    ax[0].set_title('variance explained\nfor each model dropout')
+    ax[1].set_title('absolute change\nin variance explained')
+    ax[2].set_title('fractional change\nin variance explained')
+    for col in [1,2]:
+        ax[col].set_yticklabels([])
+        ax[col].set_ylabel('')
 
 
 def get_title(ophys_experiment_id, cell_specimen_id):
@@ -176,6 +258,8 @@ class GLM_Movie(object):
         self.frames = np.arange(self.start_frame, self.end_frame, self.frame_interval)
         self.fps = fps
 
+        self.results_summary = gat.generate_results_summary(self.glm)
+
         self.fig, self.ax = self.set_up_axes()
         self.writer = self.set_up_writer()
 
@@ -188,8 +272,11 @@ class GLM_Movie(object):
         t_now = model_timestamps[F_index]
         t_span = [t_now - t_before, t_now + t_after]
 
-        for axis in ax.keys():
-            ax[axis].cla()
+        plot_dropout_summary(self.results_summary, self.cell_specimen_id, ax['dropout_summary'])
+
+        for axis_name in ax.keys():
+            if axis_name != 'dropout_summary':
+                ax[axis_name].cla()
 
         F_this_frame = glm.df_full.query('frame_index == @F_index').set_index('cell_specimen_id')
         # dff_actual = dft.loc[glm.W['cell_specimen_id'].values]['dff'].values
@@ -232,6 +319,7 @@ class GLM_Movie(object):
             local_df['dff'],
             alpha=0.5,
             color='darkgreen',
+            linewidth=3,
         )
 
         ax['cell_response'].plot(
@@ -239,6 +327,7 @@ class GLM_Movie(object):
             local_df['dff_predicted'],
             alpha=1,
             color='black',
+            linewidth=3,
         )
 
         ax['cell_response'].legend(
@@ -250,6 +339,7 @@ class GLM_Movie(object):
 
         plot_licks(glm.session, ax['licks'], t_span=t_span)
         plot_running(glm.session, ax['running'], t_span=t_span)
+        ax_pupil = plot_pupil(glm.session, ax['running'], t_span=t_span)
         plot_kernels(self.kernel_df, ax['kernel_contributions'], t_span)
 
         # some axis formatting: 
@@ -270,7 +360,8 @@ class GLM_Movie(object):
         ax['licks'].set_ylabel('licks       ', rotation=0,ha='right', va='center')
         ax['cell_response'].set_ylabel('$\Delta$F/F', rotation=0, ha='right', va='center')
         ax['running'].set_ylabel('Running\nSpeed\n(cm/s)', rotation=0, ha='right', va='center')
-        ax['kernel_contributions'].set_ylabel('kernel\ncontributions\nto predicted\nsignal', rotation=0, ha='right', va='center')
+        ax_pupil.set_ylabel('Pupil\nDiameter\n(pix^2)', rotation=0, ha='left', va='center')
+        ax['kernel_contributions'].set_ylabel('kernel\ncontributions\nto predicted\nsignal\n($\Delta$F/F)', rotation=0, ha='right', va='center')
 
 
     def update(self, frame_number):
@@ -286,16 +377,17 @@ class GLM_Movie(object):
         self.pbar.update(1)
 
     def set_up_axes(self):
-        fig = plt.figure(figsize=(18, 12))
+        fig = plt.figure(figsize=(24, 18))
         ax = {
-            'cell_roi': vbp.placeAxesOnGrid(fig, xspan=(0, 0.25), yspan=(0, 0.4)),
-            'real_fov': vbp.placeAxesOnGrid(fig, xspan=(0.25, 0.5), yspan=(0, 0.4)),
-            'reconstructed_fov': vbp.placeAxesOnGrid(fig, xspan=(0.5, 0.75), yspan=(0, 0.4)),
-            'simulated_fov': vbp.placeAxesOnGrid(fig, xspan=(0.75, 1), yspan=(0, 0.4)),
-            'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.45, 0.6]),
-            'licks': vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.6, 0.625]),
-            'running': vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.625, 0.75]),
-            'kernel_contributions':vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.75, 1]),
+            'cell_roi': vbp.placeAxesOnGrid(fig, xspan=(0, 0.25), yspan=(0, 0.25)),
+            'real_fov': vbp.placeAxesOnGrid(fig, xspan=(0.25, 0.5), yspan=(0, 0.25)),
+            'reconstructed_fov': vbp.placeAxesOnGrid(fig, xspan=(0.5, 0.75), yspan=(0, 0.25)),
+            'simulated_fov': vbp.placeAxesOnGrid(fig, xspan=(0.75, 1), yspan=(0, 0.25)),
+            'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.3, 0.45]),
+            'licks': vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.45, 0.475]),
+            'running': vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.475, 0.575]),
+            'kernel_contributions':vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.575, 0.70]),
+            'dropout_summary':vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.775, 1], dim=[1,3], wspace=0.01),
         }
 
         ax['licks'].get_shared_x_axes().join(ax['licks'], ax['cell_response'])

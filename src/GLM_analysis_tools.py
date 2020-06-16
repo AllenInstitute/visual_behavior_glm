@@ -52,6 +52,29 @@ def build_kernel_df(glm, cell_specimen_id):
     return pd.concat(kernel_df)
 
 
+def generate_results_summary(glm):
+    test_cols = [col for col in glm.results.columns if col.endswith('test')]
+    results_summary_list = []
+    for cell_specimen_id in glm.results.index.values:
+        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index().rename(columns={cell_specimen_id:'variance_explained','index':'dropout'})
+        for idx,row in results_summary.iterrows():
+            results_summary.at[idx,'dropout'] = row['dropout'].split('_avg')[0]
+
+        def calculate_fractional_change(row):
+            full_model_performance = results_summary[results_summary['dropout']=='Full']['variance_explained'].iloc[0]
+            return (row['variance_explained'] - full_model_performance)/full_model_performance
+
+        def calculate_absolute_change(row):
+            full_model_performance = results_summary[results_summary['dropout']=='Full']['variance_explained'].iloc[0]
+            return row['variance_explained'] - full_model_performance
+
+        results_summary['fraction_change_from_full'] = results_summary.apply(calculate_fractional_change, axis=1)
+        results_summary['absolute_change_from_full'] = results_summary.apply(calculate_absolute_change, axis=1)
+        results_summary['cell_specimen_id'] = cell_specimen_id
+        results_summary_list.append(results_summary)
+    return pd.concat(results_summary_list)
+
+
 def moving_mean(values, window):
     weights = np.repeat(1.0, window)/window
     mm = np.convolve(values, weights, 'valid')

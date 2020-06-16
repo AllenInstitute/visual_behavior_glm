@@ -22,7 +22,10 @@ if False:
 
 def demonstration():
     # Make demonstration of design kernel, and model structure
-    design = gft.DesignMatrix(range(0,20))
+    fit_demo = {}
+    fit_demo['dff_trace_timestamps'] = range(0,20)
+    fit_demo['ophys_frame_rate'] = 1
+    design = gft.DesignMatrix(fit_demo)
     time = np.array(range(1,21))
     time = time/20
     time = time**2

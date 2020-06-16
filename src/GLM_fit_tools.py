@@ -157,7 +157,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'L2_fixed_lambda':1,  # This value is used if L2_use_fixed_value
         'L2_use_fixed_value':False, # If False, find average value over grid
         'L2_grid_range':[.1, 500],
-        'L2_grid_num': 20,
+        'L2_grid_num': 10,
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'kernels':kernels,
@@ -209,6 +209,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False):
     # Set up CV splits
     print('Setting up CV')
     fit['splits'] = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
+    fit['ridge_splits'] = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
 
     # Determine Regularization Strength
     print('Evaluating Regularization values')
@@ -318,12 +319,11 @@ def evaluate_ridge(fit, design,run_params):
             Wall = fit_regularized(dff, X,L2_value)     
             var_explain = variance_ratio(dff, Wall,X)
 
-            cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
-            cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+            cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['ridge_splits'])))
+            cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['ridge_splits'])))
 
-            # TODO, should these be different CV splits from the evaluate_model?
-            for split_index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting L2, {}'.format(L2_value)):
-                train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=split_index])
+            for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Fitting L2, {}'.format(L2_value)):
+                train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
                 X_test  = X[test_split,:]
                 X_train = X[train_split,:]
                 dff_train = fit['dff_trace_arr'][train_split,:]

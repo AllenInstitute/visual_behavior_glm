@@ -118,7 +118,6 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
                     }
 
     # Define Kernels
-    # TODO mesoscope and scientific have different sampling rates
     # TODO intelligently pick the offset and length for each kernel
     kernels_orig = {
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0},
@@ -155,10 +154,10 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'L2_fixed_lambda':1,  # This value is used if L2_use_fixed_value
+        'L2_fixed_lambda':1,        # This value is used if L2_use_fixed_value
         'L2_use_fixed_value':False, # If False, find average value over grid
         'L2_grid_range':[.1, 500],
-        'L2_grid_num': 10,
+        'L2_grid_num': 20,
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'kernels':kernels,
@@ -350,8 +349,6 @@ def evaluate_models(fit, design, run_params):
 
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
-        #n_params = X.shape[0]
-        #n_neurons= fit['dff_trace_arr'].shape[1]
 
         dff = fit['dff_trace_arr']
         Wall = fit_regularized(dff, X,fit['regularization'])     

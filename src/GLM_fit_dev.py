@@ -1,6 +1,7 @@
 import visual_behavior_glm.src.GLM_fit_tools as gft
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 plt.ion()
 
 if False:
@@ -18,7 +19,8 @@ if False:
     # To run just one session:
     oeid = run_params['ophys_experiment_ids'][-1]
     session, fit, design = gft.fit_experiment(oeid, run_params)
-    results = gft.build_dataframe_from_dropouts(fit)
+    drop_results = gft.build_dataframe_from_dropouts(fit)
+    L2_results = gft.L2_report(fit)
 
 def demonstration():
     # Make demonstration of design kernel, and model structure

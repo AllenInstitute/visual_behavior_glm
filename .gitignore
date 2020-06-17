@@ -6,3 +6,6 @@ src/__pycache__
 
 #notebook checkpoints
 .ipynb_checkpoints/
+
+# untitled notebooks
+Untitled*

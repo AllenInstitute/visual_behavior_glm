@@ -1,22 +1,21 @@
-#!/usr/bin/env python
+from visual_behavior_glm.src.glm import GLM
+import visual_behavior_glm.src.GLM_analysis_tools as gat
 
-import sys
-import json
+import argparse
+
+parser = argparse.ArgumentParser(description='fit glm for experiment')
+parser.add_argument(
+    '--oeid', 
+    type=int, 
+    default=0,
+    metavar='oeid',
+    help='ophys experiment ID'
+)
+
+def fit_experiment(oeid):
+    glm = GLM(oeid)
+    gat.log_results_to_mongo(glm)
 
 if __name__ == '__main__':
-    name_of_this_file   = sys.argv[0]
-    ophys_experiment_id = sys.argv[1]
-    run_json            = sys.argv[2]
-
-    # Load JSON for this model version
-    with open(run_json,'r') as json_file: 
-        run_params = json.load(json_file)
-    
-    # Import this model version's code
-    sys.path.append(run_params['model_freeze_dir'])
-    import GLM_fit_tools as gft
-    
-    # Fit this experiment with given parameters
-    gft.fit_experiment(ophys_experiment_id, run_params)
-
-
+    args = parser.parse_args()
+    fit_experiment(args.oeid)

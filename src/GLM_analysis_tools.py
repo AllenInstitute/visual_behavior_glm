@@ -8,6 +8,9 @@ import xarray as xr
 from scipy import sparse
 from tqdm import tqdm
 
+import visual_behavior.data_access.loading as loading
+import visual_behavior.database as db
+
 
 dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_lambda_70/'
 #dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_reward_filter_dev/'
@@ -73,6 +76,39 @@ def generate_results_summary(glm):
         results_summary['cell_specimen_id'] = cell_specimen_id
         results_summary_list.append(results_summary)
     return pd.concat(results_summary_list)
+
+
+def log_results_to_mongo(glm):
+    '''
+    logs full results and results summary to mongo
+    Ensures that there is only one entry per cell/experiment (overwrites if entry already exists)
+    '''
+    full_results = glm.results.reset_index()
+    results_summary = generate_results_summary(glm)
+    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    oeid = glm.oeid
+    for key,value in experiment_table.query('ophys_experiment_id == @oeid').iloc[0].items():
+        full_results[key] = value
+        results_summary[key] = value
+
+    conn = db.Database('visual_behavior_data')
+
+    keys_to_check = {
+        'results_full':['ophys_experiment_id','cell_specimen_id'],
+        'results_summary':['ophys_experiment_id','cell_specimen_id', 'dropout']
+    }
+
+    for df,collection in zip([full_results, results_summary], ['results_full','results_summary']):
+        coll = conn['ophys_glm'][collection]
+
+        for idx,row in df.iterrows():
+            entry = row.to_dict()
+            db.update_or_create(
+                coll, 
+                db.clean_and_timestamp(entry), 
+                keys_to_check = keys_to_check[collection]
+            )
+    conn.close()
 
 
 def moving_mean(values, window):

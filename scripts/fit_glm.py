@@ -11,11 +11,18 @@ parser.add_argument(
     metavar='oeid',
     help='ophys experiment ID'
 )
+parser.add_argument(
+    '--version', 
+    type=int, 
+    default=0,
+    metavar='glm version',
+    help='model version to use'
+)
 
-def fit_experiment(oeid):
-    glm = GLM(oeid)
+def fit_experiment(oeid, version):
+    glm = GLM(oeid, version)
     gat.log_results_to_mongo(glm)
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    fit_experiment(args.oeid)
+    fit_experiment(args.oeid, args.version)

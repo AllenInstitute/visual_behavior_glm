@@ -11,6 +11,7 @@ from pbstools import pbstools  # NOQA E402
 
 parser = argparse.ArgumentParser(description='deploy glm fits to cluster')
 parser.add_argument('--env', type=str, default='visual_behavior', metavar='name of conda environment to use')
+parser.add_argument('--glm-version', type=str, default='0', metavar='glm version')
 
 job_dir = r"/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_jobs/ophys_glm"
 
@@ -36,7 +37,7 @@ if __name__ == "__main__":
         pbstools.PythonJob(
             python_file,
             python_executable,
-            python_args="--oeid {}".format(experiment_id),
+            python_args="--oeid {} --version {}".format(experiment_id, args.glm_version),
             jobname=job_title,
             jobdir=job_dir,
             **job_settings

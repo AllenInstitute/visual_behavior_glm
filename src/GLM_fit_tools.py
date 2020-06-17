@@ -128,10 +128,10 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5},
         'change':       {'event':'change',      'type':'discrete',      'length':4,     'offset':0},
         'omissions':    {'event':'omissions',   'type':'discrete',      'length':2,     'offset':0},
-        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.75,  'offset':0},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':1.5,  'offset':0},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1},
         #'population_mean':{'event':'population_mean','type':'continuous','length':.5,   'offset':-.25},
-        'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':.5,    'offset':-.25},
+        # 'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':.5,    'offset':-.25},
         'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25},
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1}
     }

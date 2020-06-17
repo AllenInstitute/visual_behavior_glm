@@ -15,6 +15,8 @@ from tqdm import tqdm
 
 from matplotlib import animation, rc
 import matplotlib.pyplot as plt
+import gc
+from scipy import ndimage
 
 
 def plot_licks(session, ax, y_loc=0, t_span=None):
@@ -46,27 +48,24 @@ def plot_running(session, ax, t_span=None):
 
 def plot_pupil(session, ax, t_span=None):
     '''shares axis with running'''
-    ax2 = ax.twinx()
-    vbp.initialize_legend(ax=ax2, colors=['blue','black'],linewidth=3)
+    vbp.initialize_legend(ax=ax, colors=['blue','black'],linewidth=3)
     if t_span:
         pupil_df = session.dataset.eye_tracking.query(
             'time >= {} and time <= {}'.format(t_span[0], t_span[1]))
     else:
         pupil_df = session.dataset.eye_tracking
-    ax2.plot(
+    ax.plot(
         pupil_df['time'],
         pupil_df['pupil_area'],
         color='black',
         linewidth=3
     )
 
-    ax2.legend(
+    ax.legend(
         ['running','pupil'],
         loc='upper left',
         ncol=10, 
     )
-
-    return ax2
 
 
 
@@ -259,33 +258,39 @@ class GLM_Movie(object):
         self.fps = fps
 
         self.results_summary = gat.generate_results_summary(self.glm)
+        self.dropout_summary_plotted = False
+        self.cell_roi_plotted = False
 
         self.fig, self.ax = self.set_up_axes()
         self.writer = self.set_up_writer()
 
     def make_cell_movie_frame(self, ax, glm, F_index, cell_specimen_id, t_before=10, t_after=10):
-
+        # ti = time.time()
         this_cell = glm.df_full.query('cell_specimen_id == @cell_specimen_id')
         cell_index = np.where(glm.W['cell_specimen_id'] == cell_specimen_id)[0][0]
 
         model_timestamps = glm.fit['dff_trace_arr']['dff_trace_timestamps'].values
         t_now = model_timestamps[F_index]
         t_span = [t_now - t_before, t_now + t_after]
-
-        plot_dropout_summary(self.results_summary, self.cell_specimen_id, ax['dropout_summary'])
+        # print('setup done at {} seconds'.format(time.time() - ti))
+        if not self.dropout_summary_plotted:
+            plot_dropout_summary(self.results_summary, self.cell_specimen_id, ax['dropout_summary'])
+            self.dropout_summary_plotted = True
 
         for axis_name in ax.keys():
-            if axis_name != 'dropout_summary':
+            if axis_name != 'dropout_summary' and axis_name != 'cell_roi':
                 ax[axis_name].cla()
 
+        # print('setup done at {} seconds'.format(time.time() - ti))
         F_this_frame = glm.df_full.query('frame_index == @F_index').set_index('cell_specimen_id')
         # dff_actual = dft.loc[glm.W['cell_specimen_id'].values]['dff'].values
         # dff_pred = dft.loc[glm.W['cell_specimen_id'].values]['dff_predicted'].values
         
-        from scipy import ndimage
         # 2P ROI images:
-        ax['cell_roi'].imshow(glm.session.dataset.cell_specimen_table.loc[cell_specimen_id]['image_mask'],cmap='gray')
-        com = ndimage.measurements.center_of_mass(glm.session.dataset.cell_specimen_table.loc[cell_specimen_id]['image_mask'])
+        if not self.cell_roi_plotted:
+            ax['cell_roi'].imshow(glm.session.dataset.cell_specimen_table.loc[cell_specimen_id]['image_mask'],cmap='gray')
+            self.com = ndimage.measurements.center_of_mass(glm.session.dataset.cell_specimen_table.loc[cell_specimen_id]['image_mask'])
+            self.cell_roi_plotted = True
 
         reconstructed_fov = build_simulated_FOV(glm.session, F_this_frame, 'dff')
         ax['reconstructed_fov'].imshow(reconstructed_fov, cmap='seismic', clim=[-0.5, .5])
@@ -304,8 +309,8 @@ class GLM_Movie(object):
         for axis_name in ['cell_roi','real_fov','reconstructed_fov','simulated_fov']:
             ax[axis_name].set_xticks([])
             ax[axis_name].set_yticks([])
-            ax[axis_name].axvline(com[1],color='MediumAquamarine',alpha=0.5)
-            ax[axis_name].axhline(com[0],color='MediumAquamarine',alpha=0.5)
+            ax[axis_name].axvline(self.com[1],color='MediumAquamarine',alpha=0.5)
+            ax[axis_name].axhline(self.com[0],color='MediumAquamarine',alpha=0.5)
 
         # time series plots:
         query_string = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
@@ -339,7 +344,7 @@ class GLM_Movie(object):
 
         plot_licks(glm.session, ax['licks'], t_span=t_span)
         plot_running(glm.session, ax['running'], t_span=t_span)
-        ax_pupil = plot_pupil(glm.session, ax['running'], t_span=t_span)
+        plot_pupil(glm.session, ax['pupil'], t_span=t_span)
         plot_kernels(self.kernel_df, ax['kernel_contributions'], t_span)
 
         # some axis formatting: 
@@ -348,6 +353,20 @@ class GLM_Movie(object):
             plot_stimuli(glm.session, ax[axis_name], t_span=t_span)
             if axis_name is not 'kernel_contributions':
                 ax[axis_name].set_xticklabels([])
+
+        # ax['running'].set_ylim(
+        #     self.glm.session.dataset.running_data_df['speed'].min(),
+        #     self.glm.session.dataset.running_data_df['speed'].max()
+        # )
+        # ax['pupil'].set_ylim(
+        #     self.glm.session.dataset.eye_tracking['pupil_area'].min(),
+        #     self.glm.session.dataset.eye_tracking['pupil_area'].max()
+        # )
+
+        # ax['cell_response'].set_ylim(
+        #     glm.df_full['dff_predicted'].min(),
+        #     glm.df_full['dff_predicted'].max()
+        # )
 
         ax['cell_response'].set_title('Time series plots for cell {}'.format(cell_specimen_id))
         ax['licks'].set_xlim(t_span[0], t_span[1])
@@ -360,7 +379,7 @@ class GLM_Movie(object):
         ax['licks'].set_ylabel('licks       ', rotation=0,ha='right', va='center')
         ax['cell_response'].set_ylabel('$\Delta$F/F', rotation=0, ha='right', va='center')
         ax['running'].set_ylabel('Running\nSpeed\n(cm/s)', rotation=0, ha='right', va='center')
-        ax_pupil.set_ylabel('Pupil\nDiameter\n(pix^2)', rotation=0, ha='left', va='center')
+        ax['pupil'].set_ylabel('Pupil\nDiameter\n(pix^2)', rotation=0, ha='left', va='center')
         ax['kernel_contributions'].set_ylabel('kernel\ncontributions\nto predicted\nsignal\n($\Delta$F/F)', rotation=0, ha='right', va='center')
 
 
@@ -375,6 +394,7 @@ class GLM_Movie(object):
             self.ax, self.glm, F_index=frame_number, cell_specimen_id=self.cell_specimen_id)
 
         self.pbar.update(1)
+        gc.collect()
 
     def set_up_axes(self):
         fig = plt.figure(figsize=(24, 18))
@@ -389,6 +409,7 @@ class GLM_Movie(object):
             'kernel_contributions':vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.575, 0.70]),
             'dropout_summary':vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.775, 1], dim=[1,3], wspace=0.01),
         }
+        ax['pupil'] = ax['running'].twinx()
 
         ax['licks'].get_shared_x_axes().join(ax['licks'], ax['cell_response'])
         ax['running'].get_shared_x_axes().join(ax['running'], ax['cell_response'])
@@ -410,6 +431,9 @@ class GLM_Movie(object):
         return writer
 
     def make_movie(self):
+        self.dropout_summary_plotted = False
+        self.cell_roi_plotted = False
+
         a = animation.FuncAnimation(
             self.fig,
             self.update,

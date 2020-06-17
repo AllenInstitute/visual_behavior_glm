@@ -212,6 +212,42 @@ def plot_dropout_summary(results_summary, cell_specimen_id, ax):
         ax[col].set_yticklabels([])
         ax[col].set_ylabel('')
 
+def plot_filters(glm, cell_specimen_id, n_cols=5):
+    '''plots all filters for a given cell'''
+    kernel_list = list(glm.design.kernel_dict.keys())
+    all_weight_names = glm.X.weights.values
+    n_rows = int(np.ceil(len(kernel_list)/5))
+
+    fig,ax=plt.subplots(int(n_rows),int(n_cols), figsize=(2.5*n_cols,2.5*n_rows),sharey=True)
+
+    ii = 0
+    for row in range(n_rows):
+        for col in range(n_cols):
+            if ii <= len(kernel_list) - 1:
+                kernel_name = kernel_list[ii]
+                t = np.arange(
+                    0,
+                    glm.design.kernel_dict[kernel_name]['kernel_length_samples']/glm.fit['ophys_frame_rate'],
+                    1/glm.fit['ophys_frame_rate']
+                )
+                t += glm.design.kernel_dict[kernel_name]['offset_seconds']
+
+                kernel_weight_names = [w for w in all_weight_names if w.startswith(kernel_name)]
+                w_kernel = glm.W.loc[dict(weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)]
+                ax[row,col].plot(t,w_kernel,marker='.')
+                ax[row,col].set_title(kernel_name)
+                
+            else:
+                ax[row,col].axis('off')
+            
+            if ii >= len(kernel_list) - n_rows:
+                ax[row,col].set_xlabel('time from event (s)')
+            if col == 0:
+                ax[row,col].set_ylabel('$\Delta$F/F')
+            ii += 1
+
+    fig.tight_layout()
+
 
 def get_title(ophys_experiment_id, cell_specimen_id):
     '''

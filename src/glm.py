@@ -53,6 +53,10 @@ class GLM(object):
             fig,ax = plt.subplots(1,3,figsize=(15,5))
         gvt.plot_dropout_summary(self.dropout_summary, cell_specimen_id, ax)
 
+    def plot_filters(self, cell_specimen_id, n_cols=5):
+        '''plots all filters for a given cell'''
+        gvt.plot_filters(self, cell_specimen_id, n_cols)
+
     @cached_property
     def df_full(self):
         '''creates a tidy dataframe with columns ['dff_trace_timestamps', 'frame_index', 'cell_specimen_id', 'dff', 'dff_predicted] using the full model'''

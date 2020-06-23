@@ -163,7 +163,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'kernels':kernels,
         'dropouts':dropouts,
         'CV_splits':5,
-        'CV_subsplits':10
+        'CV_subsplits':10,
+        'standardize_inputs': True
     }
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
@@ -201,6 +202,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False):
 
     # Make Design Matrix
     print('Build Design Matrix')
+    fit['standardize_inputs'] = run_params['standardize_inputs']
     design = DesignMatrix(fit) 
 
     # Add kernels
@@ -679,6 +681,9 @@ class DesignMatrix(object):
         self.running_stop = 0
         self.events = {'timestamps':fit_dict['dff_trace_timestamps']}
         self.ophys_frame_rate = fit_dict['ophys_frame_rate']
+        self.standardize_inputs = fit_dict['standardize_inputs']
+        if self.standardize_inputs:
+            print('Standardizing all inputs')
 
     def make_labels(self, label, num_weights,offset, length): 
         base = [label] * num_weights 
@@ -754,7 +759,14 @@ class DesignMatrix(object):
         elif offset_samples > 0:
             this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
             this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
-
+        
+        if self.standardize_inputs:
+            # TODO, finish implementing this
+            # Do I need to hand the bias term differently?
+            # Im getting a runtime warning about degrees of freedom < 0
+            # Oh this is fucked, because this_kernel is a matrix, right? I need to do this column wise? Or probably better to just do it on the inputs before-hand?
+            this_kernel = (this_kernel - np.mean(this_kernel))/np.std(this_kernel)
+    
         self.kernel_dict[label] = {
             'kernel':this_kernel,
             'kernel_length_samples':kernel_length_samples,

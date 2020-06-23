@@ -129,11 +129,11 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'change':       {'event':'change',      'type':'discrete',      'length':4,     'offset':0},
         'omissions':    {'event':'omissions',   'type':'discrete',      'length':2,     'offset':0},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':1.5,  'offset':0},
-        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1},
+        #'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1},
         #'population_mean':{'event':'population_mean','type':'continuous','length':.5,   'offset':-.25},
-        # 'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':.5,    'offset':-.25},
-        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25},
-        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1}
+        #'Population_Activity_PC1':        {'event':'Population_Activity_PC1',       'type':'continuous',    'length':.5,    'offset':-.25},
+        #'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25},
+        #'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -155,7 +155,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'L2_fixed_lambda':1,        # This value is used if L2_use_fixed_value
-        'L2_use_fixed_value':False, # If False, find average value over grid
+        'L2_use_fixed_value':False, # If False, find L2 values over grid
+        'L2_use_avg_value':True, # If True, uses the average value over grid
         'L2_grid_range':[.1, 500],
         'L2_grid_num': 20,
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
@@ -307,8 +308,10 @@ def define_dropouts(kernels,kernel_definitions):
 
 def evaluate_ridge(fit, design,run_params):
     if run_params['L2_use_fixed_value']:
-        fit['regularization'] = run_params['L2_fixed_lambda']
+        print('Using a hard-coded regularization value')
+        fit['avg_regularization'] = run_params['L2_fixed_lambda']
     else:
+        print('Evaluating a grid of regularization values')
         fit['L2_grid'] = np.concatenate([[0],np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
         train_cv = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
         test_cv  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
@@ -333,12 +336,71 @@ def evaluate_ridge(fit, design,run_params):
             train_cv[:,L2_index] = np.mean(cv_var_train,1)
             test_cv[:,L2_index]  = np.mean(cv_var_test,1)
 
-        fit['regularization'] = np.mean([fit['L2_grid'][x] for x in np.argmax(test_cv,1)])      
+        fit['avg_regularization'] = np.mean([fit['L2_grid'][x] for x in np.argmax(test_cv,1)])      
+        fit['cell_regularization'] = [fit['L2_grid'][x] for x in np.argmax(test_cv,1)]     
         fit['L2_test_cv'] = test_cv
         fit['L2_train_cv'] = train_cv
     return fit
 
 def evaluate_models(fit, design, run_params):
+    if run_params['L2_use_avg_value'] or run_params['L2_use_fixed_value']:
+        print('Using a constant regularization value across all cells')
+        return evaluate_models_same_ridge(fit,design, run_params)
+    else:
+        print('Using an optimized regularization value for each cell')
+        return evaluate_models_different_ridge(fit,design,run_params)
+
+def evaluate_models_different_ridge(fit,design,run_params):
+    '''
+        Fits and evaluates each model defined in fit['dropouts']
+    
+        For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
+            It does this for the entire dataset as test and train. As well as CV, saving each test/train split
+    '''
+    for model_label in fit['dropouts'].keys():
+
+        # Set up design matrix for this dropout
+        X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
+
+        # Iterate CV
+        cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        cv_var_test     = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        cv_weights      = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        all_weights     = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1]))
+        all_var_explain = np.empty((fit['dff_trace_arr'].shape[1]))
+        all_prediction  = np.empty(fit['dff_trace_arr'].shape)
+
+        for cell_index, cell_value in tqdm(enumerate(fit['dff_trace_arr']['cell_specimen_id'].values),total=len(fit['dff_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+
+            dff = fit['dff_trace_arr'][:,cell_index]
+            Wall = fit_cell_regularized(dff, X,fit['cell_regularization'][cell_index])     
+            var_explain = variance_ratio(dff, Wall,X)
+            all_weights[:,cell_index] = Wall
+            all_var_explain[cell_index] = var_explain
+            all_prediction[:,cell_index] = X.values @ Wall.values
+
+            for index, test_split in enumerate(fit['splits']):
+                train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
+                X_test = X[test_split,:]
+                X_train = X[train_split,:]
+                dff_train = fit['dff_trace_arr'][train_split,cell_index]
+                dff_test = fit['dff_trace_arr'][test_split,cell_index]
+                W = fit_cell_regularized(dff_train, X_train, fit['cell_regularization'][cell_index])
+                cv_var_train[cell_index,index] = variance_ratio(dff_train, W, X_train)
+                cv_var_test[cell_index,index] = variance_ratio(dff_test, W, X_test)
+                cv_weights[:,cell_index,index] = W 
+
+        fit['dropouts'][model_label]['train_weights'] = all_weights
+        fit['dropouts'][model_label]['train_variance_explained']=all_var_explain
+        fit['dropouts'][model_label]['full_model_train_prediction'] =  all_prediction
+        fit['dropouts'][model_label]['cv_weights'] = cv_weights
+        fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
+        fit['dropouts'][model_label]['cv_var_test'] = cv_var_test
+
+    return fit 
+
+
+def evaluate_models_same_ridge(fit, design, run_params):
     '''
         Fits and evaluates each model defined in fit['dropouts']
     
@@ -351,7 +413,7 @@ def evaluate_models(fit, design, run_params):
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
 
         dff = fit['dff_trace_arr']
-        Wall = fit_regularized(dff, X,fit['regularization'])     
+        Wall = fit_regularized(dff, X,fit['avg_regularization'])     
         var_explain = variance_ratio(dff, Wall,X)
         fit['dropouts'][model_label]['weights'] = Wall
         fit['dropouts'][model_label]['variance_explained']=var_explain
@@ -368,10 +430,10 @@ def evaluate_models(fit, design, run_params):
             X_train = X[train_split,:]
             dff_train = fit['dff_trace_arr'][train_split,:]
             dff_test = fit['dff_trace_arr'][test_split,:]
-            W = fit_regularized(dff_train, X_train, fit['regularization'])
+            W = fit_regularized(dff_train, X_train, fit['avg_regularization'])
             cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
             cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
-            cv_weights[:,:,index] = W # TODO this should be either a list of xarrays, or one big xarray
+            cv_weights[:,:,index] = W 
 
         fit['dropouts'][model_label]['cv_weights'] = cv_weights
         fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
@@ -399,7 +461,7 @@ def L2_report(fit):
     plt.gca().set_xscale('log')
     plt.ylabel('Session avg test CV')
     plt.xlabel('L2 Strength')
-    plt.axvline(fit['regularization'], color='k', linestyle='--', alpha = 0.5)
+    plt.axvline(fit['avg_regularization'], color='k', linestyle='--', alpha = 0.5)
     plt.ylim(0,.15) 
 
     cellids = fit['dff_trace_arr']['cell_specimen_id'].values
@@ -824,11 +886,37 @@ def fit_regularized(dff_trace_arr, X, lam):
                np.dot(X.T, dff_trace_arr))
 
     # Make xarray
+    cellids = dff_trace_arr['cell_specimen_id'].values
     W_xarray= xr.DataArray(
             W, 
             dims =('weights','cell_specimen_id'), 
             coords = {  'weights':X.weights.values, 
-                        'cell_specimen_id':dff_trace_arr['cell_specimen_id'].values}
+                        'cell_specimen_id':cellids}
+            )
+    return W_xarray
+
+def fit_cell_regularized(dff_trace_arr, X, lam):
+    '''
+    Analytical OLS solution with added L2 regularization penalty. 
+
+    dff_trace_arr: shape (n_timestamps * n_cells)
+    X: shape (n_timestamps * n_kernel_params)
+    lam (float): Strength of L2 regularization (hyperparameter to tune)
+
+    Returns: XArray
+    '''
+    # Compute the weights
+    if lam == 0:
+        W = fit(dff_trace_arr,X)
+    else:
+        W = np.dot(np.linalg.inv(np.dot(X.T, X) + lam * np.eye(X.shape[-1])),
+               np.dot(X.T, dff_trace_arr))
+
+    # Make xarray 
+    W_xarray= xr.DataArray(
+            W, 
+            dims =('weights'), 
+            coords = {  'weights':X.weights.values}
             )
     return W_xarray
 

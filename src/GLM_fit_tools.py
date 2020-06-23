@@ -379,6 +379,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
 
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
+        X_inner = np.dot(X.T, X)
 
         # Iterate CV
         cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
@@ -387,11 +388,14 @@ def evaluate_models_different_ridge(fit,design,run_params):
         all_weights     = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1]))
         all_var_explain = np.empty((fit['dff_trace_arr'].shape[1]))
         all_prediction  = np.empty(fit['dff_trace_arr'].shape)
+        X_test_array = []   # Cache the intermediate steps for each cell
+        X_train_array = []
+        X_cov_array = []
 
         for cell_index, cell_value in tqdm(enumerate(fit['dff_trace_arr']['cell_specimen_id'].values),total=len(fit['dff_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
 
             dff = fit['dff_trace_arr'][:,cell_index]
-            Wall = fit_cell_regularized(dff, X,fit['cell_regularization'][cell_index])     
+            Wall = fit_cell_regularized(X_inner,dff, X,fit['cell_regularization'][cell_index])     
             var_explain = variance_ratio(dff, Wall,X)
             all_weights[:,cell_index] = Wall
             all_var_explain[cell_index] = var_explain
@@ -399,11 +403,20 @@ def evaluate_models_different_ridge(fit,design,run_params):
 
             for index, test_split in enumerate(fit['splits']):
                 train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
-                X_test = X[test_split,:]
-                X_train = X[train_split,:]
+        
+                # If this is the first cell, stash the design matrix and covariance result
+                if cell_index == 0:
+                    X_test_array.append(X[test_split,:])
+                    X_train_array.append(X[train_split,:])
+                    X_cov_array.append(np.dot(X[train_split,:].T,X[train_split,:]))
+                # Grab the stashed result
+                X_test  = X_test_array[index]
+                X_train = X_train_array[index]
+                X_cov   = X_cov_array[index]
+
                 dff_train = fit['dff_trace_arr'][train_split,cell_index]
                 dff_test = fit['dff_trace_arr'][test_split,cell_index]
-                W = fit_cell_regularized(dff_train, X_train, fit['cell_regularization'][cell_index])
+                W = fit_cell_regularized(X_cov,dff_train, X_train, fit['cell_regularization'][cell_index])
                 cv_var_train[cell_index,index] = variance_ratio(dff_train, W, X_train)
                 cv_var_test[cell_index,index] = variance_ratio(dff_test, W, X_test)
                 cv_weights[:,cell_index,index] = W 
@@ -918,7 +931,7 @@ def fit_regularized(dff_trace_arr, X, lam):
             )
     return W_xarray
 
-def fit_cell_regularized(dff_trace_arr, X, lam):
+def fit_cell_regularized(X_cov,dff_trace_arr, X, lam):
     '''
     Analytical OLS solution with added L2 regularization penalty. 
 
@@ -932,7 +945,7 @@ def fit_cell_regularized(dff_trace_arr, X, lam):
     if lam == 0:
         W = fit(dff_trace_arr,X)
     else:
-        W = np.dot(np.linalg.inv(np.dot(X.T, X) + lam * np.eye(X.shape[-1])),
+        W = np.dot(np.linalg.inv(X_cov + lam * np.eye(X.shape[-1])),
                np.dot(X.T, dff_trace_arr))
 
     # Make xarray 

@@ -125,14 +125,21 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         #'licks':        {'event':'licks',       'type':'discrete',      'length':1.5,   'offset':-0.5},
         'pre_licks':    {'event':'licks',       'type':'discrete',      'length':5,   'offset':-5},
         'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0},
+        'pre_lick_bouts':    {'event':'lick_bouts',       'type':'discrete',      'length':5,   'offset':-5},
+        'post_lick_bouts':   {'event':'lick_bouts',       'type':'discrete',      'length':1,     'offset':0},
         'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5},
-        'change':       {'event':'change',      'type':'discrete',      'length':4,     'offset':0},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':2,     'offset':0},
+        'change':       {'event':'change',      'type':'discrete',      'length':2,     'offset':0},
+        'hits':       {'event':'hit',      'type':'discrete',      'length':3,     'offset':-1},
+        'misses':       {'event':'miss',      'type':'discrete',      'length':3,     'offset':-1},
+        'false_alarms':       {'event':'false_alarm',      'type':'discrete',      'length':3,     'offset':-1},
+        'correct_rejects':       {'event':'correct_reject',      'type':'discrete',      'length':3,     'offset':-1},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':6,     'offset':-1},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.8,  'offset':0},
+        'image_expectation':   {'event':'any-image',  'type':'discrete','length':0.8,  'offset':-0.767},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1},
         #'population_mean':{'event':'population_mean','type':'continuous','length':.5,   'offset':-.25},
         # 'PCA_1':        {'event':'PCA_1',       'type':'continuous',    'length':.5,    'offset':-.25},
-        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25},
+        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':8,    'offset':-3},
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1}
     }
     kernels = process_kernels(copy(kernels_orig))
@@ -547,10 +554,18 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     event = run_params['kernels'][kernel_name]['event']
     if event == 'licks':
         event_times = session.dataset.licks['timestamps'].values
+    elif event == 'lick_bouts':
+        licks = session.dataset.licks
+        licks['time_to_last_lick'] = licks['timestamps'] - licks['timestamps'].shift()
+        licks['first_in_bout'] = licks['time_to_last_lick'] > 2
+        event_times = session.dataset.licks.query('first_in_bout')['timestamps'].values
     elif event == 'rewards':
         event_times = session.dataset.rewards['timestamps'].values
     elif event == 'change':
         event_times = session.dataset.trials.query('go')['change_time'].values
+        event_times = event_times[~np.isnan(event_times)]
+    elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
+        event_times = session.dataset.trials.query(event)['change_time'].values
         event_times = event_times[~np.isnan(event_times)]
     elif event == 'any-image':
         event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values

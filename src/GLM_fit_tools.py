@@ -118,7 +118,6 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
                     }
 
     # Define Kernels
-    # TODO intelligently pick the offset and length for each kernel
     kernels_orig = {
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0},
         'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0},
@@ -129,11 +128,11 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'change':       {'event':'change',      'type':'discrete',      'length':4,     'offset':0},
         'omissions':    {'event':'omissions',   'type':'discrete',      'length':2,     'offset':0},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':1.5,  'offset':0},
-        #'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1},
+        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1},
         #'population_mean':{'event':'population_mean','type':'continuous','length':.5,   'offset':-.25},
         #'Population_Activity_PC1':        {'event':'Population_Activity_PC1',       'type':'continuous',    'length':.5,    'offset':-.25},
-        #'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25},
-        #'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1}
+        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25},
+        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1}
     }
     kernels = process_kernels(copy(kernels_orig))
     dropouts = define_dropouts(kernels,kernels_orig)
@@ -154,9 +153,9 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'L2_fixed_lambda':1,        # This value is used if L2_use_fixed_value
+        'L2_fixed_lambda':70,       # This value is used if L2_use_fixed_value
         'L2_use_fixed_value':False, # If False, find L2 values over grid
-        'L2_use_avg_value':True, # If True, uses the average value over grid
+        'L2_use_avg_value':True,    # If True, uses the average value over grid
         'L2_grid_range':[.1, 500],
         'L2_grid_num': 20,
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
@@ -307,6 +306,21 @@ def define_dropouts(kernels,kernel_definitions):
     return dropouts
 
 def evaluate_ridge(fit, design,run_params):
+    '''
+        Finds the best L2 value by fitting the model on a grid of L2 values and reporting training/test error
+    
+        fit, model dictionary
+        design, design matrix
+        run_params, dictionary of parameters, which needs to include:
+            L2_use_fixed_value, if True, skips this step and uses a hard coded value given by L2_fixed_lambda
+            L2_grid_range, a min/max L2 value to use
+            L2_grid_num, the number of log-spaced points to use in the grid range
+
+        returns fit, with the values added:
+            L2_grid,    the L2 grid evaluated
+            avg_regularization, the average optimal L2 value, or the fixed value
+            cell_regularization, the optimal L2 value for each cell
+    '''
     if run_params['L2_use_fixed_value']:
         print('Using a hard-coded regularization value')
         fit['avg_regularization'] = run_params['L2_fixed_lambda']
@@ -343,6 +357,10 @@ def evaluate_ridge(fit, design,run_params):
     return fit
 
 def evaluate_models(fit, design, run_params):
+    '''
+        Evaluates the model selections across all dropouts using either the single L2 value, or each cell's optimal value
+
+    '''
     if run_params['L2_use_avg_value'] or run_params['L2_use_fixed_value']:
         print('Using a constant regularization value across all cells')
         return evaluate_models_same_ridge(fit,design, run_params)
@@ -455,6 +473,11 @@ def build_dataframe_from_dropouts(fit):
     return results
 
 def L2_report(fit):
+    '''
+        Evaluates how well the L2 grid worked. Plots the train/test error across L2 Values to visually see the best value
+        Plots the CV_test for each L2 value
+    
+    '''
     plt.figure()
     plt.plot(fit['L2_grid'], np.mean(fit['L2_train_cv'],0), 'b-')
     plt.plot(fit['L2_grid'], np.mean(fit['L2_test_cv'],0), 'r-')

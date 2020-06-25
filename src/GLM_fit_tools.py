@@ -202,8 +202,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False):
 
     # Make Design Matrix
     print('Build Design Matrix')
-    fit['standardize_inputs'] = run_params['standardize_inputs']
-    design = DesignMatrix(fit) 
+    design = DesignMatrix(fit,run_params) 
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
@@ -665,7 +664,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     return design
 
 class DesignMatrix(object):
-    def __init__(self, fit_dict):
+    def __init__(self, fit_dict,run_params):
         '''
         A toeplitz-matrix builder for running regression with multiple temporal kernels. 
 
@@ -681,7 +680,7 @@ class DesignMatrix(object):
         self.running_stop = 0
         self.events = {'timestamps':fit_dict['dff_trace_timestamps']}
         self.ophys_frame_rate = fit_dict['ophys_frame_rate']
-        self.standardize_inputs = fit_dict['standardize_inputs']
+        self.standardize_inputs = run_params['standardize_inputs']
         if self.standardize_inputs:
             print('Standardizing all inputs')
 
@@ -764,8 +763,11 @@ class DesignMatrix(object):
             # TODO, finish implementing this
             # Do I need to hand the bias term differently?
             # Im getting a runtime warning about degrees of freedom < 0
-            # Oh this is fucked, because this_kernel is a matrix, right? I need to do this column wise? Or probably better to just do it on the inputs before-hand?
-            this_kernel = (this_kernel - np.mean(this_kernel))/np.std(this_kernel)
+            # this_kernel is a matrix, right? I need to do this column wise? Or probably better to just do it on the inputs before-hand?
+            if np.std(this_kernel) > TOL:
+                this_kernel = (this_kernel - np.mean(this_kernel))/np.std(this_kernel)
+            else:
+                this_kernel = (this_kernel - np.mean(this_kernel))    
     
         self.kernel_dict[label] = {
             'kernel':this_kernel,

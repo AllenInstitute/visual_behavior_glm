@@ -164,8 +164,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'dropouts':dropouts,
         'CV_splits':5,
         'CV_subsplits':10,
-        'standardize_inputs': True,
-        'standardize_TOL': 1
+        'mean_center_inputs': True, # If True, mean centers continuous inputs
+        'standardize_inputs': True  # If True, continuous inputs have unit variance
     }
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
@@ -598,7 +598,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
     elif event == 'time':
         timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
         timeseries = timeseries/len(timeseries)
-        standardize = True
+        standardize = False
     elif event == 'running':
         running_df = session.dataset.running_speed
         running_df = running_df.rename(columns={'speed':'values'})
@@ -638,7 +638,16 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
     #assert length of values is same as length of timestamps
     assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
 
-    design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'],standardize=standardize)   
+    # Mean Center and Standardize to unit variance if needed
+    if standardize and run_params['mean_center_inputs']:
+        timeseries = timeseries - np.mean(timeseries)
+        print('                 : '+'Mean Centering')
+        if run_params['standardize_inputs']:
+            timeseries = timeseries/np.std(timeseries)
+            print('                 : '+'Standardized to unit variance')
+
+    # Add to design matrix
+    design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
     return design
 
 def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
@@ -668,7 +677,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     else:
         raise Exception('Could not resolve kernel label')
     events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
-    design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'],standardize=False)   
+    design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
     return design
 
 class DesignMatrix(object):
@@ -688,14 +697,14 @@ class DesignMatrix(object):
         self.running_stop = 0
         self.events = {'timestamps':fit_dict['dff_trace_timestamps']}
         self.ophys_frame_rate = fit_dict['ophys_frame_rate']
-        self.standardize_inputs = run_params['standardize_inputs']
-        self.mean_center_inputs = run_params['mean_center_inputs']
-        self.standardize_tol = run_params['standardize_TOL']
+        #self.standardize_inputs = run_params['standardize_inputs']
+        #self.mean_center_inputs = run_params['mean_center_inputs']
+        #self.standardize_tol = run_params['standardize_TOL']
 
-        if self.mean_center_inputs:
-            print('Mean centering inputs')
-        if self.standardize_inputs:
-            print('Standardizing inputs to unit variance')
+        #if self.mean_center_inputs:
+        #    print('Mean centering inputs')
+        #if self.standardize_inputs:
+        #    print('Standardizing inputs to unit variance')
 
     def make_labels(self, label, num_weights,offset, length): 
         base = [label] * num_weights 
@@ -736,7 +745,7 @@ class DesignMatrix(object):
             )
         return X_array.T
 
-    def add_kernel(self, events, kernel_length, label, offset=0, standardize=True):
+    def add_kernel(self, events, kernel_length, label, offset=0):
         '''
         Add a temporal kernel. 
 
@@ -773,16 +782,17 @@ class DesignMatrix(object):
             this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
 
         # TODO I'm not sure this is correct. Do we want to normalize the event series or the columns of x? Maybe we should normalize before we do the toeplitz computation?       
-        if self.mean_center_inputs and standardize:
-            this_kernel = this_kernel - np.mean(this_kernel, axis=1)[:,np.newaxis]
-            str1 = 'Mean centering input'
-            print('                 : '+str1)
-        if self.standardize_inputs and standardize:
-            std = np.std(this_kernel,axis=1)
-            std = np.array([1 if x<self.standardize_tol else x for x in std])
-            this_kernel = this_kernel/std[:,np.newaxis]
-            str2 = 'Standardized to unit variance'
-            print('                 : '+str2)
+        #if self.mean_center_inputs and standardize:
+        #    this_kernel = this_kernel - np.mean(this_kernel, axis=1)[:,np.newaxis]
+        #    str1 = 'Mean centering input'
+        #    print('                 : '+str1)
+        #if self.standardize_inputs and standardize:
+        #    std = np.std(this_kernel,axis=1)
+        #    std = np.array([1 if x<self.standardize_tol else x for x in std])
+        #    this_kernel = this_kernel/std[:,np.newaxis]
+        #    str2 = 'Standardized to unit variance'
+        #    print('                 : '+str2)
+
         self.kernel_dict[label] = {
             'kernel':this_kernel,
             'kernel_length_samples':kernel_length_samples,

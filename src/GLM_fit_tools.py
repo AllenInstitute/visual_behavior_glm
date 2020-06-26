@@ -154,7 +154,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'L2_fixed_lambda':70,       # This value is used if L2_use_fixed_value
-        'L2_use_fixed_value':True, # If False, find L2 values over grid
+        'L2_use_fixed_value':False, # If False, find L2 values over grid
         'L2_use_avg_value':True,    # If True, uses the average value over grid
         'L2_grid_range':[.1, 500],
         'L2_grid_num': 20,
@@ -697,14 +697,6 @@ class DesignMatrix(object):
         self.running_stop = 0
         self.events = {'timestamps':fit_dict['dff_trace_timestamps']}
         self.ophys_frame_rate = fit_dict['ophys_frame_rate']
-        #self.standardize_inputs = run_params['standardize_inputs']
-        #self.mean_center_inputs = run_params['mean_center_inputs']
-        #self.standardize_tol = run_params['standardize_TOL']
-
-        #if self.mean_center_inputs:
-        #    print('Mean centering inputs')
-        #if self.standardize_inputs:
-        #    print('Standardizing inputs to unit variance')
 
     def make_labels(self, label, num_weights,offset, length): 
         base = [label] * num_weights 
@@ -780,18 +772,6 @@ class DesignMatrix(object):
         elif offset_samples > 0:
             this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
             this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
-
-        # TODO I'm not sure this is correct. Do we want to normalize the event series or the columns of x? Maybe we should normalize before we do the toeplitz computation?       
-        #if self.mean_center_inputs and standardize:
-        #    this_kernel = this_kernel - np.mean(this_kernel, axis=1)[:,np.newaxis]
-        #    str1 = 'Mean centering input'
-        #    print('                 : '+str1)
-        #if self.standardize_inputs and standardize:
-        #    std = np.std(this_kernel,axis=1)
-        #    std = np.array([1 if x<self.standardize_tol else x for x in std])
-        #    this_kernel = this_kernel/std[:,np.newaxis]
-        #    str2 = 'Standardized to unit variance'
-        #    print('                 : '+str2)
 
         self.kernel_dict[label] = {
             'kernel':this_kernel,

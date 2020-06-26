@@ -154,7 +154,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'L2_fixed_lambda':70,       # This value is used if L2_use_fixed_value
-        'L2_use_fixed_value':False, # If False, find L2 values over grid
+        'L2_use_fixed_value':True, # If False, find L2 values over grid
         'L2_use_avg_value':True,    # If True, uses the average value over grid
         'L2_grid_range':[.1, 500],
         'L2_grid_num': 20,
@@ -164,7 +164,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'dropouts':dropouts,
         'CV_splits':5,
         'CV_subsplits':10,
-        'standardize_inputs': True
+        'standardize_inputs': True,
+        'standardize_TOL': 0.01
     }
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
@@ -593,20 +594,25 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
     event = run_params['kernels'][kernel_name]['event']
     if event == 'intercept':
         timeseries = np.ones(len(fit['dff_trace_timestamps']))
+        standardize = False
     elif event == 'time':
         timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
         timeseries = timeseries/len(timeseries)
+        standardize = True
     elif event == 'running':
         running_df = session.dataset.running_speed
         running_df = running_df.rename(columns={'speed':'values'})
         timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
+        standardize = True
     elif event == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values
+        standardize = True
     elif event == 'Population_Activity_PC1':
         pca = PCA()
         pca.fit(fit['dff_trace_arr'].values)
         dff_pca = pca.transform(fit['dff_trace_arr'].values)
         timeseries = dff_pca[:,0]
+        standardize = True
     elif (len(event) > 6) & ( event[0:6] == 'model_'):
         bsid = session.dataset.metadata['behavior_session_id']
         weight_name = event[6:]
@@ -617,6 +623,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries = interpolate_to_dff_timestamps(fit, weight_df)
         timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
         timeseries = timeseries['values'].values
+        standardize = True
     elif event == 'pupil':
         pupil_df = session.dataset.eye_tracking
         pupil_df = pupil_df.rename(columns={'time':'timestamps','pupil_area':'values'})
@@ -624,13 +631,14 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries['values'].fillna(method='ffill',inplace=True)
         timeseries['values'].fillna(method='bfill',inplace=True)
         timeseries = timeseries['values'].values
+        standardize = True
     else:
         raise Exception('Could not resolve kernel label')
 
     #assert length of values is same as length of timestamps
     assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
 
-    design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
+    design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'],standardize=standardize)   
     return design
 
 def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
@@ -660,7 +668,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     else:
         raise Exception('Could not resolve kernel label')
     events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
-    design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
+    design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'],standardize=False)   
     return design
 
 class DesignMatrix(object):
@@ -681,6 +689,9 @@ class DesignMatrix(object):
         self.events = {'timestamps':fit_dict['dff_trace_timestamps']}
         self.ophys_frame_rate = fit_dict['ophys_frame_rate']
         self.standardize_inputs = run_params['standardize_inputs']
+        self.mean_center_inputs = run_params['mean_center_inputs']
+        self.standardize_tol = run_params['standardize_TOL']
+
         if self.standardize_inputs:
             print('Standardizing all inputs')
 
@@ -723,7 +734,7 @@ class DesignMatrix(object):
             )
         return X_array.T
 
-    def add_kernel(self, events, kernel_length, label, offset=0):
+    def add_kernel(self, events, kernel_length, label, offset=0, standardize=True):
         '''
         Add a temporal kernel. 
 
@@ -758,17 +769,16 @@ class DesignMatrix(object):
         elif offset_samples > 0:
             this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
             this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
-        
-        if self.standardize_inputs:
-            # TODO, finish implementing this
-            # Do I need to hand the bias term differently?
-            # Im getting a runtime warning about degrees of freedom < 0
-            # this_kernel is a matrix, right? I need to do this column wise? Or probably better to just do it on the inputs before-hand?
-            if np.std(this_kernel) > TOL:
-                this_kernel = (this_kernel - np.mean(this_kernel))/np.std(this_kernel)
-            else:
-                this_kernel = (this_kernel - np.mean(this_kernel))    
-    
+
+        # TODO I'm not sure this is correct. Do we want to normalize the event series or the columns of x? Maybe we should normalize before we do the toeplitz computation?       
+        # maybe we only standarize some inputs?
+        if self.mean_center_inputs and standardize:
+            this_kernel = this_kernel - np.mean(this_kernel, axis=1)[:,np.newaxis]
+        if self.standardize_inputs and standardize:
+            std = np.std(this_kernel,axis=1)
+            std = np.array([1 if x<self.standardize_tol else x for x in std])
+            this_kernel = this_kernel/std[:,np.newaxis]
+ 
         self.kernel_dict[label] = {
             'kernel':this_kernel,
             'kernel_length_samples':kernel_length_samples,

@@ -22,6 +22,24 @@ if False:
     drop_results = gft.build_dataframe_from_dropouts(fit)
     L2_results = gft.L2_report(fit)
 
+def test_standardize(oeid, run_params):
+    run_params['mean_center_inputs'] = False
+    run_params['standardize_inputs'] = False
+    run_params['standardize_TOL']    = 0.01
+    session, fit_no_standard,   design = gft.fit_experiment(oeid, run_params, NO_DROPOUTS=True)
+    run_params['mean_center_inputs'] = True
+    run_params['standardize_inputs'] = False
+    run_params['standardize_TOL']    = 0.01
+    session, fit_no_std,        design = gft.fit_experiment(oeid, run_params, NO_DROPOUTS=True)
+    run_params['mean_center_inputs'] = True
+    run_params['standardize_inputs'] = True
+    run_params['standardize_TOL']    = 0.01
+    session, fit_standard,      design = gft.fit_experiment(oeid, run_params, NO_DROPOUTS=True)
+    gft.build_dataframe_from_dropouts(fit_no_standard).mean()
+    gft.build_dataframe_from_dropouts(fit_no_std).mean()
+    gft.build_dataframe_from_dropouts(fit_standard).mean()
+    return fit_no_standard, fit_no_std, fit_standard    
+
 def demonstration():
     # Make demonstration of design kernel, and model structure
     fit_demo = {}

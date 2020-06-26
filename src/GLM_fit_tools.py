@@ -165,7 +165,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'CV_splits':5,
         'CV_subsplits':10,
         'standardize_inputs': True,
-        'standardize_TOL': 0.01
+        'standardize_TOL': 1
     }
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
@@ -692,8 +692,10 @@ class DesignMatrix(object):
         self.mean_center_inputs = run_params['mean_center_inputs']
         self.standardize_tol = run_params['standardize_TOL']
 
+        if self.mean_center_inputs:
+            print('Mean centering inputs')
         if self.standardize_inputs:
-            print('Standardizing all inputs')
+            print('Standardizing inputs to unit variance')
 
     def make_labels(self, label, num_weights,offset, length): 
         base = [label] * num_weights 
@@ -771,14 +773,16 @@ class DesignMatrix(object):
             this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
 
         # TODO I'm not sure this is correct. Do we want to normalize the event series or the columns of x? Maybe we should normalize before we do the toeplitz computation?       
-        # maybe we only standarize some inputs?
         if self.mean_center_inputs and standardize:
             this_kernel = this_kernel - np.mean(this_kernel, axis=1)[:,np.newaxis]
+            str1 = 'Mean centering input'
         if self.standardize_inputs and standardize:
             std = np.std(this_kernel,axis=1)
             std = np.array([1 if x<self.standardize_tol else x for x in std])
             this_kernel = this_kernel/std[:,np.newaxis]
- 
+            str2 = 'Standardized to unit variance'
+        print('                 : '+str1)
+        print('                 : '+str2)
         self.kernel_dict[label] = {
             'kernel':this_kernel,
             'kernel_length_samples':kernel_length_samples,

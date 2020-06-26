@@ -203,7 +203,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False):
 
     # Make Design Matrix
     print('Build Design Matrix')
-    design = DesignMatrix(fit,run_params) 
+    design = DesignMatrix(fit) 
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
@@ -681,7 +681,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     return design
 
 class DesignMatrix(object):
-    def __init__(self, fit_dict,run_params):
+    def __init__(self, fit_dict):
         '''
         A toeplitz-matrix builder for running regression with multiple temporal kernels. 
 

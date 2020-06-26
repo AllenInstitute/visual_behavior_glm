@@ -158,6 +158,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'L2_use_avg_value':True,    # If True, uses the average value over grid
         'L2_grid_range':[.1, 500],
         'L2_grid_num': 20,
+        'L2_grid_type':'linear',    # options: 'log' or 'linear'
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'kernels':kernels,
@@ -328,7 +329,10 @@ def evaluate_ridge(fit, design,run_params):
         fit['avg_regularization'] = run_params['L2_fixed_lambda']
     else:
         print('Evaluating a grid of regularization values')
-        fit['L2_grid'] = np.concatenate([[0],np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
+        if run_params['L2_grid_type'] == 'log':
+            fit['L2_grid'] = np.concatenate([[0],np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
+        else:
+            fit['L2_grid'] = np.concatenate([[0],np.linspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
         train_cv = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
         test_cv  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
         X = design.get_X()

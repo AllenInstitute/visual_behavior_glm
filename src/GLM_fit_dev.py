@@ -25,15 +25,18 @@ if False:
 def test_standardize(oeid, run_params):
     run_params['mean_center_inputs'] = False
     run_params['standardize_inputs'] = False
-    run_params['standardize_TOL']    = 0.01
+    run_params['standardize_TOL']    = 1
+    run_params['L2_use_fixed_value'] = False
     session, fit_no_standard,   design = gft.fit_experiment(oeid, run_params, NO_DROPOUTS=True)
     run_params['mean_center_inputs'] = True
     run_params['standardize_inputs'] = False
-    run_params['standardize_TOL']    = 0.01
+    run_params['standardize_TOL']    = 1
+    run_params['L2_use_fixed_value'] = False
     session, fit_no_std,        design = gft.fit_experiment(oeid, run_params, NO_DROPOUTS=True)
     run_params['mean_center_inputs'] = True
     run_params['standardize_inputs'] = True
-    run_params['standardize_TOL']    = 0.01
+    run_params['standardize_TOL']    = 1
+    run_params['L2_use_fixed_value'] = False
     session, fit_standard,      design = gft.fit_experiment(oeid, run_params, NO_DROPOUTS=True)
     gft.build_dataframe_from_dropouts(fit_no_standard).mean()
     gft.build_dataframe_from_dropouts(fit_no_std).mean()

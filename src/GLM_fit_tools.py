@@ -776,13 +776,13 @@ class DesignMatrix(object):
         if self.mean_center_inputs and standardize:
             this_kernel = this_kernel - np.mean(this_kernel, axis=1)[:,np.newaxis]
             str1 = 'Mean centering input'
+            print('                 : '+str1)
         if self.standardize_inputs and standardize:
             std = np.std(this_kernel,axis=1)
             std = np.array([1 if x<self.standardize_tol else x for x in std])
             this_kernel = this_kernel/std[:,np.newaxis]
             str2 = 'Standardized to unit variance'
-        print('                 : '+str1)
-        print('                 : '+str2)
+            print('                 : '+str2)
         self.kernel_dict[label] = {
             'kernel':this_kernel,
             'kernel_length_samples':kernel_length_samples,

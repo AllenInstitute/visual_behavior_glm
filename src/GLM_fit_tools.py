@@ -157,13 +157,16 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'L2_use_fixed_value':False, # If False, find L2 values over grid
         'L2_use_avg_value':True,    # If True, uses the average value over grid
         'L2_grid_range':[.1, 500],
-        'L2_grid_num': 20,
+        'L2_grid_num': 40,
+        'L2_grid_type':'linear',    # options: 'log' or 'linear'
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'kernels':kernels,
         'dropouts':dropouts,
         'CV_splits':5,
-        'CV_subsplits':10
+        'CV_subsplits':10,
+        'mean_center_inputs': True, # If True, mean centers continuous inputs
+        'standardize_inputs': True  # If True, continuous inputs have unit variance
     }
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
@@ -326,7 +329,10 @@ def evaluate_ridge(fit, design,run_params):
         fit['avg_regularization'] = run_params['L2_fixed_lambda']
     else:
         print('Evaluating a grid of regularization values')
-        fit['L2_grid'] = np.concatenate([[0],np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
+        if run_params['L2_grid_type'] == 'log':
+            fit['L2_grid'] = np.concatenate([[0],np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
+        else:
+            fit['L2_grid'] = np.concatenate([[0],np.linspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
         train_cv = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
         test_cv  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
         X = design.get_X()
@@ -592,20 +598,25 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
     event = run_params['kernels'][kernel_name]['event']
     if event == 'intercept':
         timeseries = np.ones(len(fit['dff_trace_timestamps']))
+        standardize = False
     elif event == 'time':
         timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
         timeseries = timeseries/len(timeseries)
+        standardize = False
     elif event == 'running':
         running_df = session.dataset.running_speed
         running_df = running_df.rename(columns={'speed':'values'})
         timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
+        standardize = True
     elif event == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values
+        standardize = True
     elif event == 'Population_Activity_PC1':
         pca = PCA()
         pca.fit(fit['dff_trace_arr'].values)
         dff_pca = pca.transform(fit['dff_trace_arr'].values)
         timeseries = dff_pca[:,0]
+        standardize = True
     elif (len(event) > 6) & ( event[0:6] == 'model_'):
         bsid = session.dataset.metadata['behavior_session_id']
         weight_name = event[6:]
@@ -616,6 +627,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries = interpolate_to_dff_timestamps(fit, weight_df)
         timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
         timeseries = timeseries['values'].values
+        standardize = True
     elif event == 'pupil':
         pupil_df = session.dataset.eye_tracking
         pupil_df = pupil_df.rename(columns={'time':'timestamps','pupil_area':'values'})
@@ -623,12 +635,22 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries['values'].fillna(method='ffill',inplace=True)
         timeseries['values'].fillna(method='bfill',inplace=True)
         timeseries = timeseries['values'].values
+        standardize = True
     else:
         raise Exception('Could not resolve kernel label')
 
     #assert length of values is same as length of timestamps
     assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
 
+    # Mean Center and Standardize to unit variance if needed
+    if standardize and run_params['mean_center_inputs']:
+        timeseries = timeseries - np.mean(timeseries)
+        print('                 : '+'Mean Centering')
+        if run_params['standardize_inputs']:
+            timeseries = timeseries/np.std(timeseries)
+            print('                 : '+'Standardized to unit variance')
+
+    # Add to design matrix
     design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
     return design
 

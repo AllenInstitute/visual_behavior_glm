@@ -157,7 +157,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'L2_use_fixed_value':False, # If False, find L2 values over grid
         'L2_use_avg_value':True,    # If True, uses the average value over grid
         'L2_grid_range':[.1, 500],
-        'L2_grid_num': 20,
+        'L2_grid_num': 40,
         'L2_grid_type':'linear',    # options: 'log' or 'linear'
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,

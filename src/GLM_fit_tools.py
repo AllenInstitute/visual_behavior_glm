@@ -166,7 +166,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'CV_splits':5,
         'CV_subsplits':10,
         'mean_center_inputs': True, # If True, mean centers continuous inputs
-        'standardize_inputs': True  # If True, continuous inputs have unit variance
+        'standardize_inputs': True,  # If True, continuous inputs have unit variance
+        'max_run_speed': 1 # TODO set this value intelligently
     }
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
@@ -598,25 +599,23 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
     event = run_params['kernels'][kernel_name]['event']
     if event == 'intercept':
         timeseries = np.ones(len(fit['dff_trace_timestamps']))
-        standardize = False
     elif event == 'time':
         timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
         timeseries = timeseries/len(timeseries)
-        standardize = False
     elif event == 'running':
         running_df = session.dataset.running_speed
         running_df = running_df.rename(columns={'speed':'values'})
         timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
-        standardize = True
+        timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
     elif event == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values
-        standardize = True
+        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['standardize_inputs'])
     elif event == 'Population_Activity_PC1':
         pca = PCA()
         pca.fit(fit['dff_trace_arr'].values)
         dff_pca = pca.transform(fit['dff_trace_arr'].values)
         timeseries = dff_pca[:,0]
-        standardize = True
+        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['standardize_inputs'])
     elif (len(event) > 6) & ( event[0:6] == 'model_'):
         bsid = session.dataset.metadata['behavior_session_id']
         weight_name = event[6:]
@@ -627,7 +626,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries = interpolate_to_dff_timestamps(fit, weight_df)
         timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
         timeseries = timeseries['values'].values
-        standardize = True
+        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['standardize_inputs'])
     elif event == 'pupil':
         pupil_df = session.dataset.eye_tracking
         pupil_df = pupil_df.rename(columns={'time':'timestamps','pupil_area':'values'})
@@ -635,24 +634,27 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries['values'].fillna(method='ffill',inplace=True)
         timeseries['values'].fillna(method='bfill',inplace=True)
         timeseries = timeseries['values'].values
-        standardize = True
+        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['standardize_inputs'])
     else:
         raise Exception('Could not resolve kernel label')
 
     #assert length of values is same as length of timestamps
     assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
 
-    # Mean Center and Standardize to unit variance if needed
-    if standardize and run_params['mean_center_inputs']:
-        timeseries = timeseries - np.mean(timeseries)
-        print('                 : '+'Mean Centering')
-        if run_params['standardize_inputs']:
-            timeseries = timeseries/np.std(timeseries)
-            print('                 : '+'Standardized to unit variance')
-
     # Add to design matrix
     design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
     return design
+
+def standardize_inputs(timeseries, mean_center=True, unit_variance=True,max_value=None):
+    if mean_center:
+        print('                 : '+'Mean Centering')
+        timeseries = timeseries -np.mean(timeseries) # mean center
+    if unit_variance:
+        print('                 : '+'Standardized to unit variance')
+        timeseries = timeseries/np.std(timeseries)
+    if max_value is not None:
+        timeseries = timeseries/max_value
+    return timeseries
 
 def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     '''

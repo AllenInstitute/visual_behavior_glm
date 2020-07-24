@@ -611,10 +611,12 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
         timeseries = timeseries/len(timeseries)
     elif event == 'running':
-        running_df = session.dataset.running_speed.reset_index()
-        processed_running_df = process_encoder_data(running_df, v_max='v_sig_max')
-        running_df = processed_running_df.rename(columns={'speed':'values'}).set_index('timestamps')
-        timeseries = interpolate_to_dff_timestamps(fit, processed_running_df)['values'].values
+        running_df = process_encoder_data(
+            session.dataset.running_data_df.reset_index(), 
+            v_max='v_sig_max'
+        )
+        running_df = running_df.rename(columns={'speed':'values'})
+        timeseries = interpolate_to_dff_timestamps(fit, running_df)['values'].values
         timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
     elif event == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values

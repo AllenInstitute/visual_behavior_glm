@@ -161,12 +161,13 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'L2_fixed_lambda':70,       # This value is used if L2_use_fixed_value
-        'L2_use_fixed_value':False, # If False, find L2 values over grid
-        'L2_use_avg_value':True,    # If True, uses the average value over grid
-        'L2_grid_range':[.1, 500],
-        'L2_grid_num': 40,
-        'L2_grid_type':'linear',    # options: 'log' or 'linear'
+        'L2_optimize_by_cell': True,    # If True, uses the best L2 value for each cell
+        'L2_optimize_by_session' False, # If True, uses the best L2 value for this session
+        'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda
+        'L2_fixed_lambda':70,           # This value is used if L2_use_fixed_value
+        'L2_grid_range':[.1, 500],      # Min/Max L2 values for optimization
+        'L2_grid_num': 40,              # Number of L2 values for optimization
+        'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'kernels':kernels,
@@ -324,14 +325,17 @@ def evaluate_ridge(fit, design,run_params):
         fit, model dictionary
         design, design matrix
         run_params, dictionary of parameters, which needs to include:
-            L2_use_fixed_value, if True, skips this step and uses a hard coded value given by L2_fixed_lambda
-            L2_grid_range, a min/max L2 value to use
-            L2_grid_num, the number of log-spaced points to use in the grid range
+            L2_optimize_by_cell     # If True, uses the best L2 value for each cell
+            L2_optimize_by_session  # If True, uses the best L2 value for this session
+            L2_use_fixed_value      # If True, uses the hard coded L2_fixed_lambda
+            L2_fixed_lambda         # This value is used if L2_use_fixed_value
+            L2_grid_range           # Min/Max L2 values for optimization
+            L2_grid_num             # Number of L2 values for optimization
 
         returns fit, with the values added:
-            L2_grid,    the L2 grid evaluated
-            avg_regularization, the average optimal L2 value, or the fixed value
-            cell_regularization, the optimal L2 value for each cell
+            L2_grid                 # the L2 grid evaluated (if L2_optimize_by_cell, or L2_optimize_by_session)
+            avg_regularization      # the average optimal L2 value, or the fixed value
+            cell_regularization     # the optimal L2 value for each cell (if L2_optimize_by_cell)
     '''
     if run_params['L2_use_fixed_value']:
         print('Using a hard-coded regularization value')
@@ -376,7 +380,7 @@ def evaluate_models(fit, design, run_params):
         Evaluates the model selections across all dropouts using either the single L2 value, or each cell's optimal value
 
     '''
-    if run_params['L2_use_avg_value'] or run_params['L2_use_fixed_value']:
+    if run_params['L2_use_fixed_value'] or run_params['L2_optimize_by_session']:
         print('Using a constant regularization value across all cells')
         return evaluate_models_same_ridge(fit,design, run_params)
     else:
@@ -386,9 +390,11 @@ def evaluate_models(fit, design, run_params):
 def evaluate_models_different_ridge(fit,design,run_params):
     '''
         Fits and evaluates each model defined in fit['dropouts']
-    
+           
         For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
             It does this for the entire dataset as test and train. As well as CV, saving each test/train split
+
+        Each cell uses a different L2 value defined in fit['cell_regularization']
     '''
     for model_label in fit['dropouts'].keys():
 
@@ -452,6 +458,9 @@ def evaluate_models_same_ridge(fit, design, run_params):
     
         For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
             It does this for the entire dataset as test and train. As well as CV, saving each test/train split
+    
+        All cells use the same regularization value defined in fit['avg_regularization']  
+        
     '''
     for model_label in fit['dropouts'].keys():
 

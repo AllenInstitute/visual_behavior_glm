@@ -91,6 +91,9 @@ def log_results_to_mongo(glm):
         full_results[key] = value
         results_summary[key] = value
 
+    full_results['glm_version'] = glm.version
+    results_summary['glm_version'] = glm.version
+
     conn = db.Database('visual_behavior_data')
 
     keys_to_check = {
@@ -104,8 +107,8 @@ def log_results_to_mongo(glm):
         for idx,row in df.iterrows():
             entry = row.to_dict()
             db.update_or_create(
-                coll, 
-                db.clean_and_timestamp(entry), 
+                coll,
+                db.clean_and_timestamp(entry),
                 keys_to_check = keys_to_check[collection]
             )
     conn.close()

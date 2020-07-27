@@ -49,7 +49,7 @@ parser.add_argument(
 
 def make_movie(oeid, cell_specimen_id, start_frame, end_frame, frame_interval, fps):
     t0=time.time()
-    glm = GLM(oeid)
+    glm = GLM(oeid, version=4)
     print('fitting the model took {} seconds'.format(time.time()-t0))
     
     movie = gvt.GLM_Movie(

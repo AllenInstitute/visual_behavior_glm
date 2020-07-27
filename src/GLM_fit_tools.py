@@ -524,7 +524,7 @@ def L2_report(fit):
     plt.plot([0,1],[0,1],'k--')
     return results
  
-def load_data(oeid, dataframe_format='wide'):
+def load_data(oeid, dataframe_format='wide', smooth_running_data=True):
     '''
         Returns Visual Behavior ResponseAnalysis object
         Allen SDK dataset is an attribute of this object (session.dataset)
@@ -541,6 +541,11 @@ def load_data(oeid, dataframe_format='wide'):
         use_extended_stimulus_presentations=True, 
         dataframe_format = dataframe_format
     ) 
+    if smooth_running_data:
+        session.dataset.running_data_df = process_encoder_data(
+            session.dataset.running_data_df.reset_index(), 
+            v_max='v_sig_max'
+        )
     return session
 
 def process_data(session,ignore_errors=False):
@@ -611,10 +616,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
         timeseries = timeseries/len(timeseries)
     elif event == 'running':
-        running_df = process_encoder_data(
-            session.dataset.running_data_df.reset_index(), 
-            v_max='v_sig_max'
-        )
+        running_df = session.dataset.running_data_df
         running_df = running_df.rename(columns={'speed':'values'})
         timeseries = interpolate_to_dff_timestamps(fit, running_df)['values'].values
         timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])

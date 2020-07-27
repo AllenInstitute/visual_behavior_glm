@@ -35,10 +35,10 @@ def plot_licks(session, ax, y_loc=0, t_span=None):
 
 def plot_running(session, ax, t_span=None):
     if t_span:
-        running_df = session.dataset.running_speed.query(
+        running_df = session.dataset.running_data_df.reset_index().query(
             'timestamps >= {} and timestamps <= {}'.format(t_span[0], t_span[1]))
     else:
-        running_df = session.dataset.running_speed
+        running_df = session.dataset.running_data_df.reset_index()
     ax.plot(
         running_df['timestamps'],
         running_df['speed'],

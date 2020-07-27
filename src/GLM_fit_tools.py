@@ -19,6 +19,7 @@ from visual_behavior.translator.allensdk_sessions import session_attributes
 from visual_behavior.ophys.response_analysis import response_processing as rp
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 import visual_behavior.data_access.loading as loading
+from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
 
@@ -603,9 +604,12 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
         timeseries = timeseries/len(timeseries)
     elif event == 'running':
-        running_df = session.dataset.running_speed
+        running_df = process_encoder_data(
+            session.dataset.running_data_df.reset_index(), 
+            v_max='v_sig_max'
+        )
         running_df = running_df.rename(columns={'speed':'values'})
-        timeseries = interpolate_to_dff_timestamps(fit,running_df)['values'].values
+        timeseries = interpolate_to_dff_timestamps(fit, running_df)['values'].values
         timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
     elif event == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values

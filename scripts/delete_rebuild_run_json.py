@@ -14,14 +14,14 @@ if __name__ == '__main__':
     parser.add_argument(
         '--version', 
         type=str, 
-        default='3',
+        default='4',
         metavar='model_version',
         help='model version'
     )
     parser.add_argument(
         '--label', 
         type=str, 
-        default='Full model after 6/16 presentation',
+        default='updated model',
         metavar='model_label',
         help='model label'
     )

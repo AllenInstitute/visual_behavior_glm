@@ -114,6 +114,29 @@ def log_results_to_mongo(glm):
     conn.close()
 
 
+def retrieve_results(version):
+    '''
+    gets cached results from mongodb
+    input:
+        GLM version
+    output:
+        dictionary with keys:
+            * full: 1 row for every unique cell/session (cells that are matched across sessions will have one row for each session.
+                Each row contains all of the coefficients of variation (a test and a train value for each dropout)
+            * summary: results_summary contains 1 row for every unique cell/session/dropout 
+                cells that are matched across sessions will have `N_DROPOUTS` rows for each session.
+                Each row contains a `dropout` label describing the particular dropout coefficent(s) that apply to that row. 
+                All derived values (`variance_explained`, `fraction_change_from_full`, `absolute_change_from_full`) 
+                are calculated only on test data, not train data.
+    '''
+    conn = db.Database('visual_behavior_data')
+    database = 'ophys_glm'
+    results = {}
+    for key in ['full','summary']:
+        results[key] = pd.DataFrame(list(conn[database]['results_'.format(key)].find({'glm_version':glm_version})))
+    conn.close()
+    return results
+
 def moving_mean(values, window):
     weights = np.repeat(1.0, window)/window
     mm = np.convolve(values, weights, 'valid')

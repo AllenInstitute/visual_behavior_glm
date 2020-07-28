@@ -236,6 +236,8 @@ def plot_filters(glm, cell_specimen_id, n_cols=5):
                 w_kernel = glm.W.loc[dict(weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)]
                 ax[row,col].plot(t,w_kernel,marker='.')
                 ax[row,col].set_title(kernel_name)
+                ax[row,col].axvline(0, color='k',linestyle=':')
+                ax[row,col].axhline(0, color='k',linestyle=':')
                 
             else:
                 ax[row,col].axis('off')

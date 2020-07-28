@@ -175,6 +175,8 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'lick_bout_ILI': 0.7,           # The minimum duration of time between two licks to segment them into separate lick bouts
         'CV_splits':5,
         'CV_subsplits':10,
+        'eye_blink_z': 5.0,             # Threshold for excluding likely blinks
+        'eye_transient_threshold': 0.5, # Threshold for excluding eye transients after blink removal
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100              # If 1, has no effect. Scales running speed to be O(1). 
@@ -577,6 +579,49 @@ def load_data(oeid, dataframe_format='wide', smooth_running_data=True):
         )
     return session
 
+def process_eye_data(session,run_params,ophys_timestamps=None):
+    '''
+        Returns a dataframe of eye tracking data with several processing steps
+        1. All columns are interpolated onto ophys timestamps
+        2. Likely blinks are removed with a threshold set by run_params['eye_blink_z']
+        3. After blink removal, a second transient step removes outliers with threshold run_params['eye_tranisent_threshold']
+        4. After interpolating onto the ophys timestamps, Z-scores the eye_width and pupil_radius
+        
+        Does not modifiy the original eye_tracking dataframe
+    '''    
+
+    # Set parameters for blink detection, and load data
+    session.dataset.set_params(eye_tracking_z_threshold=run_params['eye_blink_z'])
+    eye = session.dataset.eye_tracking.copy(deep=True)
+
+    # Compute pupil radius
+    eye['pupil_radius'] = np.sqrt(eye['pupil_area']*(1/np.pi))
+    
+    # Remove likely blinks and interpolate
+    eye.loc[eye['likely_blink'],:] = np.nan
+    eye = eye.interpolate()   
+
+    # Do a second transient removal step
+    x = scipy.stats.zscore(eye['pupil_radius'],nan_policy='omit')
+    d_mask = np.abs(np.diff(x,append=x[-1])) > run_params['eye_transient_threshold']
+    eye.loc[d_mask,:]=np.nan
+    eye = eye.interpolate()
+
+    # Interpolate everything onto ophys_timestamps
+    ophys_eye = pd.DataFrame({'timestamps':ophys_timestamps})
+    z_score = ['eye_width','pupil_radius']
+    for column in eye.keys():
+        if column is not 'time':
+            f = scipy.interpolate.interp1d(eye['time'], eye[column], bounds_error=False)
+            ophys_eye[column] = f(ophys_eye['timestamps'])
+            ophys_eye[column].fillna(method='ffill',inplace=True)
+            if column in z_score:
+                ophys_eye[column+'_zscore'] = scipy.stats.zscore(ophys_eye[column],nan_policy='omit')
+    print('                 : '+'Mean Centering')
+    print('                 : '+'Standardized to unit variance')
+    return ophys_eye 
+
+
 def process_data(session,ignore_errors=False):
     '''
     Processes dff traces by trimming off portions of recording session outside of the task period. These include:
@@ -670,13 +715,8 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries = timeseries['values'].values
         timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
     elif event == 'pupil':
-        pupil_df = session.dataset.eye_tracking
-        pupil_df = pupil_df.rename(columns={'time':'timestamps','pupil_area':'values'})
-        timeseries = interpolate_to_dff_timestamps(fit, pupil_df)
-        timeseries['values'].fillna(method='ffill',inplace=True)
-        timeseries['values'].fillna(method='bfill',inplace=True)
-        timeseries = timeseries['values'].values
-        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
+        session.ophys_eye = process_eye_data(session,run_params,ophys_timestamps =fit['dff_trace_timestamps'] )
+        timeseries = session.ophys_eye['pupil_radius'].values
     else:
         raise Exception('Could not resolve kernel label')
 
@@ -708,6 +748,7 @@ def standardize_inputs(timeseries, mean_center=True, unit_variance=True,max_valu
         print('                 : '+'Standardized to unit variance')
         timeseries = timeseries/np.std(timeseries)
     if max_value is not None:
+        print('                 : '+'Normalized by max value: '+str(max_value))
         timeseries = timeseries/max_value
 
     return timeseries

@@ -1,6 +1,10 @@
 import os 
 import json
 from copy import copy
+import datetime
+import shutil
+
+import visual_behavior.data_access.loading as loading
 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
 
@@ -27,6 +31,20 @@ def define_kernels():
     }
     return kernels
 
+
+def get_experiment_table(require_model_outputs = True):
+    """
+    get a list of filtered experiments and associated attributes
+    returns only experiments that have relevant project codes and have passed QC
+
+    Keyword arguments:
+    require_model_outputs (bool) -- if True, limits returned experiments to those that have been fit with behavior model
+    """
+    experiments_table = loading.get_filtered_ophys_experiment_table()
+    if require_model_outputs:
+        return experiments_table.query('model_outputs_available == True')
+    else:
+        return experiments_table
 
 def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     '''
@@ -119,10 +137,10 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'L2_optimize_by_cell': True,    # If True, uses the best L2 value for each cell
+        'L2_optimize_by_cell': False,    # If True, uses the best L2 value for each cell
         'L2_optimize_by_session': False, # If True, uses the best L2 value for this session
-        'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda
-        'L2_fixed_lambda':None,         # This value is used if L2_use_fixed_value
+        'L2_use_fixed_value': True,    # If True, uses the hard coded L2_fixed_lambda
+        'L2_fixed_lambda':1,         # This value is used if L2_use_fixed_value
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'
@@ -163,6 +181,66 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     # Print Success
     print('Model Successfully Saved, version '+str(VERSION))
 
+def process_kernels(kernels):
+    '''
+        Replaces the 'each-image' kernel with each individual image (not omissions), with the same parameters
+    '''
+    if ('each-image' in kernels) & ('any-image' in kernels):
+        raise Exception('Including both each-image and any-image kernels makes the model unstable')
+    if 'each-image' in kernels:
+        specs = kernels.pop('each-image')
+        for index, val in enumerate(range(0,8)):
+            kernels['image'+str(val)] = copy(specs)
+            kernels['image'+str(val)]['event'] = 'image'+str(val)
+    if 'beh_model' in kernels:
+        specs = kernels.pop('beh_model')
+        weight_names = ['bias','task0','omissions1','timing1D']
+        for index, val in enumerate(weight_names):
+            kernels['model_'+str(val)] = copy(specs)
+            kernels['model_'+str(val)]['event'] = 'model_'+str(val)
+    return kernels
+
+
+def define_dropouts(kernels,kernel_definitions):
+    '''
+        Creates a dropout dictionary. Each key is the label for the dropout, and the value is a list of kernels to include
+        Creates a dropout for each kernel by removing just that kernel.
+        In addition creates a 'visual' dropout by removing 'any-image' and 'each-image' and 'omissions'
+        If 'each-image' is in the kernel_definitions, then creates a dropout 'each-image' with all 8 images removed
+    '''
+    # Remove each kernel one-by-one
+    dropouts = {'Full': {'kernels':list(kernels.keys())}}
+    for kernel in kernels.keys():
+        dropouts[kernel]={'kernels':list(kernels.keys())}
+        dropouts[kernel]['kernels'].remove(kernel)
+
+    # Removes all individual image kernels
+    if 'each-image' in kernel_definitions:
+        dropouts['all-images'] = {'kernels':list(kernels.keys())}
+        for i in range(0,8):
+            dropouts['all-images']['kernels'].remove('image'+str(i))
+
+    # Removes all Stimulus Kernels
+    if ('each-image' in kernel_definitions) or ('any-image' in kernel_definitions) or ('omissions' in kernel_definitions):
+        dropouts['visual'] = {'kernels':list(kernels.keys())}
+        if 'each-image' in kernel_definitions:
+            for i in range(0,8):
+                dropouts['visual']['kernels'].remove('image'+str(i))
+        if 'omissions' in kernel_definitions:
+            dropouts['visual']['kernels'].remove('omissions')
+        if 'any-image' in kernel_definitions:
+            dropouts['visual']['kernels'].remove('any-image')
+
+    # Remove all behavior model kernels
+    if 'beh_model' in kernel_definitions:
+        dropouts['beh_model'] = {'kernels':list(kernels.keys())}
+        dropouts['beh_model']['kernels'].remove('model_bias')
+        dropouts['beh_model']['kernels'].remove('model_task0')
+        dropouts['beh_model']['kernels'].remove('model_timing1D')
+        dropouts['beh_model']['kernels'].remove('model_omissions1')
+
+    return dropouts
+    
 
 def load_run_json(version):
     '''

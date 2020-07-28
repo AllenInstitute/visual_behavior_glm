@@ -1,8 +1,20 @@
-import visual_behavior_glm.src.GLM_fit_tools as gft
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import visual_behavior_glm.src.GLM_params as glm_params
 plt.ion()
+
+# VERSION = 4
+# run_params = glm_params.load_run_json(VERSION)
+# import_dir = self.run_params['model_freeze_dir'].rstrip('/')
+# module_name = 'GLM_fit_tools'
+# file_path = os.path.join(import_dir, module_name+'.py')
+# print('importing {} from {}'.format(module_name, file_path))
+
+# spec = importlib.util.spec_from_file_location(module_name, file_path)
+# gft = importlib.util.module_from_spec(spec)
+# sys.modules[module_name] = gft
+# spec.loader.exec_module(gft)
 
 if False:
     # Make run JSON

@@ -173,9 +173,9 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'dropouts':dropouts,
         'CV_splits':5,
         'CV_subsplits':10,
-        'mean_center_inputs': True, # If True, mean centers continuous inputs
-        'standardize_inputs': True,  # If True, continuous inputs have unit variance
-        'max_run_speed': 1 # TODO set this value intelligently
+        'mean_center_inputs': True,     # If True, mean centers continuous inputs
+        'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
+        'max_run_speed': 1              # If 1, has no effect. Scales running speed to be O(1). 
     }
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
@@ -622,13 +622,13 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
     elif event == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values
-        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['standardize_inputs'])
+        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
     elif event == 'Population_Activity_PC1':
         pca = PCA()
         pca.fit(fit['dff_trace_arr'].values)
         dff_pca = pca.transform(fit['dff_trace_arr'].values)
         timeseries = dff_pca[:,0]
-        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['standardize_inputs'])
+        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
     elif (len(event) > 6) & ( event[0:6] == 'model_'):
         bsid = session.dataset.metadata['behavior_session_id']
         weight_name = event[6:]
@@ -639,7 +639,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries = interpolate_to_dff_timestamps(fit, weight_df)
         timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
         timeseries = timeseries['values'].values
-        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['standardize_inputs'])
+        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
     elif event == 'pupil':
         pupil_df = session.dataset.eye_tracking
         pupil_df = pupil_df.rename(columns={'time':'timestamps','pupil_area':'values'})
@@ -647,7 +647,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         timeseries['values'].fillna(method='ffill',inplace=True)
         timeseries['values'].fillna(method='bfill',inplace=True)
         timeseries = timeseries['values'].values
-        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['standardize_inputs'])
+        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
     else:
         raise Exception('Could not resolve kernel label')
 
@@ -659,6 +659,19 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
     return design
 
 def standardize_inputs(timeseries, mean_center=True, unit_variance=True,max_value=None):
+    '''
+        Performs three different input standarizations to the timeseries
+    
+        if mean_center, the timeseries is adjusted to have 0-mean. This can be performed with unit_variance. 
+
+        if unit_variance, the timeseries is adjusted to have unit variance. This can be performed with mean_center.
+    
+        if max_value is given, then the timeseries is normalized by max_value. This cannot be performed with mean_center and unit_variance.
+
+    '''
+    if (max_value is not None ) & (mean_center or unit_variance):
+        raise Exception('Cannot perform max_value standardization and mean_center or unit_variance standardizations together.')
+
     if mean_center:
         print('                 : '+'Mean Centering')
         timeseries = timeseries -np.mean(timeseries) # mean center
@@ -667,6 +680,7 @@ def standardize_inputs(timeseries, mean_center=True, unit_variance=True,max_valu
         timeseries = timeseries/np.std(timeseries)
     if max_value is not None:
         timeseries = timeseries/max_value
+
     return timeseries
 
 def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):

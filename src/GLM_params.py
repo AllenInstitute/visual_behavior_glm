@@ -148,6 +148,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'job_settings':job_settings,
         'kernels':kernels,
         'dropouts':dropouts,
+        'lick_bout_ILI': 0.7,           # The minimum duration of time between two licks to segment them into separate lick bouts
         'CV_splits':5,
         'CV_subsplits':10,
         'eye_blink_z': 5.0,             # Threshold for excluding likely blinks

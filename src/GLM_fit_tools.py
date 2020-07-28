@@ -176,7 +176,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'CV_subsplits':10,
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
-        'max_run_speed': 1              # If 1, has no effect. Scales running speed to be O(1). 
+        'max_run_speed': 100              # If 1, has no effect. Scales running speed to be O(1). 
     }
 
     # Regularization parameter checks

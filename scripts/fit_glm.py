@@ -13,8 +13,8 @@ parser.add_argument(
 )
 parser.add_argument(
     '--version', 
-    type=int, 
-    default=0,
+    type=str, 
+    default='',
     metavar='glm version',
     help='model version to use'
 )

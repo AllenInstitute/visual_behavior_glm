@@ -1,13 +1,16 @@
 import warnings
-import visual_behavior_glm.src.GLM_fit_tools as gft
 import visual_behavior_glm.src.GLM_analysis_tools as gat
 import visual_behavior_glm.src.GLM_visualization_tools as gvt
+import visual_behavior_glm.src.GLM_params as glm_params
 import sys
 import matplotlib.pyplot as plt
 if sys.version_info.minor <= 7:
     cached_property = property
 else:
     from functools import cached_property
+import importlib.util
+import sys
+import os
 
 
 class GLM(object):
@@ -23,21 +26,36 @@ class GLM(object):
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
         self.oeid = self.ophys_experiment_id
-        self.run_params = gft.load_run_json(self.version)
+        self.run_params = glm_params.load_run_json(self.version)
         self.kernels = self.run_params['kernels']
         self.current_model = 'Full'
+
+        self._import_glm_fit_tools()
 
         self.fit_model()
         self.collect_results()
         self.timestamps = self.fit['dff_trace_arr']['dff_trace_timestamps'].values
 
+    def _import_glm_fit_tools(self):
+        # we only know the path for loading GLM_fit_tools after loading the run_params
+        import_dir = self.run_params['model_freeze_dir'].rstrip('/')
+        module_name = 'GLM_fit_tools'
+        file_path = os.path.join(import_dir, module_name+'.py')
+        print('importing {} from {}'.format(module_name, file_path))
+
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        gft = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = gft
+        spec.loader.exec_module(gft)
+        self.gft = gft
+
     def fit_model(self):
 
-        self.session, self.fit, self.design = gft.fit_experiment(
+        self.session, self.fit, self.design = self.gft.fit_experiment(
             self.oeid, self.run_params)
 
     def collect_results(self):
-        self.results = gft.build_dataframe_from_dropouts(self.fit)
+        self.results = self.gft.build_dataframe_from_dropouts(self.fit)
         self.dropout_summary = gat.generate_results_summary(self)
 
     def plot_dropout_summary(self, cell_specimen_id, ax=None):

@@ -1,5 +1,4 @@
 from visual_behavior_glm.src.glm import GLM
-import visual_behavior_glm.src.GLM_fit_tools as gft
 import visual_behavior_glm.src.GLM_analysis_tools as gat
 import visual_behavior_glm.src.GLM_visualization_tools as gvt
 

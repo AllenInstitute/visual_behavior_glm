@@ -164,9 +164,9 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'L2_optimize_by_cell': True,    # If True, uses the best L2 value for each cell
         'L2_optimize_by_session' False, # If True, uses the best L2 value for this session
         'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda
-        'L2_fixed_lambda':70,           # This value is used if L2_use_fixed_value
-        'L2_grid_range':[.1, 500],      # Min/Max L2 values for optimization
-        'L2_grid_num': 40,              # Number of L2 values for optimization
+        'L2_fixed_lambda':None,         # This value is used if L2_use_fixed_value
+        'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
+        'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
@@ -178,6 +178,25 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'standardize_inputs': True,  # If True, continuous inputs have unit variance
         'max_run_speed': 1 # TODO set this value intelligently
     }
+
+    # Regularization parameter checks
+    a = run_params['L2_optimize_by_cell']
+    b = run_params['L2_optimize_by_session']
+    c = run_params['L2_use_fixed_value']
+    assert (a or b or c) and not ((a and b) or (b and c) or (a and c)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value"
+
+    # Check L2 Fixed value parameters
+    if run_params['L2_use_fixed_value'] and (run_params['L2_fixed_lambda'] is None):
+        raise Exception('L2_use_fixed_value is True, but have None for L2_fixed_lambda')
+    if (not run_params['L2_use_fixed_value']) and (run_params['L2_fixed_lambda'] is not None):
+        raise Exception('L2_use_fixed_value is False, but L2_fixed_lambda has been set')      
+
+    # Check L2 Optimization parameters
+    if (a or b):
+        assert run_params['L2_grid_num'] > 0, "Must have at least one grid option for L2 optimization"
+        assert len(run_params['L2_grid_range']) ==2, "Must have a minimum and maximum L2 grid option"
+        assert run_params['L2_grid_type'] in ['log','linear'], "L2_grid_type must be log or linear"
+
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
 

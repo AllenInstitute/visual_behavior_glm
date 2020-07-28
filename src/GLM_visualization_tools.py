@@ -19,6 +19,50 @@ import gc
 from scipy import ndimage
 
 
+def compare_var_explained(results=None, fig=None, ax=None, figsize=(8,6), outlier_threshold=1.5):
+    '''
+    make a boxplot comparing variance explained for each version in the database
+    inputs:
+        results: a dataframe of results (if None, will be retreived from database)
+        fig, ax: figure and axis handles. If None, will be created
+        figsize: size of figure
+        outlier_threshold: Proportion of the IQR past the low and high quartiles to extend the plot whiskers. Points outside this range will be identified as outliers. (from seaborn docs)
+
+    returns:
+        figure and axis handles (tuple)
+    '''
+    if results is None:
+        results_dict = gat.retrieve_results()
+        results = results_dict['full']
+    if fig is None and ax is None:
+        fig, ax = plt.subplots(figsize=figsize)
+    sns.boxplot(
+        data=results,
+        x='glm_version',
+        y='Full_avg_cv_var_test',
+        hue='cre_line',
+        fliersize=0,
+        whis=outlier_threshold,
+        ax=ax,
+    )
+    ax.set_ylabel('variance explained')
+    ax.set_xlabel('GLM version')
+    ax.set_title('variance explained by GLM version and cre_line (outliers removed)')
+
+    # calculate interquartile ranges
+    grp = results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_test']
+    IQR = grp.quantile(0.75) - grp.quantile(0.25)
+
+
+    lower_bounds = grp.quantile(0.25) - 1.5*IQR
+    upper_bounds = grp.quantile(0.75) + 1.5*IQR
+
+    ax.set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
+    ax.axhline(0, color='black', linestyle=':')
+
+    return fig, ax
+
+
 def plot_licks(session, ax, y_loc=0, t_span=None):
     if t_span:
         df = session.dataset.licks.query(

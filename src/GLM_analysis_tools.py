@@ -114,7 +114,7 @@ def log_results_to_mongo(glm):
     conn.close()
 
 
-def retrieve_results(version):
+def retrieve_results(glm_version=None):
     '''
     gets cached results from mongodb
     input:
@@ -133,7 +133,12 @@ def retrieve_results(version):
     database = 'ophys_glm'
     results = {}
     for key in ['full','summary']:
-        results[key] = pd.DataFrame(list(conn[database]['results_'.format(key)].find({'glm_version':glm_version})))
+        if glm_version:
+            # if version is specified, get results for only specified version
+            results[key] = pd.DataFrame(list(conn[database]['results_{}'.format(key)].find({'glm_version':glm_version})))
+        else:
+            # if no version is specified, get results for all versions
+            results[key] = pd.DataFrame(list(conn[database]['results_{}'.format(key)].find({})))
     conn.close()
     return results
 

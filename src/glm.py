@@ -38,6 +38,7 @@ class GLM(object):
 
     def _import_glm_fit_tools(self):
         # we only know the path for loading GLM_fit_tools after loading the run_params
+        # therefore, we have to import here, and set the module as an attribute
         import_dir = self.run_params['model_freeze_dir'].rstrip('/')
         module_name = 'GLM_fit_tools'
         file_path = os.path.join(import_dir, module_name+'.py')

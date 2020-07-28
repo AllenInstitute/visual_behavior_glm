@@ -162,7 +162,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'L2_optimize_by_cell': True,    # If True, uses the best L2 value for each cell
-        'L2_optimize_by_session' False, # If True, uses the best L2 value for this session
+        'L2_optimize_by_session': False,# If True, uses the best L2 value for this session
         'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda
         'L2_fixed_lambda':None,         # This value is used if L2_use_fixed_value
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
@@ -172,6 +172,7 @@ def make_run_json(VERSION,label='',username=None,src_path=None, TESTING=False):
         'job_settings':job_settings,
         'kernels':kernels,
         'dropouts':dropouts,
+        'lick_bout_ILI': 0.7,           # The minimum duration of time between two licks to segment them into separate lick bouts
         'CV_splits':5,
         'CV_subsplits':10,
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
@@ -726,9 +727,9 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         event_times = session.dataset.licks['timestamps'].values
     elif event == 'lick_bouts':
         licks = session.dataset.licks
-        licks['time_to_last_lick'] = licks['timestamps'] - licks['timestamps'].shift()
-        licks['first_in_bout'] = licks['time_to_last_lick'] > 2
-        event_times = session.dataset.licks.query('first_in_bout')['timestamps'].values
+        licks['pre_ILI'] = licks['timestamps'] - licks['timestamps'].shift(fill_value=-10)
+        licks['bout_start'] = licks['pre_ILI'] > run_params['lick_bout_ILI']
+        event_times = session.dataset.licks.query('bout_start')['timestamps'].values
     elif event == 'rewards':
         event_times = session.dataset.rewards['timestamps'].values
     elif event == 'change':

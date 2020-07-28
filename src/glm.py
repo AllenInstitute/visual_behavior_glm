@@ -24,6 +24,7 @@ class GLM(object):
         self.ophys_experiment_id = ophys_experiment_id
         self.oeid = self.ophys_experiment_id
         self.run_params = gft.load_run_json(self.version)
+        self.kernels = self.run_params['kernels']
         self.current_model = 'Full'
 
         self.fit_model()

@@ -142,6 +142,16 @@ def retrieve_results(glm_version=None):
     conn.close()
     return results
 
+
+def summarize_variance_explained(results=None):
+    '''
+    return results summary grouped by version and cre-line
+    '''
+    if results is None:
+        results_dict = gat.retrieve_results()
+        results = results_dict['full']
+    return results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_test'].describe()
+
 def moving_mean(values, window):
     weights = np.repeat(1.0, window)/window
     mm = np.convolve(values, weights, 'valid')

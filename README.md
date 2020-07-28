@@ -2,9 +2,9 @@
 Fits a kernel regression model to df/f traces during visual behavior. 
 
 ## Fit the model
-- Make the run json using `make_run_json(<version>)` in  `src/GLM_fit_tools.py`
-- Start the run using `scripts/start_glm.py` with `python start_glm.py <version>`
-- Collect the results across sessions using `scripts/collect_glm.py`
+- Make the run json using `delete_rebuild_run_json.py` in  `scripts`
+- Start the run using `scripts/fitstart_glm.py` with `python fit_glm.py --oied <ophys_experiment_id> --version <version>`
+- Collect the results across sessions using `retrieve_results(glm_version=<version>)` from `src/GLM_analysis_tools.py`
 
 ## Model Iteration System
 - `make_run_json(<version>)` saves a copy of current files, as well as a JSON file with run parameters to `../nc-ophys/visual_behavior/ophys_glm/v_<version>/`

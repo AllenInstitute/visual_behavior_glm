@@ -40,7 +40,7 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outli
     cre_line_order = np.sort(results['cre_line'].unique())
     glm_version_order = np.sort(results['glm_version'].unique())
 
-    sns.boxplot(
+    plot1 = sns.boxplot(
         data=results,
         x='glm_version',
         y='Full_avg_cv_var_test',
@@ -51,7 +51,8 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outli
         whis=outlier_threshold,
         ax=ax[0],
     )
-    sns.boxplot(
+
+    plot2 = sns.boxplot(
         data=results,
         x='cre_line',
         y='Full_avg_cv_var_test',
@@ -61,11 +62,11 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outli
         fliersize=0,
         whis=outlier_threshold,
         ax=ax[1],
-        palette='viridis'
+        palette='brg',
     )
     ax[0].set_ylabel('variance explained')
     ax[0].set_xlabel('GLM version')
-    fig.suptitle('variance explained by GLM version and cre_line (outliers removed)')
+
 
     # calculate interquartile ranges
     grp = results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_test']
@@ -76,8 +77,14 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outli
     upper_bounds = grp.quantile(0.75) + 1.5*IQR
 
     for i in range(2):
+        ax[i].legend(loc='upper left')
         ax[i].set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
         ax[i].axhline(0, color='black', linestyle=':')
+        ax[i].set_xticklabels(ax[i].get_xticklabels(),rotation=30, ha='right')
+
+    fig.tight_layout()
+    plt.subplots_adjust(top=0.9)
+    fig.suptitle('variance explained by GLM version and cre_line (outliers removed from visualization)')
 
     return fig, ax
 

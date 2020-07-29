@@ -19,9 +19,8 @@ parser.add_argument(
     help='model version to use'
 )
 
-def fit_experiment(oeid, version):
-    glm = GLM(oeid, version)
-    gat.log_results_to_mongo(glm)
+def fit_experiment(oeid, version, log_results=True, log_weights=True):
+    glm = GLM(oeid, version, log_results, log_weights)
 
 if __name__ == '__main__':
     args = parser.parse_args()

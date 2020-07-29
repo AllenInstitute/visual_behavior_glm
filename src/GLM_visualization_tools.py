@@ -19,7 +19,7 @@ import gc
 from scipy import ndimage
 
 
-def compare_var_explained(results=None, fig=None, ax=None, figsize=(8,6), outlier_threshold=1.5):
+def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outlier_threshold=1.5):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:
@@ -35,19 +35,37 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(8,6), outlie
         results_dict = gat.retrieve_results()
         results = results_dict['full']
     if fig is None and ax is None:
-        fig, ax = plt.subplots(figsize=figsize)
+        fig, ax = plt.subplots(1, 2, figsize=figsize, sharey=True)
+
+    cre_line_order = np.sort(results['cre_line'].unique())
+    glm_version_order = np.sort(results['glm_version'].unique())
+
     sns.boxplot(
         data=results,
         x='glm_version',
         y='Full_avg_cv_var_test',
+        order = glm_version_order,
         hue='cre_line',
+        hue_order=cre_line_order,
         fliersize=0,
         whis=outlier_threshold,
-        ax=ax,
+        ax=ax[0],
     )
-    ax.set_ylabel('variance explained')
-    ax.set_xlabel('GLM version')
-    ax.set_title('variance explained by GLM version and cre_line (outliers removed)')
+    sns.boxplot(
+        data=results,
+        x='cre_line',
+        y='Full_avg_cv_var_test',
+        order = cre_line_order,
+        hue='glm_version',
+        hue_order=glm_version_order,
+        fliersize=0,
+        whis=outlier_threshold,
+        ax=ax[1],
+        palette='viridis'
+    )
+    ax[0].set_ylabel('variance explained')
+    ax[0].set_xlabel('GLM version')
+    fig.suptitle('variance explained by GLM version and cre_line (outliers removed)')
 
     # calculate interquartile ranges
     grp = results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_test']
@@ -57,8 +75,9 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(8,6), outlie
     lower_bounds = grp.quantile(0.25) - 1.5*IQR
     upper_bounds = grp.quantile(0.75) + 1.5*IQR
 
-    ax.set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
-    ax.axhline(0, color='black', linestyle=':')
+    for i in range(2):
+        ax[i].set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
+        ax[i].axhline(0, color='black', linestyle=':')
 
     return fig, ax
 
@@ -433,7 +452,7 @@ class GLM_Movie(object):
         for axis_name in ['licks', 'cell_response', 'running','kernel_contributions']:
             ax[axis_name].axvline(t_now, color='black', linewidth=3, alpha=0.5)
             plot_stimuli(glm.session, ax[axis_name], t_span=t_span)
-            if axis_name is not 'kernel_contributions':
+            if axis_name != 'kernel_contributions':
                 ax[axis_name].set_xticklabels([])
 
         # ax['running'].set_ylim(

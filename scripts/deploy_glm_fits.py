@@ -17,8 +17,8 @@ job_dir = r"/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_
 
 job_settings = {'queue': 'braintv',
                 'mem': '16g',
-                'walltime': '4:00:00',
-                'ppn': 1,
+                'walltime': '2:00:00',
+                'ppn': 16,
                 }
 
 if __name__ == "__main__":
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     for experiment_id in experiment_ids:
 
         print('starting cluster job for {}'.format(experiment_id))
-        job_title = 'oeid_{}_fit_glm'.format(experiment_id)
+        job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.glm_version)
         pbstools.PythonJob(
             python_file,
             python_executable,

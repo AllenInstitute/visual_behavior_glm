@@ -5,6 +5,7 @@ import visual_behavior_glm.src.GLM_params as glm_params
 plt.ion()
 
 # VERSION = 4
+# glm_params.make_run_json(1,label='testing',username=alex, src_path = '', TESTING=True)
 # run_params = glm_params.load_run_json(VERSION)
 # import_dir = self.run_params['model_freeze_dir'].rstrip('/')
 # module_name = 'GLM_fit_tools'
@@ -33,6 +34,7 @@ if False:
     session, fit, design = gft.fit_experiment(oeid, run_params)
     drop_results = gft.build_dataframe_from_dropouts(fit)
     L2_results = gft.L2_report(fit)
+
 
 def demonstration():
     # Make demonstration of design kernel, and model structure

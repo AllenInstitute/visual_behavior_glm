@@ -21,7 +21,7 @@ class GLM(object):
         version (int): version of code to use
     '''
 
-    def __init__(self, ophys_experiment_id, version):
+    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True):
         
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
@@ -35,6 +35,10 @@ class GLM(object):
         self.fit_model()
         self.collect_results()
         self.timestamps = self.fit['dff_trace_arr']['dff_trace_timestamps'].values
+        if log_results:
+            gat.log_results_to_mongo(self)
+        if log_weights:
+            gat.log_weights_matrix_to_mongo(self)
 
     def _import_glm_fit_tools(self):
         # we only know the path for loading GLM_fit_tools after loading the run_params

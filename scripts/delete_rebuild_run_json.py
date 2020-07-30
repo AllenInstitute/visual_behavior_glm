@@ -14,14 +14,14 @@ if __name__ == '__main__':
     parser.add_argument(
         '--version', 
         type=str, 
-        default='4_L2_fixed_lambda=1',
+        default='4_L2_optimize_by_session',
         metavar='model_version',
         help='model version'
     )
     parser.add_argument(
         '--label', 
         type=str, 
-        default='model as of 7/28/2020 with a fixed regularization lambda = 1',
+        default='version as of 7/28/2020 with L2 optimized per session (average of best lambda for all cells)',
         metavar='model_label',
         help='model label'
     )

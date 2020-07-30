@@ -169,12 +169,15 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         raise Exception('L2_use_fixed_value is True, but have None for L2_fixed_lambda')
     if (not run_params['L2_use_fixed_value']) and (run_params['L2_fixed_lambda'] is not None):
         raise Exception('L2_use_fixed_value is False, but L2_fixed_lambda has been set')      
+    if run_params['L2_use_fixed_value']:
+        assert run_params['L2_fixed_lambda'] > 0, "Must have some positive regularization value to prevent singular matrix"
 
     # Check L2 Optimization parameters
     if (a or b):
         assert run_params['L2_grid_num'] > 0, "Must have at least one grid option for L2 optimization"
         assert len(run_params['L2_grid_range']) ==2, "Must have a minimum and maximum L2 grid option"
         assert run_params['L2_grid_type'] in ['log','linear'], "L2_grid_type must be log or linear"
+        assert run_params['L2_grid_range'][0] > 0, "Must have a positive regularization minimum value."
 
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)

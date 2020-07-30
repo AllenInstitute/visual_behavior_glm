@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as  np
 
 import visual_behavior.data_access.loading as loading
+import visual_behavior_glm.src.GLM_analysis_tools as gat
+
 sys.path.append('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/src/')
 from pbstools import pbstools  # NOQA E402
 
@@ -32,14 +34,16 @@ if __name__ == "__main__":
 
     for experiment_id in experiment_ids:
 
-        print('starting cluster job for {}'.format(experiment_id))
-        job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.glm_version)
-        pbstools.PythonJob(
-            python_file,
-            python_executable,
-            python_args="--oeid {} --version {}".format(experiment_id, args.glm_version),
-            jobname=job_title,
-            jobdir=job_dir,
-            **job_settings
-        ).run(dryrun=False)
-        time.sleep(0.001)
+        if not gat.already_fit(experiment_id, args.glm_version):
+
+            print('starting cluster job for {}'.format(experiment_id))
+            job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.glm_version)
+            pbstools.PythonJob(
+                python_file,
+                python_executable,
+                python_args="--oeid {} --version {}".format(experiment_id, args.glm_version),
+                jobname=job_title,
+                jobdir=job_dir,
+                **job_settings
+            ).run(dryrun=False)
+            time.sleep(0.001)

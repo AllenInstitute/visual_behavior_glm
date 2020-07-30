@@ -33,12 +33,19 @@ class GLM(object):
         self._import_glm_fit_tools()
 
         self.fit_model()
+        print('done fitting model, collecting results')
         self.collect_results()
+        print('done collecting results')
         self.timestamps = self.fit['dff_trace_arr']['dff_trace_timestamps'].values
         if log_results:
+            print('logging results to mongo')
             gat.log_results_to_mongo(self)
+            print('done logging results to mongo')
         if log_weights:
+            print('logging W matrix to mongo')
             gat.log_weights_matrix_to_mongo(self)
+            print('done logging W matrix to mongo')
+        print('done building GLM object')
 
     def _import_glm_fit_tools(self):
         # we only know the path for loading GLM_fit_tools after loading the run_params
@@ -61,7 +68,7 @@ class GLM(object):
 
     def collect_results(self):
         self.results = self.gft.build_dataframe_from_dropouts(self.fit)
-        self.dropout_summary = gat.generate_results_summary(self)
+        self.dropout_summary = gat.generate_results_summary(self).reset_index()
 
     def plot_dropout_summary(self, cell_specimen_id, ax=None):
         '''

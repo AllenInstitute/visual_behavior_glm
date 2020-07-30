@@ -81,13 +81,25 @@ def generate_results_summary(glm):
     return pd.concat(results_summary_list)
 
 
+def already_fit(oeid, version):
+    '''
+    check the weight_matrix_lookup_table to see if an oeid/glm_version combination has already been fit
+    returns a boolean
+    '''
+    conn = db.Database('visual_behavior_data')
+    coll = conn['ophys_glm']['weight_matrix_lookup_table']
+    document_count = coll.count_documents({'ophys_experiment_id':oeid, 'glm_version':str(version)})
+    conn.close()
+    return document_count > 0
+
+
 def log_results_to_mongo(glm):
     '''
     logs full results and results summary to mongo
     Ensures that there is only one entry per cell/experiment (overwrites if entry already exists)
     '''
     full_results = glm.results.reset_index()
-    results_summary = generate_results_summary(glm)
+    results_summary = generate_results_summary(glm).reset_index()
     experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
     oeid = glm.oeid
     for key,value in experiment_table.query('ophys_experiment_id == @oeid').iloc[0].items():

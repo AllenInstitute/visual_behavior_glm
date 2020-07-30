@@ -123,9 +123,9 @@ def evaluate_ridge(fit, design,run_params):
     else:
         print('Evaluating a grid of regularization values')
         if run_params['L2_grid_type'] == 'log':
-            fit['L2_grid'] = np.concatenate([[0],np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
+            fit['L2_grid'] = np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])
         else:
-            fit['L2_grid'] = np.concatenate([[0],np.linspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])])
+            fit['L2_grid'] = np.linspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])
         train_cv = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
         test_cv  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
         X = design.get_X()

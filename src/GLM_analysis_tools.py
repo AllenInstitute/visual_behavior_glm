@@ -7,6 +7,9 @@ import h5py
 import xarray as xr
 from scipy import sparse
 from tqdm import tqdm
+import xarray
+import xarray_mongodb
+import warnings
 
 import visual_behavior.data_access.loading as loading
 import visual_behavior.database as db
@@ -78,27 +81,39 @@ def generate_results_summary(glm):
     return pd.concat(results_summary_list)
 
 
+def already_fit(oeid, version):
+    '''
+    check the weight_matrix_lookup_table to see if an oeid/glm_version combination has already been fit
+    returns a boolean
+    '''
+    conn = db.Database('visual_behavior_data')
+    coll = conn['ophys_glm']['weight_matrix_lookup_table']
+    document_count = coll.count_documents({'ophys_experiment_id':oeid, 'glm_version':str(version)})
+    conn.close()
+    return document_count > 0
+
+
 def log_results_to_mongo(glm):
     '''
     logs full results and results summary to mongo
     Ensures that there is only one entry per cell/experiment (overwrites if entry already exists)
     '''
     full_results = glm.results.reset_index()
-    results_summary = generate_results_summary(glm)
+    results_summary = generate_results_summary(glm).reset_index()
     experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
     oeid = glm.oeid
     for key,value in experiment_table.query('ophys_experiment_id == @oeid').iloc[0].items():
         full_results[key] = value
         results_summary[key] = value
 
-    full_results['glm_version'] = glm.version
-    results_summary['glm_version'] = glm.version
+    full_results['glm_version'] = str(glm.version)
+    results_summary['glm_version'] = str(glm.version)
 
     conn = db.Database('visual_behavior_data')
 
     keys_to_check = {
-        'results_full':['ophys_experiment_id','cell_specimen_id'],
-        'results_summary':['ophys_experiment_id','cell_specimen_id', 'dropout']
+        'results_full':['ophys_experiment_id','cell_specimen_id','glm_version'],
+        'results_summary':['ophys_experiment_id','cell_specimen_id', 'dropout','glm_version']
     }
 
     for df,collection in zip([full_results, results_summary], ['results_full','results_summary']):
@@ -112,6 +127,96 @@ def log_results_to_mongo(glm):
                 keys_to_check = keys_to_check[collection]
             )
     conn.close()
+
+def xarray_to_mongo(xarray):
+    '''
+    writes xarray to the 'ophys_glm_xarrays' database in mongo
+    returns _id of xarray in the 'ophys_glm_xarrays' database
+    '''
+    conn = db.Database('visual_behavior_data')
+    w_matrix_database = conn['ophys_glm_xarrays']
+    xdb = xarray_mongodb.XarrayMongoDB(w_matrix_database)
+    _id, _ = xdb.put(xarray)
+    return _id
+
+def get_weights_matrix_from_mongo(ophys_experiment_id, glm_version):
+    '''
+    retrieves weights matrix from mongo for a given oeid/glm_version
+    throws warning and returns None if no matrix can be found
+    '''
+    conn = db.Database('visual_behavior_data')
+    lookup_table_document = {
+        'ophys_experiment_id':ophys_experiment_id,
+        'glm_version':glm_version,
+    }
+    w_matrix_lookup_table = conn['ophys_glm']['weight_matrix_lookup_table']
+    w_matrix_database = conn['ophys_glm_xarrays']
+
+    if w_matrix_lookup_table.count_documents(lookup_table_document) == 0:
+        warnings.warn('there is no record of a the weights matrix for oeid {}, glm_version {}'.format(ophys_experiment_id, glm_version))
+        conn.close()
+        return None
+    else:
+        lookup_result = list(w_matrix_lookup_table.find(lookup_table_document))[0]
+        # get the id of the xarray
+        w_matrix_id = lookup_result['w_matrix_id']
+        xdb = xarray_mongodb.XarrayMongoDB(w_matrix_database)
+        W = xdb.get(w_matrix_id)
+        conn.close()
+        return W
+
+
+def log_weights_matrix_to_mongo(glm):
+    '''
+    a method for logging the weights matrix to mongo
+    uses the xarray_mongodb library, which automatically distributes the xarray into chunks
+    this necessitates building/maintaining a lookup table to link experiments/glm_verisons to the associated xarrays
+
+    input:
+        GLM object
+    returns:
+        None
+    '''
+    conn = db.Database('visual_behavior_data')
+    lookup_table_document = {
+        'ophys_experiment_id':glm.ophys_experiment_id,
+        'glm_version':glm.version,
+    }
+    w_matrix_lookup_table = conn['ophys_glm']['weight_matrix_lookup_table']
+    w_matrix_database = conn['ophys_glm_xarrays']
+
+    if w_matrix_lookup_table.count_documents(lookup_table_document) >= 1:
+        lookup_result = list(w_matrix_lookup_table.find(lookup_table_document))[0]
+        # if weights matrix for this experiment/version has already been logged, we need to replace it
+
+        # get the id of the xarray
+        w_matrix_id = lookup_result['w_matrix_id']
+
+        # delete the existing xarray (both metadata and chunks)
+        w_matrix_database['xarray.chunks'].delete_many({'meta_id':w_matrix_id})
+        w_matrix_database['xarray.meta'].delete_many({'_id':w_matrix_id})
+
+        # write the new weights matrix to mongo
+        new_w_matrix_id = xarray_to_mongo(glm.W)
+
+        # update the lookup table entry
+        lookup_result['w_matrix_id'] = new_w_matrix_id
+        _id = lookup_result.pop('_id')
+        w_matrix_lookup_table.update_one({'_id':_id}, {"$set": db.clean_and_timestamp(lookup_result)})
+    else:
+        # if the weights matrix had not already been logged
+
+        # write the weights matrix to mongo
+        w_matrix_id = xarray_to_mongo(glm.W)
+
+        # add the id to the lookup table document
+        lookup_table_document.update({'w_matrix_id': w_matrix_id})
+
+        # insert the lookup table document into the lookup table
+        w_matrix_lookup_table.insert_one(db.clean_and_timestamp(lookup_table_document))
+
+    conn.close()
+    
 
 
 def retrieve_results(glm_version=None):
@@ -139,6 +244,7 @@ def retrieve_results(glm_version=None):
         else:
             # if no version is specified, get results for all versions
             results[key] = pd.DataFrame(list(conn[database]['results_{}'.format(key)].find({})))
+        results[key]['glm_version'] = results[key]['glm_version'].astype(str)
     conn.close()
     return results
 
@@ -148,9 +254,40 @@ def summarize_variance_explained(results=None):
     return results summary grouped by version and cre-line
     '''
     if results is None:
-        results_dict = gat.retrieve_results()
+        results_dict = retrieve_results()
         results = results_dict['full']
     return results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_test'].describe()
+
+
+def get_experiment_inventory(results=None):
+    '''
+    adds a column to the experiments table for every GLM version called 'glm_version_{GLM_VERSION}_exists'
+    column is boolean (True if experiment successfully fit for that version, False otherwise)
+    '''
+    def oeid_in_results(oeid, version):
+        try:
+            res = results['full'].loc[oeid]['glm_version']
+            if isinstance(res, str):
+                return version == res
+            else:
+                return version in res.unique()
+        except KeyError:
+            return False
+
+    if results is None:
+        results_dict = retrieve_results()
+        results = results_dict['full']
+    results = results.set_index(['ophys_experiment_id'])
+    
+    experiments_table = loading.get_filtered_ophys_experiment_table()
+
+    for glm_version in results['glm_version'].unique():
+        for oeid in experiments_table.index.values:
+            experiments_table.at[oeid, 'glm_version_{}_exists'.format(glm_version)] = oeid_in_results(oeid, glm_version)
+
+    return experiments_table
+    
+    
 
 def moving_mean(values, window):
     weights = np.repeat(1.0, window)/window

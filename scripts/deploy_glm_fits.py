@@ -18,8 +18,8 @@ parser.add_argument('--glm-version', type=str, default='0', metavar='glm version
 job_dir = r"/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_jobs/ophys_glm"
 
 job_settings = {'queue': 'braintv',
-                'mem': '16g',
-                'walltime': '2:00:00',
+                'mem': '32g',
+                'walltime': '3:00:00',
                 'ppn': 16,
                 }
 

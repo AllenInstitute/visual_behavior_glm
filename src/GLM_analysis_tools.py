@@ -88,7 +88,7 @@ def already_fit(oeid, version):
     '''
     conn = db.Database('visual_behavior_data')
     coll = conn['ophys_glm']['weight_matrix_lookup_table']
-    document_count = coll.count_documents({'ophys_experiment_id':oeid, 'glm_version':str(version)})
+    document_count = coll.count_documents({'ophys_experiment_id':int(oeid), 'glm_version':str(version)})
     conn.close()
     return document_count > 0
 

@@ -37,7 +37,21 @@ def check_run_fits(VERSION):
     return experiment_table
 
 
-def fit_experiment(oeid, run_params,NO_DROPOUTS=False):
+def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
+    '''
+        Fits the GLM to the ophys_experiment_id
+        
+        Inputs:
+        oeid            experiment to fit
+        run_params      dictionary of parameters for this fit
+        NO_DROPOUTS     if True, does not perform dropout analysis
+        TESTING         if True, fits only the first 5 cells in the experiment
+    
+        Returns:
+        session         the VBA session object for this experiment
+        fit             a dictionary containing the results of the fit
+        design          the design matrix for this fit
+    '''
     print("Fitting ophys_experiment_id: "+str(oeid)) 
 
     # Load Data
@@ -47,7 +61,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False):
     # Processing df/f data
     print('Processing df/f data')
     fit= dict()
-    fit['dff_trace_arr'] = process_data(session)
+    fit['dff_trace_arr'] = process_data(session,TESTING=TESTING)
     fit = annotate_dff(fit)
     fit['ophys_frame_rate'] = session.dataset.metadata['ophys_frame_rate'] 
 
@@ -223,7 +237,16 @@ def evaluate_models_different_ridge(fit,design,run_params):
                 cv_var_test[cell_index,index] = variance_ratio(dff_test, W, X_test)
                 cv_weights[:,cell_index,index] = W 
 
-        fit['dropouts'][model_label]['train_weights'] = all_weights
+        all_weights_xarray = xr.DataArray(
+            data = all_weights,
+            dims = ("weights", "cell_specimen_id"),
+            coords = {
+                "weights": X.weights.values,
+                "cell_specimen_id": fit['dff_trace_arr'].cell_specimen_id.values
+            }
+        )
+
+        fit['dropouts'][model_label]['train_weights'] = all_weights_xarray
         fit['dropouts'][model_label]['train_variance_explained']=all_var_explain
         fit['dropouts'][model_label]['full_model_train_prediction'] =  all_prediction
         fit['dropouts'][model_label]['cv_weights'] = cv_weights
@@ -251,8 +274,8 @@ def evaluate_models_same_ridge(fit, design, run_params):
         dff = fit['dff_trace_arr']
         Wall = fit_regularized(dff, X,fit['avg_regularization'])     
         var_explain = variance_ratio(dff, Wall,X)
-        fit['dropouts'][model_label]['weights'] = Wall
-        fit['dropouts'][model_label]['variance_explained']=var_explain
+        fit['dropouts'][model_label]['train_weights'] = Wall
+        fit['dropouts'][model_label]['train_variance_explained']=var_explain
         fit['dropouts'][model_label]['full_model_train_prediction'] =  X.values @ Wall.values
 
         # Iterate CV
@@ -381,14 +404,15 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     return ophys_eye 
 
 
-def process_data(session,ignore_errors=False):
+def process_data(session,TESTING=False):
     '''
     Processes dff traces by trimming off portions of recording session outside of the task period. These include:
         * a ~5 minute gray screen period before the task begins
         * a ~5 minute gray screen period after the task ends
         * a 5-10 minute movie following the second gray screen period
     
-    input -- session object
+    input -- session object 
+    TESTING,        if True, only includes the first 5 cells of the experiment
 
     returns -- an xarray of of deltaF/F traces with dimensions [timestamps, cell_specimen_ids]
     '''
@@ -404,6 +428,10 @@ def process_data(session,ignore_errors=False):
     assert np.sum(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
     assert np.sum(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
     assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
+
+    # Clip the array to just the first 5 cells
+    if TESTING:
+        dff_trace_arr = dff_trace_arr[:,0:5]
 
     return dff_trace_arr
 

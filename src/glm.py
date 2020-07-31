@@ -131,4 +131,11 @@ class GLM(object):
 
     @property
     def W(self):
-        return self.fit['dropouts'][self.current_model]['weights']
+        if 'train_weights' in self.fit['dropouts'][self.current_model].keys():
+            return self.fit['dropouts'][self.current_model]['train_weights']
+        elif 'weights' in self.fit['dropouts'][self.current_model].keys():
+            # to retain backward compatibility prior to merging PR #86
+            return self.fit['dropouts'][self.current_model]['weights']
+        else:
+            warnings.warn('could not locate weights array')
+            return None

@@ -4,30 +4,22 @@ import pandas as pd
 import visual_behavior_glm.src.GLM_params as glm_params
 plt.ion()
 
-# VERSION = 4
-# glm_params.make_run_json(1,label='testing',username=alex, src_path = '', TESTING=True)
-# run_params = glm_params.load_run_json(VERSION)
-# import_dir = self.run_params['model_freeze_dir'].rstrip('/')
-# module_name = 'GLM_fit_tools'
-# file_path = os.path.join(import_dir, module_name+'.py')
-# print('importing {} from {}'.format(module_name, file_path))
-
-# spec = importlib.util.spec_from_file_location(module_name, file_path)
-# gft = importlib.util.module_from_spec(spec)
-# sys.modules[module_name] = gft
-# spec.loader.exec_module(gft)
-
-if False:
+def make_test_json():
     # Make run JSON
+    VERSION = 1
     src_path = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 
-    gft.make_run_json(VERSION, label='Demonstration of make run json',src_path=src_path)
+    glm_params.make_run_json(VERSION,label='testing',username='alex', src_path = src_path, TESTING=True)
+    
+if False:
+    # import_dir = self.run_params['model_freeze_dir'].rstrip('/')
+    # module_name = 'GLM_fit_tools'
+    # file_path = os.path.join(import_dir, module_name+'.py')
+    # print('importing {} from {}'.format(module_name, file_path))
 
-    # Load existing parameters
-    run_params = gft.load_run_json(VERSION)
-
-    # To start all experiments on hpc:
-    # cd visual_behavior_glm/scripts/
-    # python start_glm.py VERSION
+    # spec = importlib.util.spec_from_file_location(module_name, file_path)
+    # gft = importlib.util.module_from_spec(spec)
+    # sys.modules[module_name] = gft
+    # spec.loader.exec_module(gft)
 
     # To run just one session:
     oeid = run_params['ophys_experiment_ids'][-1]

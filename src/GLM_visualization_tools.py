@@ -295,10 +295,10 @@ def plot_filters(glm, cell_specimen_id, n_cols=5):
         for col in range(n_cols):
             if ii <= len(kernel_list) - 1:
                 kernel_name = kernel_list[ii]
-                t = np.arange(
+                t = np.linspace(
                     0,
                     glm.design.kernel_dict[kernel_name]['kernel_length_samples']/glm.fit['ophys_frame_rate'],
-                    1/glm.fit['ophys_frame_rate']
+                    glm.design.kernel_dict[kernel_name]['kernel_length_samples']
                 )
                 t += glm.design.kernel_dict[kernel_name]['offset_seconds']
 

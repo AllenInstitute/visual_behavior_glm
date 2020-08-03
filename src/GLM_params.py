@@ -10,25 +10,28 @@ OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/o
 
 def define_kernels():
     kernels = {
-        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0},
-        'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0},
-        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':5,   'offset':-5},
-        'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0},
-        'pre_lick_bouts':    {'event':'lick_bouts',       'type':'discrete',      'length':5,   'offset':-5},
-        'post_lick_bouts':   {'event':'lick_bouts',       'type':'discrete',      'length':1,     'offset':0},
-        'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5},
-        'change':       {'event':'change',      'type':'discrete',      'length':2,     'offset':0},
-        'hits':       {'event':'hit',      'type':'discrete',      'length':3,     'offset':-1},
-        'misses':       {'event':'miss',      'type':'discrete',      'length':3,     'offset':-1},
-        'false_alarms':       {'event':'false_alarm',      'type':'discrete',      'length':3,     'offset':-1},
-        'correct_rejects':       {'event':'correct_reject',      'type':'discrete',      'length':3,     'offset':-1},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':6,     'offset':-1},
-        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.8,  'offset':0},
-        'image_expectation':   {'event':'any-image',  'type':'discrete','length':0.8,  'offset':-0.767},
-        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1},
-        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25},
-        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1}
+        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0, 'dropout':True},
+        'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0, 'dropout':True},
+        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True},
+        'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True},
+        'pre_lick_bouts':    {'event':'lick_bouts',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True},
+        'post_lick_bouts':   {'event':'lick_bouts',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True},
+        'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5, 'dropout':True},
+        'change':       {'event':'change',      'type':'discrete',      'length':2,     'offset':0, 'dropout':True},
+        'hits':       {'event':'hit',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
+        'misses':       {'event':'miss',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
+        'false_alarms':       {'event':'false_alarm',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
+        'correct_rejects':       {'event':'correct_reject',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':6,     'offset':-1, 'dropout':True},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.8,  'offset':0, 'dropout':True},
+        'image_expectation':   {'event':'any-image',  'type':'discrete','length':0.8,  'offset':-0.767, 'dropout':True},
+        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1, 'dropout':True},
+        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'dropout':True},
+        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1, 'dropout':True},
     }
+    ## add face motion energy PCs
+    for PC in range(10):
+        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':False}
     return kernels
 
 
@@ -214,9 +217,17 @@ def define_dropouts(kernels,kernel_definitions):
     '''
     # Remove each kernel one-by-one
     dropouts = {'Full': {'kernels':list(kernels.keys())}}
-    for kernel in kernels.keys():
+    for kernel in [kernel for kernel in kernels.keys() if kernels[kernel]['dropout']]:
         dropouts[kernel]={'kernels':list(kernels.keys())}
         dropouts[kernel]['kernels'].remove(kernel)
+
+    # Removes all face motion PC kernels as a group
+    if 'face_motion_PC_0' in kernel_definitions:
+        dropouts['face_motion_energy'] = {'kernels':list(kernels.keys())}
+        keys_to_drop = [key for key in dropouts['face_motion_energy'] if key.startswith('face_motion')] 
+        # assert False
+        for key in keys_to_drop: 
+            dropouts['face_motion_energy']['kernels'].remove(key)
 
     # Removes all individual image kernels
     if 'each-image' in kernel_definitions:

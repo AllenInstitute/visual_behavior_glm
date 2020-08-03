@@ -219,11 +219,11 @@ def log_weights_matrix_to_mongo(glm):
     
 
 
-def retrieve_results(glm_version=None, results_type='full'):
+def retrieve_results(search_dict={}, results_type='full'):
     '''
     gets cached results from mongodb
     input:
-        GLM version - if None, will get results for all versions that have run (default = None)
+        search_dict - dictionary of key/value pairs to use for searching, if empty (default), will return entire database table
         results_type - 'full' or 'summary' (default = 'full')
             * full: 1 row for every unique cell/session (cells that are matched across sessions will have one row for each session.
                 Each row contains all of the coefficients of variation (a test and a train value for each dropout)
@@ -237,12 +237,7 @@ def retrieve_results(glm_version=None, results_type='full'):
     '''
     conn = db.Database('visual_behavior_data')
     database = 'ophys_glm'
-    if glm_version:
-        # if version is specified, get results for only specified version
-        results = pd.DataFrame(list(conn[database]['results_{}'.format(results_type)].find({'glm_version':glm_version})))
-    else:
-        # if no version is specified, get results for all versions
-        results = pd.DataFrame(list(conn[database]['results_{}'.format(results_type)].find({})))
+    results = pd.DataFrame(list(conn[database]['results_{}'.format(results_type)].find(search_dict)))
 
     # make 'glm_version' column a string
     results['glm_version'] = results['glm_version'].astype(str)

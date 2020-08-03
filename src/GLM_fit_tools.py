@@ -481,6 +481,14 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         running_df = running_df.rename(columns={'speed':'values'})
         timeseries = interpolate_to_dff_timestamps(fit, running_df)['values'].values
         timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
+    elif event.startswith('face_motion'):
+        PC_number = int(event.split('_')[-1])
+        face_motion_df =  pd.DataFrame({
+            'timestamps': session.dataset.behavior_movie_timestamps,
+            'values': session.dataset.behavior_movie_pc_activations[:,PC_number]
+        })
+        timeseries = interpolate_to_dff_timestamps(fit, face_motion_df)['values'].values
+        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
     elif event == 'population_mean':
         timeseries = np.mean(fit['dff_trace_arr'],1).values
         timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])

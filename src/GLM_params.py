@@ -224,10 +224,9 @@ def define_dropouts(kernels,kernel_definitions):
     # Removes all face motion PC kernels as a group
     if 'face_motion_PC_0' in kernel_definitions:
         dropouts['face_motion_energy'] = {'kernels':list(kernels.keys())}
-        keys_to_drop = [key for key in dropouts['face_motion_energy'] if key.startswith('face_motion')] 
-        # assert False
-        for key in keys_to_drop: 
-            dropouts['face_motion_energy']['kernels'].remove(key)
+        kernels_to_drop = [kernel for kernel in dropouts['face_motion_energy']['kernels'] if kernel.startswith('face_motion')] 
+        for kernel in kernels_to_drop:
+            dropouts['face_motion_energy']['kernels'].remove(kernel)
 
     # Removes all individual image kernels
     if 'each-image' in kernel_definitions:

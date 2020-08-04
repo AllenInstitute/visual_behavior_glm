@@ -140,8 +140,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'L2_optimize_by_cell': False,    # If True, uses the best L2 value for each cell
-        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session
+        'L2_optimize_by_cell': True,    # If True, uses the best L2 value for each cell
+        'L2_optimize_by_session': False, # If True, uses the best L2 value for this session
         'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda
         'L2_fixed_lambda':None,         # This value is used if L2_use_fixed_value
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session

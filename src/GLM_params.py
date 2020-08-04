@@ -30,7 +30,7 @@ def define_kernels():
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1, 'dropout':True},
     }
     ## add face motion energy PCs
-    for PC in range(10):
+    for PC in range(50):
         kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':False}
     return kernels
 

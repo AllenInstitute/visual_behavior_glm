@@ -454,6 +454,7 @@ def add_kernels(design, run_params,session, fit):
         fit             the fit object for this model
     '''
     run_params['failed_kernels']=set()
+    run_params['kernel_error_dict'] = dict()
     for kernel_name in run_params['kernels']:
         if run_params['kernels'][kernel_name]['type'] == 'discrete':
             design = add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit)
@@ -468,8 +469,9 @@ def clean_failed_kernels(run_params):
         Modifies the model definition to handle any kernels that failed to fit during the add_kernel process
         Removes the failed kernels from run_params['kernels'], and run_params['dropouts']
     '''
-    print('The following kernels failed to be added to the model: ')
-    print(run_params['failed_kernels'])
+    if run_params['failed_kernels']:
+        print('The following kernels failed to be added to the model: ')
+        print(run_params['failed_kernels'])
     
     # Iterate failed kernels
     for kernel in run_params['failed_kernels']:     
@@ -547,7 +549,8 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         print('Error encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
         print(e)
         # Need to remove from relevant lists
-        run_params['failed_kernels'].add(kernel_name)       
+        run_params['failed_kernels'].add(kernel_name)      
+        run_params['kernel_error_dict'][kernel_name] = {'exception':e.args[0], 'oeid':session.dataset.metadata['ophys_experiment_id'], 'version':run_params['version']}
         return design
     else:
         #assert length of values is same as length of timestamps
@@ -622,7 +625,8 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         print('Error encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
         print(e)
         # Need to remove from relevant lists
-        run_params['failed_kernels'].add(kernel_name)       
+        run_params['failed_kernels'].add(kernel_name)      
+        run_params['kernel_error_dict'][kernel_name] = {'exception':e.args[0], 'oeid':session.dataset.metadata['ophys_experiment_id'], 'version':run_params['version']}
         return design       
     else:
         events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])

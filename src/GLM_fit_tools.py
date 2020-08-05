@@ -95,7 +95,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Save Results
     print('Saving results')
-    filepath = run_params['experiment_output_dir']+str(oeid)+'.pkl' 
+    filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pkl')
     file_temp = open(filepath, 'wb')
     pickle.dump(fit, file_temp)
     file_temp.close()  
@@ -103,12 +103,12 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     # Save Design Matrix
     print('Saving Design Matrix')  
     sparse_X = scipy.sparse.csc_matrix(design.get_X().values)
-    filepath = run_params['experiment_output_dir']+'X_sparse_csc_'+str(oeid)+'.npz'
+    filepath = os.path.join(run_params['experiment_output_dir'],'X_sparse_csc_'+str(oeid)+'.npz')
     scipy.sparse.save_npz(filepath, sparse_X)
 
     # Save Event Table
     print('Saving Events Table')
-    filepath = run_params['experiment_output_dir']+'event_times_'+str(oeid)+'.h5'
+    filepath = os.path.join(run_params['experiment_output_dir'],'event_times_'+str(oeid)+'.h5')
     pd.DataFrame(design.events).to_hdf(filepath,key='df')
 
     print('Finished') 
@@ -501,7 +501,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
-    print('    Adding kernel (with error handling): '+kernel_name)
+    print('    Adding kernel: '+kernel_name)
     try:
         event = run_params['kernels'][kernel_name]['event']
         if event == 'intercept':

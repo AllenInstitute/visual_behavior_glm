@@ -10,6 +10,7 @@ from tqdm import tqdm
 import xarray
 import xarray_mongodb
 import warnings
+import pickle
 
 import visual_behavior.data_access.loading as loading
 import visual_behavior.database as db
@@ -20,6 +21,16 @@ dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_lambda
 dff_dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/ophys_glm_dev_dff_traces/'
 global_dir = dirc
 
+
+def load_fit_pkl(run_params, ophys_experiment_id):
+    '''
+        Loads the fit dictionary from the pkl file dumped by fit_experiment
+
+    '''
+    filename = run_params['experiment_output_dir']+str(ophys_experiment_id)+'.pkl'
+    with open(filename,'rb') as f:
+        fit = pickle.load(f)
+    return fit
 
 def log_error(error_dict, keys_to_check = []):
     '''

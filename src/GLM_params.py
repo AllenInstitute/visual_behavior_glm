@@ -90,7 +90,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
             username = pwd.getpwuid(os.getuid())[0]
         except:
             username = 'unknown'
-    readme = open(output_dir+'README.txt','w')
+    readme_file = os.path.join(output_dir, 'README.txt')
+    readme = open(readme_file,'w')
     readme.writelines([ 'OPHYS GLM  v',str(VERSION),
                         '\nCreated on ',str(datetime.datetime.now()), 
                         '\nCreated by ',username,

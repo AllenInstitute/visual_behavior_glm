@@ -39,7 +39,7 @@ def get_error_log(search_dict = {}):
     if search dict is an empty dict (default), it will return full contents of the kernel_error_log collection
     '''
     conn=db.Database('visual_behavior_data') #establishes connection
-    result = conn['ophys_glm']['ophys_glm']['error_logs'].find({search_dict})
+    result = conn['ophys_glm']['error_logs'].find(search_dict)
     conn.close()
     return pd.DataFrame(list(result))
 

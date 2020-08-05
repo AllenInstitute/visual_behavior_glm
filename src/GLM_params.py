@@ -35,7 +35,7 @@ def define_kernels():
     return kernels
 
 
-def get_experiment_table(require_model_outputs = True):
+def get_experiment_table(require_model_outputs = False):
     """
     get a list of filtered experiments and associated attributes
     returns only experiments that have relevant project codes and have passed QC

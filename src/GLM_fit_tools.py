@@ -20,6 +20,8 @@ from visual_behavior.ophys.response_analysis import response_processing as rp
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 import visual_behavior.data_access.loading as loading
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
+import visual_behavior_glm.src.GLM_analysis_tools as gat
+
 
 
 def check_run_fits(VERSION):
@@ -453,12 +455,42 @@ def add_kernels(design, run_params,session, fit):
         session         the SDK session object for this experiment
         fit             the fit object for this model
     '''
+    run_params['failed_kernels']=set()
+    run_params['kernel_error_dict'] = dict()
     for kernel_name in run_params['kernels']:
         if run_params['kernels'][kernel_name]['type'] == 'discrete':
             design = add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit)
         else:
             design = add_continuous_kernel_by_label(kernel_name, design, run_params, session, fit)   
+
+    clean_failed_kernels(run_params)
     return design
+
+def clean_failed_kernels(run_params):
+    '''
+        Modifies the model definition to handle any kernels that failed to fit during the add_kernel process
+        Removes the failed kernels from run_params['kernels'], and run_params['dropouts']
+    '''
+    if run_params['failed_kernels']:
+        print('The following kernels failed to be added to the model: ')
+        print(run_params['failed_kernels'])
+    
+    # Iterate failed kernels
+    for kernel in run_params['failed_kernels']:     
+        # Remove the failed kernel from the full list of kernels
+        if kernel in run_params['kernels'].keys():
+            run_params['kernels'].pop(kernel)
+
+        # Remove the dropout associated with this kernel
+        if kernel in run_params['dropouts'].keys():
+            run_params['dropouts'].pop(kernel)        
+        
+        # Remove the failed kernel from each dropout list of kernels
+        for dropout in run_params['dropouts'].keys(): 
+            # If the failed kernel is in this dropout, remove the kernel from the dropout
+            if kernel in run_params['dropouts'][dropout]['kernels']:
+                run_params['dropouts'][dropout]['kernels'].remove(kernel) 
+
 
 def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit):
     '''
@@ -469,58 +501,78 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
-    print('    Adding kernel: '+kernel_name)
-    event = run_params['kernels'][kernel_name]['event']
-    if event == 'intercept':
-        timeseries = np.ones(len(fit['dff_trace_timestamps']))
-    elif event == 'time':
-        timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
-        timeseries = timeseries/len(timeseries)
-    elif event == 'running':
-        running_df = session.dataset.running_data_df
-        running_df = running_df.rename(columns={'speed':'values'})
-        timeseries = interpolate_to_dff_timestamps(fit, running_df)['values'].values
-        timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
-    elif event.startswith('face_motion'):
-        PC_number = int(event.split('_')[-1])
-        face_motion_df =  pd.DataFrame({
-            'timestamps': session.dataset.behavior_movie_timestamps,
-            'values': session.dataset.behavior_movie_pc_activations[:,PC_number]
-        })
-        timeseries = interpolate_to_dff_timestamps(fit, face_motion_df)['values'].values
-        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
-    elif event == 'population_mean':
-        timeseries = np.mean(fit['dff_trace_arr'],1).values
-        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
-    elif event == 'Population_Activity_PC1':
-        pca = PCA()
-        pca.fit(fit['dff_trace_arr'].values)
-        dff_pca = pca.transform(fit['dff_trace_arr'].values)
-        timeseries = dff_pca[:,0]
-        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
-    elif (len(event) > 6) & ( event[0:6] == 'model_'):
-        bsid = session.dataset.metadata['behavior_session_id']
-        weight_name = event[6:]
-        weight = get_model_weight(bsid, weight_name, run_params)
-        weight_df = pd.DataFrame()
-        weight_df['timestamps'] = session.dataset.stimulus_presentations.start_time.values
-        weight_df['values'] = weight.values
-        timeseries = interpolate_to_dff_timestamps(fit, weight_df)
-        timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
-        timeseries = timeseries['values'].values
-        timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
-    elif event == 'pupil':
-        session.ophys_eye = process_eye_data(session,run_params,ophys_timestamps =fit['dff_trace_timestamps'] )
-        timeseries = session.ophys_eye['pupil_radius'].values
+    print('    Adding kernel (with error handling): '+kernel_name)
+    try:
+        event = run_params['kernels'][kernel_name]['event']
+        if event == 'intercept':
+            timeseries = np.ones(len(fit['dff_trace_timestamps']))
+        elif event == 'time':
+            timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
+            timeseries = timeseries/len(timeseries)
+        elif event == 'running':
+            running_df = session.dataset.running_data_df
+            running_df = running_df.rename(columns={'speed':'values'})
+            timeseries = interpolate_to_dff_timestamps(fit, running_df)['values'].values
+            timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
+        elif event.startswith('face_motion'):
+            PC_number = int(event.split('_')[-1])
+            face_motion_df =  pd.DataFrame({
+                'timestamps': session.dataset.behavior_movie_timestamps,
+                'values': session.dataset.behavior_movie_pc_activations[:,PC_number]
+            })
+            timeseries = interpolate_to_dff_timestamps(fit, face_motion_df)['values'].values
+            timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
+        elif event == 'population_mean':
+            timeseries = np.mean(fit['dff_trace_arr'],1).values
+            timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
+        elif event == 'Population_Activity_PC1':
+            pca = PCA()
+            pca.fit(fit['dff_trace_arr'].values)
+            dff_pca = pca.transform(fit['dff_trace_arr'].values)
+            timeseries = dff_pca[:,0]
+            timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
+        elif (len(event) > 6) & ( event[0:6] == 'model_'):
+            bsid = session.dataset.metadata['behavior_session_id']
+            weight_name = event[6:]
+            weight = get_model_weight(bsid, weight_name, run_params)
+            weight_df = pd.DataFrame()
+            weight_df['timestamps'] = session.dataset.stimulus_presentations.start_time.values
+            weight_df['values'] = weight.values
+            timeseries = interpolate_to_dff_timestamps(fit, weight_df)
+            timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
+            timeseries = timeseries['values'].values
+            timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
+        elif event == 'pupil':
+            session.ophys_eye = process_eye_data(session,run_params,ophys_timestamps =fit['dff_trace_timestamps'] )
+            timeseries = session.ophys_eye['pupil_radius'].values
+        else:
+            raise Exception('Could not resolve kernel label')
+    except Exception as e:
+        print('Error encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
+        print(e)
+        # Need to remove from relevant lists
+        run_params['failed_kernels'].add(kernel_name)      
+        run_params['kernel_error_dict'][kernel_name] = {
+            'error_type': 'kernel', 
+            'kernel_name': kernel_name, 
+            'exception':e.args[0], 
+            'oeid':session.dataset.metadata['ophys_experiment_id'], 
+            'glm_version':run_params['version']
+        }
+        # log error to mongo
+        gat.log_error(
+            run_params['kernel_error_dict'][kernel_name], 
+            keys_to_check = ['oeid', 'glm_version', 'kernel_name']
+        )
+        return design
     else:
-        raise Exception('Could not resolve kernel label')
+        #assert length of values is same as length of timestamps
+        assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
 
-    #assert length of values is same as length of timestamps
-    assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
+        # Add to design matrix
+        design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
+        return design
 
-    # Add to design matrix
-    design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
-    return design
 
 def standardize_inputs(timeseries, mean_center=True, unit_variance=True,max_value=None):
     '''
@@ -558,33 +610,53 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         fit             the fit object for this model       
     ''' 
     print('    Adding kernel: '+kernel_name)
-    event = run_params['kernels'][kernel_name]['event']
-    if event == 'licks':
-        event_times = session.dataset.licks['timestamps'].values
-    elif event == 'lick_bouts':
-        licks = session.dataset.licks
-        licks['pre_ILI'] = licks['timestamps'] - licks['timestamps'].shift(fill_value=-10)
-        licks['bout_start'] = licks['pre_ILI'] > run_params['lick_bout_ILI']
-        event_times = session.dataset.licks.query('bout_start')['timestamps'].values
-    elif event == 'rewards':
-        event_times = session.dataset.rewards['timestamps'].values
-    elif event == 'change':
-        event_times = session.dataset.trials.query('go')['change_time'].values
-        event_times = event_times[~np.isnan(event_times)]
-    elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
-        event_times = session.dataset.trials.query(event)['change_time'].values
-        event_times = event_times[~np.isnan(event_times)]
-    elif event == 'any-image':
-        event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
-    elif event == 'omissions':
-        event_times = session.dataset.stimulus_presentations.query('omitted')['start_time'].values
-    elif (len(event)>5) & (event[0:5] == 'image'):
-        event_times = session.dataset.stimulus_presentations.query('image_index == @event[-1]')['start_time'].values
+    try:
+        event = run_params['kernels'][kernel_name]['event']
+        if event == 'licks':
+            event_times = session.dataset.licks['timestamps'].values
+        elif event == 'lick_bouts':
+            licks = session.dataset.licks
+            licks['pre_ILI'] = licks['timestamps'] - licks['timestamps'].shift(fill_value=-10)
+            licks['bout_start'] = licks['pre_ILI'] > run_params['lick_bout_ILI']
+            event_times = session.dataset.licks.query('bout_start')['timestamps'].values
+        elif event == 'rewards':
+            event_times = session.dataset.rewards['timestamps'].values
+        elif event == 'change':
+            event_times = session.dataset.trials.query('go')['change_time'].values
+            event_times = event_times[~np.isnan(event_times)]
+        elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
+            event_times = session.dataset.trials.query(event)['change_time'].values
+            event_times = event_times[~np.isnan(event_times)]
+        elif event == 'any-image':
+            event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
+        elif event == 'omissions':
+            event_times = session.dataset.stimulus_presentations.query('omitted')['start_time'].values
+        elif (len(event)>5) & (event[0:5] == 'image'):
+            event_times = session.dataset.stimulus_presentations.query('image_index == @event[-1]')['start_time'].values
+        else:
+            raise Exception('Could not resolve kernel label')
+    except Exception as e:
+        print('Error encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
+        print(e)
+        # Need to remove from relevant lists
+        run_params['failed_kernels'].add(kernel_name)      
+        run_params['kernel_error_dict'][kernel_name] = {
+            'error_type': 'kernel', 
+            'kernel_name': kernel_name, 
+            'exception':e.args[0], 
+            'oeid':session.dataset.metadata['ophys_experiment_id'], 
+            'glm_version':run_params['version']
+        }
+        # log error to mongo:
+        gat.log_error(
+            run_params['kernel_error_dict'][kernel_name], 
+            keys_to_check = ['oeid', 'glm_version', 'kernel_name']
+        )        
+        return design       
     else:
-        raise Exception('Could not resolve kernel label')
-    events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
-    design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
-    return design
+        events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
+        design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
+        return design
 
 class DesignMatrix(object):
     def __init__(self, fit_dict):

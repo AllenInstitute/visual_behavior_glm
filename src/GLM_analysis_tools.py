@@ -21,6 +21,28 @@ dff_dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/ophys_glm_d
 global_dir = dirc
 
 
+def log_error(error_dict, keys_to_check = []):
+    '''
+    logs contents of error_dict to the `error_logs` collection in the `ophys_glm` mongo database
+    '''
+    conn=db.Database('visual_behavior_data') #establishes connection
+    db.update_or_create(
+        collection = conn['ophys_glm']['error_logs'],
+        document = db.clean_and_timestamp(error_dict),
+        keys_to_check = keys_to_check, # keys to check to determine whether an entry already exists. Overwrites if an entry is found with matching keys
+    )
+    conn.close()
+
+def get_error_log(search_dict = {}):
+    '''
+    searches the mongo error log for all entries matching the search_dict
+    if search dict is an empty dict (default), it will return full contents of the kernel_error_log collection
+    '''
+    conn=db.Database('visual_behavior_data') #establishes connection
+    result = conn['ophys_glm']['error_logs'].find(search_dict)
+    conn.close()
+    return pd.DataFrame(list(result))
+
 def build_kernel_df(glm, cell_specimen_id):
     '''
     creates a dataframe summarizing each GLM kernel's contribution over timefor a given cell

@@ -20,6 +20,8 @@ from visual_behavior.ophys.response_analysis import response_processing as rp
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 import visual_behavior.data_access.loading as loading
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
+import visual_behavior_glm.src.GLM_analysis_tools as gat
+
 
 
 def check_run_fits(VERSION):
@@ -550,7 +552,18 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         print(e)
         # Need to remove from relevant lists
         run_params['failed_kernels'].add(kernel_name)      
-        run_params['kernel_error_dict'][kernel_name] = {'exception':e.args[0], 'oeid':session.dataset.metadata['ophys_experiment_id'], 'version':run_params['version']}
+        run_params['kernel_error_dict'][kernel_name] = {
+            'error_type': 'kernel', 
+            'kernel_name': kernel_name, 
+            'exception':e.args[0], 
+            'oeid':session.dataset.metadata['ophys_experiment_id'], 
+            'glm_version':run_params['version']
+        }
+        # log error to mongo
+        gat.log_error(
+            error_dict, 
+            keys_to_check = ['oeid', 'glm_version', 'kernel_name']
+        )
         return design
     else:
         #assert length of values is same as length of timestamps
@@ -559,6 +572,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         # Add to design matrix
         design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
         return design
+
 
 def standardize_inputs(timeseries, mean_center=True, unit_variance=True,max_value=None):
     '''
@@ -626,7 +640,18 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         print(e)
         # Need to remove from relevant lists
         run_params['failed_kernels'].add(kernel_name)      
-        run_params['kernel_error_dict'][kernel_name] = {'exception':e.args[0], 'oeid':session.dataset.metadata['ophys_experiment_id'], 'version':run_params['version']}
+        run_params['kernel_error_dict'][kernel_name] = {
+            'error_type': 'kernel', 
+            'kernel_name': kernel_name, 
+            'exception':e.args[0], 
+            'oeid':session.dataset.metadata['ophys_experiment_id'], 
+            'glm_version':run_params['version']
+        }
+        # log error to mongo:
+        gat.log_error(
+            error_dict, 
+            keys_to_check = ['oeid', 'glm_version', 'kernel_name']
+        )        
         return design       
     else:
         events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])

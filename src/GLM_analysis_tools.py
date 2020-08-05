@@ -27,8 +27,8 @@ def log_error(error_dict, keys_to_check = []):
     '''
     conn=db.Database('visual_behavior_data') #establishes connection
     db.update_or_create(
-        collection = conn['ophys_glm']['ophys_glm']['error_logs'],
-        entry = db.clean_and_timestamp(kernel_error_dict),
+        collection = conn['ophys_glm']['error_logs'],
+        document = db.clean_and_timestamp(error_dict),
         keys_to_check = keys_to_check, # keys to check to determine whether an entry already exists. Overwrites if an entry is found with matching keys
     )
     conn.close()

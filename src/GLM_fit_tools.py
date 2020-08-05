@@ -501,7 +501,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
-    print('    Adding kernel: '+kernel_name)
+    print('    Adding kernel (with error handling): '+kernel_name)
     try:
         event = run_params['kernels'][kernel_name]['event']
         if event == 'intercept':
@@ -561,7 +561,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         }
         # log error to mongo
         gat.log_error(
-            error_dict, 
+            run_params['kernel_error_dict'][kernel_name], 
             keys_to_check = ['oeid', 'glm_version', 'kernel_name']
         )
         return design
@@ -649,7 +649,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         }
         # log error to mongo:
         gat.log_error(
-            error_dict, 
+            run_params['kernel_error_dict'][kernel_name], 
             keys_to_check = ['oeid', 'glm_version', 'kernel_name']
         )        
         return design       

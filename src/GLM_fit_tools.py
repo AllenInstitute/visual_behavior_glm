@@ -169,6 +169,8 @@ def evaluate_ridge(fit, design,run_params):
         fit['cell_regularization'] = [fit['L2_grid'][x] for x in np.argmax(test_cv,1)]     
         fit['L2_test_cv'] = test_cv
         fit['L2_train_cv'] = train_cv
+        fit['L2_at_grid_min'] = [x==0 for x in np.argmax(test_cv,1)]
+        fit['L2_at_grid_max'] = [x==(len(fit['L2_grid'])-1) for x in np.argmax(test_cv,1)]
     return fit
 
 def evaluate_models(fit, design, run_params):

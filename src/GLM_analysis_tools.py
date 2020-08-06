@@ -11,6 +11,7 @@ import xarray
 import xarray_mongodb
 import warnings
 import pickle
+import os
 
 import visual_behavior.data_access.loading as loading
 import visual_behavior.database as db
@@ -27,7 +28,7 @@ def load_fit_pkl(run_params, ophys_experiment_id):
         Loads the fit dictionary from the pkl file dumped by fit_experiment
 
     '''
-    filename = run_params['experiment_output_dir']+str(ophys_experiment_id)+'.pkl'
+    filename = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pkl')
     with open(filename,'rb') as f:
         fit = pickle.load(f)
     return fit

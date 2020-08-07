@@ -1,25 +1,39 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-from scipy.stats import sem
-import json
-import h5py
-import xarray as xr
-from scipy import sparse
-from tqdm import tqdm
-import xarray
-import xarray_mongodb
+import os
+import pickle
 import warnings
+import numpy as np
+import pandas as pd
+import xarray_mongodb
 
 import visual_behavior.data_access.loading as loading
 import visual_behavior.database as db
 
+# Old Imports from nick's version
+#import xarray # dont need?
+#import json
+#import h5py
+#import matplotlib.pyplot as plt
+#from scipy.stats import sem
+#import xarray as xr
+#from scipy import sparse
+#from tqdm import tqdm
 
-dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_lambda_70/'
-#dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_reward_filter_dev/'
-dff_dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/ophys_glm_dev_dff_traces/'
-global_dir = dirc
+def load_fit_pkl(run_params, ophys_experiment_id):
+    '''
+        Loads the fit dictionary from the pkl file dumped by fit_experiment
+    
+        Inputs:
+        run_params, the dictionary of parameters for this version
+        ophys_experiment_id, the oeid to load the fit for
+    
+        Returns:
+        the fit dictionary if it exists
 
+    '''
+    filename = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pkl')
+    with open(filename,'rb') as f:
+        fit = pickle.load(f)
+    return fit
 
 def log_error(error_dict, keys_to_check = []):
     '''
@@ -308,6 +322,10 @@ def get_experiment_inventory(results=None):
     
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.
+#dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_lambda_70/'
+#dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_reward_filter_dev/'
+#dff_dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/ophys_glm_dev_dff_traces/'
+#global_dir = dirc
 
 # def moving_mean(values, window):
 #     weights = np.repeat(1.0, window)/window

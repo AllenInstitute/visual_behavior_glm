@@ -93,6 +93,11 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
 
+    # Perform shuffle analysis
+    print('Evaluating shuffle fits')
+    fit = evaluate_shuffle(fit, design, method='cells')
+    fit = evaluate_shuffle(fit, design, method='time')
+
     # Save Results
     print('Saving results')
     filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pkl')
@@ -113,6 +118,46 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     print('Finished') 
     return session, fit, design
+
+def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
+    '''
+        Evaluates the model on shuffled df/f data to determine a noise floor for the model
+    
+        Inputs:
+        fit, the fit dictionary
+        design, the design matrix
+        method, either 'cells' or 'time'
+            cells, shuffle cell labels, but preserves time. 
+            time, circularly permutes each cell's df/f trace
+        num_shuffles, how many times to shuffle.
+    
+        returns:
+        fit, with the added keys:
+            var_shuffle_<method>    a cells x num_shuffles arrays of shuffled variance explained
+            var_shuffle_<method>_threshold  the threshold for a 5% false positive rate
+    '''
+    W = fit['dropouts']['Full']['train_weights']
+    X = design.get_X()
+    var_shuffle = np.empty((fit['dff_trace_arr'].shape[1], num_shuffles)) 
+    dff_shuffle = np.copy(fit['dff_trace_arr'].values)
+    max_shuffle = np.shape(dff_shuffle)[0]
+
+    for count in tqdm(range(0, num_shuffles)):
+        if method == 'time':
+            for dex in range(0, np.shape(dff_shuffle)[1]):
+                shuffle_count = np.random.randint(1, max_shuffle)
+                dff_shuffle[:,dex] = np.roll(dff_shuffle[:,dex], shuffle_count, axis=0) 
+        elif method == 'cells':
+            idx = np.random.permutation(np.shape(dff_shuffle)[1])
+            while np.any(idx == np.array(range(0, np.shape(dff_shuffle)[1]))):
+                idx = np.random.permutation(np.shape(dff_shuffle)[1])
+            dff_shuffle = np.copy(fit['dff_trace_arr'].values)[:,idx]
+        var_shuffle[:,count]  = variance_ratio(dff_shuffle, W, X)
+    fit['var_shuffle_'+method] = var_shuffle
+    x = np.sort(var_shuffle.flatten())
+    dex = np.floor(len(x)*0.95).astype(int)
+    fit['var_shuffle_'+method+'_threshold'] = x[dex]
+    return fit
 
 def evaluate_ridge(fit, design,run_params):
     '''

@@ -41,10 +41,10 @@ The script that deploys jobs uses the visual_behavior package to get a full list
 The `scripts/deploy_glm_fits.py` script will iterate over the `filtered_ophys_experiment_table` to generate one cluster job per passed experiment. All of the job settings are defined inside of this script. In addition, this script assumes that you have your python executable in `~/.conda/envs/{ENVIRONMENT NAME}/bin/python`
 
 The arguments are as follows:
-    * --env {YOUR ENVIRONMENT NAME}
-    * --version {GLM VERSION TO DEPLOY}
-    * --src-path {PATH TO THE VISUAL_BEHAVIOR_GLM FOLDER IN YOUR HOME DIRECTORY, E.G. /home/dougo/code/visual_behavior_glm}
-    * --force-overwite {NO FOLLOWING ARGUMENT - A FLAG TO DETERMINE WHETHER TO DEPLOY JOBS FOR ALL EXPERIMENTS, OVERWRITING EXISTING RESULTS. IF NOT CALLED, ONLY JOBS FOR EXPERIMENTS WITH NO CACHED RESULTS WILL BE DEPLOYED.
+* --env {YOUR ENVIRONMENT NAME}
+* --version {GLM VERSION TO DEPLOY}
+* --src-path {PATH TO THE VISUAL_BEHAVIOR_GLM FOLDER IN YOUR HOME DIRECTORY, E.G. /home/dougo/code/visual_behavior_glm}
+* --force-overwite {NO FOLLOWING ARGUMENT - A FLAG TO DETERMINE WHETHER TO DEPLOY JOBS FOR ALL EXPERIMENTS, OVERWRITING EXISTING RESULTS. IF NOT CALLED, ONLY JOBS FOR EXPERIMENTS WITH NO CACHED RESULTS WILL BE DEPLOYED.
     
 For example, I'd call this script from the hpc-login command line as follows:
 

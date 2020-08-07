@@ -253,7 +253,13 @@ def define_dropouts(kernels,kernel_definitions):
         dropouts['beh_model']['kernels'].remove('model_task0')
         dropouts['beh_model']['kernels'].remove('model_timing1D')
         dropouts['beh_model']['kernels'].remove('model_omissions1')
-
+    
+    # Adds single kernel dropouts:
+    for drop in [drop for drop in dropouts.keys()]:
+        if drop is not 'Full':
+            kernels = set(dropouts['Full']['kernels'])-set(dropouts[drop]['kernels'])
+            kernels.add('intercept')
+            dropouts['single-'+drop] = {'kernels':list(kernels)}
     return dropouts
     
 

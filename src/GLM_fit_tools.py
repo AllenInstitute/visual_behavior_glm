@@ -93,6 +93,9 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
 
+    # Start Diagnostic analyses
+    print('Starting diagnostics')
+
     # Perform shuffle analysis
     print('Evaluating shuffle fits')
     fit = evaluate_shuffle(fit, design, method='cells')

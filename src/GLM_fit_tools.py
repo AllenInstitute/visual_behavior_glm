@@ -95,6 +95,8 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Start Diagnostic analyses
     print('Starting diagnostics')
+    print('Bootstrapping synthetic data')
+    fit = bootstrap_model(fit, design, run_params)
 
     # Perform shuffle analysis
     print('Evaluating shuffle fits')
@@ -121,6 +123,42 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     print('Finished') 
     return session, fit, design
+
+def bootstrap_model(fit, design, run_params,zero_dex = 10, regularization=50):
+    # Generate synthetic df/f traces using on of the CV splits of Full
+    # Then tries to recover those parameters. Lets us check:
+    # how much can we expect the weights to vary, how much can we expect the VE to vary?
+
+    # Need to add CV
+    # Need to add reduced model, to assess overfitting potential
+
+    W = fit['dropouts']['Full']['cv_weights'][:,:,0]
+    W[zero_dex:,:] = 0
+
+    # Generate synthetic data
+    X = design.get_X()
+    Y_boot = copy(fit['dff_trace_arr'])
+    Y_boot.values = X.values @ W
+
+    # Recover weights
+    split_index = 0
+    train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
+    test_split = fit['ridge_splits'][split_index]
+    W_boot = fit_regularized(Y_boot[train_split,:], X[train_split,:],regularization)      
+   
+    #cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+
+    # Pack up 
+    W_orig = copy(W_boot)
+    W_orig.values = W
+    fit['bootstrap']={}
+    fit['bootstrap']['W_boot'] = W_boot
+    fit['bootstrap']['W_orig'] = W_orig
+    fit['bootstrap']['var_explained_test'] = variance_ratio(Y_boot[test_split,:], W_boot,X[test_split,:])
+    fit['bootstrap']['var_explained_train'] = variance_ratio(Y_boot[train_split,:], W_boot,X[train_split,:])
+    fit['bootstrap']['var_explained_def'] = variance_ratio(Y_boot[test_split,:], W_orig,X[test_split,:])
+    fit['bootstrap']['mean_weight_shift'] = np.mean(np.abs(W_boot.values - W_orig.values))
+    return fit
 
 def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     '''
@@ -464,7 +502,7 @@ def process_data(session,TESTING=False):
         * a 5-10 minute movie following the second gray screen period
     
     input -- session object 
-    TESTING,        if True, only includes the first 5 cells of the experiment
+    TESTING,        if True, only includes the first 6 cells of the experiment
 
     returns -- an xarray of of deltaF/F traces with dimensions [timestamps, cell_specimen_ids]
     '''
@@ -481,9 +519,9 @@ def process_data(session,TESTING=False):
     assert np.sum(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
     assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
 
-    # Clip the array to just the first 5 cells
+    # Clip the array to just the first 6 cells
     if TESTING:
-        dff_trace_arr = dff_trace_arr[:,0:5]
+        dff_trace_arr = dff_trace_arr[:,0:6]
 
     return dff_trace_arr
 

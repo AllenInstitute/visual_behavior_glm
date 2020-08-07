@@ -21,6 +21,7 @@ from visual_behavior.ophys.response_analysis.response_analysis import ResponseAn
 import visual_behavior.data_access.loading as loading
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
 import visual_behavior_glm.src.GLM_analysis_tools as gat
+from visual_behavior_glm.src.GLM_params import make_run_json
 
 
 

@@ -3,7 +3,8 @@ dougo
 8/7/2020
 
 ## The basic workflow is as follows:
-* Ensure that the run_json for the version you want to deploy is up to date in the frozen model folder
+
+### Ensure that the run_json for the version you want to deploy is up to date in the frozen model folder
 
 To do that, I run the `scripts/delete_rebuild_run_json.py` script. It can be run from the command line with the following syntax:
 
@@ -13,11 +14,11 @@ I've found it unwieldy to type all of those options at the command line, so I've
 
     $ delete_rebuild_run_json.py
     
-* Create a branch with the name of the version
+### Create a branch with the name of the version
 
 Maybe this is overkill, but I've been trying to create a branch for each named version to make it easy to come back later to the exact code for that version.
 
-* Run a test fit locally
+### Run a test fit locally
 
 The `scripts/fit_glm.py` script will fit the model and log the results to mongo. To make sure there aren't any code bugs before deploying all 1000+ jobs to the cluster, I've been running a test version locally using the following syntax at the command line:
 
@@ -25,17 +26,17 @@ The `scripts/fit_glm.py` script will fit the model and log the results to mongo.
     
 If that job completes without error, it might be a good idea to check that the dropout summary successfully logged to mongo (and the numbers make sense). See the notebook detailing interactions with mongo to explain how to do that.
 
-* log in to hpc-login to prepare to deploy all jobs
+### log in to hpc-login to prepare to deploy all jobs
 
     $ ssh USERNAME@hpc-login.corp.alleninstitute.org
 
-* Activate your environment on the scheduler node
+### Activate your environment on the scheduler node
 
 The script that deploys jobs uses the visual_behavior package to get a full list of experiment IDs. So you need to run it from an environment that has `visual_behavior_analysis` installed
 
     $ source activate {ENVIRONMENT NAME}
     
-* Deploy the jobs
+### Deploy the jobs
 
 The `scripts/deploy_glm_fits.py` script will iterate over the `filtered_ophys_experiment_table` to generate one cluster job per passed experiment. All of the job settings are defined inside of this script. In addition, this script assumes that you have your python executable in `~/.conda/envs/{ENVIRONMENT NAME}/bin/python`
 
@@ -49,8 +50,7 @@ For example, I'd call this script from the hpc-login command line as follows:
 
     $ python deploy_glm_fits.py --env visual_behavior --version 5_L2_fixed_lambda=1 --src_path /home/dougo/code/visual_behavior_glm 
     
-    
-* Check job status
+### Check job status
 
 You can see the status of all jobs by typing the following at the hpc-login command line
 

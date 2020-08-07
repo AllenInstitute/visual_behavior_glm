@@ -13,13 +13,27 @@ from pbstools import pbstools  # NOQA E402
 
 parser = argparse.ArgumentParser(description='deploy glm fits to cluster')
 parser.add_argument('--env', type=str, default='visual_behavior', metavar='name of conda environment to use')
-parser.add_argument('--glm-version', type=str, default='0', metavar='glm version')
+parser.add_argument('--version', type=str, default='0', metavar='glm version')
+parser.add_argument(
+    '--src-path', 
+    type=str, 
+    default='',
+    metavar='src_path',
+    help='folder where code lives'
+)
+parser.add_argument(
+    '--force-overwrite', 
+    action='store_true',
+    default=False,
+    dest='force_overwrite', 
+    help='Overwrites existing fits for this version if enabled. Otherwise only fits without existing results are run'
+)
 
-job_dir = r"/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_jobs/ophys_glm"
+job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_jobs/ophys_glm"
 
 job_settings = {'queue': 'braintv',
-                'mem': '32g',
-                'walltime': '3:00:00',
+                'mem': '64g',
+                'walltime': '6:00:00',
                 'ppn': 16,
                 }
 
@@ -27,21 +41,21 @@ if __name__ == "__main__":
     args = parser.parse_args()
     python_executable = "{}/.conda/envs/{}/bin/python".format(os.path.expanduser('~'), args.env)
     print('python executable = {}'.format(python_executable))
-    python_file = "{}/code/visual_behavior_glm/scripts/fit_glm.py".format(os.path.expanduser('~'))
+    python_file = "{}/scripts/fit_glm.py".format(args.src_path)
 
     experiments_table = loading.get_filtered_ophys_experiment_table()
-    experiment_ids = experiments_table.query('model_outputs_available == True').index.values
-
+    experiment_ids = experiments_table.index.values
+    job_count = 0
     for experiment_id in experiment_ids:
 
-        if not gat.already_fit(experiment_id, args.glm_version):
-
-            print('starting cluster job for {}'.format(experiment_id))
-            job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.glm_version)
+        if args.force_overwrite or not gat.already_fit(experiment_id, args.version):
+            job_count += 1
+            print('starting cluster job for {}, job count = {}'.format(experiment_id, job_count))
+            job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.version)
             pbstools.PythonJob(
                 python_file,
                 python_executable,
-                python_args="--oeid {} --version {}".format(experiment_id, args.glm_version),
+                python_args="--oeid {} --version {}".format(experiment_id, args.version),
                 jobname=job_title,
                 jobdir=job_dir,
                 **job_settings

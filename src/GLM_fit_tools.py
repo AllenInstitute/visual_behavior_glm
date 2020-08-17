@@ -183,7 +183,7 @@ def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     dff_shuffle = np.copy(fit['dff_trace_arr'].values)
     max_shuffle = np.shape(dff_shuffle)[0]
 
-    for count in tqdm(range(0, num_shuffles)):
+    for count in tqdm(range(0, num_shuffles), total=num_shuffles, desc='    Shuffling by {}'.format(method)):
         if method == 'time':
             for dex in range(0, np.shape(dff_shuffle)[1]):
                 shuffle_count = np.random.randint(1, max_shuffle)

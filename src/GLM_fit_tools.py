@@ -1092,5 +1092,15 @@ def variance_ratio(dff_trace_arr, W, X):
     var_resid = np.var(dff_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
     return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
 
-
+def error_by_time(fit, design):
+    '''
+        Plots the model error over the course of the session
+    '''
+    plt.figure()
+    Y = design.get_X().values @ fit['dropouts']['Full']['cv_var_weights'][:,:,0]
+    diff = fit['dff_trace_arr'] - Y
+    plt.figure()
+    plt.plot(np.abs(diff.mean(axis=1)), 'k-')
+    plt.ylabel('Model Error (df/f)')
+    
 

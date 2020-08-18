@@ -22,7 +22,7 @@ if False:
     # spec.loader.exec_module(gft)
 
     # To run just one session:
-    run_params = glm_params.load_run_params('4_L2_optimize_by_cell')
+    run_params = glm_params.load_run_json('4_L2_optimize_by_cell')
     fit = gat.load_fit_pkl(run_params, oeid)
     oeid = run_params['ophys_experiment_ids'][-1]
     session, fit, design = gft.fit_experiment(oeid, run_params)

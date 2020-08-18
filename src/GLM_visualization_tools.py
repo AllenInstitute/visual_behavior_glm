@@ -1,23 +1,19 @@
-import visual_behavior.utilities as vbu
+#import visual_behavior.utilities as vbu  # Can remove
 import visual_behavior.plotting as vbp
-import visual_behavior.visualization.utils as vis_utils
+#import visual_behavior.visualization.utils as vis_utils # Can remove
 import visual_behavior.data_access.loading as loading
-
 import visual_behavior_glm.src.GLM_analysis_tools as gat
-
 import matplotlib as mpl
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt # redundant below?? Can remove
 import seaborn as sns
 import numpy as np
 import os
 import time
 from tqdm import tqdm
-
 from matplotlib import animation, rc
 import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
-
 
 def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outlier_threshold=1.5):
     '''

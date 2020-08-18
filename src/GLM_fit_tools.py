@@ -97,7 +97,6 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Starting diagnostics')
     print('Bootstrapping synthetic data')
     fit = bootstrap_model(fit, design, run_params)
-    fit = bootstrap_model(fit, design, run_params, norm_preserve=False)
 
     # Perform shuffle analysis
     print('Evaluating shuffle fits')

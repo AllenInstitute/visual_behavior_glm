@@ -97,6 +97,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Starting diagnostics')
     print('Bootstrapping synthetic data')
     fit = bootstrap_model(fit, design, run_params)
+    fit = bootstrap_model(fit, design, run_params, norm_preserve=False)
 
     # Perform shuffle analysis
     print('Evaluating shuffle fits')
@@ -124,41 +125,80 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Finished') 
     return session, fit, design
 
-def bootstrap_model(fit, design, run_params,zero_dex = 10, regularization=50):
+def bootstrap_model(fit, design, run_params, regularization=50, norm_preserve=False, check_every=100, PLOT=False):
     # Generate synthetic df/f traces using on of the CV splits of Full
     # Then tries to recover those parameters. Lets us check:
     # how much can we expect the weights to vary, how much can we expect the VE to vary?
 
-    # Need to add CV
+    # TODO
+    # determine best regularization
+    # Zero out random weights
+    zero_dexes = range(100, len(fit['dropouts']['Full']['cv_weights'][:,:,0]),check_every)
+    cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+    cv_var_test     = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+    cv_var_def      = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+    cv_weight_shift = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+
     # Need to add reduced model, to assess overfitting potential
+    for index, zero_dex in enumerate(zero_dexes):
 
-    W = fit['dropouts']['Full']['cv_weights'][:,:,0]
-    W[zero_dex:,:] = 0
+        # Generate synthetic data
+        X = design.get_X()
+        Y_boot = copy(fit['dff_trace_arr'])
 
-    # Generate synthetic data
-    X = design.get_X()
-    Y_boot = copy(fit['dff_trace_arr'])
-    Y_boot.values = X.values @ W
+        # Recover weights
+        for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Bootstrapping with {} regressors'.format(zero_dex)):
+            train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
+            test_split = fit['ridge_splits'][split_index]
 
-    # Recover weights
-    split_index = 0
-    train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
-    test_split = fit['ridge_splits'][split_index]
-    W_boot = fit_regularized(Y_boot[train_split,:], X[train_split,:],regularization)      
-   
-    #cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+            W = fit['dropouts']['Full']['cv_weights'][:,:,0].copy()
+            W = np.random.randn(np.shape(W)[0], np.shape(W)[1])
+            if norm_preserve:
+                orig_norm = np.linalg.norm(W,axis=0)
+            idx = np.random.permutation(np.arange(np.shape(W)[0]-1)+1)[zero_dex:]
+            W[idx,:] = 0
+            if norm_preserve:
+                new_norm = np.linalg.norm(W,axis=0)
+                ratio_norm = orig_norm/new_norm
+                W = W @ np.diag(ratio_norm)
+
+            Y_boot.values = X.values @ W
+            W_boot = fit_regularized(Y_boot[train_split,:], X[train_split,:],regularization)     
+
+            W_orig = copy(W_boot)
+            W_orig.values = W
+            cv_var_train[:,split_index,index]     = variance_ratio(Y_boot[train_split,:], W_boot, X[train_split,:]) 
+            cv_var_test[:,split_index,index]      = variance_ratio(Y_boot[test_split,:],  W_boot, X[test_split,:])
+            cv_var_def[:,split_index,index]       = variance_ratio(Y_boot[test_split,:],  W_orig, X[test_split,:])
+            cv_weight_shift[:,split_index,index]  = np.mean(np.abs(W_boot.values - W_orig.values))
 
     # Pack up 
-    W_orig = copy(W_boot)
-    W_orig.values = W
+    keyword = 'bootstrap'
+    if not norm_preserve:
+        keyword = keyword+"_no_norm"
     fit['bootstrap']={}
     fit['bootstrap']['W_boot'] = W_boot
     fit['bootstrap']['W_orig'] = W_orig
-    fit['bootstrap']['var_explained_test'] = variance_ratio(Y_boot[test_split,:], W_boot,X[test_split,:])
-    fit['bootstrap']['var_explained_train'] = variance_ratio(Y_boot[train_split,:], W_boot,X[train_split,:])
-    fit['bootstrap']['var_explained_def'] = variance_ratio(Y_boot[test_split,:], W_orig,X[test_split,:])
-    fit['bootstrap']['mean_weight_shift'] = np.mean(np.abs(W_boot.values - W_orig.values))
+    fit['bootstrap']['var_explained_train'] = cv_var_train.mean(axis=1) 
+    fit['bootstrap']['var_explained_test']  = cv_var_test.mean(axis=1)  
+    fit['bootstrap']['var_explained_def']   = cv_var_def.mean(axis=1)      
+    fit['bootstrap']['mean_weight_shift']   = cv_weight_shift.mean(axis=1)
+    fit['bootstrap']['zero_dexes'] = zero_dexes
+        
+    if PLOT:
+        plot_bootstrap(fit, keyword, zero_dexes)
+    
     return fit
+
+def plot_bootstrap(fit, keyword,zero_dexes):
+    plt.figure()
+    plt.plot(zero_dexes, fit['bootstrap']['var_explained_train'].mean(axis=0), 'bo-', label='Train')
+    plt.plot(zero_dexes, fit['bootstrap']['var_explained_test'].mean(axis=0), 'ro-', label='Test')
+    plt.ylabel('Var Explained')
+    plt.xlabel('Number of non-zero values in generative weights')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(keyword+'.png')
 
 def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     '''
@@ -182,7 +222,7 @@ def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     var_shuffle = np.empty((fit['dff_trace_arr'].shape[1], num_shuffles)) 
     dff_shuffle = np.copy(fit['dff_trace_arr'].values)
     max_shuffle = np.shape(dff_shuffle)[0]
-
+    
     for count in tqdm(range(0, num_shuffles), total=num_shuffles, desc='    Shuffling by {}'.format(method)):
         if method == 'time':
             for dex in range(0, np.shape(dff_shuffle)[1]):

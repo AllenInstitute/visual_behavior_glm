@@ -23,6 +23,16 @@ from visual_behavior.encoder_processing.running_data_smoothing import process_en
 import visual_behavior_glm.src.GLM_analysis_tools as gat
 #from visual_behavior_glm.src.GLM_params import make_run_json # Can remove
 
+def load_fit_experiment(ophys_experiment_id, run_params):
+    '''
+        Loads the session data, the fit dictionary and the design matrix for this oeid/run_params
+    '''
+    fit = gat.load_fit_pkl(run_params, ophys_experiment_id)
+    session = load_data(ophys_experiment_id)
+    design = DesignMatrix(fit)
+    design = add_kernels(design, run_params, session,fit)
+    return session, fit, design
+
 def check_run_fits(VERSION):
     '''
         Returns the experiment table for this model version with a column 'GLM_fit' 
@@ -36,7 +46,6 @@ def check_run_fits(VERSION):
         filename = run_params['experiment_output_dir']+str(oeid)+".pkl" 
         experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filename) 
     return experiment_table
-
 
 def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     '''

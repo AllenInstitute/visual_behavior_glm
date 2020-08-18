@@ -23,9 +23,15 @@ if False:
 
     # To run just one session:
     run_params = glm_params.load_run_json('4_L2_optimize_by_cell')
-    fit = gat.load_fit_pkl(run_params, oeid)
     oeid = run_params['ophys_experiment_ids'][-1]
+
+    # Load existing results
+    session, fit, design = gft.load_fit_experiment(oeid, run_params)
+
+    # Fit results
     session, fit, design = gft.fit_experiment(oeid, run_params)
+
+    # Analyze drop results
     drop_results = gft.build_dataframe_from_dropouts(fit)
     L2_results = gft.L2_report(fit)
 

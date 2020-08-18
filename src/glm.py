@@ -21,7 +21,7 @@ class GLM(object):
         version (int): version of code to use
     '''
 
-    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True):
+    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, recompute=False):
         
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
@@ -32,7 +32,19 @@ class GLM(object):
 
         self._import_glm_fit_tools()
 
-        self.fit_model()
+        if use_previous_fit:
+            # Attempts to load existing results
+            try:
+                self.load_fit_model()       
+            except:
+                if recompute:
+                    # Just computes the model, since it crashed on load
+                    self.fit_model()
+                else:
+                    raise Exception('Crash during load_fit_model(), check if file exists') 
+        else:
+            self.fit_model()
+        
         print('done fitting model, collecting results')
         self.collect_results()
         print('done collecting results')
@@ -64,6 +76,13 @@ class GLM(object):
     def fit_model(self):
 
         self.session, self.fit, self.design = self.gft.fit_experiment(
+            self.oeid, self.run_params)
+
+    def load_fit_model(self):
+        '''
+            Loads existing results. Will crash if file doesn't exist
+        '''
+        self.session, self.fit, self.design = self.gft.load_fit_experiment(
             self.oeid, self.run_params)
 
     def collect_results(self):

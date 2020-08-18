@@ -94,6 +94,16 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
 
+    # Start Diagnostic analyses
+    print('Starting diagnostics')
+    print('Bootstrapping synthetic data')
+    fit = bootstrap_model(fit, design, run_params)
+
+    # Perform shuffle analysis
+    print('Evaluating shuffle fits')
+    fit = evaluate_shuffle(fit, design, method='cells')
+    fit = evaluate_shuffle(fit, design, method='time')
+
     # Save Results
     print('Saving results')
     filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pkl')
@@ -114,6 +124,121 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     print('Finished') 
     return session, fit, design
+
+def bootstrap_model(fit, design, run_params, regularization=50, norm_preserve=False, check_every=100, PLOT=False):
+    # Generate synthetic df/f traces using on of the CV splits of Full
+    # Then tries to recover those parameters. Lets us check:
+    # how much can we expect the weights to vary, how much can we expect the VE to vary?
+
+    # TODO
+    # determine best regularization
+    # Zero out random weights
+    zero_dexes = range(100, len(fit['dropouts']['Full']['cv_weights'][:,:,0]),check_every)
+    cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+    cv_var_test     = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+    cv_var_def      = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+    cv_weight_shift = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+
+    # Need to add reduced model, to assess overfitting potential
+    for index, zero_dex in enumerate(zero_dexes):
+
+        # Generate synthetic data
+        X = design.get_X()
+        Y_boot = copy(fit['dff_trace_arr'])
+
+        # Recover weights
+        for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Bootstrapping with {} regressors'.format(zero_dex)):
+            train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
+            test_split = fit['ridge_splits'][split_index]
+
+            W = fit['dropouts']['Full']['cv_weights'][:,:,0].copy()
+            W = np.random.randn(np.shape(W)[0], np.shape(W)[1])
+            if norm_preserve:
+                orig_norm = np.linalg.norm(W,axis=0)
+            idx = np.random.permutation(np.arange(np.shape(W)[0]-1)+1)[zero_dex:]
+            W[idx,:] = 0
+            if norm_preserve:
+                new_norm = np.linalg.norm(W,axis=0)
+                ratio_norm = orig_norm/new_norm
+                W = W @ np.diag(ratio_norm)
+
+            Y_boot.values = X.values @ W
+            W_boot = fit_regularized(Y_boot[train_split,:], X[train_split,:],regularization)     
+
+            W_orig = copy(W_boot)
+            W_orig.values = W
+            cv_var_train[:,split_index,index]     = variance_ratio(Y_boot[train_split,:], W_boot, X[train_split,:]) 
+            cv_var_test[:,split_index,index]      = variance_ratio(Y_boot[test_split,:],  W_boot, X[test_split,:])
+            cv_var_def[:,split_index,index]       = variance_ratio(Y_boot[test_split,:],  W_orig, X[test_split,:])
+            cv_weight_shift[:,split_index,index]  = np.mean(np.abs(W_boot.values - W_orig.values))
+
+    # Pack up 
+    keyword = 'bootstrap'
+    if not norm_preserve:
+        keyword = keyword+"_no_norm"
+    fit['bootstrap']={}
+    fit['bootstrap']['W_boot'] = W_boot
+    fit['bootstrap']['W_orig'] = W_orig
+    fit['bootstrap']['var_explained_train'] = cv_var_train.mean(axis=1) 
+    fit['bootstrap']['var_explained_test']  = cv_var_test.mean(axis=1)  
+    fit['bootstrap']['var_explained_def']   = cv_var_def.mean(axis=1)      
+    fit['bootstrap']['mean_weight_shift']   = cv_weight_shift.mean(axis=1)
+    fit['bootstrap']['zero_dexes'] = zero_dexes
+        
+    if PLOT:
+        plot_bootstrap(fit, keyword, zero_dexes)
+    
+    return fit
+
+def plot_bootstrap(fit, keyword,zero_dexes):
+    plt.figure()
+    plt.plot(zero_dexes, fit['bootstrap']['var_explained_train'].mean(axis=0), 'bo-', label='Train')
+    plt.plot(zero_dexes, fit['bootstrap']['var_explained_test'].mean(axis=0), 'ro-', label='Test')
+    plt.ylabel('Var Explained')
+    plt.xlabel('Number of non-zero values in generative weights')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(keyword+'.png')
+
+def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
+    '''
+        Evaluates the model on shuffled df/f data to determine a noise floor for the model
+    
+        Inputs:
+        fit, the fit dictionary
+        design, the design matrix
+        method, either 'cells' or 'time'
+            cells, shuffle cell labels, but preserves time. 
+            time, circularly permutes each cell's df/f trace
+        num_shuffles, how many times to shuffle.
+    
+        returns:
+        fit, with the added keys:
+            var_shuffle_<method>    a cells x num_shuffles arrays of shuffled variance explained
+            var_shuffle_<method>_threshold  the threshold for a 5% false positive rate
+    '''
+    W = fit['dropouts']['Full']['train_weights']
+    X = design.get_X()
+    var_shuffle = np.empty((fit['dff_trace_arr'].shape[1], num_shuffles)) 
+    dff_shuffle = np.copy(fit['dff_trace_arr'].values)
+    max_shuffle = np.shape(dff_shuffle)[0]
+    
+    for count in tqdm(range(0, num_shuffles), total=num_shuffles, desc='    Shuffling by {}'.format(method)):
+        if method == 'time':
+            for dex in range(0, np.shape(dff_shuffle)[1]):
+                shuffle_count = np.random.randint(1, max_shuffle)
+                dff_shuffle[:,dex] = np.roll(dff_shuffle[:,dex], shuffle_count, axis=0) 
+        elif method == 'cells':
+            idx = np.random.permutation(np.shape(dff_shuffle)[1])
+            while np.any(idx == np.array(range(0, np.shape(dff_shuffle)[1]))):
+                idx = np.random.permutation(np.shape(dff_shuffle)[1])
+            dff_shuffle = np.copy(fit['dff_trace_arr'].values)[:,idx]
+        var_shuffle[:,count]  = variance_ratio(dff_shuffle, W, X)
+    fit['var_shuffle_'+method] = var_shuffle
+    x = np.sort(var_shuffle.flatten())
+    dex = np.floor(len(x)*0.95).astype(int)
+    fit['var_shuffle_'+method+'_threshold'] = x[dex]
+    return fit
 
 def evaluate_ridge(fit, design,run_params):
     '''
@@ -417,7 +542,7 @@ def process_data(session,TESTING=False):
         * a 5-10 minute movie following the second gray screen period
     
     input -- session object 
-    TESTING,        if True, only includes the first 5 cells of the experiment
+    TESTING,        if True, only includes the first 6 cells of the experiment
 
     returns -- an xarray of of deltaF/F traces with dimensions [timestamps, cell_specimen_ids]
     '''
@@ -434,9 +559,9 @@ def process_data(session,TESTING=False):
     assert np.sum(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
     assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
 
-    # Clip the array to just the first 5 cells
+    # Clip the array to just the first 6 cells
     if TESTING:
-        dff_trace_arr = dff_trace_arr[:,0:5]
+        dff_trace_arr = dff_trace_arr[:,0:6]
 
     return dff_trace_arr
 
@@ -955,16 +1080,28 @@ def fit_cell_regularized(X_cov,dff_trace_arr, X, lam):
             )
     return W_xarray
 
-def variance_ratio(dff_trace_arr, W, X): # TODO Double check this function
+def variance_ratio(dff_trace_arr, W, X): 
     '''
+    Computes the fraction of variance in dff_trace_arr explained by the linear model Y = X*W
+    
     dff_trace_arr: (n_timepoints, n_cells)
     W: Xarray (n_kernel_params, n_cells)
     X: Xarray (n_timepoints, n_kernel_params)
     '''
     Y = X.values @ W.values
-    var_total = np.var(dff_trace_arr, axis=0) #Total variance in the dff trace for each cell
-    var_resid = np.var(dff_trace_arr-Y, axis=0) #Residual variance
-    return (var_total - var_resid) / var_total
+    var_total = np.var(dff_trace_arr, axis=0)   # Total variance in the dff trace for each cell
+    var_resid = np.var(dff_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
+    return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
 
-
+def error_by_time(fit, design):
+    '''
+        Plots the model error over the course of the session
+    '''
+    plt.figure()
+    Y = design.get_X().values @ fit['dropouts']['Full']['cv_var_weights'][:,:,0]
+    diff = fit['dff_trace_arr'] - Y
+    plt.figure()
+    plt.plot(np.abs(diff.mean(axis=1)), 'k-')
+    plt.ylabel('Model Error (df/f)')
+    
 

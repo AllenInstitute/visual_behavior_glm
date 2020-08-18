@@ -1079,16 +1079,18 @@ def fit_cell_regularized(X_cov,dff_trace_arr, X, lam):
             )
     return W_xarray
 
-def variance_ratio(dff_trace_arr, W, X): # TODO Double check this function
+def variance_ratio(dff_trace_arr, W, X): 
     '''
+    Computes the fraction of variance in dff_trace_arr explained by the linear model Y = X*W
+    
     dff_trace_arr: (n_timepoints, n_cells)
     W: Xarray (n_kernel_params, n_cells)
     X: Xarray (n_timepoints, n_kernel_params)
     '''
     Y = X.values @ W.values
-    var_total = np.var(dff_trace_arr, axis=0) #Total variance in the dff trace for each cell
-    var_resid = np.var(dff_trace_arr-Y, axis=0) #Residual variance
-    return (var_total - var_resid) / var_total
+    var_total = np.var(dff_trace_arr, axis=0)   # Total variance in the dff trace for each cell
+    var_resid = np.var(dff_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
+    return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
 
 
 

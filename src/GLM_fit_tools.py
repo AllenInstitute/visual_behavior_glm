@@ -1,29 +1,27 @@
 import os
-import pwd
-import json
-import shutil
+#import pwd # Can remove
+#import json # Can remove
+#import shutil # Can remove
 import pickle
 import xarray as xr
 import numpy as np
 import pandas as pd
 import scipy 
-import datetime
+#import datetime # Can remove
 from tqdm import tqdm
 from copy import copy
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 
-from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
-from visual_behavior.translator.allensdk_sessions import sdk_utils
-from visual_behavior.translator.allensdk_sessions import session_attributes
-from visual_behavior.ophys.response_analysis import response_processing as rp
+#from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache # Can remove
+#from visual_behavior.translator.allensdk_sessions import sdk_utils # Can remove
+#from visual_behavior.translator.allensdk_sessions import session_attributes # Can remove
+#from visual_behavior.ophys.response_analysis import response_processing as rp # Can remove
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 import visual_behavior.data_access.loading as loading
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
 import visual_behavior_glm.src.GLM_analysis_tools as gat
-from visual_behavior_glm.src.GLM_params import make_run_json
-
-
+#from visual_behavior_glm.src.GLM_params import make_run_json # Can remove
 
 def check_run_fits(VERSION):
     '''

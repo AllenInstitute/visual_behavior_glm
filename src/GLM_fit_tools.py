@@ -26,6 +26,17 @@ import visual_behavior_glm.src.GLM_analysis_tools as gat
 def load_fit_experiment(ophys_experiment_id, run_params):
     '''
         Loads the session data, the fit dictionary and the design matrix for this oeid/run_params
+    
+        Will raise a FileNotFound Exception if the fit did not happen    
+    
+        INPUTS:
+        ophys_experiment_id,    oeid for this experiment
+        run_params,             dictionary of parameters for the fit version
+        
+        RETURNS:
+        session     SDK session object
+        fit         fit dictionary with model results
+        design      DesignMatrix object for this experiment
     '''
     fit = gat.load_fit_pkl(run_params, ophys_experiment_id)
     session = load_data(ophys_experiment_id)
@@ -38,6 +49,12 @@ def check_run_fits(VERSION):
         Returns the experiment table for this model version with a column 'GLM_fit' 
         appended that is a bool of whether the output pkl file exists for that 
         experiment. It does not try to load the file, or determine if the fit is good.
+    
+        INPUTS:
+        VERSION,    a string of which model version to check
+        
+        RETURNS
+        experiment_table,   a dataframe with a boolean column 'GLM_fit' that says whether VERSION was fit for that experiment id
     '''
     run_params = load_run_json(VERSION)
     experiment_table = pd.read_csv(run_params['experiment_table_path']).reset_index(drop=True).set_index('ophys_experiment_id')
@@ -55,14 +72,23 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
         oeid            experiment to fit
         run_params      dictionary of parameters for this fit
         NO_DROPOUTS     if True, does not perform dropout analysis
-        TESTING         if True, fits only the first 5 cells in the experiment
+        TESTING         if True, fits only the first 6 cells in the experiment
     
         Returns:
         session         the VBA session object for this experiment
         fit             a dictionary containing the results of the fit
         design          the design matrix for this fit
     '''
+    
+    # Log oeid
     print("Fitting ophys_experiment_id: "+str(oeid)) 
+
+    # Warn user if debugging tools are active
+    if NO_DROPOUTS:
+        print('WARNING! NO_DROPOUTS=True in fit_experiment(), dropout analysis will NOT run')
+
+    if TESTING:
+        print('WARNING! TESTING=True in fit_experiment(), will only fit the first 6 cells of this experiment')
 
     # Load Data
     print('Loading data')
@@ -95,6 +121,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Setting up model selection dropout')
     fit['dropouts'] = copy(run_params['dropouts'])
     if NO_DROPOUTS:
+        # Cancel dropouts if we are in debugging mode
         fit['dropouts'] = {'Full':copy(fit['dropouts']['Full'])}
 
     # Iterate over model selections
@@ -106,12 +133,12 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Bootstrapping synthetic data')
     fit = bootstrap_model(fit, design, run_params)
 
-    # Perform shuffle analysis
+    # Perform shuffle analysis, with two shuffle methods
     print('Evaluating shuffle fits')
     fit = evaluate_shuffle(fit, design, method='cells')
     fit = evaluate_shuffle(fit, design, method='time')
 
-    # Save Results
+    # Save fit dictionary 
     print('Saving results')
     filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pkl')
     file_temp = open(filepath, 'wb')
@@ -129,6 +156,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     filepath = os.path.join(run_params['experiment_output_dir'],'event_times_'+str(oeid)+'.h5')
     pd.DataFrame(design.events).to_hdf(filepath,key='df')
 
+    # Pack up
     print('Finished') 
     return session, fit, design
 

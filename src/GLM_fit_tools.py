@@ -502,9 +502,8 @@ def compute_adjusted_dropouts(fit,design, run_params):
         
         # Adjust dropout scores:
         adjust = 1/fit['dropouts'][dropout]['support']
-        fit['dropouts'][dropout]['cv_var_train_adjusted'] = fit['dropouts'][dropout]['cv_var_train']*adjust
-        fit['dropouts'][dropout]['cv_var_test_adjusted'] =  fit['dropouts'][dropout]['cv_var_test']*adjust
-
+        fit['dropouts'][dropout]['non_adjusted'] =  np.mean(fit['dropouts']['Full']['cv_var_test'] - fit['dropouts'][dropout]['cv_var_test'])
+        fit['dropouts'][dropout]['adjusted'] =  np.mean(fit['dropouts']['Full']['cv_var_test'] - fit['dropouts'][dropout]['cv_var_test'])*adjust
     return fit
 
 def build_dataframe_from_dropouts(fit):

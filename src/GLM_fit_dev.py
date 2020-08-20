@@ -35,6 +35,27 @@ if False:
     drop_results = gft.build_dataframe_from_dropouts(fit)
     L2_results = gft.L2_report(fit)
 
+def check_adjustments(fit):
+    plt.figure()
+    labels = []
+    count = 0
+    plt.gca().axhline(0, color='k',linestyle='--', alpha=.1)
+    for dropout in fit['dropouts']:
+        if np.mod(count,2) == 0:
+            plt.gca().axvspan(count-.5, count+.5, color='k',alpha=.1)
+        if count == 0:
+            plt.plot(count, fit['dropouts'][dropout]['non_adjusted'].mean(),'ko',label='Original')
+            plt.plot(count, fit['dropouts'][dropout]['adjusted'].mean(),'bo',label='Adjusted')
+        else:
+            plt.plot(count, fit['dropouts'][dropout]['non_adjusted'].mean(),'ko')
+            plt.plot(count, fit['dropouts'][dropout]['adjusted'].mean(),'bo')
+        labels.append(dropout)
+        count +=1
+    plt.xticks(np.arange(0,count), labels,rotation=60, ha='right')
+    plt.ylabel('Change in CV Variance Explained')
+    #plt.ylim(0,1)
+    plt.legend()
+    plt.tight_layout()
 
 def demonstration():
     # Make demonstration of design kernel, and model structure

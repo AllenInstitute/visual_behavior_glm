@@ -127,6 +127,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     # Iterate over model selections
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
+    fit = compute_adjusted_dropouts(fit,design, run_params)
 
     # Start Diagnostic analyses
     print('Starting diagnostics')
@@ -436,6 +437,8 @@ def evaluate_models_same_ridge(fit, design, run_params):
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
 
+
+        # Fit on full dataset for references as training fit
         dff = fit['dff_trace_arr']
         Wall = fit_regularized(dff, X,fit['avg_regularization'])     
         var_explain = variance_ratio(dff, Wall,X)
@@ -464,6 +467,45 @@ def evaluate_models_same_ridge(fit, design, run_params):
         fit['dropouts'][model_label]['cv_var_test'] = cv_var_test
 
     return fit 
+
+def compute_adjusted_dropouts(fit,design, run_params):
+    '''
+        Computes an adjustment coefficient, and then adjusts all dropout scores to reflect
+        that some kernels do not have support over the full session, and thus we cannot
+        expect them to explain all the variance. 
+        
+        Two limitations of this approach.
+        1. This is basically assuming that the variance is evenly spread out throughout the session. We can imagine a situation where the cell is extra variable during changes, for instance, and this would give us a misleading picture
+        2. As we make each kernel longer we are going to increase the support, and thus decrease the adjustment coefficient.
+    
+        Pro of this approach, its super easy.  
+    '''
+ 
+    for dropout in fit['dropouts']:
+        # for each dropout that is not "Full"
+        if not (dropout  == 'Full'):
+        
+            # Get the kernels that were REMOVED during this dropout
+            unique_k = list(set(fit['dropouts']['Full']['kernels']) - set(fit['dropouts'][dropout]['kernels']))
+            unique_X = design.get_X(kernels=unique_k).values
+             
+            # Compute the number of timesteps in which none of the kernels were non-zero
+            non_zero = np.sum(np.any(~(unique_X==0), axis=1))
+    
+            # Divide by length of timeseries to give us fraction of session
+            # where these kernels had non-zero support
+            non_zero_fraction = non_zero/np.shape(unique_X)[0]
+            fit['dropouts'][dropout]['support'] = non_zero_fraction
+        else:
+            # Full is defined as one
+            fit['dropouts'][dropout]['support'] = 1
+        
+        # Adjust dropout scores:
+        adjust = 1/fit['dropouts'][dropout]['support']
+        fit['dropouts'][dropout]['cv_var_train_adjusted'] = fit['dropouts'][dropout]['cv_var_train']*adjust
+        fit['dropouts'][dropout]['cv_var_test_adjusted'] =  fit['dropouts'][dropout]['cv_var_test']*adjust
+
+    return fit
 
 def build_dataframe_from_dropouts(fit):
     '''

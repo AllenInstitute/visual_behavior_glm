@@ -117,6 +117,42 @@ def generate_results_summary(glm):
     return pd.concat(results_summary_list)
 
 
+def identify_dominant_dropouts(data, cluster_column_name, cols_to_search):
+    '''
+    for each cluster ID, identifies the dominant dropout value amongst the `cols_to_search`
+    adds columns for 'dominant_dropout' and 'dominant_dropout_median'
+    operates in place
+    inputs:
+        data - (pandas dataframe) dataframe to operate on
+        cluster_column_name - (string) name of column containing cluster IDs
+        cols_to_search - (list) list of columns to search over for dominant column. Should be same set of columns used for clustering
+    returns:
+        None (operates in place)
+    
+    '''
+    for cluster_id in data[cluster_column_name].unique():
+        data_subset = data.query("{} == {}".format(cluster_column_name, cluster_id))
+
+        data_subset_medians = data_subset[cols_to_search].median(axis=0)
+        data.loc[data_subset.index, 'dominant_dropout'] = data_subset_medians.idxmin()
+        data.loc[data_subset.index, 'dominant_dropout_median'] = data_subset_medians.min()
+
+
+def sort_data(df_in, sort_order, cluster_column_name):
+    '''
+    sort dataframe by `sort_order`
+    identifies rows where the cluster_id shifts
+    '''
+    sorted_data = (df_in
+            .sort_values(by=sort_order)
+            .reset_index(drop=True)
+        )
+
+    # identify cluster transitions
+    sorted_data['cluster_transition'] = sorted_data[cluster_column_name] != sorted_data[cluster_column_name].shift()
+    return sorted_data
+
+
 def already_fit(oeid, version):
     '''
     check the weight_matrix_lookup_table to see if an oeid/glm_version combination has already been fit
@@ -254,7 +290,6 @@ def log_weights_matrix_to_mongo(glm):
     conn.close()
     
 
-
 def retrieve_results(search_dict={}, results_type='full'):
     '''
     gets cached results from mongodb
@@ -279,6 +314,49 @@ def retrieve_results(search_dict={}, results_type='full'):
     results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
     return results
+    
+
+def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None):
+    '''
+    pivots the results_summary dataframe to give a dataframe with dropout scores as unique columns
+    inputs:
+        results_summary: dataframe of results_summary. If none, will be pulled from mongo
+        glm_version: glm_version to pull from database (only if results_summary is None)
+        cutoff: cutoff for CV score on full model. Cells with CV score less than this value will be excluded from the output dataframe
+        value_to_use: which column to use as the value in the pivot table (e.g. 'fraction_change_from_full')
+    output:
+        wide form results summary
+    '''
+    
+    # some aassertions to make sure the right combination of stuff is input
+    assert results_summary is not None or glm_version is not None, 'must pass either a results_summary or a glm_version'
+    assert not (results_summary is not None and glm_version is not None), 'cannot pass both a results summary and a glm_version'
+    if results_summary is not None:
+        assert len(results_summary['glm_version'].unique()) == 1, 'number of glm_versions in the results summary caannot exceed 1'
+        
+    # get results summary if none was passed
+    if results_summary is None:
+        results_summary = gat.retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary')
+        
+    results_summary['identifier'] = results_summary['ophys_experiment_id'].astype(str) + '_' +  results_summary['cell_specimen_id'].astype(str)
+    
+    # apply cutoff. Set to -inf if not specified
+    if cutoff is None:
+        cutoff = -np.inf
+    cells_to_keep = list(results_summary.query('dropout == "Full" and variance_explained >= @cutoff')['identifier'].unique())
+    
+    # pivot the results summary so that dropout scores become columns
+    results_summary_pivoted = results_summary.query('identifier in @cells_to_keep').pivot(index='identifier',columns='dropout',values=value_to_use).reset_index()
+    
+    # merge in other identifying columns, leaving out those that will not have more than one unique value per cell
+    results_summary_pivoted = results_summary_pivoted.merge(
+        results_summary.drop(columns=['_id', 'index', 'dropout', 'variance_explained', 'fraction_change_from_full', 'absolute_change_from_full','entry_time_utc']).drop_duplicates(),
+        left_on='identifier',
+        right_on='identifier',
+        how='left'
+    )
+    
+    return results_summary_pivoted
 
 
 def summarize_variance_explained(results=None):

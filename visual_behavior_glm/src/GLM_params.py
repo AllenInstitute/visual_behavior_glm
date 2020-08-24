@@ -253,7 +253,17 @@ def define_dropouts(kernels,kernel_definitions):
         dropouts['beh_model']['kernels'].remove('model_task0')
         dropouts['beh_model']['kernels'].remove('model_timing1D')
         dropouts['beh_model']['kernels'].remove('model_omissions1')
-
+    
+    # Adds single kernel dropouts:
+    for drop in [drop for drop in dropouts.keys()]:
+        if drop is not 'Full':
+            # Make a list of kernels by taking the difference between the kernels in 
+            # the full model, and those in the dropout specified by this kernel.
+            # This formulation lets us do single kernel dropouts for things like beh_model,
+            # or all-images
+            kernels = set(dropouts['Full']['kernels'])-set(dropouts[drop]['kernels'])
+            kernels.add('intercept') # We always include the intercept
+            dropouts['single-'+drop] = {'kernels':list(kernels)} 
     return dropouts
     
 

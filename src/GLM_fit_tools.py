@@ -118,7 +118,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     # Iterate over model selections
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
-    fit = compute_adjusted_dropouts(fit,design, run_params)
+    #fit = compute_adjusted_dropouts(fit,design, run_params) # removing this from this PR
 
     # Start Diagnostic analyses
     print('Starting diagnostics')
@@ -471,6 +471,8 @@ def compute_adjusted_dropouts(fit,design, run_params):
     
         Pro of this approach, its super easy.  
     '''
+    raise Exception('Not implemented')
+    # this function is in development, I'm pushing here because I'm re-organizing code. 
  
     for dropout in fit['dropouts']:
         # for each dropout that is not "Full"

@@ -405,7 +405,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
             dff = fit['dff_trace_arr'][:,cell_index]
             Wall = fit_cell_regularized(X_inner,dff, X,fit['cell_regularization'][cell_index])     
             var_explain = variance_ratio(dff, Wall,X)
-            adjvar_explain = variance_ratio(dff, Wall,X) # TODO Adjusted Variance Explained
+            adjvar_explain = masked_variance_ratio(dff, Wall,X, mask) 
             all_weights[:,cell_index] = Wall
             all_var_explain[cell_index] = var_explain
             all_adjvar_explain[cell_index] = adjvar_explain
@@ -429,8 +429,8 @@ def evaluate_models_different_ridge(fit,design,run_params):
                 W = fit_cell_regularized(X_cov,dff_train, X_train, fit['cell_regularization'][cell_index])
                 cv_var_train[cell_index,index] = variance_ratio(dff_train, W, X_train)
                 cv_var_test[cell_index,index] = variance_ratio(dff_test, W, X_test)
-                cv_adjvar_train[:,index]= variance_ratio(dff_train, W, X_train) # TODO Adjusted Variance Explained
-                cv_adjvar_test[:,index] = variance_ratio(dff_test, W, X_test) # TODO Adjusted Variance Explained
+                cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask) 
+                cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask) 
                 cv_weights[:,cell_index,index] = W 
 
         all_weights_xarray = xr.DataArray(
@@ -476,11 +476,11 @@ def evaluate_models_same_ridge(fit, design, run_params):
         dff = fit['dff_trace_arr']
         Wall = fit_regularized(dff, X,fit['avg_regularization'])     
         var_explain = variance_ratio(dff, Wall,X)
-        adjvar_explain = variance_ratio(dff, Wall,X) # TODO Adjusted Variance Explained
+        adjvar_explain = masked_variance_ratio(dff, Wall,X, mask) 
         fit['dropouts'][model_label]['train_weights'] = Wall
-        fit['dropouts'][model_label]['train_variance_explained']=var_explain
-        fit['dropouts'][model_label]['train_adjvariance_explained']=adjvar_explain
-        fit['dropouts'][model_label]['full_model_train_prediction'] =  X.values @ Wall.values
+        fit['dropouts'][model_label]['train_variance_explained']    = var_explain
+        fit['dropouts'][model_label]['train_adjvariance_explained'] = adjvar_explain
+        fit['dropouts'][model_label]['full_model_train_prediction'] = X.values @ Wall.values
 
         # Iterate CV
         cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
@@ -498,8 +498,8 @@ def evaluate_models_same_ridge(fit, design, run_params):
             W = fit_regularized(dff_train, X_train, fit['avg_regularization'])
             cv_var_train[:,index]   = variance_ratio(dff_train, W, X_train)
             cv_var_test[:,index]    = variance_ratio(dff_test, W, X_test)
-            cv_adjvar_train[:,index]= variance_ratio(dff_train, W, X_train) # TODO Adjusted Variance Explained
-            cv_adjvar_test[:,index] = variance_ratio(dff_test, W, X_test) # TODO Adjusted Variance Explained
+            cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask) 
+            cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask) 
             cv_weights[:,:,index]   = W 
 
         fit['dropouts'][model_label]['cv_weights']      = cv_weights
@@ -1248,6 +1248,22 @@ def variance_ratio(dff_trace_arr, W, X):
     var_total = np.var(dff_trace_arr, axis=0)   # Total variance in the dff trace for each cell
     var_resid = np.var(dff_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
     return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
+
+def masked_variance_ratio(dff_trace_arr, W, X, mask): 
+    '''
+    Computes the fraction of variance in dff_trace_arr explained by the linear model Y = X*W
+    
+    dff_trace_arr: (n_timepoints, n_cells)
+    W: Xarray (n_kernel_params, n_cells)
+    X: Xarray (n_timepoints, n_kernel_params)
+    '''
+    # TODO Adjusted Variance Explained, fix this function
+    Y = X.values @ W.values
+    var_total = np.var(dff_trace_arr, axis=0)   # Total variance in the dff trace for each cell
+    var_resid = np.var(dff_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
+    return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
+
+
 
 def error_by_time(fit, design):
     '''

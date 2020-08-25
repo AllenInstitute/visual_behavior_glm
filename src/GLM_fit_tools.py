@@ -384,6 +384,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
         X_inner = np.dot(X.T, X)
+        mask = get_mask(fit['dropouts'][model_label],design)
 
         # Iterate CV
         cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
@@ -469,6 +470,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
 
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
+        mask = get_mask(fit['dropouts'][model_label],design)
 
         # Fit on full dataset for references as training fit
         dff = fit['dff_trace_arr']
@@ -507,6 +509,31 @@ def evaluate_models_same_ridge(fit, design, run_params):
         fit['dropouts'][model_label]['cv_adjvar_test']  = cv_adjvar_test
 
     return fit 
+
+def get_mask(dropout,design):
+    '''
+        For the dropout dictionary returns the mask of where the kernels have support in the design matrix
+    
+        INPUTS:
+        dropout     a dictionary with keys:
+            'is_single' (bool)
+            'dropped_kernels' (list)
+            'kernels' (list)
+        design      DesignMatrix object
+    
+        RETURNS:
+        mask, a boolean vector for the indicies with support
+
+        if the dropout is_single, then support is defined by the included kernels
+        if the dropout is not is_single, then support is defined by the dropped kernels
+    '''
+    if dropout['is_single']:
+        # Support is defined by the included kernels
+        mask = design.get_mask(kernels=dropout['kernels'])
+    else:
+        # Support is defined by the dropped kernels
+        mask = design.get_mask(kernels=dropout['dropped_kernels'])
+    return mask
 
 def compute_adjusted_dropouts(fit,design, run_params):
     '''
@@ -927,6 +954,12 @@ class DesignMatrix(object):
         numbers = [str(x) for x in np.array(range(0,length+1))+offset]
         return [x[0] + '_'+ x[1] for x in zip(base, numbers)]
 
+    def get_kernels(self, kernels=None):
+        ''' 
+            Returns a vector of support for these kernels
+        '''
+        return None # TODO Adjusted Dropout Variance
+ 
     def get_X(self, kernels=None):
         '''
         Get the design matrix. 

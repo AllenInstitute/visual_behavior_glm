@@ -388,9 +388,12 @@ def evaluate_models_different_ridge(fit,design,run_params):
         # Iterate CV
         cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         cv_var_test     = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        cv_adjvar_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) # Adjusted Variance Explained
+        cv_adjvar_test  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) # Adjusted Variance Explained
         cv_weights      = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         all_weights     = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1]))
         all_var_explain = np.empty((fit['dff_trace_arr'].shape[1]))
+        all_adjvar_explain = np.empty((fit['dff_trace_arr'].shape[1]))
         all_prediction  = np.empty(fit['dff_trace_arr'].shape)
         X_test_array = []   # Cache the intermediate steps for each cell
         X_train_array = []
@@ -401,8 +404,10 @@ def evaluate_models_different_ridge(fit,design,run_params):
             dff = fit['dff_trace_arr'][:,cell_index]
             Wall = fit_cell_regularized(X_inner,dff, X,fit['cell_regularization'][cell_index])     
             var_explain = variance_ratio(dff, Wall,X)
+            adjvar_explain = variance_ratio(dff, Wall,X) # TODO Adjusted Variance Explained
             all_weights[:,cell_index] = Wall
             all_var_explain[cell_index] = var_explain
+            all_adjvar_explain[cell_index] = adjvar_explain
             all_prediction[:,cell_index] = X.values @ Wall.values
 
             for index, test_split in enumerate(fit['splits']):
@@ -423,6 +428,8 @@ def evaluate_models_different_ridge(fit,design,run_params):
                 W = fit_cell_regularized(X_cov,dff_train, X_train, fit['cell_regularization'][cell_index])
                 cv_var_train[cell_index,index] = variance_ratio(dff_train, W, X_train)
                 cv_var_test[cell_index,index] = variance_ratio(dff_test, W, X_test)
+                cv_adjvar_train[:,index]= variance_ratio(dff_train, W, X_train) # TODO Adjusted Variance Explained
+                cv_adjvar_test[:,index] = variance_ratio(dff_test, W, X_test) # TODO Adjusted Variance Explained
                 cv_weights[:,cell_index,index] = W 
 
         all_weights_xarray = xr.DataArray(
@@ -434,12 +441,16 @@ def evaluate_models_different_ridge(fit,design,run_params):
             }
         )
 
-        fit['dropouts'][model_label]['train_weights'] = all_weights_xarray
-        fit['dropouts'][model_label]['train_variance_explained']=all_var_explain
-        fit['dropouts'][model_label]['full_model_train_prediction'] =  all_prediction
-        fit['dropouts'][model_label]['cv_weights'] = cv_weights
-        fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
-        fit['dropouts'][model_label]['cv_var_test'] = cv_var_test
+        fit['dropouts'][model_label]['train_weights']   = all_weights_xarray
+        fit['dropouts'][model_label]['train_variance_explained']    = all_var_explain
+        fit['dropouts'][model_label]['train_adjvariance_explained'] = all_adjvar_explain
+        fit['dropouts'][model_label]['full_model_train_prediction'] = all_prediction
+        fit['dropouts'][model_label]['cv_weights']      = cv_weights
+        fit['dropouts'][model_label]['cv_var_train']    = cv_var_train
+        fit['dropouts'][model_label]['cv_var_test']     = cv_var_test
+        fit['dropouts'][model_label]['cv_adjvar_train'] = cv_adjvar_train
+        fit['dropouts'][model_label]['cv_adjvar_test']  = cv_adjvar_test
+
 
     return fit 
 
@@ -459,18 +470,21 @@ def evaluate_models_same_ridge(fit, design, run_params):
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
 
-
         # Fit on full dataset for references as training fit
         dff = fit['dff_trace_arr']
         Wall = fit_regularized(dff, X,fit['avg_regularization'])     
         var_explain = variance_ratio(dff, Wall,X)
+        adjvar_explain = variance_ratio(dff, Wall,X) # TODO Adjusted Variance Explained
         fit['dropouts'][model_label]['train_weights'] = Wall
         fit['dropouts'][model_label]['train_variance_explained']=var_explain
+        fit['dropouts'][model_label]['train_adjvariance_explained']=adjvar_explain
         fit['dropouts'][model_label]['full_model_train_prediction'] =  X.values @ Wall.values
 
         # Iterate CV
         cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        cv_adjvar_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) # Adjusted Variance Explained
+        cv_adjvar_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  # Adjusted Variance Explained
         cv_weights = np.empty((np.shape(Wall)[0], np.shape(Wall)[1], len(fit['splits'])))
 
         for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
@@ -480,13 +494,17 @@ def evaluate_models_same_ridge(fit, design, run_params):
             dff_train = fit['dff_trace_arr'][train_split,:]
             dff_test = fit['dff_trace_arr'][test_split,:]
             W = fit_regularized(dff_train, X_train, fit['avg_regularization'])
-            cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
-            cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
-            cv_weights[:,:,index] = W 
+            cv_var_train[:,index]   = variance_ratio(dff_train, W, X_train)
+            cv_var_test[:,index]    = variance_ratio(dff_test, W, X_test)
+            cv_adjvar_train[:,index]= variance_ratio(dff_train, W, X_train) # TODO Adjusted Variance Explained
+            cv_adjvar_test[:,index] = variance_ratio(dff_test, W, X_test) # TODO Adjusted Variance Explained
+            cv_weights[:,:,index]   = W 
 
-        fit['dropouts'][model_label]['cv_weights'] = cv_weights
-        fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
-        fit['dropouts'][model_label]['cv_var_test'] = cv_var_test
+        fit['dropouts'][model_label]['cv_weights']      = cv_weights
+        fit['dropouts'][model_label]['cv_var_train']    = cv_var_train
+        fit['dropouts'][model_label]['cv_var_test']     = cv_var_test
+        fit['dropouts'][model_label]['cv_adjvar_train'] = cv_adjvar_train
+        fit['dropouts'][model_label]['cv_adjvar_test']  = cv_adjvar_test
 
     return fit 
 

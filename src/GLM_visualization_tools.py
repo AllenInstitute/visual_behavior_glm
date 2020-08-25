@@ -1,10 +1,7 @@
-#import visual_behavior.utilities as vbu  # Can remove
 import visual_behavior.plotting as vbp
-#import visual_behavior.visualization.utils as vis_utils # Can remove
 import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.src.GLM_analysis_tools as gat
 import matplotlib as mpl
-#import matplotlib.pyplot as plt # redundant below?? Can remove
 import seaborn as sns
 import numpy as np
 import os

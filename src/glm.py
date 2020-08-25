@@ -19,6 +19,9 @@ class GLM(object):
     inputs: 
         ophys_experiment_id (int): ID of experiment to fit
         version (int): version of code to use
+        
+        use_previous_fit (bool): if True, attempts to load existing results instead of fitting the model
+        recompute (bool): if True, if the attempt to load the existing results fails, will fit the model instead of crashing
     '''
 
     def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, recompute=False):
@@ -74,7 +77,9 @@ class GLM(object):
         self.gft = gft
 
     def fit_model(self):
-
+        '''
+        Fits the model
+        '''
         self.session, self.fit, self.design = self.gft.fit_experiment(
             self.oeid, self.run_params)
 

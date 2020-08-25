@@ -30,7 +30,7 @@ def define_kernels():
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1, 'dropout':True},
     }
     ## add face motion energy PCs
-    for PC in range(50):
+    for PC in range(5):
         kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':False}
     return kernels
 
@@ -217,42 +217,52 @@ def define_dropouts(kernels,kernel_definitions):
         If 'each-image' is in the kernel_definitions, then creates a dropout 'each-image' with all 8 images removed
     '''
     # Remove each kernel one-by-one
-    dropouts = {'Full': {'kernels':list(kernels.keys())}}
+    dropouts = {'Full': {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}}
     for kernel in [kernel for kernel in kernels.keys() if kernels[kernel]['dropout']]:
-        dropouts[kernel]={'kernels':list(kernels.keys())}
+        dropouts[kernel]={'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         dropouts[kernel]['kernels'].remove(kernel)
+        dropouts[kernel]['dropped_kernels'].append(kernel)
 
     # Removes all face motion PC kernels as a group
     if 'face_motion_PC_0' in kernel_definitions:
-        dropouts['face_motion_energy'] = {'kernels':list(kernels.keys())}
+        dropouts['face_motion_energy'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         kernels_to_drop = [kernel for kernel in dropouts['face_motion_energy']['kernels'] if kernel.startswith('face_motion')] 
         for kernel in kernels_to_drop:
             dropouts['face_motion_energy']['kernels'].remove(kernel)
+            dropouts['face_motion_energy']['dropped_kernels'].append(kernel)
 
     # Removes all individual image kernels
     if 'each-image' in kernel_definitions:
-        dropouts['all-images'] = {'kernels':list(kernels.keys())}
+        dropouts['all-images'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         for i in range(0,8):
             dropouts['all-images']['kernels'].remove('image'+str(i))
+            dropouts['all-images']['dropped_kernels'].append('image'+str(i))
 
     # Removes all Stimulus Kernels
     if ('each-image' in kernel_definitions) or ('any-image' in kernel_definitions) or ('omissions' in kernel_definitions):
-        dropouts['visual'] = {'kernels':list(kernels.keys())}
+        dropouts['visual'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         if 'each-image' in kernel_definitions:
             for i in range(0,8):
                 dropouts['visual']['kernels'].remove('image'+str(i))
+                dropouts['visual']['dropped_kernels'].append('image'+str(i))
         if 'omissions' in kernel_definitions:
             dropouts['visual']['kernels'].remove('omissions')
+            dropouts['visual']['dropped_kernels'].append('omissions')
         if 'any-image' in kernel_definitions:
             dropouts['visual']['kernels'].remove('any-image')
+            dropouts['visual']['dropped_kernels'].append('any-image')
 
     # Remove all behavior model kernels
     if 'beh_model' in kernel_definitions:
-        dropouts['beh_model'] = {'kernels':list(kernels.keys())}
+        dropouts['beh_model'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         dropouts['beh_model']['kernels'].remove('model_bias')
         dropouts['beh_model']['kernels'].remove('model_task0')
         dropouts['beh_model']['kernels'].remove('model_timing1D')
         dropouts['beh_model']['kernels'].remove('model_omissions1')
+        dropouts['beh_model']['dropped_kernels'].append('model_bias')
+        dropouts['beh_model']['dropped_kernels'].append('model_task0')
+        dropouts['beh_model']['dropped_kernels'].append('model_timing1D')
+        dropouts['beh_model']['dropped_kernels'].append('model_omissions1')
     
     # Adds single kernel dropouts:
     for drop in [drop for drop in dropouts.keys()]:
@@ -263,7 +273,11 @@ def define_dropouts(kernels,kernel_definitions):
             # or all-images
             kernels = set(dropouts['Full']['kernels'])-set(dropouts[drop]['kernels'])
             kernels.add('intercept') # We always include the intercept
-            dropouts['single-'+drop] = {'kernels':list(kernels)} 
+            dropped_kernels = set(dropouts['Full']['kernels']) - kernels
+            dropouts['single-'+drop] = {'kernels':list(kernels),'dropped_kernels':list(dropped_kernels),'is_single':True} 
+    
+    for drop in dropouts.keys():
+        assert len(dropouts[drop]['kernels']) + len(dropouts[drop]['dropped_kernels']) == len(dropouts['Full']['kernels']), 'bad length'
     return dropouts
     
 

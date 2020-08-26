@@ -429,8 +429,8 @@ def evaluate_models_different_ridge(fit,design,run_params):
                 W = fit_cell_regularized(X_cov,dff_train, X_train, fit['cell_regularization'][cell_index])
                 cv_var_train[cell_index,index] = variance_ratio(dff_train, W, X_train)
                 cv_var_test[cell_index,index] = variance_ratio(dff_test, W, X_test)
-                cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask) 
-                cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask) 
+                cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask[train_split]) 
+                cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split]) 
                 cv_weights[:,cell_index,index] = W 
 
         all_weights_xarray = xr.DataArray(
@@ -493,13 +493,15 @@ def evaluate_models_same_ridge(fit, design, run_params):
             train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
             X_test = X[test_split,:]
             X_train = X[train_split,:]
+            mask_test = mask[test_split]
+            mask_train = mask[train_split]
             dff_train = fit['dff_trace_arr'][train_split,:]
             dff_test = fit['dff_trace_arr'][test_split,:]
             W = fit_regularized(dff_train, X_train, fit['avg_regularization'])
             cv_var_train[:,index]   = variance_ratio(dff_train, W, X_train)
             cv_var_test[:,index]    = variance_ratio(dff_test, W, X_test)
-            cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask) 
-            cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask) 
+            cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train) 
+            cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test) 
             cv_weights[:,:,index]   = W 
 
         fit['dropouts'][model_label]['cv_weights']      = cv_weights
@@ -968,7 +970,10 @@ class DesignMatrix(object):
             Returns:
             mask ( a boolean vector), where these kernels have support
         '''
-        X = self.get_X(kernels=kernels)
+        if len(kernels) == 0:
+            X = self.get_X() 
+        else:
+            X = self.get_X(kernels=kernels) 
         mask = np.any(~(X==0), axis=1)
         return mask.values
  

@@ -1,35 +1,51 @@
 import os
-import pwd
-import json
-import shutil
 import pickle
 import xarray as xr
 import numpy as np
 import pandas as pd
 import scipy 
-import datetime
 from tqdm import tqdm
 from copy import copy
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 
-from allensdk.brain_observatory.behavior.behavior_project_cache import BehaviorProjectCache
-from visual_behavior.translator.allensdk_sessions import sdk_utils
-from visual_behavior.translator.allensdk_sessions import session_attributes
-from visual_behavior.ophys.response_analysis import response_processing as rp
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 import visual_behavior.data_access.loading as loading
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
 import visual_behavior_glm.src.GLM_analysis_tools as gat
-from visual_behavior_glm.src.GLM_params import make_run_json
 
-
+def load_fit_experiment(ophys_experiment_id, run_params):
+    '''
+        Loads the session data, the fit dictionary and the design matrix for this oeid/run_params
+    
+        Will raise a FileNotFound Exception if the fit did not happen    
+    
+        INPUTS:
+        ophys_experiment_id,    oeid for this experiment
+        run_params,             dictionary of parameters for the fit version
+        
+        RETURNS:
+        session     SDK session object
+        fit         fit dictionary with model results
+        design      DesignMatrix object for this experiment
+    '''
+    fit = gat.load_fit_pkl(run_params, ophys_experiment_id)
+    session = load_data(ophys_experiment_id)
+    design = DesignMatrix(fit)
+    design = add_kernels(design, run_params, session,fit)
+    return session, fit, design
 
 def check_run_fits(VERSION):
     '''
         Returns the experiment table for this model version with a column 'GLM_fit' 
         appended that is a bool of whether the output pkl file exists for that 
         experiment. It does not try to load the file, or determine if the fit is good.
+    
+        INPUTS:
+        VERSION,    a string of which model version to check
+        
+        RETURNS
+        experiment_table,   a dataframe with a boolean column 'GLM_fit' that says whether VERSION was fit for that experiment id
     '''
     run_params = load_run_json(VERSION)
     experiment_table = pd.read_csv(run_params['experiment_table_path']).reset_index(drop=True).set_index('ophys_experiment_id')
@@ -39,7 +55,6 @@ def check_run_fits(VERSION):
         experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filename) 
     return experiment_table
 
-
 def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     '''
         Fits the GLM to the ophys_experiment_id
@@ -48,14 +63,23 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
         oeid            experiment to fit
         run_params      dictionary of parameters for this fit
         NO_DROPOUTS     if True, does not perform dropout analysis
-        TESTING         if True, fits only the first 5 cells in the experiment
+        TESTING         if True, fits only the first 6 cells in the experiment
     
         Returns:
         session         the VBA session object for this experiment
         fit             a dictionary containing the results of the fit
         design          the design matrix for this fit
     '''
+    
+    # Log oeid
     print("Fitting ophys_experiment_id: "+str(oeid)) 
+
+    # Warn user if debugging tools are active
+    if NO_DROPOUTS:
+        print('WARNING! NO_DROPOUTS=True in fit_experiment(), dropout analysis will NOT run')
+
+    if TESTING:
+        print('WARNING! TESTING=True in fit_experiment(), will only fit the first 6 cells of this experiment')
 
     # Load Data
     print('Loading data')
@@ -88,23 +112,25 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Setting up model selection dropout')
     fit['dropouts'] = copy(run_params['dropouts'])
     if NO_DROPOUTS:
+        # Cancel dropouts if we are in debugging mode
         fit['dropouts'] = {'Full':copy(fit['dropouts']['Full'])}
 
     # Iterate over model selections
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
+    #fit = compute_adjusted_dropouts(fit,design, run_params) # removing this from this PR
 
     # Start Diagnostic analyses
     print('Starting diagnostics')
     print('Bootstrapping synthetic data')
     fit = bootstrap_model(fit, design, run_params)
 
-    # Perform shuffle analysis
+    # Perform shuffle analysis, with two shuffle methods
     print('Evaluating shuffle fits')
     fit = evaluate_shuffle(fit, design, method='cells')
     fit = evaluate_shuffle(fit, design, method='time')
 
-    # Save Results
+    # Save fit dictionary 
     print('Saving results')
     filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pkl')
     file_temp = open(filepath, 'wb')
@@ -122,35 +148,51 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     filepath = os.path.join(run_params['experiment_output_dir'],'event_times_'+str(oeid)+'.h5')
     pd.DataFrame(design.events).to_hdf(filepath,key='df')
 
+    # Pack up
     print('Finished') 
     return session, fit, design
 
 def bootstrap_model(fit, design, run_params, regularization=50, norm_preserve=False, check_every=100, PLOT=False):
-    # Generate synthetic df/f traces using on of the CV splits of Full
-    # Then tries to recover those parameters. Lets us check:
-    # how much can we expect the weights to vary, how much can we expect the VE to vary?
+    '''
+        Generates synthetic df/f traces using normally distributed random parameters. 
+        Then tries to recover those parameters using the CV procedure in fit_experiment()
 
-    # TODO
-    # determine best regularization
-    # Zero out random weights
+        In addition creates a series of synthetic df/f traces where a subset of weights are set to 0 in generating the data, but
+        are still included in the fit recovery. These junk regressors let us evaluate the regularization process. 
+
+        INPUTS:
+        fit             fit dictionary
+        design          design matrix
+        run_params      run_params json
+        regularization  fixed L2 value used for fitting
+        norm_preserve   if true, when zeroing weights preserves the norm of the weight vector (sanity check for weird regularization effects)
+        check_every     Zeros out weights in steps of this many parameters
+        PLOT            if true, makes a summary plot of the bootstrap analysis
+
+        RETURNS:
+        fit             fit dictionary with 'bootstrap' key added which maps to a dictionary of results
+    '''
+    # Set up storage, and how many datasets to make
     zero_dexes = range(100, len(fit['dropouts']['Full']['cv_weights'][:,:,0]),check_every)
     cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
     cv_var_test     = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
     cv_var_def      = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
     cv_weight_shift = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
 
-    # Need to add reduced model, to assess overfitting potential
+    # Iterate over datasets, making synthetic data, and doing recovery
     for index, zero_dex in enumerate(zero_dexes):
 
-        # Generate synthetic data
+        # Set up design matrix and Y variable (will get over-ridden)p
         X = design.get_X()
         Y_boot = copy(fit['dff_trace_arr'])
 
-        # Recover weights
+        # iterate over cross validation
         for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Bootstrapping with {} regressors'.format(zero_dex)):
+            # Set up training/test splits
             train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
             test_split = fit['ridge_splits'][split_index]
 
+            # Make weights 
             W = fit['dropouts']['Full']['cv_weights'][:,:,0].copy()
             W = np.random.randn(np.shape(W)[0], np.shape(W)[1])
             if norm_preserve:
@@ -162,9 +204,11 @@ def bootstrap_model(fit, design, run_params, regularization=50, norm_preserve=Fa
                 ratio_norm = orig_norm/new_norm
                 W = W @ np.diag(ratio_norm)
 
+            # Generate synthetic data, and get best W estimate
             Y_boot.values = X.values @ W
             W_boot = fit_regularized(Y_boot[train_split,:], X[train_split,:],regularization)     
 
+            # Evaluate and save results
             W_orig = copy(W_boot)
             W_orig.values = W
             cv_var_train[:,split_index,index]     = variance_ratio(Y_boot[train_split,:], W_boot, X[train_split,:]) 
@@ -185,12 +229,22 @@ def bootstrap_model(fit, design, run_params, regularization=50, norm_preserve=Fa
     fit['bootstrap']['mean_weight_shift']   = cv_weight_shift.mean(axis=1)
     fit['bootstrap']['zero_dexes'] = zero_dexes
         
+    # If plotting is requested
     if PLOT:
         plot_bootstrap(fit, keyword, zero_dexes)
     
+    # return fit dictionary with added key/value
     return fit
 
 def plot_bootstrap(fit, keyword,zero_dexes):
+    '''
+        Plots the bootstrapping analysis
+        
+        INPUTS:
+        fit         fit dictionary
+        keywowrd    name of file to save figure as <keyword>.png
+        zero_dexes  index of how many weights were zeroed out for each dataset
+    '''
     plt.figure()
     plt.plot(zero_dexes, fit['bootstrap']['var_explained_train'].mean(axis=0), 'bo-', label='Train')
     plt.plot(zero_dexes, fit['bootstrap']['var_explained_test'].mean(axis=0), 'ro-', label='Test')
@@ -217,12 +271,14 @@ def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
             var_shuffle_<method>    a cells x num_shuffles arrays of shuffled variance explained
             var_shuffle_<method>_threshold  the threshold for a 5% false positive rate
     '''
+    # Set up space
     W = fit['dropouts']['Full']['train_weights']
     X = design.get_X()
     var_shuffle = np.empty((fit['dff_trace_arr'].shape[1], num_shuffles)) 
     dff_shuffle = np.copy(fit['dff_trace_arr'].values)
     max_shuffle = np.shape(dff_shuffle)[0]
     
+    # Iterate over shuffles
     for count in tqdm(range(0, num_shuffles), total=num_shuffles, desc='    Shuffling by {}'.format(method)):
         if method == 'time':
             for dex in range(0, np.shape(dff_shuffle)[1]):
@@ -234,6 +290,8 @@ def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
                 idx = np.random.permutation(np.shape(dff_shuffle)[1])
             dff_shuffle = np.copy(fit['dff_trace_arr'].values)[:,idx]
         var_shuffle[:,count]  = variance_ratio(dff_shuffle, W, X)
+
+    # Make summary evaluation of shuffle threshold
     fit['var_shuffle_'+method] = var_shuffle
     x = np.sort(var_shuffle.flatten())
     dex = np.floor(len(x)*0.95).astype(int)
@@ -401,6 +459,8 @@ def evaluate_models_same_ridge(fit, design, run_params):
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
 
+
+        # Fit on full dataset for references as training fit
         dff = fit['dff_trace_arr']
         Wall = fit_regularized(dff, X,fit['avg_regularization'])     
         var_explain = variance_ratio(dff, Wall,X)
@@ -429,6 +489,46 @@ def evaluate_models_same_ridge(fit, design, run_params):
         fit['dropouts'][model_label]['cv_var_test'] = cv_var_test
 
     return fit 
+
+def compute_adjusted_dropouts(fit,design, run_params):
+    '''
+        Computes an adjustment coefficient, and then adjusts all dropout scores to reflect
+        that some kernels do not have support over the full session, and thus we cannot
+        expect them to explain all the variance. 
+        
+        Two limitations of this approach.
+        1. This is basically assuming that the variance is evenly spread out throughout the session. We can imagine a situation where the cell is extra variable during changes, for instance, and this would give us a misleading picture
+        2. As we make each kernel longer we are going to increase the support, and thus decrease the adjustment coefficient.
+    
+        Pro of this approach, its super easy.  
+    '''
+    raise Exception('Not implemented')
+    # this function is in development, I'm pushing here because I'm re-organizing code. 
+ 
+    for dropout in fit['dropouts']:
+        # for each dropout that is not "Full"
+        if not (dropout  == 'Full'):
+        
+            # Get the kernels that were REMOVED during this dropout
+            unique_k = list(set(fit['dropouts']['Full']['kernels']) - set(fit['dropouts'][dropout]['kernels']))
+            unique_X = design.get_X(kernels=unique_k).values
+             
+            # Compute the number of timesteps in which none of the kernels were non-zero
+            non_zero = np.sum(np.any(~(unique_X==0), axis=1))
+    
+            # Divide by length of timeseries to give us fraction of session
+            # where these kernels had non-zero support
+            non_zero_fraction = non_zero/np.shape(unique_X)[0]
+            fit['dropouts'][dropout]['support'] = non_zero_fraction
+        else:
+            # Full is defined as one
+            fit['dropouts'][dropout]['support'] = 1
+        
+        # Adjust dropout scores:
+        adjust = 1/fit['dropouts'][dropout]['support']
+        fit['dropouts'][dropout]['non_adjusted'] =  np.mean(fit['dropouts']['Full']['cv_var_test'] - fit['dropouts'][dropout]['cv_var_test'])
+        fit['dropouts'][dropout]['adjusted'] =  np.mean(fit['dropouts']['Full']['cv_var_test'] - fit['dropouts'][dropout]['cv_var_test'])*adjust
+    return fit
 
 def build_dataframe_from_dropouts(fit):
     '''
@@ -1015,6 +1115,11 @@ def interpolate_to_dff_timestamps(fit,df):
     return interpolated
 
 def get_model_weight(bsid, weight_name, run_params):
+    '''
+        Loads the model weights for <bsid> behavior_ophys_session_id
+        Loads only the <weight_name> weight
+        run_params gives the directory to the fit location
+    '''
     beh_model = pd.read_csv(run_params['beh_model_dir']+str(bsid)+'.csv')
     return beh_model[weight_name].copy()
 

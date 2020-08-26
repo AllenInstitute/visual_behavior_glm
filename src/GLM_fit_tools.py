@@ -1264,18 +1264,24 @@ def variance_ratio(dff_trace_arr, W, X):
 def masked_variance_ratio(dff_trace_arr, W, X, mask): 
     '''
     Computes the fraction of variance in dff_trace_arr explained by the linear model Y = X*W
+    but only looks at the timepoints in mask
     
     dff_trace_arr: (n_timepoints, n_cells)
     W: Xarray (n_kernel_params, n_cells)
     X: Xarray (n_timepoints, n_kernel_params)
+    mask: bool vector (n_timepoints,)
     '''
-    # TODO Adjusted Variance Explained, fix this function
+
     Y = X.values @ W.values
-    var_total = np.var(dff_trace_arr, axis=0)   # Total variance in the dff trace for each cell
-    var_resid = np.var(dff_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
+
+    # Define variance function that lets us isolate the mask timepoints
+    def my_var(dff, support_mask):
+        mu = np.mean(dff,axis=0)
+        return np.mean((dff[support_mask,:]-mu)**2,axis=0)
+
+    var_total = my_var(dff_trace_arr, mask)#Total variance in the dff trace for each cell
+    var_resid = my_var(dff_trace_arr-Y, mask)#Residual variance in the difference between the model and data
     return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
-
-
 
 def error_by_time(fit, design):
     '''

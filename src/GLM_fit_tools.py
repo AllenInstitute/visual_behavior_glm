@@ -131,6 +131,8 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Save fit dictionary 
     print('Saving results')
+    fit['failed_kernels'] = run_params['failed_kernels']
+    fit['failed_dropouts'] = run_params['failed_dropouts']
     filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pkl')
     file_temp = open(filepath, 'wb')
     pickle.dump(fit, file_temp)

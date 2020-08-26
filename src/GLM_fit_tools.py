@@ -512,7 +512,8 @@ def evaluate_models_same_ridge(fit, design, run_params):
 
 def get_mask(dropout,design):
     '''
-        For the dropout dictionary returns the mask of where the kernels have support in the design matrix
+        For the dropout dictionary returns the mask of where the kernels have support in the design matrix.
+        Ignores the support of the intercept regressor
     
         INPUTS:
         dropout     a dictionary with keys:
@@ -529,11 +530,17 @@ def get_mask(dropout,design):
     '''
     if dropout['is_single']:
         # Support is defined by the included kernels
-        mask = design.get_mask(kernels=dropout['kernels'])
+        kernels=dropout['kernels']
     else:
         # Support is defined by the dropped kernels
-        mask = design.get_mask(kernels=dropout['dropped_kernels'])
-    return mask
+        kernels=dropout['dropped_kernels']
+    
+    # Need to remove 'intercept'
+    if 'intercept' in kernels:
+        kernels.remove('intercept')    
+
+    # Get mask from design matrix object 
+    return design.get_mask(kernels=kernels)
 
 def compute_adjusted_dropouts(fit,design, run_params):
     '''
@@ -954,11 +961,16 @@ class DesignMatrix(object):
         numbers = [str(x) for x in np.array(range(0,length+1))+offset]
         return [x[0] + '_'+ x[1] for x in zip(base, numbers)]
 
-    def get_kernels(self, kernels=None):
+    def get_mask(self, kernels=None):
         ''' 
-            Returns a vector of support for these kernels
+            Args:
+            kernels, a list of kernel string names
+            Returns:
+            mask ( a boolean vector), where these kernels have support
         '''
-        return None # TODO Adjusted Dropout Variance
+        X = self.get_X(kernels=kernels)
+        mask = np.any(~(X==0), axis=1)
+        return mask.values
  
     def get_X(self, kernels=None):
         '''

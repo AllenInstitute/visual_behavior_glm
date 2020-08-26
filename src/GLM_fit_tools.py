@@ -434,7 +434,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
                 cv_adjvar_train[cell_index,index]= masked_variance_ratio(dff_train, W, X_train, mask[train_split]) 
                 cv_adjvar_test[cell_index,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split])
                 cv_weights[:,cell_index,index] = W 
-                if model_label is 'Full':
+                if model_label == 'Full':
                     # If this is the Full model, the value is the same
                     cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(dff_train, W, X_train, mask[train_split])  
                     cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split])  
@@ -520,7 +520,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
             cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train) 
             cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test)
             cv_weights[:,:,index]   = W 
-            if model_label is 'Full':
+            if model_label == 'Full':
                 # If this model is Full, then the masked variance ratio is the same
                 cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train)  
                 cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test)  
@@ -730,6 +730,7 @@ def add_kernels(design, run_params,session, fit):
         fit             the fit object for this model
     '''
     run_params['failed_kernels']=set()
+    run_params['failed_dropouts']=set()
     run_params['kernel_error_dict'] = dict()
     for kernel_name in run_params['kernels']:
         if run_params['kernels'][kernel_name]['type'] == 'discrete':
@@ -761,9 +762,27 @@ def clean_failed_kernels(run_params):
         
         # Remove the failed kernel from each dropout list of kernels
         for dropout in run_params['dropouts'].keys(): 
-            # If the failed kernel is in this dropout, remove the kernel from the dropout
+            # If the failed kernel is in this dropout, remove the kernel from the kernel list
             if kernel in run_params['dropouts'][dropout]['kernels']:
                 run_params['dropouts'][dropout]['kernels'].remove(kernel) 
+            # If the failed kernel is in the dropped kernel list, remove from dropped kernel list
+            if kernel in run_params['dropouts'][dropout]['dropped_kernels']:
+                run_params['dropouts'][dropout]['dropped_kernels'].remove(kernel) 
+
+    # Iterate Dropouts, checking for empty dropouts
+    drop_list = list(run_params['dropouts'].keys())
+    for dropout in drop_list:
+        if not (dropout == 'Full'):
+            if len(run_params['dropouts'][dropout]['dropped_kernels']) == 0:
+                run_params['dropouts'].pop(dropout)
+                run_params['failed_dropouts'].add(dropout)
+            elif len(run_params['dropouts'][dropout]['kernels']) == 1:
+                run_params['dropouts'].pop(dropout)
+                run_params['failed_dropouts'].add(dropout)
+
+    if run_params['failed_dropouts']:
+        print('The following dropouts failed to be added to the model: ')
+        print(run_params['failed_dropouts'])
 
 
 def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit):

@@ -8,16 +8,6 @@ import xarray_mongodb
 import visual_behavior.data_access.loading as loading
 import visual_behavior.database as db
 
-# Old Imports from nick's version
-#import xarray # dont need?
-#import json
-#import h5py
-#import matplotlib.pyplot as plt
-#from scipy.stats import sem
-#import xarray as xr
-#from scipy import sparse
-#from tqdm import tqdm
-
 def load_fit_pkl(run_params, ophys_experiment_id):
     '''
         Loads the fit dictionary from the pkl file dumped by fit_experiment
@@ -95,6 +85,9 @@ def build_kernel_df(glm, cell_specimen_id):
 
 
 def generate_results_summary(glm):
+    '''
+        Returns a dataframe with summary information from the glm object
+    '''
     test_cols = [col for col in glm.results.columns if col.endswith('test')]
     results_summary_list = []
     for cell_specimen_id in glm.results.index.values:

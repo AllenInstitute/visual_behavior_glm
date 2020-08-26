@@ -88,6 +88,8 @@ def generate_results_summary(glm):
     '''
         Returns a dataframe with summary information from the glm object
     '''
+    # TODO, make sure we are computing dropouts on CV splits first, then averaging. 
+    # Add steps for checking for edge cases, clip values if needed, etc
     test_cols = [col for col in glm.results.columns if col.endswith('test')]
     results_summary_list = []
     for cell_specimen_id in glm.results.index.values:

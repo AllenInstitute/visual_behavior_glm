@@ -390,6 +390,8 @@ def evaluate_models_different_ridge(fit,design,run_params):
         cv_var_test     = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         cv_adjvar_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) # Adjusted Variance Explained
         cv_adjvar_test  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) # Adjusted Variance Explained
+        cv_adjvar_train_fc = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) # Adjusted Variance Explained
+        cv_adjvar_test_fc= np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  # Adjusted Variance Explained
         cv_weights      = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         all_weights     = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1]))
         all_var_explain = np.empty((fit['dff_trace_arr'].shape[1]))
@@ -429,7 +431,9 @@ def evaluate_models_different_ridge(fit,design,run_params):
                 cv_var_train[cell_index,index] = variance_ratio(dff_train, W, X_train)
                 cv_var_test[cell_index,index] = variance_ratio(dff_test, W, X_test)
                 cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask[train_split]) 
-                cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split]) 
+                cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split])
+                cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train)  # TODO IMPLEMENT
+                cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test) # TODO IMPLEMENT 
                 cv_weights[:,cell_index,index] = W 
 
         all_weights_xarray = xr.DataArray(
@@ -450,7 +454,8 @@ def evaluate_models_different_ridge(fit,design,run_params):
         fit['dropouts'][model_label]['cv_var_test']     = cv_var_test
         fit['dropouts'][model_label]['cv_adjvar_train'] = cv_adjvar_train
         fit['dropouts'][model_label]['cv_adjvar_test']  = cv_adjvar_test
-
+        fit['dropouts'][model_label]['cv_adjvar_train_full_comparison'] = cv_adjvar_train_fc
+        fit['dropouts'][model_label]['cv_adjvar_test_full_comparison']  = cv_adjvar_test_fc
 
     return fit 
 
@@ -486,6 +491,8 @@ def evaluate_models_same_ridge(fit, design, run_params):
         cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         cv_adjvar_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) # Adjusted Variance Explained
         cv_adjvar_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  # Adjusted Variance Explained
+        cv_adjvar_train_fc = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) # Adjusted Variance Explained
+        cv_adjvar_test_fc= np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  # Adjusted Variance Explained
         cv_weights = np.empty((np.shape(Wall)[0], np.shape(Wall)[1], len(fit['splits'])))
 
         for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
@@ -500,7 +507,9 @@ def evaluate_models_same_ridge(fit, design, run_params):
             cv_var_train[:,index]   = variance_ratio(dff_train, W, X_train)
             cv_var_test[:,index]    = variance_ratio(dff_test, W, X_test)
             cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train) 
-            cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test) 
+            cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test)
+            cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train)  # TODO IMPLEMENT
+            cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test) # TODO IMPLEMENT 
             cv_weights[:,:,index]   = W 
 
         fit['dropouts'][model_label]['cv_weights']      = cv_weights
@@ -508,6 +517,8 @@ def evaluate_models_same_ridge(fit, design, run_params):
         fit['dropouts'][model_label]['cv_var_test']     = cv_var_test
         fit['dropouts'][model_label]['cv_adjvar_train'] = cv_adjvar_train
         fit['dropouts'][model_label]['cv_adjvar_test']  = cv_adjvar_test
+        fit['dropouts'][model_label]['cv_adjvar_train_full_comparison'] = cv_adjvar_train_fc
+        fit['dropouts'][model_label]['cv_adjvar_test_full_comparison']  = cv_adjvar_test_fc
 
     return fit 
 
@@ -552,8 +563,8 @@ def build_dataframe_from_dropouts(fit):
     cellids = fit['dff_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
     for model_label in fit['dropouts'].keys():
-        results[model_label+"_avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1)
-        results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1)
+        results[model_label+"_avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) # TODO, fix here!
+        results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) # TODO, fix here!
     return results
 
 def L2_report(fit):

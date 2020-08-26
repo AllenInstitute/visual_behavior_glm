@@ -585,6 +585,8 @@ def build_dataframe_from_dropouts(fit):
     for model_label in fit['dropouts'].keys():
         results[model_label+"_avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) # TODO, fix here!
         results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) # TODO, fix here!
+        results[model_label+"_avg_cv_adjvar_train"] = np.mean(fit['dropouts'][model_label]['cv_adjvar_train'],1) # TODO, fix here!
+        results[model_label+"_avg_cv_adjvar_test"]  = np.mean(fit['dropouts'][model_label]['cv_adjvar_test'],1) # TODO, fix here!
     return results
 
 def L2_report(fit):

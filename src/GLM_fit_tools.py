@@ -578,12 +578,18 @@ def get_mask(dropout,design):
 
 def build_dataframe_from_dropouts(fit,threshold=0.005):
     '''
+        INPUTS:
+        threshold (0.005 default) is the minimum amount of variance explained by the full model. The minimum amount of variance explained by a dropout model        
+
         Returns a dataframe with 
         Index: Cell specimen id
         Columns: Average (across CV folds) variance explained on the test and training sets for each model defined in fit['dropouts']
     '''
+        
     cellids = fit['dff_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
+    
+    # Iterate over models
     for model_label in fit['dropouts'].keys():
         # For each model, average over CV splits for variance explained on train/test
         results[model_label+"_avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) 
@@ -598,31 +604,38 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
         results.loc[results[model_label+"__avg_cv_adjvar_test"] < 0,model_label+"__avg_cv_adjvar_test"] = 0
         results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < 0,model_label+"__avg_cv_adjvar_test_full_comparison"] = 0
         
-        # Compute the dropout scores, which is dependent on whether is was a single-dropout or not
-        if fit['dropouts'][model_label]['is_single']:   
+        # Compute the dropout scores, which is dependent on whether this was a single-dropout or not
+        if fit['dropouts'][model_label]['is_single']:  
+            # Compute the dropout 
             results[model_label+"__adj_dropout"] = -results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]
-            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = -1 
-            results.loc[results[model_label+"__avg_cv_adjvar_test"] < threshold, model_label+"__adj_dropout"] = 0
-            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0 
-            # TODO, the fact that I need this means I might want to adjust thresholds
 
+            # Cleaning Steps, careful eye here! TODO
+            # If the single-dropout explained more variance than the full_comparison, clip dropout to -1
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = -1 
+
+            # If the single-dropout explained less than THRESHOLD variance, clip dropout to 0            
+            results.loc[results[model_label+"__avg_cv_adjvar_test"] < threshold, model_label+"__adj_dropout"] = 0
+    
+            # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0.
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0 
         else:
+            # Compute the dropout
             results[model_label+"__adj_dropout"] = -(1-results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]) 
+   
+            # Cleaning Steps, careful eye here! TODO            
+            # Compute the difference between the dropout and the full model comparison
             results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_adjvar_test"] - results[model_label+"__avg_cv_adjvar_test_full_comparison"]
+        
+            # If the dropout didnt decrease the variance explained by at least THRESHOLD amount, clip dropout to 0
             results.loc[results[model_label+"__absolute_change_from_full"] > -threshold, model_label+"__adj_dropout"] = 0
  
-        # compute the absolute change in variance explained, and clip values that were not significant
-        # TODO, do I need to handle this step differently for single-dropouts vs non-single dropouts? I think I do.
-        # TODO, maybe the criteria to use is that for a single-dropout it has to explain at least 0.5% variance? I think thats it 
-        #results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_adjvar_test"] - results[model_label+"__avg_cv_adjvar_test_full_comparison"]
-        #results.loc[results[model_label+"__absolute_change_from_full"] > -0.005, model_label+"__adj_dropout"] = 0
-
+        # Not removing the code because I want to document things first TODO
         #d = copy(fit['dropouts'][model_label]['cv_adjvar_test'])
         #F = copy(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'])
         #if fit['dropouts'][model_label]['is_single']:
         #    #results[model_label+"__adj_dropout"] = np.mean(-d/F,axis=1) # Average over cross validations before or after computing dropout?
         #    # This way is way more noisy, so averaging first
-        #    # Not removing the code because I want to document things first, and I can probably optimize this code TODO
+        #    
         #    results[model_label+"__adj_dropout"] = -np.mean(d,axis=1)/np.mean(F,axis=1) 
         #else:
         #    #results[model_label+"__adj_dropout"] = np.mean(-(1-d/F),axis=1) # Average over cross validations before or after computing dropout?

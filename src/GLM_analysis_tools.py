@@ -83,14 +83,48 @@ def build_kernel_df(glm, cell_specimen_id):
     # return the concatenated dataframe (concatenating a list of dataframes makes a single dataframe)
     return pd.concat(kernel_df)
 
+def generate_results_summary_adj(glm):
+    '''
+        Returns a dataframe with summary information from the glm object
+    '''
+    # Get list of columns to look at, removing the non-adjusted dropouts, and training scores
+    test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' in col))]
+    
+    # Set up space
+    results_summary_list = []
+
+    # Iterate over cells
+    for cell_specimen_id in glm.results.index.values:
+
+        # For each cell, get the relevant columns
+        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index().rename(columns={cell_specimen_id:'variance_explained','index':'dropout_name'})
+
+        # For each dropout, separate the name of the dropout from the type of information
+        for idx,row in results_summary.iterrows():
+            results_summary.at[idx,'dropout'] = row['dropout_name'].split('__')[0]
+            results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
+
+        # pivot the table on the dropout names
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
+        results_summary.columns = results_summary.columns.droplevel()
+        results_summary = results_summary.rename(columns={'avg_cv_adjvar_test':'var_expl','avg_cv_adjvar_test_full_comparison':'var_expl_full'})
+ 
+        # add the cell id info
+        results_summary['cell_specimen_id'] = cell_specimen_id
+         
+        # pack up
+        results_summary_list.append(results_summary)
+
+    # Concatenate all cells and return
+
+    return pd.concat(results_summary_list)
 
 def generate_results_summary(glm):
     '''
         Returns a dataframe with summary information from the glm object
     '''
-    # TODO, make sure we are computing dropouts on CV splits first, then averaging. 
-    # Add steps for checking for edge cases, clip values if needed, etc
-    test_cols = [col for col in glm.results.columns if col.endswith('test')]
+    # Preserving the old functionality for now, but filtering out the adjusted variance columns
+    test_cols = [col for col in glm.results.columns if (col.endswith('test') & ('adj' not in col))]
     results_summary_list = []
     for cell_specimen_id in glm.results.index.values:
         results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index().rename(columns={cell_specimen_id:'variance_explained','index':'dropout'})

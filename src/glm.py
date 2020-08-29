@@ -96,7 +96,8 @@ class GLM(object):
     def collect_results(self):
         self.results = self.gft.build_dataframe_from_dropouts(self.fit)
         self.dropout_summary = gat.generate_results_summary(self).reset_index()
-    
+        self.adj_dropout_summary = gat.generate_results_summary_adj(self).reset_index()   
+ 
     def get_cells_above_threshold(self, threshold=0.01):
         return self.dropout_summary.query('dropout=="Full" & variance_explained > 0.01')['cell_specimen_id'].unique()
 

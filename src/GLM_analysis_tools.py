@@ -199,6 +199,8 @@ def log_results_to_mongo(glm):
     logs full results and results summary to mongo
     Ensures that there is only one entry per cell/experiment (overwrites if entry already exists)
     '''
+    # TODO, update to include adjusted dropouts
+    # TODO, arent the full_results and results_summary already in the glm object by this point? is it redundant to compute them again?
     full_results = glm.results.reset_index()
     results_summary = generate_results_summary(glm).reset_index()
     experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()

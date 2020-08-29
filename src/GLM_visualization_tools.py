@@ -222,6 +222,15 @@ def plot_kernels(kernel_df,ax,t_span=None):
     )
     # plt.setp(ax.lines,linewidth=4)
 
+def plot_session_summary(glm):
+    plt.figure()
+    plt.plot(glm.dropout_summary.query('dropout=="Full"')['variance_explained'].sort_values().values)
+    plt.axhline(0.00, color='k',alpha=.25)
+    plt.axhline(0.01, color='k',alpha=.25)
+    plt.gca().axhspan(-.1,0.01, color='k',alpha=0.25)
+    plt.ylim(bottom=-.1)
+    plt.ylabel('Full Model CV Variance Explained')
+    plt.xlabel('Cells')
 
 def plot_dropout_summary(results_summary, cell_specimen_id, ax):
     '''

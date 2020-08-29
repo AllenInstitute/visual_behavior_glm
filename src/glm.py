@@ -24,7 +24,7 @@ class GLM(object):
         recompute (bool): if True, if the attempt to load the existing results fails, will fit the model instead of crashing
     '''
 
-    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, recompute=False):
+    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, recompute=False, use_inputs=False, inputs=None):
         
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
@@ -34,8 +34,11 @@ class GLM(object):
         self.current_model = 'Full'
 
         self._import_glm_fit_tools()
-
-        if use_previous_fit:
+        if use_inputs & (inputs is not None):
+            self.session = inputs[0]
+            self.fit = inputs[1]
+            self.design = inputs[2]
+        elif use_previous_fit:
             # Attempts to load existing results
             try:
                 self.load_fit_model()       
@@ -93,6 +96,9 @@ class GLM(object):
     def collect_results(self):
         self.results = self.gft.build_dataframe_from_dropouts(self.fit)
         self.dropout_summary = gat.generate_results_summary(self).reset_index()
+    
+    def get_cells_above_threshold(self, threshold=0.01):
+        return self.dropout_summary.query('dropout=="Full" & variance_explained > 0.01')['cell_specimen_id'].unique()
 
     def plot_dropout_summary(self, cell_specimen_id, ax=None):
         '''

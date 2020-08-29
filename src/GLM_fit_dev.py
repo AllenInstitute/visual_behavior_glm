@@ -34,6 +34,9 @@ if False:
     # Analyze drop results
     drop_results = gft.build_dataframe_from_dropouts(fit)
     L2_results = gft.L2_report(fit)
+    
+    # Make GLM object
+    g = glm.GLM(oeid, VERSION, use_previous_fit=True, log_results=False, log_weights=False)
 
 def check_adjustments(fit):
     plt.figure()

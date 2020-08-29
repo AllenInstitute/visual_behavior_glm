@@ -589,12 +589,15 @@ def build_dataframe_from_dropouts(fit):
         results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
         results[model_label+"_avg_cv_adjvar_train"] = np.mean(fit['dropouts'][model_label]['cv_adjvar_train'],1) 
         results[model_label+"_avg_cv_adjvar_test"]  = np.mean(fit['dropouts'][model_label]['cv_adjvar_test'],1) 
+        
         d = copy(fit['dropouts'][model_label]['cv_adjvar_test'])
         F = copy(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'])
         if fit['dropouts'][model_label]['is_single']:
             results[model_label+"_adj_dropout"] = np.mean(-d/F,axis=1) # Average over cross validations before or after computing dropout? TODO
+            #results[model_label+"_adj_dropout"] = np.mean(-d/F,axis=1) 
         else:
             results[model_label+"_adj_dropout"] = np.mean(-(1-d/F),axis=1) # Average over cross validations before or after computing dropout? TODO
+            #results[model_label+"_adj_dropout"] = np.mean(-(1-d/F),axis=1) 
     return results
 
 def L2_report(fit):

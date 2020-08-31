@@ -596,9 +596,11 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
         results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
         
         # For each model, average over CV splits for adjusted variance explained on train/test, and the full model comparison
-        results[model_label+"__avg_cv_adjvar_train"] = np.mean(fit['dropouts'][model_label]['cv_adjvar_train'],1) 
-        results[model_label+"__avg_cv_adjvar_test"]  = np.mean(fit['dropouts'][model_label]['cv_adjvar_test'],1) 
-        results[model_label+"__avg_cv_adjvar_test_full_comparison"]  = np.mean(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'],1) 
+        # If a CV split did not have an event in a test split, so the kernel has no support, the CV is NAN. Here we use nanmean to
+        # ignore those CV splits without information
+        results[model_label+"__avg_cv_adjvar_train"] = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_train'],1) 
+        results[model_label+"__avg_cv_adjvar_test"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test'],1) 
+        results[model_label+"__avg_cv_adjvar_test_full_comparison"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'],1) 
     
         # Clip the variance explained values to >= 0
         results.loc[results[model_label+"__avg_cv_adjvar_test"] < 0,model_label+"__avg_cv_adjvar_test"] = 0

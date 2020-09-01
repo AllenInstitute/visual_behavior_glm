@@ -110,8 +110,9 @@ class GLM(object):
             self.adj_dropout_summary uses the adjusted dropout and variance explained 
         '''
         self.results = self.gft.build_dataframe_from_dropouts(self.fit)
-        self.dropout_summary = gat.generate_results_summary(self).reset_index()
-        self.adj_dropout_summary = gat.generate_results_summary_adj(self).reset_index()   
+        dropout_summary = gat.generate_results_summary(self)
+        adj_dropout_summary = gat.generate_results_summary_adj(self)
+        self.dropout_summary = pd.merge(dropout_summary, adj_dropout_summary,on=['dropout', 'cell_specimen_id'])   
  
     def get_cells_above_threshold(self, threshold=0.01):
         '''

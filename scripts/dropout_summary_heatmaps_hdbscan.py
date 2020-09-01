@@ -1,6 +1,19 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+
+dosavefig = 1
+
+if dosavefig:
+    import datetime
+#     from def_paths import * 
+
+    dir0 = '/home/farzaneh/OneDrive/Analysis'
+    now = (datetime.datetime.now()).strftime("%Y%m%d_%H%M%S")
+    dir_now = 'umap_cluster'
+    fmt = '.pdf'
+
+
 # In[ ]:
 
 
@@ -29,9 +42,9 @@ import hdbscan # First install the package on the terminal: pip install hdbscan
 
 # In[2]:
 
-
-get_ipython().run_line_magic('matplotlib', 'notebook')
-get_ipython().run_line_magic('widescreen', '')
+get_ipython().magic(u'matplotlib inline')   
+# get_ipython().run_line_magic('matplotlib', 'notebook')
+# get_ipython().run_line_magic('widescreen', '')
 
 
 # # Gather/organize data
@@ -88,7 +101,7 @@ print(np.shape(cols_for_clustering)), cols_for_clustering
 # In[7]:
 
 
-rsp = gat.build_pivoted_results_summary(results_summary=rs, cutoff=0.1, value_to_use='fraction_change_from_full')
+rsp = gat.build_pivoted_results_summary(results_summary=rs, cutoff=0.01, value_to_use='fraction_change_from_full')
 
 
 # In[8]:
@@ -194,6 +207,11 @@ np.unique(rsp['ophys_session_id'].values).shape
 list(rsp.columns) #, rsp.shape
 
 
+#%% take care of column renaming after the merge
+
+rsp = rsp.rename(columns = {'imaging_depth_x': 'imaging_depth'}, inplace = False)
+
+
 # In[20]:
 
 
@@ -238,7 +256,7 @@ rsp.shape, rsp[cols_for_clustering].shape, cols_for_clustering
 # In[101]:
 
 
-n_components = 15 # dimensions of original data: np.shape(cols_for_clustering)[0]
+n_components = 3 # dimensions of original data: np.shape(cols_for_clustering)[0]
 
 mindist = 0.1 # default: .1 
 neigh = neigh_vals[0]
@@ -279,10 +297,6 @@ umap_cols = ['umap_3d_embedding_0','umap_3d_embedding_1','umap_3d_embedding_2']
 rsp['clusterer_labels'] = kmeans.fit_predict(rsp[umap_cols])
 rsp['clusterer_labels'].value_counts()
 
-kmeans = KMeans(n_clusters=20)
-umap_cols = ['umap_3d_embedding_0','umap_3d_embedding_1','umap_3d_embedding_2']
-rsp['clusterer_labels'] = kmeans.fit_predict(rsp[umap_cols])
-rsp['clusterer_labels'].value_counts()
 
 
 # ## hdbscan clustrering
@@ -310,10 +324,10 @@ for min_cluster_size in min_cluster_size_all:
         print([min_cluster_size, min_samples])
         
         ### set cluster_selection_epsilon to .5
-        clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=.5) #(min_cluster_size=9, gen_min_span_tree=True)
+#         clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=.5) #(min_cluster_size=9, gen_min_span_tree=True)
 
         ### don't set cluster_selection_epsilon
-#         clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples)
+        clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples)
         
         clusterer.fit(embedding) # rsp[umap_cols]
         
@@ -334,7 +348,7 @@ for min_cluster_size in min_cluster_size_all:
 # In[80]:
 
 
-rsp = rspall
+# rsp = rspall
 
 
 # In[79]:
@@ -344,20 +358,21 @@ embedding.shape
 
 
 # In[104]:
-
+### pick a set of parameters according to the search above
 
 min_cluster_size = 100 #50 # (default=5)
-min_samples = 10 #min_cluster_size #18 # default: same as min_cluster_size
+min_samples = 100 #10 #min_cluster_size #18 # default: same as min_cluster_size
 
-clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=.5)
-# clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples) #(min_cluster_size=9, gen_min_span_tree=True)
+# clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=.5)
+clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples) #(min_cluster_size=9, gen_min_span_tree=True)
 
 clusterer.fit(embedding) # rsp[umap_cols]
 # clusterer.labels_ # cluster_labels = clusterer.fit_predict(embedding)
 # clusterer.probabilities_
 rsp['clusterer_labels'] = clusterer.labels_
-val_per_clust = rsp['clusterer_labels'].value_counts().values # number of points per cluster
-
+# val_per_clust = rsp['clusterer_labels'].value_counts().values # number of points per cluster # this is sorted by the number of cells per cluster
+# below is sorted by the cluster id (i prefer below) (ie number of cells per cluster, sorted by cluster id, ie from cluster -1 to end)
+val_per_clust = [np.sum(clusterer.labels_ == np.unique(clusterer.labels_)[i]) for i in range(len(np.unique(clusterer.labels_)))] # number of points per cluster
 
 # In[105]:
 
@@ -388,16 +403,23 @@ print(np.sort(val_per_clust))
 
 # In[85]:
 
-
 # plot clusterer probabilities and number of cells in each label.
 
 plt.figure(figsize=(8,3))
 
-plt.subplot(121), plt.plot(np.sort(clusterer.probabilities_))
-plt.subplot(122), plt.plot(val_per_clust)
-print(np.unique(clusterer.probabilities_))
+plt.subplot(121), plt.plot(np.sort(clusterer.probabilities_)), plt.title('clusterer.probabilities_')
+plt.xlabel('cells')
+plt.subplot(122), plt.plot(np.unique(clusterer.labels_), val_per_clust), plt.title('cluster size')
+plt.xlabel('cluster id')
+
+if dosavefig:
+    nam = f'cluster_prob_size_allCre_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
+    fign = os.path.join(dir0, dir_now, nam+fmt)     
+
+    plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
 
 
+    
 # ## visualize in 2d using matplotlib
 
 # In[86]:
@@ -413,11 +435,21 @@ cluster_member_colors = [sns.desaturate(x, p) for x, p in
 plt.figure(figsize=(8,4))
 plt.subplot(121)
 plt.scatter(rsp['umap_3d_embedding_0'], rsp['umap_3d_embedding_1'], s=10, linewidth=0, c=cluster_member_colors, alpha=0.25)
+plt.xlabel('umap_3d_embedding_0'), plt.ylabel('umap_3d_embedding_1')
+plt.title(f'{len(val_per_clust)} clusters')
 
 plt.subplot(122)
 plt.scatter(rsp['umap_3d_embedding_0'], rsp['umap_3d_embedding_2'], s=10, linewidth=0, c=cluster_member_colors, alpha=0.25)
+plt.xlabel('umap_3d_embedding_0'), plt.ylabel('umap_3d_embedding_2')
 
+if dosavefig:
+    nam = f'umapEmbed_clustColored_allCre_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
+    fign = os.path.join(dir0, dir_now, nam+fmt)     
 
+    plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
+
+    
+    
 # In[87]:
 
 
@@ -443,6 +475,14 @@ sns.scatterplot(
     ax=ax[1],
 )
 
+if dosavefig:
+    nam = f'umapEmbed_clustColored_Doug_allCre_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
+    fign = os.path.join(dir0, dir_now, nam+fmt)     
+
+    plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
+
+
+    
 
 # ## visualize in 3d using plotly
 
@@ -474,6 +514,8 @@ fig.update_layout(
 )
 # fig.write_html("/home/dougo/code/dougollerenshaw.github.io/figures_to_share/2020.08.21_k_means_on_umap.html")
 fig.show()
+
+
 
 
 # # A little bit of prep for plotting
@@ -537,6 +579,7 @@ rsp.shape
 np.unique(rsp['dominant_dropout'])
 
 
+#############################################
 # ## define heatmap parameters
 # lots here, but there are lots of options!
 
@@ -553,8 +596,8 @@ cols_to_plot = [
     'dominant_dropout_categorical',
     'session_id_categorical', 
 #    'equipment_name_categorical',
-#    'targeted_structure_categorical',
-#    'imaging_depth',
+    'targeted_structure_categorical',
+    'imaging_depth',
     'task_dropout_index',  
 ]
 
@@ -613,23 +656,23 @@ heatmap_defs = [
 #         'vmax':len(rsp['equipment_name_categorical'].unique())-0.5,
 #         'cmap':sns.color_palette("hls", len(rsp['equipment_name_categorical'].unique())),
 #     },
-#     {
-#         'columns':['targeted_structure_categorical'],
-#         'cbar_label':'targeted structure',
-#         'cbar_ticks':np.arange(len(rsp['targeted_structure_categorical'].unique())),
-#         'cbar_ticklabels':np.sort(np.unique(rsp['targeted_structure'])),
-#         'vmin':-0.5,
-#         'vmax':len(rsp['targeted_structure'].unique())-0.5,
-#         'cmap':sns.color_palette("hls", len(rsp['targeted_structure'].unique())),
-#     },
-#     {
-#         'columns':['imaging_depth'],
-#         'cbar_label':'imaging_depth',
-#         'cbar_ticks':[0,100,200,300,400],
-#         'vmin':0,
-#         'vmax':400,
-#         'cmap':'magma',
-#     },
+    {
+        'columns':['targeted_structure_categorical'],
+        'cbar_label':'targeted structure',
+        'cbar_ticks':np.arange(len(rsp['targeted_structure_categorical'].unique())),
+        'cbar_ticklabels':np.sort(np.unique(rsp['targeted_structure'])),
+        'vmin':-0.5,
+        'vmax':len(rsp['targeted_structure'].unique())-0.5,
+        'cmap':sns.color_palette("hls", len(rsp['targeted_structure'].unique())),
+    },
+    {
+        'columns':['imaging_depth'],
+        'cbar_label':'imaging_depth',
+        'cbar_ticks':[0,100,200,300,400],
+        'vmin':0,
+        'vmax':400,
+        'cmap':'magma',
+    },
     {
         'columns':['task_dropout_index'],
         'cbar_label':'task_dropout_index',
@@ -667,11 +710,17 @@ fig, axes = vbp.make_multi_cmap_heatmap(
 # for idx,row in sorted_data.query('cluster_transition').iterrows():
 #     axes['heatmap'].axhline(idx,color='black')
 
+if dosavefig:
+    nam = f'glmHeatmap_clusters_allCre_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
+    fign = os.path.join(dir0, dir_now, nam+fmt)     
 
-# ## add pie charts for each cluster
-# Doc for pandas pie charts: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.plot.pie.html
-# 
-# Note: It'd probably be better to normalize the values in the pie charts by their total number in in the dataset. For example, since there are far more Slc cells, they dominate every pie chart.
+    plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
+
+
+
+
+#############################################
+WORKING HERE
 
 # In[112]:
 
@@ -885,8 +934,10 @@ for row in range(len(hist_inds)):
         else:
             ax[row, col].set_title('row = {}'.format(row))
             
+            
+            
 
-
+#############################################
 # In[ ]:
 
 

@@ -107,7 +107,7 @@ def generate_results_summary_adj(glm):
         # pivot the table on the dropout names
         results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
         results_summary.columns = results_summary.columns.droplevel()
-        results_summary = results_summary.rename(columns={'avg_cv_adjvar_test':'var_expl','avg_cv_adjvar_test_full_comparison':'var_expl_full'})
+        results_summary = results_summary.rename(columns={'avg_cv_adjvar_test':'adj_variance_explained','avg_cv_adjvar_test_full_comparison':'adj_variance_explained_full','adj_dropout':'adj_fraction_change_from_full'})
  
         # add the cell id info
         results_summary['cell_specimen_id'] = cell_specimen_id

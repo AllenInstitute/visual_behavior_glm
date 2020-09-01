@@ -588,13 +588,14 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
         
     cellids = fit['dff_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
-    
+
     # Iterate over models
     for model_label in fit['dropouts'].keys():
         # For each model, average over CV splits for variance explained on train/test
-        results[model_label+"_avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) 
-        results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
-        
+        results[model_label+"__avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) 
+        results[model_label+"__avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
+        results[model_label+"__avg_cv_var_test_full_comparison"] = np.mean(fit['dropouts']['Full']['cv_var_test'],1)
+
         # For each model, average over CV splits for adjusted variance explained on train/test, and the full model comparison
         # If a CV split did not have an event in a test split, so the kernel has no support, the CV is NAN. Here we use nanmean to
         # ignore those CV splits without information
@@ -603,33 +604,48 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
         results[model_label+"__avg_cv_adjvar_test_full_comparison"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'],1) 
     
         # Clip the variance explained values to >= 0
+        results.loc[results[model_label+"__avg_cv_var_test"] < 0,model_label+"__avg_cv_var_test"] = 0
+        results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < 0,model_label+"__avg_cv_var_test_full_comparison"] = 0
         results.loc[results[model_label+"__avg_cv_adjvar_test"] < 0,model_label+"__avg_cv_adjvar_test"] = 0
         results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < 0,model_label+"__avg_cv_adjvar_test_full_comparison"] = 0
         
+        # Compute the absolute change in variance
+        results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_var_test"] - results[model_label+"__avg_cv_var_test_full_comparison"] 
+ 
         # Compute the dropout scores, which is dependent on whether this was a single-dropout or not
         if fit['dropouts'][model_label]['is_single']:  
-            # Compute the dropout 
+            # Compute the dropout
+            results[model_label+"__dropout"] = -results[model_label+"__avg_cv_var_test"]/results[model_label+"__avg_cv_var_test_full_comparison"]
             results[model_label+"__adj_dropout"] = -results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]
 
             # Cleaning Steps, careful eye here! TODO
             # If the single-dropout explained more variance than the full_comparison, clip dropout to -1
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = -1 
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < results[model_label+"__avg_cv_var_test"], model_label+"__dropout"] = -1
 
             # If the single-dropout explained less than THRESHOLD variance, clip dropout to 0            
             results.loc[results[model_label+"__avg_cv_adjvar_test"] < threshold, model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test"] < threshold, model_label+"__dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test"] < threshold, model_label+"__dropout"] = 0
     
             # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0.
-            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0 
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0 
+            #results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__absolute_change_from_full"] = 0 
         else:
             # Compute the dropout
             results[model_label+"__adj_dropout"] = -(1-results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]) 
+            results[model_label+"__dropout"] = -(1-results[model_label+"__avg_cv_var_test"]/results[model_label+"__avg_cv_var_test_full_comparison"]) 
    
             # Cleaning Steps, careful eye here! TODO            
             # If the dropout explained more variance than the full_comparison, clip the dropout to 0
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < results[model_label+"__avg_cv_var_test"], model_label+"__dropout"] = 0
 
             # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0
+            #results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__absolute_change_from_full"] = 0
 
             # OLD STEPS TO BE REMOVED TODO
             # Removing the requirement that there is a minimum amount of difference between the dropout and the full

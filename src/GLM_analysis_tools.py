@@ -123,6 +123,42 @@ def generate_results_summary(glm):
     '''
         Returns a dataframe with summary information from the glm object
     '''
+    # Get list of columns to look at, removing the non-adjusted dropouts, and training scores
+    test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' not in col)&('session' not in col))]  
+ 
+    # Set up space
+    results_summary_list = []
+
+    # Iterate over cells
+    for cell_specimen_id in glm.results.index.values:
+
+        # For each cell, get the relevant columns
+        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index().rename(columns={cell_specimen_id:'variance_explained','index':'dropout_name'})
+
+        # For each dropout, separate the name of the dropout from the type of information
+        for idx,row in results_summary.iterrows():
+            results_summary.at[idx,'dropout'] = row['dropout_name'].split('__')[0]
+            results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
+
+        # pivot the table on the dropout names
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
+        results_summary.columns = results_summary.columns.droplevel()
+        results_summary = results_summary.rename(columns={'avg_cv_var_test':'variance_explained','avg_cv_var_test_full_comparison':'variance_explained_full','dropout':'fraction_change_from_full'})
+ 
+        # add the cell id info
+        results_summary['cell_specimen_id'] = cell_specimen_id
+         
+        # pack up
+        results_summary_list.append(results_summary)
+
+    # Concatenate all cells and return
+
+    return pd.concat(results_summary_list)
+
+def generate_results_summary_non_cleaned(glm):
+    '''
+        Returns a dataframe with summary information from the glm object
+    '''
     # Preserving the old functionality for now, but filtering out the adjusted variance columns
     test_cols = [col for col in glm.results.columns if (col.endswith('test') & ('adj' not in col))]
     results_summary_list = []

@@ -9,3 +9,6 @@ src/__pycache__
 
 # untitled notebooks
 Untitled*
+
+# pyc files
+*.pyc

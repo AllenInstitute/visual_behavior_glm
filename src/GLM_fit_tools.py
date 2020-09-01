@@ -625,12 +625,21 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
             results[model_label+"__adj_dropout"] = -(1-results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]) 
    
             # Cleaning Steps, careful eye here! TODO            
+            # If the dropout explained more variance than the full_comparison, clip the dropout to 0
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = 0
+
+            # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
+
+            # OLD STEPS TO BE REMOVED TODO
+            # Removing the requirement that there is a minimum amount of difference between the dropout and the full
             # Compute the difference between the dropout and the full model comparison
-            results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_adjvar_test"] - results[model_label+"__avg_cv_adjvar_test_full_comparison"]
+            #results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_adjvar_test"] - results[model_label+"__avg_cv_adjvar_test_full_comparison"]
         
             # If the dropout didnt decrease the variance explained by at least THRESHOLD amount, clip dropout to 0
-            results.loc[results[model_label+"__absolute_change_from_full"] > -threshold, model_label+"__adj_dropout"] = 0
- 
+            #results.loc[results[model_label+"__absolute_change_from_full"] > -threshold, model_label+"__adj_dropout"] = 0
+
+
         # Not removing the code because I want to document things first TODO
         #d = copy(fit['dropouts'][model_label]['cv_adjvar_test'])
         #F = copy(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'])

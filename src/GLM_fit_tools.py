@@ -380,6 +380,9 @@ def evaluate_models_different_ridge(fit,design,run_params):
 
         Each cell uses a different L2 value defined in fit['cell_regularization']
     '''
+    Full_Y_cv_train = [None]*len(fit['splits'])
+    Full_Y_cv_test  = [None]*len(fit['splits'])
+
     for model_label in fit['dropouts'].keys():
 
         # Set up design matrix for this dropout
@@ -393,16 +396,16 @@ def evaluate_models_different_ridge(fit,design,run_params):
         cv_var_test     = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         cv_adjvar_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
         cv_adjvar_test  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
-        cv_adjvar_train_fc = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
-        cv_adjvar_test_fc= np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  
+        cv_adjvar_train_fc  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test_fc   = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  
         cv_weights      = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         all_weights     = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1]))
         all_var_explain = np.empty((fit['dff_trace_arr'].shape[1]))
-        all_adjvar_explain = np.empty((fit['dff_trace_arr'].shape[1]))
+        all_adjvar_explain  = np.empty((fit['dff_trace_arr'].shape[1]))
         all_prediction  = np.empty(fit['dff_trace_arr'].shape)
-        X_test_array = []   # Cache the intermediate steps for each cell
-        X_train_array = []
-        X_cov_array = []
+        X_test_array    = []   # Cache the intermediate steps for each cell
+        X_train_array   = []
+        X_cov_array     = []
 
         for cell_index, cell_value in tqdm(enumerate(fit['dff_trace_arr']['cell_specimen_id'].values),total=len(fit['dff_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
 
@@ -423,30 +426,41 @@ def evaluate_models_different_ridge(fit,design,run_params):
                     X_test_array.append(X[test_split,:])
                     X_train_array.append(X[train_split,:])
                     X_cov_array.append(np.dot(X[train_split,:].T,X[train_split,:]))
+                    if model_label == 'Full':
+                        Full_Y_cv_train[index] = np.empty((X_train_array[index].shape[0],fit['dff_trace_arr'][train_split,:].shape[1]))
+                        Full_Y_cv_test[index] = np.empty((X_test_array[index].shape[0],fit['dff_trace_arr'][test_split,:].shape[1]))
                 # Grab the stashed result
                 X_test  = X_test_array[index]
                 X_train = X_train_array[index]
                 X_cov   = X_cov_array[index]
 
-                dff_train = fit['dff_trace_arr'][train_split,cell_index]
-                dff_test = fit['dff_trace_arr'][test_split,cell_index]
-                W = fit_cell_regularized(X_cov,dff_train, X_train, fit['cell_regularization'][cell_index])
-                cv_var_train[cell_index,index] = variance_ratio(dff_train, W, X_train)
-                cv_var_test[cell_index,index] = variance_ratio(dff_test, W, X_test)
-                cv_adjvar_train[cell_index,index]= masked_variance_ratio(dff_train, W, X_train, mask[train_split]) 
-                cv_adjvar_test[cell_index,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split])
-                cv_weights[:,cell_index,index] = W 
+                # Set up storage
+                dff_train   = fit['dff_trace_arr'][train_split,cell_index]
+                dff_test    = fit['dff_trace_arr'][test_split,cell_index]
+                W           = fit_cell_regularized(X_cov,dff_train, X_train, fit['cell_regularization'][cell_index])
+                cv_var_train[cell_index,index]      = variance_ratio(dff_train, W, X_train)
+                cv_var_test[cell_index,index]       = variance_ratio(dff_test, W, X_test)
+                cv_adjvar_train[cell_index,index]   = masked_variance_ratio(dff_train, W, X_train, mask[train_split]) 
+                cv_adjvar_test[cell_index,index]    = masked_variance_ratio(dff_test, W, X_test, mask[test_split])
+                cv_weights[:,cell_index,index]      = W
+ 
                 if model_label == 'Full':
-                    # If this is the Full model, the value is the same
-                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(dff_train, W, X_train, mask[train_split])  
-                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split])  
+                    # If this is the Full model, the variance ratio value is the same, but store the full prediction for a computational speed up 
+                    Full_Y_cv_train[index][:,cell_index] = X_train.values @ W.values
+                    Full_Y_cv_test[index][:,cell_index]  = X_test.values @ W.values 
+                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(dff_train,None, None, mask[train_split], Y = Full_Y_cv_train[index][:,cell_index])  
+                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(dff_test, None, None, mask[test_split], Y = Full_Y_cv_test[index][:,cell_index]) 
                 else:
                     # Otherwise, get weights and design matrix for this cell/cv_split and compute the variance explained on this mask
-                    Full_W = xr.DataArray(fit['dropouts']['Full']['cv_weights'][:,cell_index,index])
-                    Full_X_test = Full_X[test_split,:]
-                    Full_X_train = Full_X[train_split,:]
-                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(dff_train, Full_W, Full_X_train, mask[train_split])  
-                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(dff_test, Full_W, Full_X_test, mask[test_split])    
+                    #Full_W = xr.DataArray(fit['dropouts']['Full']['cv_weights'][:,cell_index,index])
+                    #Full_X_test = Full_X[test_split,:]
+                    #Full_X_train = Full_X[train_split,:]
+                    #cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(dff_train, Full_W, Full_X_train, mask[train_split])  
+                    #cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(dff_test, Full_W, Full_X_test, mask[test_split])   
+
+                    # Otherwise, load the full model prediction for this cell/cv_split, and compute the variance ratio on this mask 
+                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(dff_train,None, None, mask[train_split], Y = Full_Y_cv_train[index][:,cell_index]) 
+                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(dff_test, None, None, mask[test_split], Y = Full_Y_cv_test[index][:,cell_index])    
 
         all_weights_xarray = xr.DataArray(
             data = all_weights,
@@ -482,6 +496,9 @@ def evaluate_models_same_ridge(fit, design, run_params):
         All cells use the same regularization value defined in fit['avg_regularization']  
         
     '''
+    Full_Y_cv_train = [None]*len(fit['splits'])
+    Full_Y_cv_test  = [None]*len(fit['splits'])
+
     for model_label in fit['dropouts'].keys():
 
         # Set up design matrix for this dropout
@@ -522,17 +539,24 @@ def evaluate_models_same_ridge(fit, design, run_params):
             cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train) 
             cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test)
             cv_weights[:,:,index]   = W 
+
             if model_label == 'Full':
                 # If this model is Full, then the masked variance ratio is the same
-                cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train)  
-                cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test)  
+                Full_Y_cv_train[index] = X_train.values @ W.values
+                Full_Y_cv_test[index]  = X_test.values @ W.values 
+                cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, None, None, mask_train, Y = Full_Y_cv_train[index])  
+                cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test,  None, None, mask_test,  Y = Full_Y_cv_test[index])
             else:
                 # Otherwise load the weights and design matrix for this cv_split, and compute VE with this support mask
-                Full_W = xr.DataArray(fit['dropouts']['Full']['cv_weights'][:,:,index])
-                Full_X_test = Full_X[test_split,:]
-                Full_X_train = Full_X[train_split,:]
-                cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, Full_W, Full_X_train, mask_train)  
-                cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test, Full_W, Full_X_test, mask_test)    
+                #Full_W = xr.DataArray(fit['dropouts']['Full']['cv_weights'][:,:,index])
+                #Full_X_test = Full_X[test_split,:]
+                #Full_X_train = Full_X[train_split,:]
+                #cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, Full_W, Full_X_train, mask_train)  
+                #cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test, Full_W, Full_X_test, mask_test)   
+
+                # Otherwise, load the full model prediction for this cell/cv_split, and compute the variance ratio on this mask 
+                cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, None, None, mask_train, Y = Full_Y_cv_train[index])  
+                cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test,  None, None, mask_test,  Y = Full_Y_cv_test[index])
 
         fit['dropouts'][model_label]['cv_weights']      = cv_weights
         fit['dropouts'][model_label]['cv_var_train']    = cv_var_train
@@ -1357,7 +1381,7 @@ def variance_ratio(dff_trace_arr, W, X):
     var_resid = np.var(dff_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
     return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
 
-def masked_variance_ratio(dff_trace_arr, W, X, mask): 
+def masked_variance_ratio(dff_trace_arr, W, X, mask,Y=None): 
     '''
     Computes the fraction of variance in dff_trace_arr explained by the linear model Y = X*W
     but only looks at the timepoints in mask
@@ -1367,8 +1391,8 @@ def masked_variance_ratio(dff_trace_arr, W, X, mask):
     X: Xarray (n_timepoints, n_kernel_params)
     mask: bool vector (n_timepoints,)
     '''
-
-    Y = X.values @ W.values
+    if Y is None:
+        Y = X.values @ W.values
 
     # Define variance function that lets us isolate the mask timepoints
     def my_var(dff, support_mask):

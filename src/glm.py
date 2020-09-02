@@ -11,7 +11,7 @@ else:
 import importlib.util
 import sys
 import os
-
+import pandas as pd
 
 class GLM(object):
     '''

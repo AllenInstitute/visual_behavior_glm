@@ -11,7 +11,7 @@ else:
 import importlib.util
 import sys
 import os
-
+import pandas as pd
 
 class GLM(object):
     '''
@@ -19,23 +19,33 @@ class GLM(object):
     inputs: 
         ophys_experiment_id (int): ID of experiment to fit
         version (int): version of code to use
-        
+       
+        log_results (bool): if True, logs results to mongoDB
+        log_weights (bool): if True, logs weights to mongoDB 
         use_previous_fit (bool): if True, attempts to load existing results instead of fitting the model
         recompute (bool): if True, if the attempt to load the existing results fails, will fit the model instead of crashing
+        use_inputs (bool): if True, gets session, fit, and design objects from inputs=[session, fit, design]
+        inputs (List): if use_inputs, this must be a list of session, fit, and design objects
     '''
 
-    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, recompute=False):
+    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, recompute=False, use_inputs=False, inputs=None):
         
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
         self.oeid = self.ophys_experiment_id
         self.run_params = glm_params.load_run_json(self.version)
         self.kernels = self.run_params['kernels']
-        self.current_model = 'Full'
+        self.current_model = 'Full'  #TODO, what does this do?
 
+        # Import the version's codebase
         self._import_glm_fit_tools()
 
-        if use_previous_fit:
+        if use_inputs & (inputs is not None):
+            # If user supplied session, fit, and design objects we dont need to load from file or fit model
+            self.session = inputs[0]
+            self.fit = inputs[1]
+            self.design = inputs[2]
+        elif use_previous_fit:
             # Attempts to load existing results
             try:
                 self.load_fit_model()       
@@ -46,6 +56,7 @@ class GLM(object):
                 else:
                     raise Exception('Crash during load_fit_model(), check if file exists') 
         else:
+            # Fit the model, can be slow
             self.fit_model()
         
         print('done fitting model, collecting results')
@@ -54,7 +65,7 @@ class GLM(object):
         self.timestamps = self.fit['dff_trace_arr']['dff_trace_timestamps'].values
         if log_results:
             print('logging results to mongo')
-            gat.log_results_to_mongo(self)
+            gat.log_results_to_mongo(self) # TODO, need to include adjusted dropout info
             print('done logging results to mongo')
         if log_weights:
             print('logging W matrix to mongo')
@@ -63,6 +74,7 @@ class GLM(object):
         print('done building GLM object')
 
     def _import_glm_fit_tools(self):
+        # TODO, need more documentation here
         # we only know the path for loading GLM_fit_tools after loading the run_params
         # therefore, we have to import here, and set the module as an attribute
         import_dir = self.run_params['model_freeze_dir'].rstrip('/')
@@ -91,8 +103,23 @@ class GLM(object):
             self.oeid, self.run_params)
 
     def collect_results(self):
+        '''
+            Organizes dropout and model selection results, and adds three dataframes to the object
+            self.results is a dataframe of every model-dropout, and information about it.
+            self.dropout_summary is the original dropout summary doug implemented, using the non-adjusted variance explained/dropout
+            self.adj_dropout_summary uses the adjusted dropout and variance explained 
+        '''
         self.results = self.gft.build_dataframe_from_dropouts(self.fit)
-        self.dropout_summary = gat.generate_results_summary(self).reset_index()
+        dropout_summary = gat.generate_results_summary(self)
+        adj_dropout_summary = gat.generate_results_summary_adj(self)
+        self.dropout_summary = pd.merge(dropout_summary, adj_dropout_summary,on=['dropout', 'cell_specimen_id']).reset_index()
+        self.dropout_summary.columns.name = None
+ 
+    def get_cells_above_threshold(self, threshold=0.01):
+        '''
+            Returns a list of cells whose full model variance explained is above some threshold
+        '''
+        return self.dropout_summary.query('dropout=="Full" & variance_explained > @threshold')['cell_specimen_id'].unique()
 
     def plot_dropout_summary(self, cell_specimen_id, ax=None):
         '''

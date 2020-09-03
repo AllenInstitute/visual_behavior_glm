@@ -26,14 +26,21 @@ parser.add_argument(
     action='store_true',
     default=False,
     dest='force_overwrite', 
-    help='Overwrites existing fits for this version if enabled. Otherwise only fits without existing results are run'
+    help='Overwrites existing fits for this version if enabled. Otherwise only experiments without existing results are fit'
+)
+parser.add_argument(
+    '--use-previous-fit', 
+    action='store_true',
+    default=False,
+    dest='use_previous_fit', 
+    help='use previous fit if it exists (boolean, default = False)'
 )
 
 job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_jobs/ophys_glm"
 
 job_settings = {'queue': 'braintv',
                 'mem': '64g',
-                'walltime': '6:00:00',
+                'walltime': '12:00:00',
                 'ppn': 16,
                 }
 
@@ -46,6 +53,12 @@ if __name__ == "__main__":
     experiments_table = loading.get_filtered_ophys_experiment_table()
     experiment_ids = experiments_table.index.values
     job_count = 0
+
+    if args.use_previous_fit:
+        job_string = "--oeid {} --version {} --use-previous-fit"
+    else:
+        job_string = "--oeid {} --version {}"
+
     for experiment_id in experiment_ids:
 
         if args.force_overwrite or not gat.already_fit(experiment_id, args.version):
@@ -55,7 +68,7 @@ if __name__ == "__main__":
             pbstools.PythonJob(
                 python_file,
                 python_executable,
-                python_args="--oeid {} --version {}".format(experiment_id, args.version),
+                python_args=job_string.format(experiment_id, args.version),
                 jobname=job_title,
                 jobdir=job_dir,
                 **job_settings

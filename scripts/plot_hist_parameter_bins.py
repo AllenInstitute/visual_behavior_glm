@@ -1,4 +1,4 @@
-# bin a feature (lets call it the primary feature: parameters_primary), and then for each bin look at the distribution of a bunch of other features (parameters_cont and parameters_categ)
+# In the dataframe "df", bin a feature (lets call it the primary feature: "parameters_primary"), and then for each bin, plot the distribution of a number of other features (continuous features: "parameters_cont"; categorical features: "parameters_categ")
 
 import numpy as np
 import seaborn as sns
@@ -23,12 +23,17 @@ def plot_hist_parameter_bins(df, parameter_primary, parameters_cont, parameters_
     hist_vals = [sum(hist_inds==ihi) for ihi in np.unique(hist_inds)]
 #     print(np.unique(hist_inds))
 
+
+    ### plot a histogram of the primary parameter
     plt.figure(figsize=(2,2))
     plt.bar(bn+binEvery/2., hist_vals)
     plt.title(f'{hist_vals} : number of cells per bin of {parameter_primary}')
     plt.xlabel(f'{parameter_primary} (mean per bin)')
     plt.ylabel(f'number of cells')
 
+    
+    
+    
     #### continuous parameters  
     # now for each bin, look at the distribution of a given parameter
 
@@ -84,8 +89,12 @@ def plot_hist_parameter_bins(df, parameter_primary, parameters_cont, parameters_
             '''
             ax[row_ax,col].legend()
 
-            
+            if col==0:
+                ax[row_ax,col].set_ylabel('Fraction cells')
 
+                
+                
+                
     ############ categorical parameters ############   
     # now for each bin, look at the pie chart of a given parameter
 
@@ -140,6 +149,9 @@ def plot_hist_parameter_bins(df, parameter_primary, parameters_cont, parameters_
 
     plt.subplots_adjust(hspace=.5)
 
+    
+    
+    ### save the figure
     
     dosavefig = dosavefig_fign[0]
     fign = dosavefig_fign[1]

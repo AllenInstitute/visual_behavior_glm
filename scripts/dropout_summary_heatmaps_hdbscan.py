@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from importlib import reload
+# import hist_param_bins
+# reload(hist_param_bins)
 
-dosavefig = 1
+dosavefig = 0 #1
 
 if dosavefig:
     import datetime
@@ -83,7 +86,7 @@ print(list(rs_now['dropout'].values))
 cols_for_clustering = list(rs['dropout'].unique())
 
 cols_for_clustering.remove('visual')
-
+'''
 cols_for_clustering.remove('model_bias')
 cols_for_clustering.remove('model_task0')
 cols_for_clustering.remove('model_omissions1')
@@ -92,7 +95,7 @@ cols_for_clustering.remove('beh_model')
 
 cols_for_clustering.remove('pre_lick_bouts')
 cols_for_clustering.remove('post_lick_bouts')
-
+'''
 print(np.shape(cols_for_clustering)), cols_for_clustering
 
 
@@ -114,7 +117,7 @@ np.unique(rs['cell_specimen_id']).shape, np.unique(rsp['cell_specimen_id']).shap
 # In[9]:
 
 
-rs.columns, rsp.columns, rs.shape, rsp.shape
+# rs.columns, rsp.columns, rs.shape, rsp.shape
 
 
 # ## add a `session_id` column with a numeric value for the session_type (to lump together sessions by order, regardless of image set)
@@ -153,6 +156,7 @@ for column in ['cre_line','equipment_name','targeted_structure','session_id']:
 
 # In[13]:
 
+# keep a copy before merging with "data" that includes behavioral model
 
 rsp00 = copy.deepcopy(rsp)
 
@@ -180,11 +184,6 @@ data.shape
 np.unique(data['ophys_session_id'].values).shape, np.unique(rsp00['ophys_session_id'].values).shape
 
 
-# In[16]:
-
-
-rsp00.shape
-
 
 # In[17]:
 
@@ -192,7 +191,7 @@ rsp00.shape
 # merge rsp and data on session_id
 # rsp = rsp.merge(data, on=['ophys_session_id'])
 rsp = rsp00.merge(data, on=['ophys_session_id', 'cre_line']) #, how='outer')
-rsp.shape
+rsp00.shape, rsp.shape
 
 
 # In[18]:
@@ -255,7 +254,14 @@ rsp.shape, rsp[cols_for_clustering].shape, cols_for_clustering
 
 # In[101]:
 
-
+# umap relies on stochastis methods so we need to set the seed for it.
+import random
+rand_state = 42
+np.random.seed(rand_state)
+os.environ['PYTHONHASHSEED'] = str(rand_state)
+random.seed(rand_state)                                
+                                
+                                
 n_components = 3 # dimensions of original data: np.shape(cols_for_clustering)[0]
 
 mindist = 0.1 # default: .1 
@@ -361,7 +367,7 @@ embedding.shape
 ### pick a set of parameters according to the search above
 
 min_cluster_size = 100 #50 # (default=5)
-min_samples = 100 #10 #min_cluster_size #18 # default: same as min_cluster_size
+min_samples = 10 #100 #10 #min_cluster_size #18 # default: same as min_cluster_size
 
 # clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=.5)
 clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples) #(min_cluster_size=9, gen_min_span_tree=True)
@@ -720,226 +726,27 @@ if dosavefig:
 
 
 #############################################
-WORKING HERE
 
-# In[112]:
+parameter_primary = 'task_dropout_index'
+parameters_cont = ['all-images', 'omissions', 'pupil', 'running', 'imaging_depth']
+parameters_categ = ['cre_line','session_id','targeted_structure', 'clusterer_labels'] # session_id: 1 # novel
 
-
-sorted_data['task_dropout_index'].values
-
-
-# In[123]:
+nam = f'bins_{parameter_primary}_param_hists_allCre_{now}'
+fign = os.path.join(dir0, dir_now, nam+fmt)     
 
 
-plt.figure(); plt.plot(topc)
+# bin a feature (lets call it the primary feature: parameters_primary), and then for each bin look at the distribution of a bunch of other features (parameters_cont and parameters_categ)
 
+reload(hist_param_bins)
 
-# In[148]:
-
-
-row = 1
-sd_this_bin = sorted_data[hist_inds == row]
-
-parameters = ['all-images', 'omissions', 'pupil', 'running', 'imaging_depth']
-col = 0
-parameter = parameters[col]
-
-nbins = 5
-topc = sd_this_bin[parameter]
-r = np.max(topc) - np.min(topc)
-binEvery = r/float(nbins)
-# set bins
-bn = np.arange(np.min(topc), np.max(topc), binEvery)
-# bn[-1] = np.max(topc)#+binEvery/10. # unlike digitize, histogram doesn't count the right most value
-
-bn
-
-
-# In[157]:
-
-
-sd_this_bin.shape#[parameter].shape
-
-
-# In[159]:
-
-
-for col,parameter in enumerate(parameters):
-    print(col, parameter)
-
-
-# In[152]:
-
-
-sorted_data['task_dropout_index'].values.shape
-
-
-# In[165]:
-
-
-sd_this_bin[parameters[0]].shape
-
-
-# In[167]:
-
-
-plt.hist(
-    sd_this_bin[parameters[0]],
-    bins=bn,
-    density=True)
-
-
-# In[175]:
-
-
-sorted_data['imaging_depth_x'].iloc[0], sorted_data['imaging_depth_y'].iloc[0]
-
-
-# In[182]:
-
-
-WORKING HERE:
+hist_param_bins.hist_param_bins(sorted_data, parameter_primary, parameters_cont, parameters_categ, [dosavefig, fign])
     
-#### continuous parameters    
-# now for each bin, look at the distribution of a given parameter
-parameters = ['all-images', 'omissions', 'pupil', 'running', 'imaging_depth_x']
-
-fig,ax = plt.subplots(2, len(parameters),figsize=(15,8))
-
-for row in np.unique(hist_inds):
     
-    sd_this_bin = sorted_data[hist_inds == row]
     
-    for col,parameter in enumerate(parameters):
-        
-#         print(parameter)
-        
-        nbins = 5
-        topc = sd_this_bin[parameter]
-        r = np.max(topc) - np.min(topc)
-        binEvery = r/float(nbins)
-        # set bins
-        bn = np.arange(np.min(topc), np.max(topc), binEvery)
-        
-#         print(bn)
-#         print(sd_this_bin.shape)
-
-        ax[row-1,col].hist(
-            sd_this_bin[parameter],
-            bins=bn,
-            density=True
-        )
-
-        # set titles, make first row title different
-        if (row-1) == 0:
-            ax[row, col].set_title('parameter = {}\nbin = {}'.format(parameter, row))
-        else:
-            ax[row, col].set_title('row = {}'.format(row))
-
-
-# In[136]:
-
-
-topc = sorted_data['task_dropout_index'].values
-nbins = 2
-
-r = np.max(topc) - np.min(topc)
-binEvery = r/float(nbins)
-# set bins
-bn = np.arange(np.min(topc), np.max(topc), binEvery)
-# bn[-1] = np.max(topc)#+binEvery/10. # unlike digitize, histogram doesn't count the right most value
-print(bn)
-
-hist_inds = np.digitize(topc, bn)
-hist_inds.shape
-# np.unique(hist_inds)
-sum(hist_inds==1), sum(hist_inds==2)
-
-
-# In[113]:
-
-
-# bin a feature, and then for each bin look at the distribution of a bunch of other features
-
-topc = sorted_data['task_dropout_index'].values
-nbins = 2
-
-r = np.max(topc) - np.min(topc)
-binEvery = r/float(nbins)
-# set bins
-bn = np.arange(np.min(topc), np.max(topc), binEvery)
-bn[-1] = np.max(topc)#+binEvery/10. # unlike digitize, histogram doesn't count the right most value
-
-hist_inds = np.digitize(topc, bn)
-
-# hist, bin_edges = np.histogram(topc, bins=bn)
-# hist = hist/float(np.sum(hist))    
-
-
-#### continuous parameters    
-# now for each bin, look at the distribution of a given parameter
-parameters = ['all-images', 'omissions', 'pupil', 'running', 'imaging_depth_x']
-
-fig,ax = plt.subplots(nbins, len(parameters),figsize=(15,35))
-
-for row in np.unique(hist_inds):
     
-    sd_this_bin = sorted_data[hist_inds == row]
-    
-    for col,parameter in enumerate(parameters):
-        
-        nbins = 5
-        topc = sd_this_bin[parameter]
-        r = np.max(topc) - np.min(topc)
-        binEvery = r/float(nbins)
-        # set bins
-        bn = np.arange(np.min(topc), np.max(topc), binEvery)
-
-
-        ax[row-1,col].hist(
-            sd_this_bin[parameter],
-            bins=bn,
-            density=True
-        )
-
-        # set titles, make first row title different
-        if row == 0:
-            ax[row, col].set_title('parameter = {}\nbin = {}'.format(parameter, row))
-        else:
-            ax[row, col].set_title('row = {}'.format(row))
-
-
-#### categorical parameters    
-# now for each bin, look at the pie chart of a given parameter
-parameters = [['cre_line','session_id','targeted_structure', 'clusterer_labels']]
-
-for row in range(len(hist_inds)):
-    sd_this_bin = sorted_data[hist_inds == row]
-    
-    for col,parameter in enumerate(parameters):
-        
-        # build a dataframe of value counts for the pie chart (there's probably a better way!)
-        DOUBLE check below
-        df = pd.DataFrame(sd_this_bin[parameter].value_counts()).sort_index()
-        plot = df.plot.pie(
-            y = parameter, 
-            ax = ax[row,col],
-            legend = False
-        )
-        ax[row,col].set_ylabel('')
-
-        # set titles, make first row title different
-        if row == 0:
-            ax[row, col].set_title('parameter = {}\nbin = {}'.format(parameter, row))
-        else:
-            ax[row, col].set_title('row = {}'.format(row))
-            
-            
             
 
 #############################################
-# In[ ]:
-
 
 # For each cluster id, we compute a given parameter's distribution; e.g. for cluster_id 0, we compute the number of cells that took each value of "session_id"
 

@@ -28,7 +28,7 @@ class GLM(object):
         inputs (List): if use_inputs, this must be a list of session, fit, and design objects
     '''
 
-    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, recompute=False, use_inputs=False, inputs=None):
+    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, recompute=True, use_inputs=False, inputs=None):
         
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
@@ -48,8 +48,11 @@ class GLM(object):
         elif use_previous_fit:
             # Attempts to load existing results
             try:
-                self.load_fit_model()       
+                print('loading previous fit...')
+                self.load_fit_model()  
+                print('done loading previous fit')     
             except:
+                print('failed to load previous fit, reload flag is set to {}'.format(reload))
                 if recompute:
                     # Just computes the model, since it crashed on load
                     self.fit_model()

@@ -52,7 +52,7 @@ class GLM(object):
                 self.load_fit_model()  
                 print('done loading previous fit')     
             except:
-                print('failed to load previous fit, reload flag is set to {}'.format(reload))
+                print('failed to load previous fit, reload flag is set to {}'.format(recompute))
                 if recompute:
                     # Just computes the model, since it crashed on load
                     self.fit_model()

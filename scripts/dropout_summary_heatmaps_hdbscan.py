@@ -1,25 +1,24 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-from importlib import reload
-# import hist_param_bins
-# reload(hist_param_bins)
-
 dosavefig = 0 #1
 
-if dosavefig:
-    import datetime
-#     from def_paths import * 
+#%% modify this for your own directory
+# directory to save figures: os.path.join(dir0, dir_now)
 
+if dosavefig: 
+#     from def_paths import * 
     dir0 = '/home/farzaneh/OneDrive/Analysis'
-    now = (datetime.datetime.now()).strftime("%Y%m%d_%H%M%S")
     dir_now = 'umap_cluster'
+    
     fmt = '.pdf'
 
+    import datetime
+    now = (datetime.datetime.now()).strftime("%Y%m%d_%H%M%S")
+    
+    
 
-# In[ ]:
-
-
+#%% 
 import visual_behavior_glm.src.GLM_params as glm_params
 import visual_behavior_glm.src.GLM_analysis_tools as gat
 import visual_behavior_glm.src.GLM_visualization_tools as gvt
@@ -41,47 +40,40 @@ import plotly.express as px
 from sklearn.cluster import KMeans
 import umap
 import hdbscan # First install the package on the terminal: pip install hdbscan
+from importlib import reload
+# import plot_hist_parameter_bins
+# reload(plot_hist_parameter_bins)
+import random
 
 
-# In[2]:
 
+#%%
 get_ipython().magic(u'matplotlib inline')   
 # get_ipython().run_line_magic('matplotlib', 'notebook')
 # get_ipython().run_line_magic('widescreen', '')
 
 
-# # Gather/organize data
+### Gather/organize data
 
-# ## load the results summary for a single GLM version from mongo
-
-# In[3]:
-
+#%% load the results summary for a single GLM version from mongo
 
 rs = gat.retrieve_results(search_dict = {'glm_version': '4_L2_optimize_by_cell'}, results_type='summary')
 rs #.sample(10)
 
-
-# In[4]:
-
-
 rs.shape, list(rs['dropout'].unique())
 
-
-# In[5]:
-
-
+'''
 # rs_now: rs for a single experiment, a single cell
 rs_now = rs[np.logical_and(rs['ophys_experiment_id'].values==991852008, rs['cell_specimen_id'].values==1017215561)] #.shape (128, 37) # unique dropout: 32
 
 print(np.shape(rs_now['dropout'].values))
 print(list(rs_now['dropout'].values))
+'''
 
 
-# # get a list of columns to use for clustering. Defining this list now makes it easier to avoid accidentally clustering on some identifying feature (e.g., cre_line, session_type, etc.)
+#%% get a list of columns to use for clustering. Defining this list now makes it easier to avoid accidentally clustering on some identifying feature (e.g., cre_line, session_type, etc.)
+
 # I'm removing the 'visual' dropout, since it's actually a combination of the omission and all-images dropouts.
-
-# In[6]:
-
 
 cols_for_clustering = list(rs['dropout'].unique())
 
@@ -99,53 +91,36 @@ cols_for_clustering.remove('post_lick_bouts')
 print(np.shape(cols_for_clustering)), cols_for_clustering
 
 
-# ## build a pivoted version of the results summary, using the `fraction_change_from_full` column as the values.
-
-# In[7]:
-
+#%% build a pivoted version of the results summary, using the `fraction_change_from_full` column as the values.
 
 rsp = gat.build_pivoted_results_summary(results_summary=rs, cutoff=0.01, value_to_use='fraction_change_from_full')
 
 
-# In[8]:
+#%% check what fraction of cells are kept after applying the cutoff above.
 
-
-# check what fraction of cells are kept after applying the cutoff above.
 np.unique(rs['cell_specimen_id']).shape, np.unique(rsp['cell_specimen_id']).shape, np.unique(rsp['cell_specimen_id']).shape[0]/np.unique(rs['cell_specimen_id']).shape[0]
-
-
-# In[9]:
-
 
 # rs.columns, rsp.columns, rs.shape, rsp.shape
 
 
-# ## add a `session_id` column with a numeric value for the session_type (to lump together sessions by order, regardless of image set)
-
-# In[10]:
-
+#%% add a `session_id` column with a numeric value for the session_type (to lump together sessions by order, regardless of image set)
 
 def map_session_types(session_type):
     session_id = int(session_type[6:7])
+    
     if session_id==4:
         session_id=1 # novel
     else:
         session_id=0 # not novel
+    
     return session_id
 
 rsp['session_id'] = rsp['session_type'].map(lambda st:map_session_types(st))
 
-
-# In[11]:
-
-
 sum(rsp['session_id']==0), sum(rsp['session_id']==1)
 
 
-# ## Turn some categorical columns into numerical columns
-
-# In[12]:
-
+#%% Turn some categorical columns into numerical columns
 
 def make_categorical(df, column):
     df['{}_categorical'.format(column)] = pd.Categorical(df[column], ordered=True).codes
@@ -154,17 +129,12 @@ for column in ['cre_line','equipment_name','targeted_structure','session_id']:
     make_categorical(rsp, column)
 
 
-# In[13]:
-
-# keep a copy before merging with "data" that includes behavioral model
+#%% keep a copy of rsp before merging it with "data" that includes the behavioral model parameters
 
 rsp00 = copy.deepcopy(rsp)
 
 
-# ## Merge the behavioral glm df with rsp
-
-# In[14]:
-
+#%% Merge the behavioral glm df with rsp
 
 # load the behavioral model for each session
 # for now we care about 'task_dropout_index'
@@ -177,91 +147,64 @@ data = loading.get_behavior_model_summary_table()
 data.shape
 
 
-# In[15]:
+#%% compare number of sessions for the behavioral and neural glm models
 
-
-# compare number of sessions for the behavioral and neural glm models
 np.unique(data['ophys_session_id'].values).shape, np.unique(rsp00['ophys_session_id'].values).shape
 
 
 
-# In[17]:
+#%% merge rsp and data on session_id
 
-
-# merge rsp and data on session_id
 # rsp = rsp.merge(data, on=['ophys_session_id'])
 rsp = rsp00.merge(data, on=['ophys_session_id', 'cre_line']) #, how='outer')
+
 rsp00.shape, rsp.shape
-
-
-# In[18]:
-
-
 np.unique(rsp['ophys_session_id'].values).shape
-
-
-# In[19]:
-
-
-list(rsp.columns) #, rsp.shape
 
 
 #%% take care of column renaming after the merge
 
+list(rsp.columns) #, rsp.shape
 rsp = rsp.rename(columns = {'imaging_depth_x': 'imaging_depth'}, inplace = False)
-
-
-# In[20]:
-
-
-# rsp.iloc[1298]['ophys_experiment_id_x'], rsp.iloc[1298]['ophys_experiment_id_y']
-
-
-# In[21]:
 
 
 # rsp[rsp['ophys_experiment_id_x'].values==795948257][['cell_specimen_id', 'beh_model']]
 
 
-# ## Redefine cols_for_clustering
-# ### add some features from behavioral glm to rsp 
 
-# In[ ]:
-
+#%% Redefine cols_for_clustering
+# add some features from behavioral glm to rsp 
 
 # make sure to not add features that get repeated across cells (eg task_dropout_index will be repeated for all cells of the same session)
 # cols_for_clustering.append('task_dropout_index')
 # np.shape(cols_for_clustering), cols_for_clustering
 
 
-# # Dimensionality reduction and clustering
-# So many more things to try here. This is just a start.
 
-# ## UMAP
+#####################################
+#####################################
+# Dimensionality reduction 
+#####################################
+#####################################
 
-# In[24]:
-
+#%% UMAP, set parameters
 
 neigh_vals = np.concatenate(([5, 10, 15, 50], np.arange(200, int(rsp.shape[0]/10), 500)))
 print(neigh_vals)
 
 
-# In[26]:
+#%% umap relies on stochastis methods so we need to set the seed for it.
 
-
-rsp.shape, rsp[cols_for_clustering].shape, cols_for_clustering
-
-
-# In[101]:
-
-# umap relies on stochastis methods so we need to set the seed for it.
-import random
 rand_state = 42
 np.random.seed(rand_state)
 os.environ['PYTHONHASHSEED'] = str(rand_state)
 random.seed(rand_state)                                
-                                
-                                
+
+rsp.shape, rsp[cols_for_clustering].shape, cols_for_clustering
+
+
+#%% UMAP
+
 n_components = 3 # dimensions of original data: np.shape(cols_for_clustering)[0]
 
 mindist = 0.1 # default: .1 
@@ -285,18 +228,16 @@ rsp['umap_3d_embedding_2'] = embedding[:, 2]
 # rsp['umap_2d_embedding_0'] = embedding_2d[:, 0]
 # rsp['umap_2d_embedding_1'] = embedding_2d[:, 1]
 
-
-# In[102]:
-
-
 embedding.shape, neigh, mindist
 
 
-# ## k-means clustering on 3d umap
-# 
+#####################################
+#####################################
+# Clustering
+#####################################
+#####################################
 
-# In[29]:
-
+#%% k-means clustering on 3d umap
 
 kmeans = KMeans(n_clusters=20)
 umap_cols = ['umap_3d_embedding_0','umap_3d_embedding_1','umap_3d_embedding_2']
@@ -305,12 +246,9 @@ rsp['clusterer_labels'].value_counts()
 
 
 
-# ## hdbscan clustrering
+#%% hdbscan clustrering
 
-# In[103]:
-
-
-# Try a range of parameters
+# try a range of parameters
 
 min_cluster_size_all = [5, 20, 50, 100, 200] #100 #50 # (default=5)
 min_samples_all = [10] #10 #min_cluster_size #18 # default: same as min_cluster_size
@@ -318,7 +256,7 @@ min_samples_all = [10] #10 #min_cluster_size #18 # default: same as min_cluster_
 clusterer_all = []
 clusterer_labels_all = []
 clusterer_params = []
-val_per_clust_all = []
+cluster_size_all = []
 cluster_ids_all = []
 
 for min_cluster_size in min_cluster_size_all:
@@ -338,84 +276,68 @@ for min_cluster_size in min_cluster_size_all:
         clusterer.fit(embedding) # rsp[umap_cols]
         
         clusterer_labels_ = clusterer.labels_
-        val_per_clust = [np.sum(clusterer.labels_ == np.unique(clusterer.labels_)[i]) for i in range(len(np.unique(clusterer.labels_)))] # number of points per cluster
+        cluster_size = [np.sum(clusterer.labels_ == np.unique(clusterer.labels_)[i]) for i in range(len(np.unique(clusterer.labels_)))] # number of points per cluster
         cluster_ids = np.unique(clusterer.labels_)
         
         print(cluster_ids[[0,-1]])
-        print(val_per_clust)
+        print(cluster_size)
         
         clusterer_labels_all.append(clusterer_labels_) # cluster_labels = clusterer.fit_predict(embedding)
         clusterer_all.append(clusterer)
         clusterer_params.append([min_cluster_size, min_samples])
-        val_per_clust_all.append(val_per_clust)
+        cluster_size_all.append(cluster_size)
         cluster_ids_all.append(cluster_ids)
-
-
-# In[80]:
 
 
 # rsp = rspall
 
-
-# In[79]:
-
-
 embedding.shape
 
 
-# In[104]:
-### pick a set of parameters according to the search above
+#%% Pick some parameter values informed by the search above
 
 min_cluster_size = 100 #50 # (default=5)
 min_samples = 10 #100 #10 #min_cluster_size #18 # default: same as min_cluster_size
 
+### set cluster_selection_epsilon to .5
 # clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=.5)
+
+### don't set cluster_selection_epsilon
 clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples) #(min_cluster_size=9, gen_min_span_tree=True)
 
 clusterer.fit(embedding) # rsp[umap_cols]
 # clusterer.labels_ # cluster_labels = clusterer.fit_predict(embedding)
 # clusterer.probabilities_
 rsp['clusterer_labels'] = clusterer.labels_
-# val_per_clust = rsp['clusterer_labels'].value_counts().values # number of points per cluster # this is sorted by the number of cells per cluster
+# cluster_size = rsp['clusterer_labels'].value_counts().values # number of points per cluster # this is sorted by the number of cells per cluster
 # below is sorted by the cluster id (i prefer below) (ie number of cells per cluster, sorted by cluster id, ie from cluster -1 to end)
-val_per_clust = [np.sum(clusterer.labels_ == np.unique(clusterer.labels_)[i]) for i in range(len(np.unique(clusterer.labels_)))] # number of points per cluster
+cluster_size = [np.sum(clusterer.labels_ == np.unique(clusterer.labels_)[i]) for i in range(len(np.unique(clusterer.labels_)))] # number of points per cluster
 
-# In[105]:
 
+
+#%% Evaluate clustering results
 
 # fract_per_clust = [np.mean(clusterer.labels_ == np.unique(clusterer.labels_)[i]) for i in range(len(np.unique(clusterer.labels_)))]
 print(len(np.unique(clusterer.labels_)))
+
 # noise points
 print(sum(clusterer.labels_ == -1), np.mean(clusterer.labels_ == -1))
 
-rsp['clusterer_labels'].value_counts()
-
-
-# In[84]:
-
-
-# evaluate clustering results
-
-# print(val_per_clust.shape)
-print(np.sort(val_per_clust))
+print(rsp['clusterer_labels'].value_counts())
+print(np.sort(cluster_size))
 
 # # number of clusters with <th_neur neurons in them.
 # th_n = 20 # we dont want to have less than 20 neurons in a cluster, maybe.
-# print(sum(val_per_clust < th_n), np.mean(val_per_clust < th_n))
-
-# # noise points
-# print(sum(clusterer.labels_ == -1), np.mean(clusterer.labels_ == -1))
+# print(sum(cluster_size < th_n), np.mean(cluster_size < th_n))
 
 
-# In[85]:
-
-# plot clusterer probabilities and number of cells in each label.
+#%% Plot clusterer probabilities and number of cells in each label.
 
 plt.figure(figsize=(8,3))
 
 plt.subplot(121), plt.plot(np.sort(clusterer.probabilities_)), plt.title('clusterer.probabilities_')
 plt.xlabel('cells')
-plt.subplot(122), plt.plot(np.unique(clusterer.labels_), val_per_clust), plt.title('cluster size')
+plt.subplot(122), plt.plot(np.unique(clusterer.labels_), cluster_size), plt.title('cluster size')
 plt.xlabel('cluster id')
 
 if dosavefig:
@@ -425,11 +347,14 @@ if dosavefig:
     plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
 
 
-    
-# ## visualize in 2d using matplotlib
+#####################################
+#####################################
+# Visualize UMAP embedding and clustered cells
+#####################################
+#####################################
 
-# In[86]:
 
+#%% visualize in 2d using matplotlib
 
 color_palette = sns.color_palette('Paired', len(rsp['clusterer_labels'].unique()))
 cluster_colors = [color_palette[x] if x >= 0
@@ -442,7 +367,7 @@ plt.figure(figsize=(8,4))
 plt.subplot(121)
 plt.scatter(rsp['umap_3d_embedding_0'], rsp['umap_3d_embedding_1'], s=10, linewidth=0, c=cluster_member_colors, alpha=0.25)
 plt.xlabel('umap_3d_embedding_0'), plt.ylabel('umap_3d_embedding_1')
-plt.title(f'{len(val_per_clust)} clusters')
+plt.title(f'{len(cluster_size)} clusters')
 
 plt.subplot(122)
 plt.scatter(rsp['umap_3d_embedding_0'], rsp['umap_3d_embedding_2'], s=10, linewidth=0, c=cluster_member_colors, alpha=0.25)
@@ -456,8 +381,7 @@ if dosavefig:
 
     
     
-# In[87]:
-
+#%% visualize in 2d, Doug's version
 
 fig,ax=plt.subplots(1,2,figsize=(10,6),sharey=True,sharex=True)
 sns.scatterplot(
@@ -490,10 +414,7 @@ if dosavefig:
 
     
 
-# ## visualize in 3d using plotly
-
-# In[88]:
-
+#%% visualize in 3d using plotly
 
 fig = px.scatter_3d(
     rsp, 
@@ -523,64 +444,47 @@ fig.show()
 
 
 
+#####################################
+#####################################
+# Make heatmaps of GLM coeffs, and do some sorting
+#####################################
+#####################################
 
-# # A little bit of prep for plotting
-
-# ## first define the dominant dropout in each cluster
-
-# In[106]:
-
+#%% A little bit of prep for plotting
+# first define the dominant dropout in each cluster
 
 # identify dominant dropouts for each cluster
+
 gat.identify_dominant_dropouts(rsp, cluster_column_name='clusterer_labels', cols_to_search=cols_for_clustering)
-
-
-# In[107]:
-
-
 np.unique(rsp['dominant_dropout'])
 
 
-# In[108]:
-
-
+#%%
 for column in ['dominant_dropout']:
     make_categorical(rsp, column)
 
 
-# ## only get those rsp rows that have non-noise cluster values
+    
+#%% only get those rsp rows that have non-noise cluster values
 
-# In[109]:
-
-
-rsp['clusterer_labels'].value_counts(), sum(rsp['clusterer_labels'].value_counts())
-
-
-# In[96]:
-
+# copy rsp before removing noise points
 
 rspall = copy.deepcopy(rsp)
 rspall.shape
 
 
-# In[97]:
-
-
 # use all rsp rows in clustering
+'''
 rsp = rspall
 rsp.shape
+'''
 
-
-# In[72]:
+rsp['clusterer_labels'].value_counts(), sum(rsp['clusterer_labels'].value_counts())
 
 
 # only get those rsp rows that have non-noise cluster values
 rsp = rspall[rspall['clusterer_labels'] != -1]
 rsp.shape
-
-
-# In[98]:
-
 
 np.unique(rsp['dominant_dropout'])
 
@@ -588,9 +492,6 @@ np.unique(rsp['dominant_dropout'])
 #############################################
 # ## define heatmap parameters
 # lots here, but there are lots of options!
-
-# In[110]:
-
 
 cols_to_plot = [
     'clusterer_labels',      
@@ -687,14 +588,11 @@ heatmap_defs = [
 ]
 
 
-# # Make heatmaps, sort by whatever we want
+
+#%% Make heatmaps, sort by whatever we want
 # Note that it only makes sense to nest sorting values for categorical data. Any sorting value that follows a continuous variable will not have any effect.
 
-# ## First sort by dominant dropout, the median value of the dominant dropout (for cases with multiple clusters sharing the same dominant dropout), then cre_line, session_id, imaging_depth
-
-# In[111]:
-
-
+### First sort by dominant dropout, the median value of the dominant dropout (for cases with multiple clusters sharing the same dominant dropout), then cre_line, session_id, imaging_depth
 # sort_order = ['task_dropout_index', 'dominant_dropout','dominant_dropout_median','cre_line_categorical']
 # sort_order = ['dominant_dropout','dominant_dropout_median','cre_line_categorical','session_id_categorical','imaging_depth',]
 sort_order = ['clusterer_labels', 'dominant_dropout','dominant_dropout_median','cre_line_categorical']
@@ -726,6 +624,7 @@ if dosavefig:
 
 
 #############################################
+#%% bin a feature (lets call it the primary feature: parameters_primary), and then for each bin look at the distribution of a bunch of other features (parameters_cont and parameters_categ)
 
 parameter_primary = 'task_dropout_index'
 parameters_cont = ['all-images', 'omissions', 'pupil', 'running', 'imaging_depth']
@@ -735,11 +634,8 @@ nam = f'bins_{parameter_primary}_param_hists_allCre_{now}'
 fign = os.path.join(dir0, dir_now, nam+fmt)     
 
 
-# bin a feature (lets call it the primary feature: parameters_primary), and then for each bin look at the distribution of a bunch of other features (parameters_cont and parameters_categ)
-
-reload(hist_param_bins)
-
-hist_param_bins.hist_param_bins(sorted_data, parameter_primary, parameters_cont, parameters_categ, [dosavefig, fign])
+# reload(plot_hist_parameter_bins)
+plot_hist_parameter_bins.plot_hist_parameter_bins(sorted_data, parameter_primary, parameters_cont, parameters_categ, [dosavefig, fign])
     
     
     
@@ -747,8 +643,7 @@ hist_param_bins.hist_param_bins(sorted_data, parameter_primary, parameters_cont,
             
 
 #############################################
-
-# For each cluster id, we compute a given parameter's distribution; e.g. for cluster_id 0, we compute the number of cells that took each value of "session_id"
+#%% Pie charts: for each cluster id, we compute a given parameter's distribution; e.g. for cluster_id 0, we compute the number of cells that took each value of "session_id"
 
 fig,ax = plt.subplots(20,4,figsize=(15,35))
 
@@ -785,99 +680,6 @@ for row,cluster_id in enumerate(sorted_data['clusterer_labels'].unique()):
 fig.tight_layout()
 
 
-# ## another sorting, with imaging_depth being the emphasis
-
-# In[ ]:
 
 
-sort_order = ['dominant_dropout','dominant_dropout_median','imaging_depth','cre_line_categorical','session_id_categorical']
-sorted_data = gat.sort_data(rsp, sort_order, cluster_column_name='clusterer_labels')
-
-fig, axes = vbp.make_multi_cmap_heatmap(
-    sorted_data[cols_to_plot], 
-    heatmap_defs, 
-    figsize=(10,12), 
-    top_buffer=0, 
-    bottom_buffer=0.1, 
-    n_cbar_rows=4, 
-    heatmap_div=0.7, 
-)
-for idx,row in sorted_data.query('cluster_transition').iterrows():
-    axes['heatmap'].axhline(idx,color='black')
-
-
-# ## and another sorting, with session_id being the emphasis
-
-# In[ ]:
-
-
-sort_order = ['dominant_dropout','dominant_dropout_median','session_id_categorical','cre_line_categorical','imaging_depth',]
-sorted_data = gat.sort_data(rsp, sort_order, cluster_column_name='clusterer_labels')
-
-fig, axes = vbp.make_multi_cmap_heatmap(
-    sorted_data[cols_to_plot], 
-    heatmap_defs, 
-    figsize=(10,10), 
-    top_buffer=0, 
-    bottom_buffer=0.1, 
-    n_cbar_rows=4, 
-    heatmap_div=0.7, 
-)
-for idx,row in sorted_data.query('cluster_transition').iterrows():
-    axes['heatmap'].axhline(idx,color='black')
-
-
-# ## sort by structure after dropout
-
-# In[ ]:
-
-
-sort_order = ['dominant_dropout','dominant_dropout_median','targeted_structure_categorical','cre_line_categorical','session_id_categorical','imaging_depth']
-sorted_data = gat.sort_data(rsp, sort_order, cluster_column_name='clusterer_labels')
-
-fig, axes = vbp.make_multi_cmap_heatmap(
-    sorted_data[cols_to_plot], 
-    heatmap_defs, 
-    figsize=(10,15), 
-    top_buffer=0, 
-    bottom_buffer=0.1, 
-    n_cbar_rows=4, 
-    heatmap_div=0.7, 
-)
-for idx,row in sorted_data.query('cluster_transition').iterrows():
-    axes['heatmap'].axhline(idx,color='black')
-
-
-# ## Sort by cluster ID and move it to the leftmost column
-
-# In[ ]:
-
-
-sort_order = ['clusterer_labels','cre_line_categorical','session_id_categorical','imaging_depth']
-sorted_data = gat.sort_data(rsp, sort_order, cluster_column_name='clusterer_labels')
-
-cols_to_plot = [
-    'clusterer_labels', 
-    'all-images', 
-    'omissions', 
-    'pupil', 
-    'running',
-    'cre_line_categorical', 
-    'session_id_categorical', 
-    'equipment_name_categorical',
-    'targeted_structure_categorical',
-    'imaging_depth'
-]
-
-fig, axes = vbp.make_multi_cmap_heatmap(
-    sorted_data[cols_to_plot], 
-    heatmap_defs, 
-    figsize=(10,10), 
-    top_buffer=0, 
-    bottom_buffer=0.1, 
-    n_cbar_rows=4, 
-    heatmap_div=0.7, 
-)
-for idx,row in sorted_data.query('cluster_transition').iterrows():
-    axes['heatmap'].axhline(idx,color='black')
 

@@ -4,10 +4,10 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-def hist_param_bins(sorted_data, parameter_primary, parameters_cont, parameters_categ, dosavefig_fign=[0,'']):
+def plot_hist_parameter_bins(df, parameter_primary, parameters_cont, parameters_categ, dosavefig_fign=[0,'']):
 
     ### bin task_dropout_index into 2
-    topc = sorted_data[parameter_primary].values
+    topc = df[parameter_primary].values
     nbins0 = 2
 
     r = np.max(topc) - np.min(topc)
@@ -39,7 +39,7 @@ def hist_param_bins(sorted_data, parameter_primary, parameters_cont, parameters_
 
     for hind in np.unique(hist_inds): # 1,2,etc. #hind = 1
 
-        sd_this_bin = sorted_data[hist_inds == hind]
+        sd_this_bin = df[hist_inds == hind]
 
         for col,parameter in enumerate(parameters_cont):
             # col = 0; parameter = parameters[0] #'imaging_depth' #'all-images'
@@ -72,7 +72,7 @@ def hist_param_bins(sorted_data, parameter_primary, parameters_cont, parameters_
             );
 
 
-            ax[row_ax,col].set_xlim([np.min(sorted_data[parameter]), np.max(sorted_data[parameter])])
+            ax[row_ax,col].set_xlim([np.min(df[parameter]), np.max(df[parameter])])
             
             # set titles, make first row title different
             ax[row_ax, col].set_title('parameter = {}\n{}'.format(parameter, parameter_primary))
@@ -92,7 +92,7 @@ def hist_param_bins(sorted_data, parameter_primary, parameters_cont, parameters_
     # fig, ax = plt.subplots(1, len(parameters),figsize=(18,4))
     for hind in np.unique(hist_inds): # 1,2,etc. #hind = 1
 
-        sd_this_bin = sorted_data[hist_inds == hind]
+        sd_this_bin = df[hist_inds == hind]
 
         for col,parameter in enumerate(parameters_categ):
             # col = 0; parameter = parameters[0]
@@ -128,9 +128,9 @@ def hist_param_bins(sorted_data, parameter_primary, parameters_cont, parameters_
 
             '''
             # build a dataframe of value counts for the pie chart (there's probably a better way!)
-            df = pd.DataFrame(sd_this_bin[parameter].value_counts()).sort_index()
+            df0 = pd.DataFrame(sd_this_bin[parameter].value_counts()).sort_index()
 
-            plot = df.plot.pie(
+            plot = df0.plot.pie(
                 y = parameter, 
                 ax = ax[row,col],
                 legend = False

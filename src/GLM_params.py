@@ -1,5 +1,6 @@
 import os 
 import json
+import numpy as np
 from copy import copy
 import datetime
 import shutil
@@ -10,28 +11,28 @@ OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/o
 
 def define_kernels():
     kernels = {
-        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0, 'dropout':True},
-        'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0, 'dropout':True},
-        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True},
-        'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True},
-        'pre_lick_bouts':    {'event':'lick_bouts',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True},
-        'post_lick_bouts':   {'event':'lick_bouts',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True},
-        'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5, 'dropout':True},
-        'change':       {'event':'change',      'type':'discrete',      'length':2,     'offset':0, 'dropout':True},
-        'hits':       {'event':'hit',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
-        'misses':       {'event':'miss',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
-        'false_alarms':       {'event':'false_alarm',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
-        'correct_rejects':       {'event':'correct_reject',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':6,     'offset':-1, 'dropout':True},
-        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.8,  'offset':0, 'dropout':True},
-        'image_expectation':   {'event':'any-image',  'type':'discrete','length':0.8,  'offset':-0.767, 'dropout':True},
-        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1, 'dropout':True},
-        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'dropout':True},
-        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1, 'dropout':True},
+        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0, 'dropout':True, 'text': 'constant value'},
+        'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0, 'dropout':True, 'text': 'linearly increases over the session from 0 to 1'},
+        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True, 'text': 'mouse lick'},
+        'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True, 'text': 'mouse lick'},
+        'pre_lick_bouts':    {'event':'lick_bouts',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True, 'text': 'lick bout'},
+        'post_lick_bouts':   {'event':'lick_bouts',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True, 'text': 'lick bout'},
+        'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5, 'dropout':True, 'text': 'water reward'},
+        'change':       {'event':'change',      'type':'discrete',      'length':2,     'offset':0, 'dropout':True, 'text': 'image change'},
+        'hits':       {'event':'hit',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'correct mouse lick to image change'},
+        'misses':       {'event':'miss',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'mouse does not lick to image change'},
+        'false_alarms':       {'event':'false_alarm',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'mouse licks on catch trials'},
+        'correct_rejects':       {'event':'correct_reject',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'mouse does not lick on catch trials'},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':6,     'offset':-1, 'dropout':True, 'text': 'image was omitted'},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.8,  'offset':0, 'dropout':True, 'text': 'image presentation'},
+        'image_expectation':   {'event':'any-image',  'type':'discrete','length':0.8,  'offset':-0.767, 'dropout':True, 'text': 'the repetition of the last image'},
+        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1, 'dropout':True, 'text': 'running speed normalized to max 100cm/s'},
+        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'dropout':True, 'text': 'behavioral model weights'},
+        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1, 'dropout':True, 'text': 'Z-scores pupil diameter for this session'},
     }
     ## add face motion energy PCs
     for PC in range(5):
-        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':False}
+        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':False, 'text':'PCA from face motion videos'}
     return kernels
 
 
@@ -291,3 +292,56 @@ def load_run_json(version):
     with open(json_path,'r') as json_file:
         run_params = json.load(json_file)
     return run_params
+
+def describe_model_version(version):
+    '''
+        Prints a text description of the model kernels and dropouts. Tries to load the information from v_alex_test
+    '''
+    run_params = load_run_json(version)
+    just_for_text = load_run_json('alex_test')   
+
+    print('\nThe model contains the following kernels:') 
+    for kernel in run_params['kernels']:
+        if 'text' in run_params['kernels'][kernel]:
+            text = run_params['kernels'][kernel]['text']       
+        else:
+            if kernel not in just_for_text['kernels']:
+                text = 'no description available'
+            else:
+                text = just_for_text['kernels'][kernel]['text']              
+        if run_params['kernels'][kernel]['type'] == 'discrete':
+            start = np.round(run_params['kernels'][kernel]['offset'],2)
+            end  = np.round(run_params['kernels'][kernel]['length'] - start,1)
+            print(kernel.ljust(18) + " is aligned from ("+str(start)+", "+str(end)+") seconds around each "+text)
+        else:
+            print(kernel.ljust(18) + " runs the full length of the session, and is "+ text)
+    
+    print('\nThe model contains the following dropout, or reduced models:') 
+    for d in run_params['dropouts']:
+        if 'is_single' in run_params['dropouts'][d]:
+            is_single=run_params['dropouts'][d]['is_single']
+        elif d in just_for_text['dropouts'][d]:
+            is_single=just_for_text['dropouts'][d]['is_single']
+        else:
+            is_single=False
+        if is_single:
+            k = run_params['dropouts'][d]['kernels']
+            if 'intercept' in k:
+                k.remove('intercept')
+            if len(k) > 1:
+                print(d.ljust(25) +" contains just the kernels "+ ', '.join(k))
+            else:
+                print(d.ljust(25) +" contains just the kernel "+ ', '.join(k))   
+        else:
+            if 'dropped_kernels' in run_params['dropouts'][d]:
+                drops = run_params['dropouts'][d]['dropped_kernels']
+            elif d in just_for_text['dropouts']:
+                drops = just_for_text['dropouts'][d]['dropped_kernels']
+            else:
+                drops = ['?']
+            if len(drops) == 0:
+                print(d.ljust(25) +" contains all kernels")     
+            else:
+                print(d.ljust(25) +" contains all kernels except "+', '.join(drops))    
+ 
+

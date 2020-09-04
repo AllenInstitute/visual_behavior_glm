@@ -239,7 +239,7 @@ def define_dropouts(kernels,kernel_definitions):
             dropouts['all-images']['kernels'].remove('image'+str(i))
             dropouts['all-images']['dropped_kernels'].append('image'+str(i))
 
-    # Removes all Stimulus Kernels
+    # Removes all Stimulus Kernels, creating the visual dropout
     if ('each-image' in kernel_definitions) or ('any-image' in kernel_definitions) or ('omissions' in kernel_definitions):
         dropouts['visual'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         if 'each-image' in kernel_definitions:
@@ -252,6 +252,46 @@ def define_dropouts(kernels,kernel_definitions):
         if 'any-image' in kernel_definitions:
             dropouts['visual']['kernels'].remove('any-image')
             dropouts['visual']['dropped_kernels'].append('any-image')
+
+    # Create behavioral dropout:
+    behavioral = ['running','pupil','pre_licks','post_licks','pre_lick_bouts','post_lick_bouts','face_motion_energy']
+    dropouts['behavioral'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in behavioral:
+        if k in kernel_definitions:
+            dropouts['behavioral']['kernels'].remove(k)
+            dropouts['behavioral']['dropped_kernels'].append(k)
+
+    # Create licking dropout
+    licking = ['pre_licks','post_licks','pre_lick_bouts','post_lick_bouts']
+    dropouts['licking'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in licking:
+        if k in kernel_definitions:
+            dropouts['licking']['kernels'].remove(k)
+            dropouts['licking']['dropped_kernels'].append(k)
+   
+    # Create pupil/running 
+    pupil_and_running = ['pre_licks','post_licks','pre_lick_bouts','post_lick_bouts']
+    dropouts['pupil_and_running'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in pupil_and_running:
+        if k in kernel_definitions:
+            dropouts['pupil_and_running']['kernels'].remove(k)
+            dropouts['pupil_and_running']['dropped_kernels'].append(k)
+
+    # Create trial type 
+    trial_type = ['hits','misses','false_alarms','correct_rejects']
+    dropouts['trial_type'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in trial_type:
+        if k in kernel_definitions:
+            dropouts['trial_type']['kernels'].remove(k)
+            dropouts['trial_type']['dropped_kernels'].append(k)
+
+    # Create cognitive 
+    cognitive = ['hits','misses','false_alarms','correct_rejects','change','reward','image-expectation','model_bias','model_task0','model_timing1D','model_omission1']
+    dropouts['cognitive'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in cognitive:
+        if k in kernel_definitions:
+            dropouts['cognitive']['kernels'].remove(k)
+            dropouts['cognitive']['dropped_kernels'].append(k)
 
     # Remove all behavior model kernels
     if 'beh_model' in kernel_definitions:

@@ -370,7 +370,7 @@ def describe_model_version(version):
                 text = just_for_text['kernels'][kernel]['text']              
         if run_params['kernels'][kernel]['type'] == 'discrete':
             start = np.round(run_params['kernels'][kernel]['offset'],2)
-            end  = np.round(run_params['kernels'][kernel]['length'] - start,1)
+            end  = np.round(run_params['kernels'][kernel]['length'] + start,1)
             print(kernel.ljust(18) + " is aligned from ("+str(start)+", "+str(end)+") seconds around each "+text)
         else:
             print(kernel.ljust(18) + " runs the full length of the session, and is "+ text)

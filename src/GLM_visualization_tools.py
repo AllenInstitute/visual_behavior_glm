@@ -598,11 +598,11 @@ def make_level(df, drops, this_level_num,this_level_drops,run_params):
         drops.remove(d)
     return df,drops
 
-def plot_dropouts(run_params):
+def plot_dropouts(run_params,save_results=True):
     '''
         Makes a visual and graphic representation of how the kernels are nested inside dropout models
     '''
-    plt.figure(figsize=(10,8))
+    plt.figure(figsize=(16,8))
     num_levels=4
     w = 1/num_levels
     
@@ -623,7 +623,7 @@ def plot_dropouts(run_params):
     levels={
             4:['Full'],
             3:['visual','behavioral','cognitive'],
-            2:['licking','trial_type','face_motion_energy','pupil_and_running','all-images','beh_model','vip']
+            2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation']
         }
     df,drops = make_level(df,drops, 4,levels[4],run_params)
     df,drops = make_level(df,drops, 3,levels[3],run_params)
@@ -632,6 +632,8 @@ def plot_dropouts(run_params):
     # re-organized dataframe
     df=df[['level-1','level-2','level-3','level-4']]
     df = df.sort_values(by=['level-4','level-3','level-2','level-1']) 
+    df['text'] = [run_params['kernels'][k]['text'] for k in df.index.values]
+    df['support'] = [(np.round(run_params['kernels'][k]['offset'],2), np.round(run_params['kernels'][k]['length'] +  run_params['kernels'][k]['offset'],2)) for k in df.index.values]
 
     # Make sure all dropouts were used
     if len(drops) > 0:
@@ -662,18 +664,31 @@ def plot_dropouts(run_params):
                 uniques.add('level-'+str(level)+'-'+df.loc[k]['level-'+str(level)])
                 plt.text(w*(level-1)+0.01,maxn-index-1+.25,df.loc[k]['level-'+str(level)],fontsize=12)
                 plt.plot([0,w*level],[maxn-index,maxn-index], 'k-',alpha=1)
+            elif level == 1:
+                plt.text(0.01,maxn-index-1+.25,df.loc[k]['level-'+str(level)],fontsize=12)
+
     
     # Define some lines between levels    
     plt.axvline(w,color='k') 
     plt.axvline(w*2,color='k') 
     plt.axvline(w*3,color='k') 
-    
+   
+    #plt.text(-1,0,'test',fontsize=12)
+    max_name = np.max([len(x) for x in df.index.values])+3 
+    max_support = np.max([len(str(x)) for x in df['support'].values])+3
+    max_text = np.max([len(str(x)) for x in df['text'].values])
+    aligned_names = [row[1].name.ljust(max_name)+str(row[1]['support']).ljust(max_support)+row[1]['text'].ljust(max_text) for row in df.iterrows()]
     # clean up axes
     plt.ylim(0,len(kernels))
     plt.xlim(0,1)
     plt.xticks([w/2,w*1.5,w*2.5,w*3.5],['Individual','Minor','Major','Full'])
-    plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),df.index.values)
+    #plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),df.index.values,ha='left')
+    plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
+    plt.gca().get_yaxis().set_tick_params(pad=400)
     plt.title('Nested Models')
     plt.tight_layout()
+    if save_results:
+        plt.savefig(run_params['output_dir']+'/nested_models.png')
+        df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 

@@ -280,20 +280,20 @@ def define_dropouts(kernels,kernel_definitions):
             dropouts['pupil_and_running']['dropped_kernels'].append(k)
 
     # Create trial type 
-    trial_type = ['hits','misses','false_alarms','correct_rejects','change','rewards']
-    dropouts['trial_type'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in trial_type:
+    task = ['hits','misses','false_alarms','correct_rejects','change','rewards']
+    dropouts['task'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in task:
         if k in kernel_definitions:
-            dropouts['trial_type']['kernels'].remove(k)
-            dropouts['trial_type']['dropped_kernels'].append(k)
+            dropouts['task']['kernels'].remove(k)
+            dropouts['task']['dropped_kernels'].append(k)
 
     # VIP dropout (for lack of better name)
-    vip = ['image_expectation','omissions']
-    dropouts['vip'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in vip:
+    expectation = ['image_expectation','omissions']
+    dropouts['expectation'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in expectation:
         if k in kernel_definitions:
-            dropouts['vip']['kernels'].remove(k)
-            dropouts['vip']['dropped_kernels'].append(k)
+            dropouts['expectation']['kernels'].remove(k)
+            dropouts['expectation']['dropped_kernels'].append(k)
  
     # Create cognitive 
     cognitive = ['hits','misses','false_alarms','correct_rejects','change','rewards','image_expectation']

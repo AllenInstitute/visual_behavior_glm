@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
 
-def plot_regressor_correlation(glm, add_lines=True):
+def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     '''
         Plots the correlation of the design matrix for this glm object
         
@@ -50,7 +50,8 @@ def plot_regressor_correlation(glm, add_lines=True):
     plt.xticks(ticks=locs, labels=ticks,rotation=90)
     plt.yticks(ticks=locs, labels=ticks)
     plt.tight_layout()
-    plt.savefig('discrete.png')
+    if save_plot:
+        plt.savefig('discrete.png')
 
     # Look at the continuous kernels
     cont = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']

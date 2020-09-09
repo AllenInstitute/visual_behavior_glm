@@ -598,7 +598,7 @@ def make_level(df, drops, this_level_num,this_level_drops,run_params):
         drops.remove(d)
     return df,drops
 
-def plot_dropouts(run_params,save_results=True):
+def plot_dropouts(run_params,save_results=False):
     '''
         Makes a visual and graphic representation of how the kernels are nested inside dropout models
     '''
@@ -665,6 +665,7 @@ def plot_dropouts(run_params,save_results=True):
                 plt.text(w*(level-1)+0.01,maxn-index-1+.25,df.loc[k]['level-'+str(level)],fontsize=12)
                 plt.plot([0,w*level],[maxn-index,maxn-index], 'k-',alpha=1)
             elif level == 1:
+                # For the individual regressors, just label, no lines
                 plt.text(0.01,maxn-index-1+.25,df.loc[k]['level-'+str(level)],fontsize=12)
 
     
@@ -672,21 +673,26 @@ def plot_dropouts(run_params,save_results=True):
     plt.axvline(w,color='k') 
     plt.axvline(w*2,color='k') 
     plt.axvline(w*3,color='k') 
-   
-    #plt.text(-1,0,'test',fontsize=12)
+
+    # Make formated ylabels that include support and alignment event   
     max_name = np.max([len(x) for x in df.index.values])+3 
     max_support = np.max([len(str(x)) for x in df['support'].values])+3
     max_text = np.max([len(str(x)) for x in df['text'].values])
     aligned_names = [row[1].name.ljust(max_name)+str(row[1]['support']).ljust(max_support)+row[1]['text'].ljust(max_text) for row in df.iterrows()]
+
     # clean up axes
     plt.ylim(0,len(kernels))
     plt.xlim(0,1)
-    plt.xticks([w/2,w*1.5,w*2.5,w*3.5],['Individual','Minor','Major','Full'])
-    #plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),df.index.values,ha='left')
+    plt.xticks([w/2,w*1.5,w*2.5,w*3.5],['Individual Model','Minor Component','Major Component','Full Model'],fontsize=12)
     plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
     plt.gca().get_yaxis().set_tick_params(pad=400)
     plt.title('Nested Models')
     plt.tight_layout()
+    plt.text(-.255,len(kernels)+.35,'Alignment',fontsize=12)
+    plt.text(-.385,len(kernels)+.35,'Support',fontsize=12)
+    plt.text(-.555,len(kernels)+.35,'Kernel',fontsize=12)
+        
+    # Save results
     if save_results:
         plt.savefig(run_params['output_dir']+'/nested_models.png')
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')

@@ -12,6 +12,104 @@ import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
 
+def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
+    '''
+        Plots the correlation of the design matrix for this glm object
+        
+        glm, the session to look at
+        add_lines (bool), if True, plots faint lines to devide the correlation matrix
+    '''   
+
+    # Look at the discrete event kernels 
+    discrete = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='discrete']
+    if 'intercept' in discrete:
+        discrete.remove('intercept')
+    discrete = np.sort(discrete)
+    X = glm.design.get_X(kernels=discrete).values
+    corr = np.corrcoef(X.T) # remove intercept
+    plt.figure(figsize=(10,10))
+    p = plt.gca().imshow(corr,cmap='Blues')
+    plt.gcf().colorbar(p, ax=plt.gca())
+    plt.title('Discrete Regressors')
+    plt.xlabel('Regressor')
+    plt.ylabel('Regressor')
+
+    # Add ticks to mark each kernel
+    start = 0
+    end = -1
+    ticks =[]
+    locs = []
+    for x in discrete:
+        end += glm.design.kernel_dict[x]['kernel_length_samples'] 
+        ticks.append(x)
+        locs.append(np.mean([start,end]))
+        start += glm.design.kernel_dict[x]['kernel_length_samples'] 
+        if add_lines:
+            plt.gca().axvline(end+0.5,color='k',alpha=0.05)
+            plt.gca().axhline(end+0.5,color='k',alpha=0.05)
+    plt.xticks(ticks=locs, labels=ticks,rotation=90)
+    plt.yticks(ticks=locs, labels=ticks)
+    plt.tight_layout()
+    if save_plot:
+        plt.savefig('discrete.png')
+
+    # Look at the continuous kernels
+    cont = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
+    if 'intercept' in cont:
+        cont.remove('intercept')
+    cont = np.sort(cont)
+    X = glm.design.get_X(kernels=cont).values
+    corr = np.corrcoef(X.T) # remove intercept
+    plt.figure(figsize=(10,10))
+    p = plt.gca().imshow(corr,cmap='Blues')
+    plt.gcf().colorbar(p, ax=plt.gca())
+    plt.title('Continuous Regressors')
+    plt.xlabel('Regressor')
+    plt.ylabel('Regressor')
+    
+    # Add ticks to mark each kernel
+    start = 0
+    end = -1
+    ticks =[]
+    locs = []
+    for x in cont:
+        end += glm.design.kernel_dict[x]['kernel_length_samples'] 
+        ticks.append(x)
+        locs.append(np.mean([start,end]))
+        start += glm.design.kernel_dict[x]['kernel_length_samples'] 
+        if add_lines:
+            plt.gca().axvline(end+0.5,color='k',alpha=0.05)
+            plt.gca().axhline(end+0.5,color='k',alpha=0.05)
+    plt.xticks(ticks=locs, labels=ticks,rotation=90)
+    plt.yticks(ticks=locs, labels=ticks)
+    plt.tight_layout() 
+    if save_plot: 
+        plt.savefig('continuous.png') 
+
+    # Plot the correlations between the timeseries with no delay for the continuous kernels
+    cont_events = np.vstack([glm.design.events[x] for x in cont])
+    plt.figure(figsize=(10,10))
+    corr = np.corrcoef(cont_events) # remove intercept
+    p = plt.gca().imshow(corr,cmap='Blues')
+    plt.gcf().colorbar(p, ax=plt.gca())
+
+    # Add faint lines
+    for dex,x in enumerate(cont):
+        if add_lines:
+            plt.gca().axvline(dex+0.5,color='k',alpha=0.05)
+            plt.gca().axhline(dex+0.5,color='k',alpha=0.05)
+
+    # Clean up plot and save   
+    plt.title('Continuous Timeseries')
+    plt.xlabel('Regressors')
+    plt.ylabel('Regressors')
+    plt.xticks(ticks=range(0,len(cont)), labels=cont,rotation=90)
+    plt.yticks(ticks=range(0,len(cont)), labels=cont)
+    plt.tight_layout()  
+    if save_plot:
+        plt.savefig('continuous_events.png') 
+
+
 def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outlier_threshold=1.5):
     '''
     make a boxplot comparing variance explained for each version in the database

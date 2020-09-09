@@ -68,7 +68,7 @@ class GLM(object):
         self.timestamps = self.fit['dff_trace_arr']['dff_trace_timestamps'].values
         if log_results:
             print('logging results to mongo')
-            gat.log_results_to_mongo(self) # TODO, need to include adjusted dropout info
+            gat.log_results_to_mongo(self) 
             print('done logging results to mongo')
         if log_weights:
             print('logging W matrix to mongo')

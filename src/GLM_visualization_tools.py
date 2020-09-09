@@ -420,6 +420,8 @@ def plot_filters(glm, cell_specimen_id, n_cols=5):
 
     fig.tight_layout()
 
+    return fig, ax
+
 
 def get_title(ophys_experiment_id, cell_specimen_id):
     '''

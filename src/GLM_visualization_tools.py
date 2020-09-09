@@ -568,6 +568,10 @@ class GLM_Movie(object):
             )
 
 def get_containing_dictionary(key,dicts,run_params):
+    '''
+        Helper function for plot_dropouts()
+        returns which dropout contains each kernel
+    '''
     label='-'
     
     for d in dicts:
@@ -585,13 +589,20 @@ def get_containing_dictionary(key,dicts,run_params):
     return label
 
 def make_level(df, drops, this_level_num,this_level_drops,run_params):
+    '''
+        Helper function for plot_dropouts()
+        Determines what dropout each kernel is a part of, as well as keeping track of which dropouts have been used. 
+    '''
     df['level-'+str(this_level_num)] = [get_containing_dictionary(key, this_level_drops,run_params) for key in df.index.values]
     for d in this_level_drops:
         drops.remove(d)
     return df,drops
 
 def plot_dropouts(run_params):
-    plt.figure(figsize=(6,8))
+    '''
+        Makes a visual and graphic representation of how the kernels are nested inside dropout models
+    '''
+    plt.figure(figsize=(10,8))
     num_levels=4
     w = 1/num_levels
     
@@ -627,19 +638,42 @@ def plot_dropouts(run_params):
         print('Warning, dropouts not used')
         print(drops)
 
-    ## Full Model
-    labels = pd.unique(df.values.ravel())
-    colors = sns.color_palette('hls', len(labels)) 
+    # Make Color Dictionary
+    labels=[]
+    colors=[]
+    for level in range(1,num_levels+1):
+        new_labels = list(df['level-'+str(level)].unique())
+        labels = labels + ['level-'+str(level)+'-'+ x for x in new_labels]
+        colors = colors + sns.color_palette('hls', len(new_labels)) 
     color_dict = {x:y for (x,y) in  zip(labels,colors)}
+    color_dict['level-1--'] = (0.8,0.8,0.8)
+    color_dict['level-2--'] = (0.8,0.8,0.8)
+    color_dict['level-3--'] = (0.8,0.8,0.8)
+    color_dict['level-4--'] = (0.8,0.8,0.8)
+    
+    # Plot Squares
+    uniques = set()
+    maxn = len(df) 
     for index, k in enumerate(df.index.values):
         for level in range(1,num_levels+1):
-            plt.axhspan(index,index+1,w*(level-1),w*level,color=color_dict[df.loc[k]['level-'+str(level)]]) 
-    #plt.text(1-height*(3/4),len(kernels)/2,'Full',fontsize=12)
-         
+            plt.axhspan(maxn-index-1,maxn-index,w*(level-1),w*level,color=color_dict['level-'+str(level)+'-'+df.loc[k]['level-'+str(level)]]) 
+            # If this is a new group, add a line and a text label
+            if (level > 1)&(not (df.loc[k]['level-'+str(level)] == '-')) & ('level-'+str(level)+'-'+df.loc[k]['level-'+str(level)] not in uniques):
+                uniques.add('level-'+str(level)+'-'+df.loc[k]['level-'+str(level)])
+                plt.text(w*(level-1)+0.01,maxn-index-1+.25,df.loc[k]['level-'+str(level)],fontsize=12)
+                plt.plot([0,w*level],[maxn-index,maxn-index], 'k-',alpha=1)
+    
+    # Define some lines between levels    
+    plt.axvline(w,color='k') 
+    plt.axvline(w*2,color='k') 
+    plt.axvline(w*3,color='k') 
+    
+    # clean up axes
     plt.ylim(0,len(kernels))
     plt.xlim(0,1)
-    plt.xticks([w/2,w*1.5,w*2.5,w*3.5],['Individual','?','?','Full'])
-    plt.yticks(np.arange(0.5,len(kernels)+.5,1),kernels)
+    plt.xticks([w/2,w*1.5,w*2.5,w*3.5],['Individual','Minor','Major','Full'])
+    plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),df.index.values)
+    plt.title('Nested Models')
     plt.tight_layout()
     return df
 

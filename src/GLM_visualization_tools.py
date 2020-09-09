@@ -4,6 +4,7 @@ import visual_behavior_glm.src.GLM_analysis_tools as gat
 import matplotlib as mpl
 import seaborn as sns
 import numpy as np
+import pandas as pd
 import os
 import time
 from tqdm import tqdm
@@ -565,3 +566,80 @@ class GLM_Movie(object):
                 os.path.join(save_folder, filename),
                 writer=self.writer
             )
+
+def get_containing_dictionary(key,dicts,run_params):
+    label='-'
+    
+    for d in dicts:
+        found=False
+        if (d == 'Full') & (key in run_params['dropouts']['Full']['kernels']):
+            if found:
+                print('WARNING DUPLICATE DROPOUT')
+            found=True
+            label= d
+        elif key in run_params['dropouts'][d]['dropped_kernels']:
+            if found:
+                print('WARNING DUPLICATE DROPOUT')
+            found=True
+            label= d
+    return label
+
+def make_level(df, drops, this_level_num,this_level_drops,run_params):
+    df['level-'+str(this_level_num)] = [get_containing_dictionary(key, this_level_drops,run_params) for key in df.index.values]
+    for d in this_level_drops:
+        drops.remove(d)
+    return df,drops
+
+def plot_dropouts(run_params):
+    plt.figure(figsize=(6,8))
+    num_levels=4
+    w = 1/num_levels
+    
+    # Get list of dropouts and kernels
+    drops = set([x for x in run_params['dropouts'] if not run_params['dropouts'][x]['is_single'] ])
+    kernels = run_params['kernels'].copy()
+ 
+    # Build dataframe
+    df = pd.DataFrame(index=kernels.keys())
+    
+    # Add the individual dropouts
+    df['level-1']= df.index.values
+    for k in kernels:
+        if k in drops:
+            drops.remove(k)
+    
+    # Add each grouping of dropouts
+    levels={
+            4:['Full'],
+            3:['visual','behavioral','cognitive'],
+            2:['licking','trial_type','face_motion_energy','pupil_and_running','all-images','beh_model','vip']
+        }
+    df,drops = make_level(df,drops, 4,levels[4],run_params)
+    df,drops = make_level(df,drops, 3,levels[3],run_params)
+    df,drops = make_level(df,drops, 2,levels[2],run_params)
+    
+    # re-organized dataframe
+    df=df[['level-1','level-2','level-3','level-4']]
+    df = df.sort_values(by=['level-4','level-3','level-2','level-1']) 
+
+    # Make sure all dropouts were used
+    if len(drops) > 0:
+        print('Warning, dropouts not used')
+        print(drops)
+
+    ## Full Model
+    labels = pd.unique(df.values.ravel())
+    colors = sns.color_palette('hls', len(labels)) 
+    color_dict = {x:y for (x,y) in  zip(labels,colors)}
+    for index, k in enumerate(df.index.values):
+        for level in range(1,num_levels+1):
+            plt.axhspan(index,index+1,w*(level-1),w*level,color=color_dict[df.loc[k]['level-'+str(level)]]) 
+    #plt.text(1-height*(3/4),len(kernels)/2,'Full',fontsize=12)
+         
+    plt.ylim(0,len(kernels))
+    plt.xlim(0,1)
+    plt.xticks([w/2,w*1.5,w*2.5,w*3.5],['Individual','?','?','Full'])
+    plt.yticks(np.arange(0.5,len(kernels)+.5,1),kernels)
+    plt.tight_layout()
+    return df
+

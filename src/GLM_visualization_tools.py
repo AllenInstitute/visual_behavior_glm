@@ -82,8 +82,9 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
             plt.gca().axhline(end+0.5,color='k',alpha=0.05)
     plt.xticks(ticks=locs, labels=ticks,rotation=90)
     plt.yticks(ticks=locs, labels=ticks)
-    plt.tight_layout()  
-    plt.savefig('continuous.png') 
+    plt.tight_layout() 
+    if save_plot: 
+        plt.savefig('continuous.png') 
 
     # Plot the correlations between the timeseries with no delay for the continuous kernels
     cont_events = np.vstack([glm.design.events[x] for x in cont])
@@ -105,7 +106,8 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     plt.xticks(ticks=range(0,len(cont)), labels=cont,rotation=90)
     plt.yticks(ticks=range(0,len(cont)), labels=cont)
     plt.tight_layout()  
-    plt.savefig('continuous_events.png') 
+    if save_plot:
+        plt.savefig('continuous_events.png') 
 
 
 def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outlier_threshold=1.5):

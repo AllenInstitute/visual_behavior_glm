@@ -1,5 +1,6 @@
 import os 
 import json
+import numpy as np
 from copy import copy
 import datetime
 import shutil
@@ -10,28 +11,28 @@ OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/o
 
 def define_kernels():
     kernels = {
-        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0, 'dropout':True},
-        'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0, 'dropout':True},
-        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True},
-        'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True},
-        'pre_lick_bouts':    {'event':'lick_bouts',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True},
-        'post_lick_bouts':   {'event':'lick_bouts',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True},
-        'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5, 'dropout':True},
-        'change':       {'event':'change',      'type':'discrete',      'length':2,     'offset':0, 'dropout':True},
-        'hits':       {'event':'hit',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
-        'misses':       {'event':'miss',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
-        'false_alarms':       {'event':'false_alarm',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
-        'correct_rejects':       {'event':'correct_reject',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':6,     'offset':-1, 'dropout':True},
-        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.8,  'offset':0, 'dropout':True},
-        'image_expectation':   {'event':'any-image',  'type':'discrete','length':0.8,  'offset':-0.767, 'dropout':True},
-        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1, 'dropout':True},
-        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'dropout':True},
-        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1, 'dropout':True},
+        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0, 'dropout':True, 'text': 'constant value'},
+        'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0, 'dropout':True, 'text': 'linear ramp from 0 to 1'},
+        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True, 'text': 'mouse lick'},
+        'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True, 'text': 'mouse lick'},
+        'pre_lick_bouts':    {'event':'lick_bouts',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True, 'text': 'lick bout'},
+        'post_lick_bouts':   {'event':'lick_bouts',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True, 'text': 'lick bout'},
+        'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5, 'dropout':True, 'text': 'water reward'},
+        'change':       {'event':'change',      'type':'discrete',      'length':2,     'offset':0, 'dropout':True, 'text': 'image change'},
+        'hits':       {'event':'hit',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'lick to image change'},
+        'misses':       {'event':'miss',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'no lick to image change'},
+        'false_alarms':       {'event':'false_alarm',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'lick on catch trials'},
+        'correct_rejects':       {'event':'correct_reject',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'no lick on catch trials'},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':6,     'offset':-1, 'dropout':True, 'text': 'image was omitted'},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.8,  'offset':0, 'dropout':True, 'text': 'image presentation'},
+        'image_expectation':   {'event':'any-image',  'type':'discrete','length':0.8,  'offset':-0.767, 'dropout':True, 'text': '750ms from last image'},
+        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1, 'dropout':True, 'text': 'normalized running speed'},
+        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'dropout':True, 'text': 'behavioral model weights'},
+        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1, 'dropout':True, 'text': 'Z-scored pupil diameter'},
     }
     ## add face motion energy PCs
-    for PC in range(50):
-        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':False}
+    for PC in range(5):
+        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':False, 'text':'PCA from face motion videos'}
     return kernels
 
 
@@ -144,7 +145,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'L2_optimize_by_cell': False,    # If True, uses the best L2 value for each cell
         'L2_optimize_by_session': False, # If True, uses the best L2 value for this session
         'L2_use_fixed_value': True,    # If True, uses the hard coded L2_fixed_lambda
-        'L2_fixed_lambda':1,         # This value is used if L2_use_fixed_value
+        'L2_fixed_lambda':50,         # This value is used if L2_use_fixed_value
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'
@@ -217,53 +218,189 @@ def define_dropouts(kernels,kernel_definitions):
         If 'each-image' is in the kernel_definitions, then creates a dropout 'each-image' with all 8 images removed
     '''
     # Remove each kernel one-by-one
-    dropouts = {'Full': {'kernels':list(kernels.keys())}}
+    dropouts = {'Full': {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}}
     for kernel in [kernel for kernel in kernels.keys() if kernels[kernel]['dropout']]:
-        dropouts[kernel]={'kernels':list(kernels.keys())}
+        dropouts[kernel]={'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         dropouts[kernel]['kernels'].remove(kernel)
+        dropouts[kernel]['dropped_kernels'].append(kernel)
 
     # Removes all face motion PC kernels as a group
     if 'face_motion_PC_0' in kernel_definitions:
-        dropouts['face_motion_energy'] = {'kernels':list(kernels.keys())}
+        dropouts['face_motion_energy'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         kernels_to_drop = [kernel for kernel in dropouts['face_motion_energy']['kernels'] if kernel.startswith('face_motion')] 
         for kernel in kernels_to_drop:
             dropouts['face_motion_energy']['kernels'].remove(kernel)
+            dropouts['face_motion_energy']['dropped_kernels'].append(kernel)
 
     # Removes all individual image kernels
     if 'each-image' in kernel_definitions:
-        dropouts['all-images'] = {'kernels':list(kernels.keys())}
+        dropouts['all-images'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         for i in range(0,8):
             dropouts['all-images']['kernels'].remove('image'+str(i))
+            dropouts['all-images']['dropped_kernels'].append('image'+str(i))
 
-    # Removes all Stimulus Kernels
+    # Removes all Stimulus Kernels, creating the visual dropout
     if ('each-image' in kernel_definitions) or ('any-image' in kernel_definitions) or ('omissions' in kernel_definitions):
-        dropouts['visual'] = {'kernels':list(kernels.keys())}
+        dropouts['visual'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         if 'each-image' in kernel_definitions:
             for i in range(0,8):
                 dropouts['visual']['kernels'].remove('image'+str(i))
+                dropouts['visual']['dropped_kernels'].append('image'+str(i))
         if 'omissions' in kernel_definitions:
             dropouts['visual']['kernels'].remove('omissions')
+            dropouts['visual']['dropped_kernels'].append('omissions')
+        if 'image_expectation' in kernel_definitions:
+            dropouts['visual']['kernels'].remove('image_expectation')
+            dropouts['visual']['dropped_kernels'].append('image_expectation')
         if 'any-image' in kernel_definitions:
             dropouts['visual']['kernels'].remove('any-image')
+            dropouts['visual']['dropped_kernels'].append('any-image')
+
+    # Create behavioral dropout:
+    behavioral = ['running','pupil','pre_licks','post_licks','pre_lick_bouts','post_lick_bouts','model_bias','model_task0','model_timing1D','model_omission1']
+    if 'face_motion_energy' in dropouts:
+        behavioral=behavioral+dropouts['face_motion_energy']['dropped_kernels']
+    dropouts['behavioral'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in behavioral:
+        if k in kernel_definitions:
+            dropouts['behavioral']['kernels'].remove(k)
+            dropouts['behavioral']['dropped_kernels'].append(k)
+
+    # Create licking dropout
+    licking = ['pre_licks','post_licks','pre_lick_bouts','post_lick_bouts']
+    dropouts['licking'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in licking:
+        if k in kernel_definitions:
+            dropouts['licking']['kernels'].remove(k)
+            dropouts['licking']['dropped_kernels'].append(k)
+
+    # Create licking bouts dropout
+    licking = ['pre_lick_bouts','post_lick_bouts']
+    dropouts['licking_bouts'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in licking:
+        if k in kernel_definitions:
+            dropouts['licking_bouts']['kernels'].remove(k)
+            dropouts['licking_bouts']['dropped_kernels'].append(k)
+ 
+    # Create licking_each_lick dropout
+    licking = ['pre_licks','post_licks']
+    dropouts['licking_each_lick'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in licking:
+        if k in kernel_definitions:
+            dropouts['licking_each_lick']['kernels'].remove(k)
+            dropouts['licking_each_lick']['dropped_kernels'].append(k)
+ 
+ 
+    # Create pupil/running 
+    pupil_and_running = ['pupil','running']
+    dropouts['pupil_and_running'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in pupil_and_running:
+        if k in kernel_definitions:
+            dropouts['pupil_and_running']['kernels'].remove(k)
+            dropouts['pupil_and_running']['dropped_kernels'].append(k)
+
+    # Omissions vs pupil
+    pupil_and_omissions = ['pupil','omissions']
+    dropouts['pupil_and_omissions'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in pupil_and_omissions:
+        if k in kernel_definitions:
+            dropouts['pupil_and_omissions']['kernels'].remove(k)
+            dropouts['pupil_and_omissions']['dropped_kernels'].append(k)
+
+    # Omissions vs running
+    running_and_omissions = ['running','omissions']
+    dropouts['running_and_omissions'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in running_and_omissions:
+        if k in kernel_definitions:
+            dropouts['running_and_omissions']['kernels'].remove(k)
+            dropouts['running_and_omissions']['dropped_kernels'].append(k)
+
+    # Create task 
+    task = ['hits','misses','false_alarms','correct_rejects','change','rewards']
+    dropouts['task'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in task:
+        if k in kernel_definitions:
+            dropouts['task']['kernels'].remove(k)
+            dropouts['task']['dropped_kernels'].append(k)
+
+    # Create trial type 
+    trial_type = ['hits','misses','false_alarms','correct_rejects']
+    dropouts['trial_type'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in trial_type:
+        if k in kernel_definitions:
+            dropouts['trial_type']['kernels'].remove(k)
+            dropouts['trial_type']['dropped_kernels'].append(k)
+
+    # Create change_and_rewards
+    change_and_rewards = ['change','rewards']
+    dropouts['change_and_rewards'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in change_and_rewards:
+        if k in kernel_definitions:
+            dropouts['change_and_rewards']['kernels'].remove(k)
+            dropouts['change_and_rewards']['dropped_kernels'].append(k)
+
+    # Create hits_and_rewards
+    hits_and_rewards = ['hits','rewards']
+    dropouts['hits_and_rewards'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in hits_and_rewards:
+        if k in kernel_definitions:
+            dropouts['hits_and_rewards']['kernels'].remove(k)
+            dropouts['hits_and_rewards']['dropped_kernels'].append(k)
+
+    # Expectation Dropout 
+    expectation = ['image_expectation','omissions']
+    dropouts['expectation'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in expectation:
+        if k in kernel_definitions:
+            dropouts['expectation']['kernels'].remove(k)
+            dropouts['expectation']['dropped_kernels'].append(k)
+ 
+    # Create cognitive 
+    cognitive = ['hits','misses','false_alarms','correct_rejects','change','rewards']
+    dropouts['cognitive'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in cognitive:
+        if k in kernel_definitions:
+            dropouts['cognitive']['kernels'].remove(k)
+            dropouts['cognitive']['dropped_kernels'].append(k)
+
+    #     
+
 
     # Remove all behavior model kernels
     if 'beh_model' in kernel_definitions:
-        dropouts['beh_model'] = {'kernels':list(kernels.keys())}
+        dropouts['beh_model'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
         dropouts['beh_model']['kernels'].remove('model_bias')
         dropouts['beh_model']['kernels'].remove('model_task0')
         dropouts['beh_model']['kernels'].remove('model_timing1D')
         dropouts['beh_model']['kernels'].remove('model_omissions1')
+        dropouts['beh_model']['dropped_kernels'].append('model_bias')
+        dropouts['beh_model']['dropped_kernels'].append('model_task0')
+        dropouts['beh_model']['dropped_kernels'].append('model_timing1D')
+        dropouts['beh_model']['dropped_kernels'].append('model_omissions1')
+        dropouts['cognitive']['kernels'].remove('model_bias')
+        dropouts['cognitive']['kernels'].remove('model_task0')
+        dropouts['cognitive']['kernels'].remove('model_timing1D')
+        dropouts['cognitive']['kernels'].remove('model_omissions1')
+        dropouts['cognitive']['dropped_kernels'].append('model_bias')
+        dropouts['cognitive']['dropped_kernels'].append('model_task0')
+        dropouts['cognitive']['dropped_kernels'].append('model_timing1D')
+        dropouts['cognitive']['dropped_kernels'].append('model_omissions1')
+
     
     # Adds single kernel dropouts:
     for drop in [drop for drop in dropouts.keys()]:
-        if drop is not 'Full':
+        if (drop is not 'Full') & (drop is not 'intercept'):
             # Make a list of kernels by taking the difference between the kernels in 
             # the full model, and those in the dropout specified by this kernel.
             # This formulation lets us do single kernel dropouts for things like beh_model,
             # or all-images
             kernels = set(dropouts['Full']['kernels'])-set(dropouts[drop]['kernels'])
             kernels.add('intercept') # We always include the intercept
-            dropouts['single-'+drop] = {'kernels':list(kernels)} 
+            dropped_kernels = set(dropouts['Full']['kernels']) - kernels
+            dropouts['single-'+drop] = {'kernels':list(kernels),'dropped_kernels':list(dropped_kernels),'is_single':True} 
+    
+    for drop in dropouts.keys():
+        assert len(dropouts[drop]['kernels']) + len(dropouts[drop]['dropped_kernels']) == len(dropouts['Full']['kernels']), 'bad length'
     return dropouts
     
 
@@ -277,3 +414,56 @@ def load_run_json(version):
     with open(json_path,'r') as json_file:
         run_params = json.load(json_file)
     return run_params
+
+def describe_model_version(version):
+    '''
+        Prints a text description of the model kernels and dropouts. Tries to load the information from v_alex_test
+    '''
+    run_params = load_run_json(version)
+    just_for_text = load_run_json('alex_test')   
+
+    print('\nThe model contains the following kernels:') 
+    for kernel in run_params['kernels']:
+        if 'text' in run_params['kernels'][kernel]:
+            text = run_params['kernels'][kernel]['text']       
+        else:
+            if kernel not in just_for_text['kernels']:
+                text = 'no description available'
+            else:
+                text = just_for_text['kernels'][kernel]['text']              
+        if run_params['kernels'][kernel]['type'] == 'discrete':
+            start = np.round(run_params['kernels'][kernel]['offset'],2)
+            end  = np.round(run_params['kernels'][kernel]['length'] + start,1)
+            print(kernel.ljust(18) + " is aligned from ("+str(start)+", "+str(end)+") seconds around each "+text)
+        else:
+            print(kernel.ljust(18) + " runs the full length of the session, and is "+ text)
+    
+    print('\nThe model contains the following dropout, or reduced models:') 
+    for d in run_params['dropouts']:
+        if 'is_single' in run_params['dropouts'][d]:
+            is_single=run_params['dropouts'][d]['is_single']
+        elif d in just_for_text['dropouts'][d]:
+            is_single=just_for_text['dropouts'][d]['is_single']
+        else:
+            is_single=False
+        if is_single:
+            k = run_params['dropouts'][d]['kernels']
+            if 'intercept' in k:
+                k.remove('intercept')
+            if len(k) > 1:
+                print(d.ljust(25) +" contains just the kernels "+ ', '.join(k))
+            else:
+                print(d.ljust(25) +" contains just the kernel "+ ', '.join(k))   
+        else:
+            if 'dropped_kernels' in run_params['dropouts'][d]:
+                drops = run_params['dropouts'][d]['dropped_kernels']
+            elif d in just_for_text['dropouts']:
+                drops = just_for_text['dropouts'][d]['dropped_kernels']
+            else:
+                drops = ['?']
+            if len(drops) == 0:
+                print(d.ljust(25) +" contains all kernels")     
+            else:
+                print(d.ljust(25) +" contains all kernels except "+', '.join(drops))    
+ 
+

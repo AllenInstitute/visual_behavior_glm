@@ -118,7 +118,6 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     # Iterate over model selections
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
-    #fit = compute_adjusted_dropouts(fit,design, run_params) # removing this from this PR
 
     # Start Diagnostic analyses
     print('Starting diagnostics')
@@ -132,6 +131,8 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Save fit dictionary 
     print('Saving results')
+    fit['failed_kernels'] = run_params['failed_kernels']
+    fit['failed_dropouts'] = run_params['failed_dropouts']
     filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pkl')
     file_temp = open(filepath, 'wb')
     pickle.dump(fit, file_temp)
@@ -384,13 +385,20 @@ def evaluate_models_different_ridge(fit,design,run_params):
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
         X_inner = np.dot(X.T, X)
+        mask = get_mask(fit['dropouts'][model_label],design)
+        Full_X = design.get_X(kernels=fit['dropouts']['Full']['kernels'])
 
         # Iterate CV
         cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         cv_var_test     = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        cv_adjvar_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_train_fc = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test_fc= np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  
         cv_weights      = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         all_weights     = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1]))
         all_var_explain = np.empty((fit['dff_trace_arr'].shape[1]))
+        all_adjvar_explain = np.empty((fit['dff_trace_arr'].shape[1]))
         all_prediction  = np.empty(fit['dff_trace_arr'].shape)
         X_test_array = []   # Cache the intermediate steps for each cell
         X_train_array = []
@@ -401,8 +409,10 @@ def evaluate_models_different_ridge(fit,design,run_params):
             dff = fit['dff_trace_arr'][:,cell_index]
             Wall = fit_cell_regularized(X_inner,dff, X,fit['cell_regularization'][cell_index])     
             var_explain = variance_ratio(dff, Wall,X)
+            adjvar_explain = masked_variance_ratio(dff, Wall,X, mask) 
             all_weights[:,cell_index] = Wall
             all_var_explain[cell_index] = var_explain
+            all_adjvar_explain[cell_index] = adjvar_explain
             all_prediction[:,cell_index] = X.values @ Wall.values
 
             for index, test_split in enumerate(fit['splits']):
@@ -423,7 +433,20 @@ def evaluate_models_different_ridge(fit,design,run_params):
                 W = fit_cell_regularized(X_cov,dff_train, X_train, fit['cell_regularization'][cell_index])
                 cv_var_train[cell_index,index] = variance_ratio(dff_train, W, X_train)
                 cv_var_test[cell_index,index] = variance_ratio(dff_test, W, X_test)
+                cv_adjvar_train[cell_index,index]= masked_variance_ratio(dff_train, W, X_train, mask[train_split]) 
+                cv_adjvar_test[cell_index,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split])
                 cv_weights[:,cell_index,index] = W 
+                if model_label == 'Full':
+                    # If this is the Full model, the value is the same
+                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(dff_train, W, X_train, mask[train_split])  
+                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split])  
+                else:
+                    # Otherwise, get weights and design matrix for this cell/cv_split and compute the variance explained on this mask
+                    Full_W = xr.DataArray(fit['dropouts']['Full']['cv_weights'][:,cell_index,index])
+                    Full_X_test = Full_X[test_split,:]
+                    Full_X_train = Full_X[train_split,:]
+                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(dff_train, Full_W, Full_X_train, mask[train_split])  
+                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(dff_test, Full_W, Full_X_test, mask[test_split])    
 
         all_weights_xarray = xr.DataArray(
             data = all_weights,
@@ -434,12 +457,17 @@ def evaluate_models_different_ridge(fit,design,run_params):
             }
         )
 
-        fit['dropouts'][model_label]['train_weights'] = all_weights_xarray
-        fit['dropouts'][model_label]['train_variance_explained']=all_var_explain
-        fit['dropouts'][model_label]['full_model_train_prediction'] =  all_prediction
-        fit['dropouts'][model_label]['cv_weights'] = cv_weights
-        fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
-        fit['dropouts'][model_label]['cv_var_test'] = cv_var_test
+        fit['dropouts'][model_label]['train_weights']   = all_weights_xarray
+        fit['dropouts'][model_label]['train_variance_explained']    = all_var_explain
+        fit['dropouts'][model_label]['train_adjvariance_explained'] = all_adjvar_explain
+        fit['dropouts'][model_label]['full_model_train_prediction'] = all_prediction
+        fit['dropouts'][model_label]['cv_weights']      = cv_weights
+        fit['dropouts'][model_label]['cv_var_train']    = cv_var_train
+        fit['dropouts'][model_label]['cv_var_test']     = cv_var_test
+        fit['dropouts'][model_label]['cv_adjvar_train'] = cv_adjvar_train
+        fit['dropouts'][model_label]['cv_adjvar_test']  = cv_adjvar_test
+        fit['dropouts'][model_label]['cv_adjvar_train_full_comparison'] = cv_adjvar_train_fc
+        fit['dropouts'][model_label]['cv_adjvar_test_full_comparison']  = cv_adjvar_test_fc
 
     return fit 
 
@@ -458,89 +486,187 @@ def evaluate_models_same_ridge(fit, design, run_params):
 
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
-
+        mask = get_mask(fit['dropouts'][model_label],design)
+        Full_X = design.get_X(kernels=fit['dropouts']['Full']['kernels'])
 
         # Fit on full dataset for references as training fit
         dff = fit['dff_trace_arr']
         Wall = fit_regularized(dff, X,fit['avg_regularization'])     
         var_explain = variance_ratio(dff, Wall,X)
+        adjvar_explain = masked_variance_ratio(dff, Wall,X, mask) 
         fit['dropouts'][model_label]['train_weights'] = Wall
-        fit['dropouts'][model_label]['train_variance_explained']=var_explain
-        fit['dropouts'][model_label]['full_model_train_prediction'] =  X.values @ Wall.values
+        fit['dropouts'][model_label]['train_variance_explained']    = var_explain
+        fit['dropouts'][model_label]['train_adjvariance_explained'] = adjvar_explain
+        fit['dropouts'][model_label]['full_model_train_prediction'] = X.values @ Wall.values
 
         # Iterate CV
         cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
         cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
+        cv_adjvar_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  
+        cv_adjvar_train_fc = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test_fc= np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  
         cv_weights = np.empty((np.shape(Wall)[0], np.shape(Wall)[1], len(fit['splits'])))
 
         for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
             train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
             X_test = X[test_split,:]
             X_train = X[train_split,:]
+            mask_test = mask[test_split]
+            mask_train = mask[train_split]
             dff_train = fit['dff_trace_arr'][train_split,:]
             dff_test = fit['dff_trace_arr'][test_split,:]
             W = fit_regularized(dff_train, X_train, fit['avg_regularization'])
-            cv_var_train[:,index] = variance_ratio(dff_train, W, X_train)
-            cv_var_test[:,index] = variance_ratio(dff_test, W, X_test)
-            cv_weights[:,:,index] = W 
+            cv_var_train[:,index]   = variance_ratio(dff_train, W, X_train)
+            cv_var_test[:,index]    = variance_ratio(dff_test, W, X_test)
+            cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train) 
+            cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test)
+            cv_weights[:,:,index]   = W 
+            if model_label == 'Full':
+                # If this model is Full, then the masked variance ratio is the same
+                cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train)  
+                cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test)  
+            else:
+                # Otherwise load the weights and design matrix for this cv_split, and compute VE with this support mask
+                Full_W = xr.DataArray(fit['dropouts']['Full']['cv_weights'][:,:,index])
+                Full_X_test = Full_X[test_split,:]
+                Full_X_train = Full_X[train_split,:]
+                cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, Full_W, Full_X_train, mask_train)  
+                cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test, Full_W, Full_X_test, mask_test)    
 
-        fit['dropouts'][model_label]['cv_weights'] = cv_weights
-        fit['dropouts'][model_label]['cv_var_train'] = cv_var_train
-        fit['dropouts'][model_label]['cv_var_test'] = cv_var_test
+        fit['dropouts'][model_label]['cv_weights']      = cv_weights
+        fit['dropouts'][model_label]['cv_var_train']    = cv_var_train
+        fit['dropouts'][model_label]['cv_var_test']     = cv_var_test
+        fit['dropouts'][model_label]['cv_adjvar_train'] = cv_adjvar_train
+        fit['dropouts'][model_label]['cv_adjvar_test']  = cv_adjvar_test
+        fit['dropouts'][model_label]['cv_adjvar_train_full_comparison'] = cv_adjvar_train_fc
+        fit['dropouts'][model_label]['cv_adjvar_test_full_comparison']  = cv_adjvar_test_fc
 
     return fit 
 
-def compute_adjusted_dropouts(fit,design, run_params):
+def get_mask(dropout,design):
     '''
-        Computes an adjustment coefficient, and then adjusts all dropout scores to reflect
-        that some kernels do not have support over the full session, and thus we cannot
-        expect them to explain all the variance. 
-        
-        Two limitations of this approach.
-        1. This is basically assuming that the variance is evenly spread out throughout the session. We can imagine a situation where the cell is extra variable during changes, for instance, and this would give us a misleading picture
-        2. As we make each kernel longer we are going to increase the support, and thus decrease the adjustment coefficient.
+        For the dropout dictionary returns the mask of where the kernels have support in the design matrix.
+        Ignores the support of the intercept regressor
     
-        Pro of this approach, its super easy.  
-    '''
-    raise Exception('Not implemented')
-    # this function is in development, I'm pushing here because I'm re-organizing code. 
- 
-    for dropout in fit['dropouts']:
-        # for each dropout that is not "Full"
-        if not (dropout  == 'Full'):
-        
-            # Get the kernels that were REMOVED during this dropout
-            unique_k = list(set(fit['dropouts']['Full']['kernels']) - set(fit['dropouts'][dropout]['kernels']))
-            unique_X = design.get_X(kernels=unique_k).values
-             
-            # Compute the number of timesteps in which none of the kernels were non-zero
-            non_zero = np.sum(np.any(~(unique_X==0), axis=1))
+        INPUTS:
+        dropout     a dictionary with keys:
+            'is_single' (bool)
+            'dropped_kernels' (list)
+            'kernels' (list)
+        design      DesignMatrix object
     
-            # Divide by length of timeseries to give us fraction of session
-            # where these kernels had non-zero support
-            non_zero_fraction = non_zero/np.shape(unique_X)[0]
-            fit['dropouts'][dropout]['support'] = non_zero_fraction
-        else:
-            # Full is defined as one
-            fit['dropouts'][dropout]['support'] = 1
-        
-        # Adjust dropout scores:
-        adjust = 1/fit['dropouts'][dropout]['support']
-        fit['dropouts'][dropout]['non_adjusted'] =  np.mean(fit['dropouts']['Full']['cv_var_test'] - fit['dropouts'][dropout]['cv_var_test'])
-        fit['dropouts'][dropout]['adjusted'] =  np.mean(fit['dropouts']['Full']['cv_var_test'] - fit['dropouts'][dropout]['cv_var_test'])*adjust
-    return fit
+        RETURNS:
+        mask, a boolean vector for the indicies with support
 
-def build_dataframe_from_dropouts(fit):
+        if the dropout is_single, then support is defined by the included kernels
+        if the dropout is not is_single, then support is defined by the dropped kernels
     '''
+    if dropout['is_single']:
+        # Support is defined by the included kernels
+        kernels=dropout['kernels']
+    else:
+        # Support is defined by the dropped kernels
+        kernels=dropout['dropped_kernels']
+    
+    # Need to remove 'intercept'
+    if 'intercept' in kernels:
+        kernels.remove('intercept')    
+
+    # Get mask from design matrix object 
+    return design.get_mask(kernels=kernels)
+
+def build_dataframe_from_dropouts(fit,threshold=0.005):
+    '''
+        INPUTS:
+        threshold (0.005 default) is the minimum amount of variance explained by the full model. The minimum amount of variance explained by a dropout model        
+
         Returns a dataframe with 
         Index: Cell specimen id
         Columns: Average (across CV folds) variance explained on the test and training sets for each model defined in fit['dropouts']
     '''
+        
     cellids = fit['dff_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
+
+    # Iterate over models
     for model_label in fit['dropouts'].keys():
-        results[model_label+"_avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1)
-        results[model_label+"_avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1)
+        # For each model, average over CV splits for variance explained on train/test
+        results[model_label+"__avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) 
+        results[model_label+"__avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
+        results[model_label+"__avg_cv_var_test_full_comparison"] = np.mean(fit['dropouts']['Full']['cv_var_test'],1)
+
+        # For each model, average over CV splits for adjusted variance explained on train/test, and the full model comparison
+        # If a CV split did not have an event in a test split, so the kernel has no support, the CV is NAN. Here we use nanmean to
+        # ignore those CV splits without information
+        results[model_label+"__avg_cv_adjvar_train"] = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_train'],1) 
+        results[model_label+"__avg_cv_adjvar_test"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test'],1) 
+        results[model_label+"__avg_cv_adjvar_test_full_comparison"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'],1) 
+    
+        # Clip the variance explained values to >= 0
+        results.loc[results[model_label+"__avg_cv_var_test"] < 0,model_label+"__avg_cv_var_test"] = 0
+        results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < 0,model_label+"__avg_cv_var_test_full_comparison"] = 0
+        results.loc[results[model_label+"__avg_cv_adjvar_test"] < 0,model_label+"__avg_cv_adjvar_test"] = 0
+        results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < 0,model_label+"__avg_cv_adjvar_test_full_comparison"] = 0
+        
+        # Compute the absolute change in variance
+        results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_var_test"] - results[model_label+"__avg_cv_var_test_full_comparison"] 
+ 
+        # Compute the dropout scores, which is dependent on whether this was a single-dropout or not
+        if fit['dropouts'][model_label]['is_single']:  
+            # Compute the dropout
+            results[model_label+"__dropout"] = -results[model_label+"__avg_cv_var_test"]/results[model_label+"__avg_cv_var_test_full_comparison"]
+            results[model_label+"__adj_dropout"] = -results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]
+
+            # Cleaning Steps, careful eye here! TODO
+            # If the single-dropout explained more variance than the full_comparison, clip dropout to -1
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = -1 
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < results[model_label+"__avg_cv_var_test"], model_label+"__dropout"] = -1
+
+            # If the single-dropout explained less than THRESHOLD variance, clip dropout to 0            
+            results.loc[results[model_label+"__avg_cv_adjvar_test"] < threshold, model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test"] < threshold, model_label+"__dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test"] < threshold, model_label+"__dropout"] = 0
+    
+            # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0.
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0 
+            #results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__absolute_change_from_full"] = 0 
+        else:
+            # Compute the dropout
+            results[model_label+"__adj_dropout"] = -(1-results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]) 
+            results[model_label+"__dropout"] = -(1-results[model_label+"__avg_cv_var_test"]/results[model_label+"__avg_cv_var_test_full_comparison"]) 
+   
+            # Cleaning Steps, careful eye here! TODO            
+            # If the dropout explained more variance than the full_comparison, clip the dropout to 0
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < results[model_label+"__avg_cv_var_test"], model_label+"__dropout"] = 0
+
+            # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0
+            #results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__absolute_change_from_full"] = 0
+
+            # OLD STEPS TO BE REMOVED TODO
+            # Removing the requirement that there is a minimum amount of difference between the dropout and the full
+            # Compute the difference between the dropout and the full model comparison
+            #results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_adjvar_test"] - results[model_label+"__avg_cv_adjvar_test_full_comparison"]
+        
+            # If the dropout didnt decrease the variance explained by at least THRESHOLD amount, clip dropout to 0
+            #results.loc[results[model_label+"__absolute_change_from_full"] > -threshold, model_label+"__adj_dropout"] = 0
+
+
+        # Not removing the code because I want to document things first TODO
+        #d = copy(fit['dropouts'][model_label]['cv_adjvar_test'])
+        #F = copy(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'])
+        #if fit['dropouts'][model_label]['is_single']:
+        #    #results[model_label+"__adj_dropout"] = np.mean(-d/F,axis=1) # Average over cross validations before or after computing dropout?
+        #    # This way is way more noisy, so averaging first
+        #    
+        #    results[model_label+"__adj_dropout"] = -np.mean(d,axis=1)/np.mean(F,axis=1) 
+        #else:
+        #    #results[model_label+"__adj_dropout"] = np.mean(-(1-d/F),axis=1) # Average over cross validations before or after computing dropout?
+        #    results[model_label+"__adj_dropout"] = -(1-np.mean(d,axis=1)/np.mean(F,axis=1)) 
     return results
 
 def L2_report(fit):
@@ -684,6 +810,7 @@ def add_kernels(design, run_params,session, fit):
         fit             the fit object for this model
     '''
     run_params['failed_kernels']=set()
+    run_params['failed_dropouts']=set()
     run_params['kernel_error_dict'] = dict()
     for kernel_name in run_params['kernels']:
         if run_params['kernels'][kernel_name]['type'] == 'discrete':
@@ -715,9 +842,27 @@ def clean_failed_kernels(run_params):
         
         # Remove the failed kernel from each dropout list of kernels
         for dropout in run_params['dropouts'].keys(): 
-            # If the failed kernel is in this dropout, remove the kernel from the dropout
+            # If the failed kernel is in this dropout, remove the kernel from the kernel list
             if kernel in run_params['dropouts'][dropout]['kernels']:
                 run_params['dropouts'][dropout]['kernels'].remove(kernel) 
+            # If the failed kernel is in the dropped kernel list, remove from dropped kernel list
+            if kernel in run_params['dropouts'][dropout]['dropped_kernels']:
+                run_params['dropouts'][dropout]['dropped_kernels'].remove(kernel) 
+
+    # Iterate Dropouts, checking for empty dropouts
+    drop_list = list(run_params['dropouts'].keys())
+    for dropout in drop_list:
+        if not (dropout == 'Full'):
+            if len(run_params['dropouts'][dropout]['dropped_kernels']) == 0:
+                run_params['dropouts'].pop(dropout)
+                run_params['failed_dropouts'].add(dropout)
+            elif len(run_params['dropouts'][dropout]['kernels']) == 1:
+                run_params['dropouts'].pop(dropout)
+                run_params['failed_dropouts'].add(dropout)
+
+    if run_params['failed_dropouts']:
+        print('The following dropouts failed to be added to the model: ')
+        print(run_params['failed_dropouts'])
 
 
 def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit):
@@ -909,6 +1054,20 @@ class DesignMatrix(object):
         numbers = [str(x) for x in np.array(range(0,length+1))+offset]
         return [x[0] + '_'+ x[1] for x in zip(base, numbers)]
 
+    def get_mask(self, kernels=None):
+        ''' 
+            Args:
+            kernels, a list of kernel string names
+            Returns:
+            mask ( a boolean vector), where these kernels have support
+        '''
+        if len(kernels) == 0:
+            X = self.get_X() 
+        else:
+            X = self.get_X(kernels=kernels) 
+        mask = np.any(~(X==0), axis=1)
+        return mask.values
+ 
     def get_X(self, kernels=None):
         '''
         Get the design matrix. 
@@ -1196,6 +1355,30 @@ def variance_ratio(dff_trace_arr, W, X):
     Y = X.values @ W.values
     var_total = np.var(dff_trace_arr, axis=0)   # Total variance in the dff trace for each cell
     var_resid = np.var(dff_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
+    return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
+
+def masked_variance_ratio(dff_trace_arr, W, X, mask): 
+    '''
+    Computes the fraction of variance in dff_trace_arr explained by the linear model Y = X*W
+    but only looks at the timepoints in mask
+    
+    dff_trace_arr: (n_timepoints, n_cells)
+    W: Xarray (n_kernel_params, n_cells)
+    X: Xarray (n_timepoints, n_kernel_params)
+    mask: bool vector (n_timepoints,)
+    '''
+
+    Y = X.values @ W.values
+
+    # Define variance function that lets us isolate the mask timepoints
+    def my_var(dff, support_mask):
+        if len(np.shape(dff)) ==1:
+            dff = dff.values[:,np.newaxis]
+        mu = np.mean(dff,axis=0)
+        return np.mean((dff[support_mask,:]-mu)**2,axis=0)
+
+    var_total = my_var(dff_trace_arr, mask)#Total variance in the dff trace for each cell
+    var_resid = my_var(dff_trace_arr-Y, mask)#Residual variance in the difference between the model and data
     return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
 
 def error_by_time(fit, design):

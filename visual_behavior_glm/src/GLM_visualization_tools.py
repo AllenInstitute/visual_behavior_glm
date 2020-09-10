@@ -4,6 +4,7 @@ import visual_behavior_glm.src.GLM_analysis_tools as gat
 import matplotlib as mpl
 import seaborn as sns
 import numpy as np
+import pandas as pd
 import os
 import time
 from tqdm import tqdm
@@ -11,6 +12,104 @@ from matplotlib import animation, rc
 import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
+
+def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
+    '''
+        Plots the correlation of the design matrix for this glm object
+        
+        glm, the session to look at
+        add_lines (bool), if True, plots faint lines to devide the correlation matrix
+    '''   
+
+    # Look at the discrete event kernels 
+    discrete = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='discrete']
+    if 'intercept' in discrete:
+        discrete.remove('intercept')
+    discrete = np.sort(discrete)
+    X = glm.design.get_X(kernels=discrete).values
+    corr = np.corrcoef(X.T) # remove intercept
+    plt.figure(figsize=(10,10))
+    p = plt.gca().imshow(corr,cmap='Blues')
+    plt.gcf().colorbar(p, ax=plt.gca())
+    plt.title('Discrete Regressors')
+    plt.xlabel('Regressor')
+    plt.ylabel('Regressor')
+
+    # Add ticks to mark each kernel
+    start = 0
+    end = -1
+    ticks =[]
+    locs = []
+    for x in discrete:
+        end += glm.design.kernel_dict[x]['kernel_length_samples'] 
+        ticks.append(x)
+        locs.append(np.mean([start,end]))
+        start += glm.design.kernel_dict[x]['kernel_length_samples'] 
+        if add_lines:
+            plt.gca().axvline(end+0.5,color='k',alpha=0.05)
+            plt.gca().axhline(end+0.5,color='k',alpha=0.05)
+    plt.xticks(ticks=locs, labels=ticks,rotation=90)
+    plt.yticks(ticks=locs, labels=ticks)
+    plt.tight_layout()
+    if save_plot:
+        plt.savefig('discrete.png')
+
+    # Look at the continuous kernels
+    cont = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
+    if 'intercept' in cont:
+        cont.remove('intercept')
+    cont = np.sort(cont)
+    X = glm.design.get_X(kernels=cont).values
+    corr = np.corrcoef(X.T) # remove intercept
+    plt.figure(figsize=(10,10))
+    p = plt.gca().imshow(corr,cmap='Blues')
+    plt.gcf().colorbar(p, ax=plt.gca())
+    plt.title('Continuous Regressors')
+    plt.xlabel('Regressor')
+    plt.ylabel('Regressor')
+    
+    # Add ticks to mark each kernel
+    start = 0
+    end = -1
+    ticks =[]
+    locs = []
+    for x in cont:
+        end += glm.design.kernel_dict[x]['kernel_length_samples'] 
+        ticks.append(x)
+        locs.append(np.mean([start,end]))
+        start += glm.design.kernel_dict[x]['kernel_length_samples'] 
+        if add_lines:
+            plt.gca().axvline(end+0.5,color='k',alpha=0.05)
+            plt.gca().axhline(end+0.5,color='k',alpha=0.05)
+    plt.xticks(ticks=locs, labels=ticks,rotation=90)
+    plt.yticks(ticks=locs, labels=ticks)
+    plt.tight_layout() 
+    if save_plot: 
+        plt.savefig('continuous.png') 
+
+    # Plot the correlations between the timeseries with no delay for the continuous kernels
+    cont_events = np.vstack([glm.design.events[x] for x in cont])
+    plt.figure(figsize=(10,10))
+    corr = np.corrcoef(cont_events) # remove intercept
+    p = plt.gca().imshow(corr,cmap='Blues')
+    plt.gcf().colorbar(p, ax=plt.gca())
+
+    # Add faint lines
+    for dex,x in enumerate(cont):
+        if add_lines:
+            plt.gca().axvline(dex+0.5,color='k',alpha=0.05)
+            plt.gca().axhline(dex+0.5,color='k',alpha=0.05)
+
+    # Clean up plot and save   
+    plt.title('Continuous Timeseries')
+    plt.xlabel('Regressors')
+    plt.ylabel('Regressors')
+    plt.xticks(ticks=range(0,len(cont)), labels=cont,rotation=90)
+    plt.yticks(ticks=range(0,len(cont)), labels=cont)
+    plt.tight_layout()  
+    if save_plot:
+        plt.savefig('continuous_events.png') 
+
 
 def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outlier_threshold=1.5):
     '''
@@ -222,6 +321,15 @@ def plot_kernels(kernel_df,ax,t_span=None):
     )
     # plt.setp(ax.lines,linewidth=4)
 
+def plot_session_summary(glm):
+    plt.figure()
+    plt.plot(glm.dropout_summary.query('dropout=="Full"')['variance_explained'].sort_values().values)
+    plt.axhline(0.00, color='k',alpha=.25)
+    plt.axhline(0.01, color='k',alpha=.25)
+    plt.gca().axhspan(-.1,0.01, color='k',alpha=0.25)
+    plt.ylim(bottom=-.1)
+    plt.ylabel('Full Model CV Variance Explained')
+    plt.xlabel('Cells')
 
 def plot_dropout_summary(results_summary, cell_specimen_id, ax):
     '''
@@ -312,6 +420,8 @@ def plot_filters(glm, cell_specimen_id, n_cols=5):
             ii += 1
 
     fig.tight_layout()
+
+    return fig, ax
 
 
 def get_title(ophys_experiment_id, cell_specimen_id):
@@ -556,3 +666,142 @@ class GLM_Movie(object):
                 os.path.join(save_folder, filename),
                 writer=self.writer
             )
+
+def get_containing_dictionary(key,dicts,run_params):
+    '''
+        Helper function for plot_dropouts()
+        returns which dropout contains each kernel
+    '''
+    label='-'
+    
+    for d in dicts:
+        found=False
+        if (d == 'Full') & (key in run_params['dropouts']['Full']['kernels']):
+            if found:
+                print('WARNING DUPLICATE DROPOUT')
+            found=True
+            label= d
+        elif key in run_params['dropouts'][d]['dropped_kernels']:
+            if found:
+                print('WARNING DUPLICATE DROPOUT')
+            found=True
+            label= d
+    return label
+
+def make_level(df, drops, this_level_num,this_level_drops,run_params):
+    '''
+        Helper function for plot_dropouts()
+        Determines what dropout each kernel is a part of, as well as keeping track of which dropouts have been used. 
+    '''
+    df['level-'+str(this_level_num)] = [get_containing_dictionary(key, this_level_drops,run_params) for key in df.index.values]
+    for d in this_level_drops:
+        drops.remove(d)
+    return df,drops
+
+def plot_dropouts(run_params,save_results=False,num_levels=6):
+    '''
+        Makes a visual and graphic representation of how the kernels are nested inside dropout models
+    '''
+    if num_levels==4:
+        plt.figure(figsize=(16,8))
+    elif num_levels==6:
+        plt.figure(figsize=(19,8))
+    else:
+        plt.figure(figsize=(16,8))
+    w = 1/num_levels
+    
+    # Get list of dropouts and kernels
+    drops = set([x for x in run_params['dropouts'] if not run_params['dropouts'][x]['is_single'] ])
+    kernels = run_params['kernels'].copy()
+ 
+    # Build dataframe
+    df = pd.DataFrame(index=kernels.keys())
+    
+    # Add the individual dropouts
+    df['level-1']= df.index.values
+    for k in kernels:
+        if k in drops:
+            drops.remove(k)
+    
+    # Add each grouping of dropouts
+    levels={
+            num_levels:['Full'],
+            num_levels-1:['visual','behavioral','cognitive'],
+            num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
+            num_levels-3:['licking_bouts','licking_each_lick','pupil_and_omissions','trial_type','change_and_rewards'],
+            num_levels-4:['running_and_omissions','hits_and_rewards'],
+        }
+    for level in np.arange(num_levels,1,-1):
+        df,drops = make_level(df,drops, level,  levels[level],  run_params)
+        
+    # re-organized dataframe
+    df=df[['level-'+str(x) for x in range(1,num_levels+1)]]
+    df = df.sort_values(by=['level-'+str(x) for x in np.arange(num_levels,0,-1)])
+    df['text'] = [run_params['kernels'][k]['text'] for k in df.index.values]
+    df['support'] = [(np.round(run_params['kernels'][k]['offset'],2), np.round(run_params['kernels'][k]['length'] +  run_params['kernels'][k]['offset'],2)) for k in df.index.values]
+
+    # Make sure all dropouts were used
+    if len(drops) > 0:
+        print('Warning, dropouts not used')
+        print(drops)
+
+    # Make Color Dictionary
+    labels=[]
+    colors=[]
+    for level in range(1,num_levels+1):
+        new_labels = list(df['level-'+str(level)].unique())
+        labels = labels + ['level-'+str(level)+'-'+ x for x in new_labels]
+        colors = colors + sns.color_palette('hls', len(new_labels)) 
+    color_dict = {x:y for (x,y) in  zip(labels,colors)}
+    for level in range(1,num_levels+1):
+        color_dict['level-'+str(level)+'--'] = (0.8,0.8,0.8)
+    
+    # Plot Squares
+    uniques = set()
+    maxn = len(df)
+    last = {x:'null' for x in np.arange(1,num_levels+1,1)} 
+    for index, k in enumerate(df.index.values):
+        for level in range(1,num_levels+1):
+            plt.axhspan(maxn-index-1,maxn-index,w*(level-1),w*level,color=color_dict['level-'+str(level)+'-'+df.loc[k]['level-'+str(level)]]) 
+            # If this is a new group, add a line and a text label
+            if (level > 1)&(not (df.loc[k]['level-'+str(level)] == '-')) & ('level-'+str(level)+'-'+df.loc[k]['level-'+str(level)] not in uniques) :
+                uniques.add('level-'+str(level)+'-'+df.loc[k]['level-'+str(level)])
+                plt.text(w*(level-1)+0.01,maxn-index-1+.25,df.loc[k]['level-'+str(level)],fontsize=12)
+                plt.plot([0,w*level],[maxn-index,maxn-index], 'k-',alpha=1)
+                #plt.plot([w*(level-1),w*level],[maxn-index,maxn-index], 'k-',alpha=1)
+            elif (level > 1) & (not (df.loc[k]['level-'+str(level)] == last[level])):
+                plt.plot([0,w*level],[maxn-index,maxn-index], 'k-',alpha=1)
+                #plt.plot([w*(level-1),w*level],[maxn-index,maxn-index], 'k-',alpha=1)
+            elif level == 1:
+                # For the individual regressors, just label, no lines
+                plt.text(0.01,maxn-index-1+.25,df.loc[k]['level-'+str(level)],fontsize=12)
+            last[level] = df.loc[k]['level-'+str(level)]
+
+    # Define some lines between levels   
+    for level in range(1,num_levels): 
+        plt.axvline(w*level,color='k') 
+    
+    # Make formated ylabels that include support and alignment event   
+    max_name = np.max([len(x) for x in df.index.values])+3 
+    max_support = np.max([len(str(x)) for x in df['support'].values])+3
+    max_text = np.max([len(str(x)) for x in df['text'].values])
+    aligned_names = [row[1].name.ljust(max_name)+str(row[1]['support']).ljust(max_support)+row[1]['text'].ljust(max_text) for row in df.iterrows()]
+
+    # clean up axes
+    plt.ylim(0,len(kernels))
+    plt.xlim(0,1)
+    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],['Individual Model','Minor Component','Minor Component','Minor Component','Major Component','Full Model'],fontsize=12)
+    plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
+    plt.gca().get_yaxis().set_tick_params(pad=400)
+    plt.title('Nested Models')
+    plt.tight_layout()
+    plt.text(-.255,len(kernels)+.35,'Alignment',fontsize=12)
+    plt.text(-.385,len(kernels)+.35,'Support',fontsize=12)
+    plt.text(-.555,len(kernels)+.35,'Kernel',fontsize=12)
+        
+    # Save results
+    if save_results:
+        plt.savefig(run_params['output_dir']+'/nested_models_'+str(num_levels)+'.png')
+        df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
+    return df
+

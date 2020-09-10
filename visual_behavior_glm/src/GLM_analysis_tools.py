@@ -83,12 +83,84 @@ def build_kernel_df(glm, cell_specimen_id):
     # return the concatenated dataframe (concatenating a list of dataframes makes a single dataframe)
     return pd.concat(kernel_df)
 
+def generate_results_summary_adj(glm):
+    '''
+        Returns a dataframe with summary information from the glm object
+    '''
+    # Get list of columns to look at, removing the non-adjusted dropouts, and training scores
+    test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' in col))]
+    
+    # Set up space
+    results_summary_list = []
+
+    # Iterate over cells
+    for cell_specimen_id in glm.results.index.values:
+
+        # For each cell, get the relevant columns
+        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index().rename(columns={cell_specimen_id:'variance_explained','index':'dropout_name'})
+
+        # For each dropout, separate the name of the dropout from the type of information
+        for idx,row in results_summary.iterrows():
+            results_summary.at[idx,'dropout'] = row['dropout_name'].split('__')[0]
+            results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
+
+        # pivot the table on the dropout names
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
+        results_summary.columns = results_summary.columns.droplevel()
+        results_summary = results_summary.rename(columns={'avg_cv_adjvar_test':'adj_variance_explained','avg_cv_adjvar_test_full_comparison':'adj_variance_explained_full','adj_dropout':'adj_fraction_change_from_full'})
+ 
+        # add the cell id info
+        results_summary['cell_specimen_id'] = cell_specimen_id
+         
+        # pack up
+        results_summary_list.append(results_summary)
+
+    # Concatenate all cells and return
+
+    return pd.concat(results_summary_list)
 
 def generate_results_summary(glm):
     '''
         Returns a dataframe with summary information from the glm object
     '''
-    test_cols = [col for col in glm.results.columns if col.endswith('test')]
+    # Get list of columns to look at, removing the non-adjusted dropouts, and training scores
+    test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' not in col)&('session' not in col))]  
+ 
+    # Set up space
+    results_summary_list = []
+
+    # Iterate over cells
+    for cell_specimen_id in glm.results.index.values:
+
+        # For each cell, get the relevant columns
+        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index().rename(columns={cell_specimen_id:'variance_explained','index':'dropout_name'})
+
+        # For each dropout, separate the name of the dropout from the type of information
+        for idx,row in results_summary.iterrows():
+            results_summary.at[idx,'dropout'] = row['dropout_name'].split('__')[0]
+            results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
+
+        # pivot the table on the dropout names
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
+        results_summary.columns = results_summary.columns.droplevel()
+        results_summary = results_summary.rename(columns={'avg_cv_var_test':'variance_explained','avg_cv_var_test_full_comparison':'variance_explained_full','dropout':'fraction_change_from_full'})
+ 
+        # add the cell id info
+        results_summary['cell_specimen_id'] = cell_specimen_id
+         
+        # pack up
+        results_summary_list.append(results_summary)
+
+    # Concatenate all cells and return
+
+    return pd.concat(results_summary_list)
+
+def generate_results_summary_non_cleaned(glm):
+    '''
+        Returns a dataframe with summary information from the glm object
+    '''
+    # Preserving the old functionality for now, but filtering out the adjusted variance columns
+    test_cols = [col for col in glm.results.columns if (col.endswith('test') & ('adj' not in col))]
     results_summary_list = []
     for cell_specimen_id in glm.results.index.values:
         results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index().rename(columns={cell_specimen_id:'variance_explained','index':'dropout'})
@@ -163,8 +235,10 @@ def log_results_to_mongo(glm):
     logs full results and results summary to mongo
     Ensures that there is only one entry per cell/experiment (overwrites if entry already exists)
     '''
+    # TODO, update to include adjusted dropouts
+    # TODO, arent the full_results and results_summary already in the glm object by this point? is it redundant to compute them again?
     full_results = glm.results.reset_index()
-    results_summary = generate_results_summary(glm).reset_index()
+    results_summary = glm.dropout_summary
     experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
     oeid = glm.oeid
     for key,value in experiment_table.query('ophys_experiment_id == @oeid').iloc[0].items():
@@ -343,7 +417,7 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
     
     # merge in other identifying columns, leaving out those that will not have more than one unique value per cell
     results_summary_pivoted = results_summary_pivoted.merge(
-        results_summary.drop(columns=['_id', 'index', 'dropout', 'variance_explained', 'fraction_change_from_full', 'absolute_change_from_full','entry_time_utc']).drop_duplicates(),
+        results_summary.drop(columns=['_id', 'dropout', 'variance_explained', 'fraction_change_from_full', 'absolute_change_from_full','entry_time_utc']).drop_duplicates(),
         left_on='identifier',
         right_on='identifier',
         how='left'
@@ -389,7 +463,7 @@ def get_experiment_inventory(results=None):
             experiments_table.at[oeid, 'glm_version_{}_exists'.format(glm_version)] = oeid_in_results(oeid, glm_version)
 
     return experiments_table
-    
+     
     
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.

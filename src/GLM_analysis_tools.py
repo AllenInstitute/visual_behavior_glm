@@ -417,7 +417,7 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
     
     # merge in other identifying columns, leaving out those that will not have more than one unique value per cell
     results_summary_pivoted = results_summary_pivoted.merge(
-        results_summary.drop(columns=['_id', 'index', 'dropout', 'variance_explained', 'fraction_change_from_full', 'absolute_change_from_full','entry_time_utc']).drop_duplicates(),
+        results_summary.drop(columns=['_id', 'dropout', 'variance_explained', 'fraction_change_from_full', 'absolute_change_from_full','entry_time_utc']).drop_duplicates(),
         left_on='identifier',
         right_on='identifier',
         how='left'

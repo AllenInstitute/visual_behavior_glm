@@ -658,20 +658,25 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
     
     # Plot Squares
     uniques = set()
-    maxn = len(df) 
+    maxn = len(df)
+    last = {x:'null' for x in np.arange(1,num_levels+1,1)} 
     for index, k in enumerate(df.index.values):
         for level in range(1,num_levels+1):
             plt.axhspan(maxn-index-1,maxn-index,w*(level-1),w*level,color=color_dict['level-'+str(level)+'-'+df.loc[k]['level-'+str(level)]]) 
             # If this is a new group, add a line and a text label
-            if (level > 1)&(not (df.loc[k]['level-'+str(level)] == '-')) & ('level-'+str(level)+'-'+df.loc[k]['level-'+str(level)] not in uniques):
+            if (level > 1)&(not (df.loc[k]['level-'+str(level)] == '-')) & ('level-'+str(level)+'-'+df.loc[k]['level-'+str(level)] not in uniques) :
                 uniques.add('level-'+str(level)+'-'+df.loc[k]['level-'+str(level)])
                 plt.text(w*(level-1)+0.01,maxn-index-1+.25,df.loc[k]['level-'+str(level)],fontsize=12)
                 plt.plot([0,w*level],[maxn-index,maxn-index], 'k-',alpha=1)
+                #plt.plot([w*(level-1),w*level],[maxn-index,maxn-index], 'k-',alpha=1)
+            elif (level > 1) & (not (df.loc[k]['level-'+str(level)] == last[level])):
+                plt.plot([0,w*level],[maxn-index,maxn-index], 'k-',alpha=1)
+                #plt.plot([w*(level-1),w*level],[maxn-index,maxn-index], 'k-',alpha=1)
             elif level == 1:
                 # For the individual regressors, just label, no lines
                 plt.text(0.01,maxn-index-1+.25,df.loc[k]['level-'+str(level)],fontsize=12)
+            last[level] = df.loc[k]['level-'+str(level)]
 
-    
     # Define some lines between levels   
     for level in range(1,num_levels): 
         plt.axvline(w*level,color='k') 

@@ -805,3 +805,59 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
+def kernel_evaluation(Ws,kernel,save_results=True):
+    '''
+        Get all the kernels across all cells. 
+        plot the matrix of all kernels, sorted by peak time
+        plot the mean+std. What time point are different from 0?
+        Plot a visualization of the dropouts that contain this kernel. 
+    '''
+
+    # Make list of sessions
+    #results = gat.retrieve_results(search_dict={'glm_version':'6_L2_optimize_by_session'}, results_type='summary')
+    #oeids = results.query('equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"])').ophys_experiment_id.unique()[0:10]
+    
+    # do we want to filter cells that must have a certain variance explained, or the dropout has to matter a certain amount. 
+    # how do we deal with merging mesoscope and scientifica?
+    # For each session, get the weights, and stack them into one big matrix    
+    #Ws = get_weights_for_sessions(oeids, version)
+    
+    # should we normalize each row?
+    # how do we filter cells
+
+    weights,weight_names = get_weights_for_kernel(Ws,kernel)
+    time_vec = np.round(np.array([int(x.split('_')[-1]) for x in weight_names])*(1/31),2) # HARD CODE HACK ALERT
+    fig,ax=plt.subplots(1,2,figsize=(6,4))
+    ax[0].plot(time_vec, weights.mean(axis=1))
+    ax[0].axhline(0, color='k',alpha=0.25)
+    ax[0].set_ylabel('Weights (df/f)')
+    ax[0].set_xlabel('Time')
+ 
+    argmax = np.argmax(weights,axis=0)
+    sort_index = np.argsort(argmax)
+    weights_sorted = weights[:,sort_index]
+    weights_sorted = weights_sorted/np.max(np.abs(weights_sorted),axis=0)
+    cbar = ax[1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights)[1]],cmap='bwr')
+    cbar.set_clim(-np.max(np.abs(weights)),np.max(np.abs(weights)))
+    fig.colorbar(cbar, ax=ax[1])
+    ax[1].set_ylabel('Cells')
+    ax[1].set_xlabel('Time')
+    plt.title(kernel)
+    plt.tight_layout()
+    if save_results:
+        plt.savefig(kernel+'_analysis.png')
+    return weights
+ 
+def get_weights_for_kernel(Ws,kernel):
+    weight_names = [w for w in Ws[0].weights.values if w.startswith(kernel)]
+    kernel_weights = [Ws[i].loc[dict(weights=weight_names)].values for i in range(0,len(Ws))]
+    return np.hstack(kernel_weights),weight_names
+
+def get_weights_for_sessions(oeids,version):
+    Ws = []
+    for index, oeid in enumerate(oeids):
+        W = gat.get_weights_matrix_from_mongo(int(oeid), version) 
+        Ws.append(W)
+    return Ws
+
+

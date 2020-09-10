@@ -696,7 +696,7 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         
     # Save results
     if save_results:
-        plt.savefig(run_params['output_dir']+'/nested_models.png')
+        plt.savefig(run_params['output_dir']+'/nested_models_'+str(num_levels)+'.png')
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 

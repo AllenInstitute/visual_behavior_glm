@@ -598,12 +598,16 @@ def make_level(df, drops, this_level_num,this_level_drops,run_params):
         drops.remove(d)
     return df,drops
 
-def plot_dropouts(run_params,save_results=False):
+def plot_dropouts(run_params,save_results=False,num_levels=6):
     '''
         Makes a visual and graphic representation of how the kernels are nested inside dropout models
     '''
-    plt.figure(figsize=(16,8))
-    num_levels=4
+    if num_levels==4:
+        plt.figure(figsize=(16,8))
+    elif num_levels==6:
+        plt.figure(figsize=(19,8))
+    else:
+        plt.figure(figsize=(16,8))
     w = 1/num_levels
     
     # Get list of dropouts and kernels
@@ -621,17 +625,18 @@ def plot_dropouts(run_params,save_results=False):
     
     # Add each grouping of dropouts
     levels={
-            4:['Full'],
-            3:['visual','behavioral','cognitive'],
-            2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation']
+            num_levels:['Full'],
+            num_levels-1:['visual','behavioral','cognitive'],
+            num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
+            num_levels-3:['licking_bouts','licking_each_lick','pupil_and_omissions','trial_type','change_and_rewards'],
+            num_levels-4:['running_and_omissions','hits_and_rewards'],
         }
-    df,drops = make_level(df,drops, 4,levels[4],run_params)
-    df,drops = make_level(df,drops, 3,levels[3],run_params)
-    df,drops = make_level(df,drops, 2,levels[2],run_params)
-    
+    for level in np.arange(num_levels,1,-1):
+        df,drops = make_level(df,drops, level,  levels[level],  run_params)
+        
     # re-organized dataframe
-    df=df[['level-1','level-2','level-3','level-4']]
-    df = df.sort_values(by=['level-4','level-3','level-2','level-1']) 
+    df=df[['level-'+str(x) for x in range(1,num_levels+1)]]
+    df = df.sort_values(by=['level-'+str(x) for x in np.arange(num_levels,0,-1)])
     df['text'] = [run_params['kernels'][k]['text'] for k in df.index.values]
     df['support'] = [(np.round(run_params['kernels'][k]['offset'],2), np.round(run_params['kernels'][k]['length'] +  run_params['kernels'][k]['offset'],2)) for k in df.index.values]
 
@@ -648,10 +653,8 @@ def plot_dropouts(run_params,save_results=False):
         labels = labels + ['level-'+str(level)+'-'+ x for x in new_labels]
         colors = colors + sns.color_palette('hls', len(new_labels)) 
     color_dict = {x:y for (x,y) in  zip(labels,colors)}
-    color_dict['level-1--'] = (0.8,0.8,0.8)
-    color_dict['level-2--'] = (0.8,0.8,0.8)
-    color_dict['level-3--'] = (0.8,0.8,0.8)
-    color_dict['level-4--'] = (0.8,0.8,0.8)
+    for level in range(1,num_levels+1):
+        color_dict['level-'+str(level)+'--'] = (0.8,0.8,0.8)
     
     # Plot Squares
     uniques = set()
@@ -669,11 +672,10 @@ def plot_dropouts(run_params,save_results=False):
                 plt.text(0.01,maxn-index-1+.25,df.loc[k]['level-'+str(level)],fontsize=12)
 
     
-    # Define some lines between levels    
-    plt.axvline(w,color='k') 
-    plt.axvline(w*2,color='k') 
-    plt.axvline(w*3,color='k') 
-
+    # Define some lines between levels   
+    for level in range(1,num_levels): 
+        plt.axvline(w*level,color='k') 
+    
     # Make formated ylabels that include support and alignment event   
     max_name = np.max([len(x) for x in df.index.values])+3 
     max_support = np.max([len(str(x)) for x in df['support'].values])+3
@@ -683,7 +685,7 @@ def plot_dropouts(run_params,save_results=False):
     # clean up axes
     plt.ylim(0,len(kernels))
     plt.xlim(0,1)
-    plt.xticks([w/2,w*1.5,w*2.5,w*3.5],['Individual Model','Minor Component','Major Component','Full Model'],fontsize=12)
+    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],['Individual Model','Minor Component','Minor Component','Minor Component','Major Component','Full Model'],fontsize=12)
     plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
     plt.gca().get_yaxis().set_tick_params(pad=400)
     plt.title('Nested Models')

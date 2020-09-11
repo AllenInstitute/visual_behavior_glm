@@ -805,7 +805,7 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
-def kernel_evaluation(Ws,kernel,save_results=True):
+def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_by_session',Ws=None, oeids=None):
     '''
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
@@ -814,50 +814,122 @@ def kernel_evaluation(Ws,kernel,save_results=True):
     '''
 
     # Make list of sessions
-    #results = gat.retrieve_results(search_dict={'glm_version':'6_L2_optimize_by_session'}, results_type='summary')
-    #oeids = results.query('equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"])').ophys_experiment_id.unique()[0:10]
-    
+    #results = gat.retrieve_results(search_dict={'glm_version':'6_L2_optimize_by_session'}, results_type='summary')   
+
+    # TODO/Questions
     # do we want to filter cells that must have a certain variance explained, or the dropout has to matter a certain amount. 
-    # how do we deal with merging mesoscope and scientifica?
-    # For each session, get the weights, and stack them into one big matrix    
-    #Ws = get_weights_for_sessions(oeids, version)
-    
+    # how do we deal with merging mesoscope and scientifica?   
     # should we normalize each row?
     # how do we filter cells
-
-    weights,weight_names = get_weights_for_kernel(Ws,kernel)
+    # Need to put weights into cell_data df, kinda absurd to be passing around them separately. 
+    
+    # Getting Data
+    if (Ws is None) or (oeids is None):
+        Ws, oeids = get_weights_for_sessions(results, version)
+    weights,weight_names,cell_data = get_weights_for_kernel(Ws,oeids, kernel)
+    cell_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','cre_line','session_number']], how='inner',on=['cell_specimen_id','ophys_experiment_id']).drop_duplicates()
+    cell_dropout_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','dropout','adj_fraction_change_from_full']], how='inner',on=['cell_specimen_id','ophys_experiment_id'])
     time_vec = np.round(np.array([int(x.split('_')[-1]) for x in weight_names])*(1/31),2) # HARD CODE HACK ALERT
-    fig,ax=plt.subplots(1,2,figsize=(6,4))
-    ax[0].plot(time_vec, weights.mean(axis=1))
-    ax[0].axhline(0, color='k',alpha=0.25)
-    ax[0].set_ylabel('Weights (df/f)')
-    ax[0].set_xlabel('Time')
+
+    # Plotting
+    fig,ax=plt.subplots(2,3,figsize=(12,6))
+    sst_weights = weights[:,cell_data['cre_line'] == 'Sst-IRES-Cre']
+    vip_weights = weights[:,cell_data['cre_line'] == 'Vip-IRES-Cre']
+    slc_weights = weights[:,cell_data['cre_line'] == 'Slc17a7-IRES2-Cre']
+    ax[0,0].plot(time_vec, sst_weights.mean(axis=1),label='SST')
+    ax[0,0].plot(time_vec, vip_weights.mean(axis=1),label='VIP')
+    ax[0,0].plot(time_vec, slc_weights.mean(axis=1),label='SLC')
+    ax[0,0].axhline(0, color='k',linestyle='--',alpha=0.25)
+    ax[0,0].axvline(0, color='k',linestyle='--',alpha=0.25)
+    ax[0,0].set_ylabel('Weights (df/f)')
+    ax[0,0].set_xlabel('Time (s)')
+    ax[0,0].legend()
+    ax[0,0].set_title('Average kernel')
+
+    sst_weights_norm = sst_weights/np.max(np.abs(sst_weights),axis=0)
+    vip_weights_norm = vip_weights/np.max(np.abs(vip_weights),axis=0)
+    slc_weights_norm = slc_weights/np.max(np.abs(slc_weights),axis=0)
+    ax[1,0].plot(time_vec, sst_weights_norm.mean(axis=1),label='SST')
+    ax[1,0].plot(time_vec, vip_weights_norm.mean(axis=1),label='VIP')
+    ax[1,0].plot(time_vec, slc_weights_norm.mean(axis=1),label='SLC')
+    ax[1,0].axhline(0, color='k',linestyle='--',alpha=0.25)
+    ax[1,0].axvline(0, color='k',linestyle='--',alpha=0.25)
+    ax[1,0].set_ylabel('Weights (df/f)')
+    ax[1,0].set_xlabel('Time (s)')
+    ax[1,0].legend()
+    ax[1,0].set_title('Normalized Avg. kernel')
  
     argmax = np.argmax(weights,axis=0)
+    argmax[cell_data['cre_line'] == 'Sst-IRES-Cre'] = argmax[cell_data['cre_line'] == 'Sst-IRES-Cre']+1000
+    argmax[cell_data['cre_line'] == 'Vip-IRES-Cre'] = argmax[cell_data['cre_line'] == 'Vip-IRES-Cre']+2000
     sort_index = np.argsort(argmax)
     weights_sorted = weights[:,sort_index]
-    weights_sorted = weights_sorted/np.max(np.abs(weights_sorted),axis=0)
-    cbar = ax[1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights)[1]],cmap='bwr')
+    first_sst = np.where(np.sort(argmax)[::-1] < 1000)[0][0]
+    first_vip = np.where(np.sort(argmax)[::-1] < 2000)[0][0]
+    cbar = ax[0,1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights)[1]],cmap='bwr')
+    ax[0,1].axhline(first_sst,color='k',linewidth='1')
+    ax[0,1].axhline(first_vip,color='k',linewidth='1')
+    cbar.set_clim(-np.percentile(np.abs(weights),95),np.percentile(np.abs(weights),95))
+    fig.colorbar(cbar, ax=ax[0,1])
+    ax[0,1].set_ylabel('Cells')
+    ax[0,1].set_xlabel('Time (s)')
+    ax[0,1].set_yticks([first_sst/2, first_sst+(first_vip-first_sst)/2, first_vip+(len(argmax)-first_vip)/2])
+    ax[0,1].set_yticklabels(['Vip','Sst','Slc'])
+    ax[0,1].set_title(kernel)
+    
+    drop = cell_dropout_data.query('dropout == @kernel').groupby('cre_line')['adj_fraction_change_from_full'].describe()
+    single_kernel = "single-"+kernel
+    single_drop = cell_dropout_data.query('dropout == @single_kernel').groupby('cre_line')['adj_fraction_change_from_full'].describe()
+    sst = [drop.loc['Sst-IRES-Cre']['mean'], single_drop.loc['Sst-IRES-Cre']['mean']]
+    sst_err = [drop.loc['Sst-IRES-Cre']['std'], single_drop.loc['Sst-IRES-Cre']['std']]
+    slc = [drop.loc['Slc17a7-IRES2-Cre']['mean'], single_drop.loc['Slc17a7-IRES2-Cre']['mean']]
+    slc_err = [drop.loc['Slc17a7-IRES2-Cre']['std'], single_drop.loc['Slc17a7-IRES2-Cre']['std']]
+    vip = [drop.loc['Vip-IRES-Cre']['mean'], single_drop.loc['Vip-IRES-Cre']['mean']]
+    vip_err = [drop.loc['Vip-IRES-Cre']['std'], single_drop.loc['Vip-IRES-Cre']['std']]
+    width = 0.25
+    x = np.arange(2)
+    bar1 = ax[0,2].bar(x-width, sst,width, label='SST') 
+    bar2 = ax[0,2].bar(x+width, vip,width, label='VIP') 
+    bar3 = ax[0,2].bar(x, slc,width, label='SLC')
+    ax[0,2].set_ylabel('Adj. Fraction from Full')
+    ax[0,2].set_xticks(x)
+    ax[0,2].set_xticklabels([kernel, single_kernel])
+    ax[0,2].legend()
+    ax[0,2].set_title('Dropout Scores')
+
+    weights_sorted_norm = weights_sorted/np.max(np.abs(weights_sorted),axis=0)
+    cbar = ax[1,1].imshow(weights_sorted_norm.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights)[1]],cmap='bwr')
+    ax[1,1].axhline(first_sst,color='k',linewidth='1')
+    ax[1,1].axhline(first_vip,color='k',linewidth='1')
     cbar.set_clim(-np.max(np.abs(weights)),np.max(np.abs(weights)))
-    fig.colorbar(cbar, ax=ax[1])
-    ax[1].set_ylabel('Cells')
-    ax[1].set_xlabel('Time')
-    plt.title(kernel)
+    fig.colorbar(cbar, ax=ax[1,1])
+    ax[1,1].set_ylabel('Cells')
+    ax[1,1].set_xlabel('Time (s)')
+    ax[1,1].set_yticks([first_sst/2, first_sst+(first_vip-first_sst)/2, first_vip+(len(argmax)-first_vip)/2])
+    ax[1,1].set_yticklabels(['Vip','Sst','Slc'])
+    ax[1,1].set_title('Normalized '+kernel)
+
     plt.tight_layout()
     if save_results:
         plt.savefig(kernel+'_analysis.png')
-    return weights
+    return Ws, oeids, weights,cell_data,cell_dropout_data
  
-def get_weights_for_kernel(Ws,kernel):
+def get_weights_for_kernel(Ws,oeids, kernel):
     weight_names = [w for w in Ws[0].weights.values if w.startswith(kernel)]
     kernel_weights = [Ws[i].loc[dict(weights=weight_names)].values for i in range(0,len(Ws))]
-    return np.hstack(kernel_weights),weight_names
+    cells = [x.cell_specimen_id.values for x in Ws]
+    oeid_per_cell = [[x]*len(y) for (x,y) in zip(oeids, cells)]
+    cell_data = pd.DataFrame()
+    cell_data['cell_specimen_id'] = np.hstack(cells)
+    cell_data['ophys_experiment_id'] = np.hstack(oeid_per_cell)
+    return np.hstack(kernel_weights),weight_names, cell_data
 
-def get_weights_for_sessions(oeids,version):
+def get_weights_for_sessions(results,version):
+    oeids = results.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"])&(session_number in [1,3,4,6])').ophys_experiment_id.unique()
     Ws = []
     for index, oeid in enumerate(oeids):
         W = gat.get_weights_matrix_from_mongo(int(oeid), version) 
         Ws.append(W)
-    return Ws
+    return Ws,oeids
 
 

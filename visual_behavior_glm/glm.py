@@ -1,7 +1,7 @@
 import warnings
-import visual_behavior_glm.src.GLM_analysis_tools as gat
-import visual_behavior_glm.src.GLM_visualization_tools as gvt
-import visual_behavior_glm.src.GLM_params as glm_params
+import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_visualization_tools as gvt
+import visual_behavior_glm.GLM_params as glm_params
 import sys
 import matplotlib.pyplot as plt
 if sys.version_info.minor <= 7:

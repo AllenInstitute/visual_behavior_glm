@@ -1,6 +1,6 @@
 import visual_behavior.plotting as vbp
 import visual_behavior.data_access.loading as loading
-import visual_behavior_glm.src.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_analysis_tools as gat
 import matplotlib as mpl
 import seaborn as sns
 import numpy as np

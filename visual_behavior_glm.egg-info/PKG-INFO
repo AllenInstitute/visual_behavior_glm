@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: visual-behavior-glm
-Version: 0.0.0
+Version: 0.0.1
 Summary: GLM for Visual Behavior ophys data
 Home-page: https://github.com/AllenInstitute/visual_behavior_glm
 Author: Alex Piet, Nick Ponvert, Doug Ollerenshaw, Marina Garrett

@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import visual_behavior_glm.src.GLM_params as glm_params
+import visual_behavior_glm.GLM_params as glm_params
 plt.ion()
 
 def make_test_json():

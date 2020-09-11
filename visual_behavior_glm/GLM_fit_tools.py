@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 import visual_behavior.data_access.loading as loading
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
-import visual_behavior_glm.src.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_analysis_tools as gat
 
 def load_fit_experiment(ophys_experiment_id, run_params):
     '''

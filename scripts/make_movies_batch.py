@@ -1,6 +1,6 @@
-from visual_behavior_glm.src.glm import GLM
-import visual_behavior_glm.src.GLM_analysis_tools as gat
-import visual_behavior_glm.src.GLM_visualization_tools as gvt
+from visual_behavior_glm.glm import GLM
+import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_visualization_tools as gvt
 
 import visual_behavior.utilities as vbu
 import visual_behavior.plotting as vbp

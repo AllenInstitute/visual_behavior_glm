@@ -3,7 +3,9 @@ Fits a kernel regression model to df/f traces during visual behavior.
 
 # Installing and setting up the package
 
-## Before installing, it's recommended to set up a new Python environment with Python 3.7:
+## Set up an environment
+
+Before installing, it's recommended to set up a new Python environment with Python 3.7:
 
 For example, using Conda:
 
@@ -21,7 +23,7 @@ To facilitate development, it is recommended to set up the package in 'editable'
     cd visual_behavior_glm
     pip install -e .
 
-An additional dependency of the package is `visual_behavior_analysis` (VBA)
+An additional dependency of the package is `visual_behavior_analysis` (VBA)  
 Assuming that most users of this package will also be using VBA, it should also be installed in 'editable' mode:
 
     git clone https://github.com/AllenInstitute/visual_behavior_analysis.git

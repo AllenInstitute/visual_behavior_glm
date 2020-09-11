@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+what_cre = 'Slc17a7-IRES2-Cre' #'Sst-IRES-Cre' #  'Vip-IRES-Cre' # 'allCre' # # what cre line to analyze (umap/clustering)
 dosavefig = 0 #1
 
 #%% modify this for your own directory
@@ -57,10 +58,12 @@ get_ipython().magic(u'matplotlib inline')
 
 #%% load the results summary for a single GLM version from mongo
 
-rs = gat.retrieve_results(search_dict = {'glm_version': '4_L2_optimize_by_cell'}, results_type='summary')
+# '4_L2_optimize_by_cell'
+rs = gat.retrieve_results(search_dict = {'glm_version': '6_L2_optimize_by_cell'}, results_type='summary')
 rs #.sample(10)
 
-rs.shape, list(rs['dropout'].unique())
+rs.shape, rs.keys(), list(rs['dropout'].unique())
+# rs[['dropout', 'adj_fraction_change_from_full']]
 
 '''
 # rs_now: rs for a single experiment, a single cell
@@ -73,27 +76,77 @@ print(list(rs_now['dropout'].values))
 
 #%% get a list of columns to use for clustering. Defining this list now makes it easier to avoid accidentally clustering on some identifying feature (e.g., cre_line, session_type, etc.)
 
-# I'm removing the 'visual' dropout, since it's actually a combination of the omission and all-images dropouts.
-
 cols_for_clustering = list(rs['dropout'].unique())
+# cols_for_clustering = [col for col in rspm.columns if col not in ['identifier','cre_line','session_type','equipment_name', 
+#                                                                   'session_id', 'imaging_depth','project_code','session_number','exposure_number']]
+cols_for_clustering = [col for col in cols_for_clustering if col not in ['image0','image1','image2','image3',
+                                                                         'image4','image5','image6','image7',
+                                                                         'visual', 'Full']]
 
-cols_for_clustering.remove('visual')
+cols_for_clustering = [col for col in cols_for_clustering if col not in ['beh_model', 'intercept']]
+                       
+cols_for_clustering = [col for col in cols_for_clustering if 'single' not in col]
+
+
+# I'm removing the 'visual' dropout, since it's actually a combination of the omission and all-images dropouts.
 '''
-cols_for_clustering.remove('model_bias')
-cols_for_clustering.remove('model_task0')
-cols_for_clustering.remove('model_omissions1')
-cols_for_clustering.remove('model_timing1D')
-cols_for_clustering.remove('beh_model')
+cols_for_clustering.remove('visual')
 
-cols_for_clustering.remove('pre_lick_bouts')
-cols_for_clustering.remove('post_lick_bouts')
+# cols_for_clustering.remove('model_bias')
+# cols_for_clustering.remove('model_task0')
+# cols_for_clustering.remove('model_omissions1')be
+# cols_for_clustering.remove('model_timing1D')
+# cols_for_clustering.remove('beh_model')
+
+# cols_for_clustering.remove('pre_lick_bouts')
+# cols_for_clustering.remove('post_lick_bouts')
 '''
 print(np.shape(cols_for_clustering)), cols_for_clustering
 
 
 #%% build a pivoted version of the results summary, using the `fraction_change_from_full` column as the values.
 
+# following is giving error on '6_L2_optimize_by_cell'
 rsp = gat.build_pivoted_results_summary(results_summary=rs, cutoff=0.01, value_to_use='fraction_change_from_full')
+
+# make a new column called 'identifier' that is {OPHYS_EXPERIMENT_ID}_{CELL_SPECIMEN_ID}. This will give each a unique ID
+rs['identifier'] = rs['ophys_experiment_id'].astype(str) + '_' +  rs['cell_specimen_id'].astype(str)
+
+# pivot the table to get it into a form for clustering
+# first get variance explained for full model to filter out poorly fit cells
+model_output_type = 'variance_explained'
+ve = rs.pivot(index='identifier',columns='dropout',values=model_output_type).reset_index()
+ve
+
+# plot histogram of variance explained for the full model; mark cutoff .01
+plt.hist(ve['Full'].values, 100); plt.vlines(.01, 0, 2e4, color='r', linestyle='dashed'); 
+# plt.xlim([-.01, .2])
+
+
+# apply a cutoff of .01 to variance explained, in order to include a neuron into analysis
+cells_to_include = ve[ve['Full']>0.01].identifier.values
+
+order = np.argsort(ve[ve.identifier.isin(cells_to_include)==True]['Full'])
+cell_order = cells_to_include[order]
+
+len(cells_to_include)
+
+
+# model_output_type = 'fraction_change_from_full'
+model_output_type = 'adj_fraction_change_from_full'
+rsp = rs.pivot(index='identifier',columns='dropout',values=model_output_type).reset_index()
+rsp
+
+
+tmp = ve.rename(columns={'Full':'varience_explained_full_model'})
+rsp = rsp.merge(tmp[['identifier','varience_explained_full_model']], on=['identifier'])
+
+rsp = rsp[rsp.identifier.isin(cells_to_include)==True]
+
+rspm = rsp.merge(rs[['identifier','cell_specimen_id','ophys_experiment_id','cre_line','session_type','imaging_depth','equipment_name','project_code','session_number','exposure_number','container_id']].drop_duplicates(),left_on='identifier',right_on='identifier',how='inner')
+rspm
+
+
 
 
 #%% check what fraction of cells are kept after applying the cutoff above.
@@ -158,8 +211,8 @@ np.unique(data['ophys_session_id'].values).shape, np.unique(rsp00['ophys_session
 # rsp = rsp.merge(data, on=['ophys_session_id'])
 rsp = rsp00.merge(data, on=['ophys_session_id', 'cre_line']) #, how='outer')
 
-rsp00.shape, rsp.shape
-np.unique(rsp['ophys_session_id'].values).shape
+print(rsp00.shape, rsp.shape)
+print(np.unique(rsp['ophys_session_id'].values).shape)
 
 
 #%% take care of column renaming after the merge
@@ -171,13 +224,27 @@ rsp = rsp.rename(columns = {'imaging_depth_x': 'imaging_depth'}, inplace = False
 # rsp[rsp['ophys_experiment_id_x'].values==795948257][['cell_specimen_id', 'beh_model']]
 
 
-
 #%% Redefine cols_for_clustering
 # add some features from behavioral glm to rsp 
 
 # make sure to not add features that get repeated across cells (eg task_dropout_index will be repeated for all cells of the same session)
 # cols_for_clustering.append('task_dropout_index')
 # np.shape(cols_for_clustering), cols_for_clustering
+
+
+#####################################
+#%% Choose what cre line goes into umap/clustering
+
+# cres = np.unique(rsp['cre_line'])
+# print(cres) # ['Slc17a7-IRES2-Cre' 'Sst-IRES-Cre' 'Vip-IRES-Cre']
+# icre = 2
+# rsp = rsp[rsp['cre_line']==cres[icre]]
+
+if what_cre != 'allCre':
+    rsp = rsp[rsp['cre_line']==what_cre]
+    print(rsp.shape)
+    
+    what_cre_name = what_cre[:3]
 
 
 
@@ -231,6 +298,7 @@ rsp['umap_3d_embedding_2'] = embedding[:, 2]
 embedding.shape, neigh, mindist
 
 
+
 #####################################
 #####################################
 # Clustering
@@ -250,7 +318,7 @@ rsp['clusterer_labels'].value_counts()
 
 # try a range of parameters
 
-min_cluster_size_all = [5, 20, 50, 100, 200] #100 #50 # (default=5)
+min_cluster_size_all = [5, 20, 30, 50, 100, 200] #100 #50 # (default=5)
 min_samples_all = [10] #10 #min_cluster_size #18 # default: same as min_cluster_size
 
 clusterer_all = []
@@ -290,17 +358,18 @@ for min_cluster_size in min_cluster_size_all:
 
 
 # rsp = rspall
-
-embedding.shape
+# rsp.shape
+# embedding.shape
 
 
 #%% Pick some parameter values informed by the search above
 
-min_cluster_size = 100 #50 # (default=5)
-min_samples = 10 #100 #10 #min_cluster_size #18 # default: same as min_cluster_size
+min_cluster_size = 30 #100 #50 # (default=5)
+min_samples = 10 #10 #100 #10 #min_cluster_size #18 # default: same as min_cluster_size
 
 ### set cluster_selection_epsilon to .5
-# clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=.5)
+cluster_selection_epsilon = .3 #.5
+# clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=cluster_selection_epsilon)
 
 ### don't set cluster_selection_epsilon
 clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples) #(min_cluster_size=9, gen_min_span_tree=True)
@@ -314,8 +383,7 @@ rsp['clusterer_labels'] = clusterer.labels_
 cluster_size = [np.sum(clusterer.labels_ == np.unique(clusterer.labels_)[i]) for i in range(len(np.unique(clusterer.labels_)))] # number of points per cluster
 
 
-
-#%% Evaluate clustering results
+#%% Print some clustering results
 
 # fract_per_clust = [np.mean(clusterer.labels_ == np.unique(clusterer.labels_)[i]) for i in range(len(np.unique(clusterer.labels_)))]
 print(len(np.unique(clusterer.labels_)))
@@ -331,6 +399,7 @@ print(np.sort(cluster_size))
 # print(sum(cluster_size < th_n), np.mean(cluster_size < th_n))
 
 
+
 #%% Plot clusterer probabilities and number of cells in each label.
 
 plt.figure(figsize=(8,3))
@@ -341,12 +410,13 @@ plt.subplot(122), plt.plot(np.unique(clusterer.labels_), cluster_size), plt.titl
 plt.xlabel('cluster id')
 
 if dosavefig:
-    nam = f'cluster_prob_size_allCre_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
+    nam = f'cluster_prob_size_{what_cre_name}_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
     fign = os.path.join(dir0, dir_now, nam+fmt)     
 
     plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
 
 
+    
 #####################################
 #####################################
 # Visualize UMAP embedding and clustered cells
@@ -365,16 +435,16 @@ cluster_member_colors = [sns.desaturate(x, p) for x, p in
 
 plt.figure(figsize=(8,4))
 plt.subplot(121)
-plt.scatter(rsp['umap_3d_embedding_0'], rsp['umap_3d_embedding_1'], s=10, linewidth=0, c=cluster_member_colors, alpha=0.25)
+plt.scatter(rsp['umap_3d_embedding_0'], rsp['umap_3d_embedding_1'], s=12, linewidth=0, c=cluster_member_colors, alpha=0.25)
 plt.xlabel('umap_3d_embedding_0'), plt.ylabel('umap_3d_embedding_1')
 plt.title(f'{len(cluster_size)} clusters')
 
 plt.subplot(122)
-plt.scatter(rsp['umap_3d_embedding_0'], rsp['umap_3d_embedding_2'], s=10, linewidth=0, c=cluster_member_colors, alpha=0.25)
+plt.scatter(rsp['umap_3d_embedding_0'], rsp['umap_3d_embedding_2'], s=12, linewidth=0, c=cluster_member_colors, alpha=0.25)
 plt.xlabel('umap_3d_embedding_0'), plt.ylabel('umap_3d_embedding_2')
 
 if dosavefig:
-    nam = f'umapEmbed_clustColored_allCre_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
+    nam = f'umapEmbed_clustColored_{what_cre_name}_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
     fign = os.path.join(dir0, dir_now, nam+fmt)     
 
     plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
@@ -406,15 +476,16 @@ sns.scatterplot(
 )
 
 if dosavefig:
-    nam = f'umapEmbed_clustColored_Doug_allCre_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
+    nam = f'umapEmbed_clustColored_Doug_{what_cre_name}_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
     fign = os.path.join(dir0, dir_now, nam+fmt)     
 
     plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
 
 
     
-
+###############################
 #%% visualize in 3d using plotly
+###############################
 
 fig = px.scatter_3d(
     rsp, 
@@ -456,7 +527,7 @@ fig.show()
 # identify dominant dropouts for each cluster
 
 gat.identify_dominant_dropouts(rsp, cluster_column_name='clusterer_labels', cols_to_search=cols_for_clustering)
-np.unique(rsp['dominant_dropout'])
+print(np.unique(rsp['dominant_dropout']))
 
 
 #%%
@@ -486,7 +557,7 @@ rsp['clusterer_labels'].value_counts(), sum(rsp['clusterer_labels'].value_counts
 rsp = rspall[rspall['clusterer_labels'] != -1]
 rsp.shape
 
-np.unique(rsp['dominant_dropout'])
+print(np.unique(rsp['dominant_dropout']))
 
 
 #############################################
@@ -548,7 +619,7 @@ heatmap_defs = [
     },
     {
         'columns':['clusterer_labels'],
-        'cbar_label':'k-means label',
+        'cbar_label':'clusterer label',
         'cbar_ticks':np.arange(min(rsp['clusterer_labels'].unique()),len(rsp['clusterer_labels'].unique()),2),
         'vmin':min(rsp['clusterer_labels'].unique()),
         'vmax':len(rsp['clusterer_labels'].unique())-1,
@@ -615,7 +686,7 @@ fig, axes = vbp.make_multi_cmap_heatmap(
 #     axes['heatmap'].axhline(idx,color='black')
 
 if dosavefig:
-    nam = f'glmHeatmap_clusters_allCre_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
+    nam = f'glmHeatmap_clusters_{what_cre_name}_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{now}'
     fign = os.path.join(dir0, dir_now, nam+fmt)     
 
     plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
@@ -630,7 +701,7 @@ parameter_primary = 'task_dropout_index'
 parameters_cont = ['all-images', 'omissions', 'pupil', 'running', 'imaging_depth']
 parameters_categ = ['cre_line','session_id','targeted_structure', 'clusterer_labels'] # session_id: 1 # novel
 
-nam = f'bins_{parameter_primary}_param_hists_allCre_{now}'
+nam = f'bins_{parameter_primary}_param_hists_{what_cre_name}_{now}'
 fign = os.path.join(dir0, dir_now, nam+fmt)     
 
 

@@ -817,6 +817,9 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     #results = gat.retrieve_results(search_dict={'glm_version':'6_L2_optimize_by_session'}, results_type='summary')   
 
     # TODO/Questions
+    # Need to load run_params for this version 
+    # Make dataframe that includes all the weights for all the kernels for all cells, so we dont need to keep filtering over and over again.
+    # Organize this code, its a nightmare. Places things are hard coded. 
     # do we want to filter cells that must have a certain variance explained, or the dropout has to matter a certain amount. 
     # how do we deal with merging mesoscope and scientifica?   
     # should we normalize each row?
@@ -894,6 +897,7 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     ax[0,2].set_ylabel('Adj. Fraction from Full')
     ax[0,2].set_xticks(x)
     ax[0,2].set_xticklabels([kernel, single_kernel])
+    ax[0,2].set_ylim(-1,0)
     ax[0,2].legend()
     ax[0,2].set_title('Dropout Scores')
 

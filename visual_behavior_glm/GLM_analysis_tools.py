@@ -415,9 +415,23 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
     # pivot the results summary so that dropout scores become columns
     results_summary_pivoted = results_summary.query('identifier in @cells_to_keep').pivot(index='identifier',columns='dropout',values=value_to_use).reset_index()
     
-    # merge in other identifying columns, leaving out those that will not have more than one unique value per cell
+    # merge in other identifying columns, leaving out those that will have more than one unique value per cell
+    potential_cols_to_drop = [
+        '_id', 
+        'index',
+        'dropout', 
+        'variance_explained', 
+        'fraction_change_from_full', 
+        'absolute_change_from_full',
+        'adj_fraction_change_from_full',
+        'adj_variance_explained',
+        'adj_variance_explained_full',
+        'entry_time_utc',
+    ]
+    cols_to_drop = [col for col in potential_cols_to_drop if col in results_summary.columns]
+    print('dropping {}'.format(cols_to_drop))
     results_summary_pivoted = results_summary_pivoted.merge(
-        results_summary.drop(columns=['_id', 'dropout', 'variance_explained', 'fraction_change_from_full', 'absolute_change_from_full','entry_time_utc']).drop_duplicates(),
+        results_summary.drop(columns=cols_to_drop).drop_duplicates(),
         left_on='identifier',
         right_on='identifier',
         how='left'

@@ -24,7 +24,7 @@ To facilitate development, it is recommended to set up the package in 'editable'
     pip install -e .
 
 An additional dependency of the package is `visual_behavior_analysis` (VBA)  
-Assuming that most users of this package will also be using VBA, it should also be installed in 'editable' mode:
+Assuming that most users of this package will also be contributing to VBA, it should also be installed in 'editable' mode:
 
     git clone https://github.com/AllenInstitute/visual_behavior_analysis.git
     cd visual_behavior_analysis

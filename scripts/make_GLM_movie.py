@@ -1,7 +1,7 @@
 import argparse
 import time
-from visual_behavior_glm.src.glm import GLM
-import visual_behavior_glm.src.GLM_visualization_tools as gvt
+from visual_behavior_glm.glm import GLM
+import visual_behavior_glm.GLM_visualization_tools as gvt
 
 parser = argparse.ArgumentParser(description='generate GLM movie')
 parser.add_argument(

@@ -1,4 +1,4 @@
-from visual_behavior_glm.src.GLM_params import make_run_json
+from visual_behavior_glm.GLM_params import make_run_json
 import shutil
 import os
 import argparse

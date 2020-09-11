@@ -1,0 +1,7 @@
+README.md
+setup.py
+visual_behavior_glm.egg-info/PKG-INFO
+visual_behavior_glm.egg-info/SOURCES.txt
+visual_behavior_glm.egg-info/dependency_links.txt
+visual_behavior_glm.egg-info/requires.txt
+visual_behavior_glm.egg-info/top_level.txt

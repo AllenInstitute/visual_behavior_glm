@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as  np
 
 import visual_behavior.data_access.loading as loading
-import visual_behavior_glm.src.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_analysis_tools as gat
 
 sys.path.append('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/src/')
 from pbstools import pbstools  # NOQA E402

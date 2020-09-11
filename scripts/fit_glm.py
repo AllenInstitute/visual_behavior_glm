@@ -1,5 +1,5 @@
-from visual_behavior_glm.src.glm import GLM
-import visual_behavior_glm.src.GLM_analysis_tools as gat
+from visual_behavior_glm.glm import GLM
+import visual_behavior_glm.GLM_analysis_tools as gat
 
 import argparse
 

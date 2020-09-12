@@ -8,6 +8,8 @@ import xarray_mongodb
 import visual_behavior.data_access.loading as loading
 import visual_behavior.database as db
 
+from sklearn.decomposition import PCA
+
 def load_fit_pkl(run_params, ophys_experiment_id):
     '''
         Loads the fit dictionary from the pkl file dumped by fit_experiment
@@ -429,7 +431,6 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         'entry_time_utc',
     ]
     cols_to_drop = [col for col in potential_cols_to_drop if col in results_summary.columns]
-    print('dropping {}'.format(cols_to_drop))
     results_summary_pivoted = results_summary_pivoted.merge(
         results_summary.drop(columns=cols_to_drop).drop_duplicates(),
         left_on='identifier',
@@ -477,6 +478,27 @@ def get_experiment_inventory(results=None):
             experiments_table.at[oeid, 'glm_version_{}_exists'.format(glm_version)] = oeid_in_results(oeid, glm_version)
 
     return experiments_table
+
+def run_pca(dropout_matrix, n_components=40, deal_with_nans='fill_with_zero'):
+    '''
+    wrapper function for PCA
+    inputs:
+        dropout_matrix: matrix on which to perform PCA
+        n_components: desired PCA components
+        deal_with_nans: 'fill_with_zero' fills with zeros. 'drop' drops.
+    returns
+        pca object with fit performed, pca_result_matrix
+
+    '''
+    pca = PCA(n_components=n_components)
+    if deal_with_nans == 'fill_with_zero':
+        pca_result = pca.fit_transform(dropout_matrix.fillna(0).values)
+    elif deal_with_nans == 'drop':
+        pca_result = pca.fit_transform(dropout_matrix.dropna().values)
+    pca.results = pca_result
+    pca.component_names = dropout_matrix.columns
+    return pca
+    
      
     
 # NOTE:

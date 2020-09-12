@@ -110,6 +110,46 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     if save_plot:
         plt.savefig('continuous_events.png') 
 
+def plot_PCA_var_explained(pca, figsize=(10,8)):
+    fig,ax=plt.subplots(2,1,figsize=figsize, sharex=True)
+    ax[0].plot(
+        np.arange(40),
+        pca.explained_variance_ratio_,
+        'o-k'
+    )
+    ax[1].plot(
+        np.arange(40),
+        np.cumsum(pca.explained_variance_ratio_),
+        'o-k'
+    )
+
+    ax[0].axhline(0, color='gray')
+    ax[1].axhline(1, color='gray')
+    ax[1].set_xlabel('PC number')
+    ax[0].set_ylabel('variance explained')
+    ax[1].set_ylabel('cumulative variance explained')
+    ax[0].set_title('variance explained by PC')
+    ax[1].set_title('cumulative variance explained by PC')
+    fig.tight_layout()
+    return fig, ax
+
+def pc_component_heatmap(pca, figsize=(18,4)):
+    components = pd.DataFrame(pca.components_, columns=pca.component_names)
+    sorted_cols = np.array(pca.component_names)[np.argsort(pca.components_[0,:])]
+    fig,ax=plt.subplots(figsize=figsize)
+    sns.heatmap(
+        components[sorted_cols[::-1]].iloc[:10],
+        cmap='seismic',
+        ax=ax,
+        vmin=-1,
+        vmax=1
+    )
+    ax.set_title('Principal Component Vectors')
+    ax.set_xticks(np.arange(0.5,len(pca.component_names)+0.5))
+    ax.set_xticklabels(sorted_cols[::-1],rotation=45,ha='right')
+    ax.set_ylabel('PC number')
+    fig.tight_layout()
+    return fig, ax
 
 def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outlier_threshold=1.5):
     '''

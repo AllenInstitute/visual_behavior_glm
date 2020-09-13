@@ -20,10 +20,10 @@ if dosavefig:
     
 
 #%% 
-import visual_behavior_glm.src.GLM_params as glm_params
-import visual_behavior_glm.src.GLM_analysis_tools as gat
-import visual_behavior_glm.src.GLM_visualization_tools as gvt
-from visual_behavior_glm.src.glm import GLM
+import visual_behavior_glm.GLM_params as glm_params
+import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_visualization_tools as gvt
+from visual_behavior_glm.glm import GLM
 import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 import visual_behavior.database as db
@@ -88,8 +88,9 @@ cols_for_clustering = [col for col in cols_for_clustering if col not in ['beh_mo
 cols_for_clustering = [col for col in cols_for_clustering if 'single' not in col]
 
 
-# I'm removing the 'visual' dropout, since it's actually a combination of the omission and all-images dropouts.
 '''
+# I'm removing the 'visual' dropout, since it's actually a combination of the omission and all-images dropouts.
+
 cols_for_clustering.remove('visual')
 
 # cols_for_clustering.remove('model_bias')
@@ -104,10 +105,13 @@ cols_for_clustering.remove('visual')
 print(np.shape(cols_for_clustering)), cols_for_clustering
 
 
+
 #%% build a pivoted version of the results summary, using the `fraction_change_from_full` column as the values.
 
-# following is giving error on '6_L2_optimize_by_cell'
 rsp = gat.build_pivoted_results_summary(results_summary=rs, cutoff=0.01, value_to_use='fraction_change_from_full')
+
+'''
+## codes below copied from notebook: 200908_characterize_glm_results.ipynb
 
 # make a new column called 'identifier' that is {OPHYS_EXPERIMENT_ID}_{CELL_SPECIMEN_ID}. This will give each a unique ID
 rs['identifier'] = rs['ophys_experiment_id'].astype(str) + '_' +  rs['cell_specimen_id'].astype(str)
@@ -145,7 +149,7 @@ rsp = rsp[rsp.identifier.isin(cells_to_include)==True]
 
 rspm = rsp.merge(rs[['identifier','cell_specimen_id','ophys_experiment_id','cre_line','session_type','imaging_depth','equipment_name','project_code','session_number','exposure_number','container_id']].drop_duplicates(),left_on='identifier',right_on='identifier',how='inner')
 rspm
-
+'''
 
 
 
@@ -260,14 +264,25 @@ neigh_vals = np.concatenate(([5, 10, 15, 50], np.arange(200, int(rsp.shape[0]/10
 print(neigh_vals)
 
 
-#%% umap relies on stochastis methods so we need to set the seed for it.
+#%% umap relies on stochastic methods so we need to set the seed for it.
 
 rand_state = 42
 np.random.seed(rand_state)
 os.environ['PYTHONHASHSEED'] = str(rand_state)
 random.seed(rand_state)                                
 
-rsp.shape, rsp[cols_for_clustering].shape, cols_for_clustering
+print(rsp.shape, rsp[cols_for_clustering].shape, cols_for_clustering)
+
+
+
+#%% Take care of NaNs before doing UMAP; change them to 0s.
+# Note: after pivoting some rows of rsp have nans for 'correct_rejects', this is because some cells dont have 'correct_rejects' as a dropout in the dataframe rs.
+
+rsp_nan = copy.deepcopy(rsp)
+
+rsp = rsp.fillna(0)
+print(sum(np.isnan(rsp['correct_rejects'].values)), sum(np.isnan(rsp_nan['correct_rejects'].values)))
+
 
 
 #%% UMAP
@@ -295,7 +310,7 @@ rsp['umap_3d_embedding_2'] = embedding[:, 2]
 # rsp['umap_2d_embedding_0'] = embedding_2d[:, 0]
 # rsp['umap_2d_embedding_1'] = embedding_2d[:, 1]
 
-embedding.shape, neigh, mindist
+print(embedding.shape, neigh, mindist)
 
 
 

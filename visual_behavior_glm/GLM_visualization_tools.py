@@ -111,7 +111,7 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
         plt.savefig('continuous_events.png') 
 
 
-def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outlier_threshold=1.5):
+def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,6), outlier_threshold=1.5):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:
@@ -169,7 +169,7 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outli
     upper_bounds = grp.quantile(0.75) + 1.5*IQR
 
     for i in range(2):
-        ax[i].legend(loc='upper left')
+        ax[i].legend(loc='upper left',bbox_to_anchor=(1.01, 1),borderaxespad=0)
         ax[i].set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
         ax[i].axhline(0, color='black', linestyle=':')
         ax[i].set_xticklabels(ax[i].get_xticklabels(),rotation=30, ha='right')

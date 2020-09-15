@@ -806,7 +806,21 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
-def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_by_session',Ws=None, oeids=None):
+def all_kernels_evaluation(results, run_params):
+    '''
+        Makes the analysis plots for all kernels in this model version
+    '''
+    Ws, oeids = get_weights_for_sessions(results, run_params['version'])
+    kernels = set(run_params['kernels'].keys())
+    kernels.remove('intercept')
+    kernels.remove('time')
+    for k in kernels:
+        try:
+            Ws,oeids, weights,cell_data,cell_dropout_data = kernel_evaluation(results, k,Ws=Ws,oeids=oeids,save_dir=run_params['output_dir']+'/')
+        except:
+            print(k) 
+
+def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_by_session',Ws=None, oeids=None,save_dir=''):
     '''
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
@@ -818,8 +832,6 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     #results = gat.retrieve_results(search_dict={'glm_version':'6_L2_optimize_by_session'}, results_type='summary')   
 
     # TODO/Questions
-    # crashes on pupil, and face_motion
-    # Need to load run_params for this version 
     # Make dataframe that includes all the weights for all the kernels for all cells, so we dont need to keep filtering over and over again.
     # Organize this code, its a nightmare. Places things are hard coded. 
     # do we want to filter cells that must have a certain variance explained, or the dropout has to matter a certain amount. 
@@ -838,6 +850,7 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
 
 
     colors=['C0','C1','C2']
+    line_alpha = 0.25
 
     # Plotting
     fig,ax=plt.subplots(2,3,figsize=(12,6))
@@ -850,8 +863,8 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     ax[0,0].plot(time_vec, sst_weights.mean(axis=1),label='SST',color=colors[0])
     ax[0,0].plot(time_vec, vip_weights.mean(axis=1),label='VIP',color=colors[1])
     ax[0,0].plot(time_vec, slc_weights.mean(axis=1),label='SLC',color=colors[2])
-    ax[0,0].axhline(0, color='k',linestyle='--',alpha=0.25)
-    ax[0,0].axvline(0, color='k',linestyle='--',alpha=0.25)
+    ax[0,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
+    ax[0,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[0,0].set_ylabel('Weights (df/f)')
     ax[0,0].set_xlabel('Time (s)')
     ax[0,0].legend()
@@ -866,8 +879,8 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     ax[1,0].plot(time_vec, sst_weights_norm.mean(axis=1),label='SST',color=colors[0])
     ax[1,0].plot(time_vec, vip_weights_norm.mean(axis=1),label='VIP',color=colors[1])
     ax[1,0].plot(time_vec, slc_weights_norm.mean(axis=1),label='SLC',color=colors[2])
-    ax[1,0].axhline(0, color='k',linestyle='--',alpha=0.25)
-    ax[1,0].axvline(0, color='k',linestyle='--',alpha=0.25)
+    ax[1,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
+    ax[1,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[1,0].set_ylabel('Weights (df/f)')
     ax[1,0].set_xlabel('Time (s)')
     ax[1,0].legend()
@@ -908,7 +921,7 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     ax[0,2].set_ylabel('Adj. Fraction from Full')
     ax[0,2].set_xticks(x)
     ax[0,2].set_xticklabels([kernel, single_kernel])
-    ax[0,2].axhline(0,color='k',linestyle='--',alpha=0.25)
+    ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
     ax[0,2].set_ylim(-1.05,0.05)
     ax[0,2].legend()
     ax[0,2].set_title('Dropout Scores')
@@ -929,7 +942,7 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     ax[1,2].set_ylabel('Adj. Fraction from Full')
     ax[1,2].set_xticks(x+1)
     ax[1,2].set_xticklabels([kernel, single_kernel])
-    ax[1,2].axhline(0,color='k',linestyle='--',alpha=0.25)
+    ax[1,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
     ax[1,2].set_ylim(-1.05,.05)
     ax[1,2].set_title('Dropout Scores')
 
@@ -947,14 +960,15 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
 
     plt.tight_layout()
     if save_results:
-        plt.savefig(kernel+'_analysis.png')
-    return Ws, oeids, weights,cell_data,cell_dropout_data,drops
+        plt.savefig(save_dir+kernel+'_analysis.png')
+    return Ws, oeids, weights,cell_data,cell_dropout_data
  
 def get_weights_for_kernel(Ws,oeids, kernel):
+    include = [i for i in range(0,len(Ws)) if len([w for w in Ws[i].weights.values if w.startswith(kernel)])>0]
     weight_names = [w for w in Ws[0].weights.values if w.startswith(kernel)]
-    kernel_weights = [Ws[i].loc[dict(weights=weight_names)].values for i in range(0,len(Ws))]
-    cells = [x.cell_specimen_id.values for x in Ws]
-    oeid_per_cell = [[x]*len(y) for (x,y) in zip(oeids, cells)]
+    kernel_weights = [Ws[i].loc[dict(weights=weight_names)].values for i in include]
+    cells = [Ws[i].cell_specimen_id.values for i in include]
+    oeid_per_cell = [[x]*len(y) for (x,y) in zip(oeids[include], cells)]
     cell_data = pd.DataFrame()
     cell_data['cell_specimen_id'] = np.hstack(cells)
     cell_data['ophys_experiment_id'] = np.hstack(oeid_per_cell)

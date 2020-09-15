@@ -790,7 +790,8 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
     # clean up axes
     plt.ylim(0,len(kernels))
     plt.xlim(0,1)
-    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],['Individual Model','Minor Component','Minor Component','Minor Component','Major Component','Full Model'],fontsize=12)
+    labels = ['Individual Model']+['Minor Component']*(num_levels-3)+['Major Component','Full Model']
+    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],labels,fontsize=12)
     plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
     plt.gca().get_yaxis().set_tick_params(pad=400)
     plt.title('Nested Models')
@@ -817,6 +818,7 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     #results = gat.retrieve_results(search_dict={'glm_version':'6_L2_optimize_by_session'}, results_type='summary')   
 
     # TODO/Questions
+    # crashes on pupil, and face_motion
     # Need to load run_params for this version 
     # Make dataframe that includes all the weights for all the kernels for all cells, so we dont need to keep filtering over and over again.
     # Organize this code, its a nightmare. Places things are hard coded. 

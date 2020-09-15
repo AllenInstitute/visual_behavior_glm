@@ -3,19 +3,19 @@
 
 what_cre_all = 'Slc17a7-IRES2-Cre', 'Sst-IRES-Cre', 'Vip-IRES-Cre', 'allCre' # # what cre line to analyze (umap/clustering)
 dosavefig = 1 #0 #1
+do_single = 1 # if 1, use single models in the clustering analysis: one regressor is remained in the model, how much is the explained variance compared to the full model? (-V_i) / V_F
+# if 0, use dropouts in the clustering analysis: one regressor is dropped from the full model, how much does it change the explained variance (compared to the full model)? (V_i - V_F) / V_F
+
 
 #%% modify this for your own directory
 # directory to save figures: os.path.join(dir0, dir_now)
+dir0 = '/home/farzaneh/OneDrive/Analysis' # from def_paths import * 
+dir_now = 'umap_cluster'
 
-if dosavefig: 
-#     from def_paths import * 
-    dir0 = '/home/farzaneh/OneDrive/Analysis'
-    dir_now = 'umap_cluster'
-    
-    fmt = '.pdf'
+fmt = '.pdf'
 
-    import datetime
-    now = (datetime.datetime.now()).strftime("%Y%m%d_%H%M%S")
+import datetime
+now = (datetime.datetime.now()).strftime("%Y%m%d_%H%M%S")
     
     
 
@@ -65,6 +65,13 @@ rs #.sample(10)
 rs.shape, rs.keys(), list(rs['dropout'].unique())
 # rs[['dropout', 'adj_fraction_change_from_full']]
 
+# used for figure names
+if do_single==1: # use single models in the clustering analysis: one regressor is remained in the model, how much is the explained variance compared to the full model? (-V_i) / V_F
+    gmn = f'single_glm{glm_model}'
+else:
+    gmn = f'glm{glm_model}'
+    
+
 '''
 # rs_now: rs for a single experiment, a single cell
 rs_now = rs[np.logical_and(rs['ophys_experiment_id'].values==991852008, rs['cell_specimen_id'].values==1017215561)] #.shape (128, 37) # unique dropout: 32
@@ -84,9 +91,15 @@ cols_for_clustering = [col for col in cols_for_clustering if col not in ['image0
                                                                          'visual', 'Full']]
 
 cols_for_clustering = [col for col in cols_for_clustering if col not in ['beh_model', 'intercept']]
-                       
-cols_for_clustering = [col for col in cols_for_clustering if 'single' not in col]
 
+# check this: https://github.com/AllenInstitute/visual_behavior_glm/blob/b15f5f2bbfacca1d2e85ec99f4ff2e8afc02afbd/notebooks/Visual_Behavior___Neural_GLM_Dropout_Adjustment.pdf    
+if do_single==0: # use dropouts in the clustering analysis: one regressor is dropped from the full model, how much does it change the explained variance (compared to the full model)? (V_i - V_F) / V_F
+    cols_for_clustering = [col for col in cols_for_clustering if 'single' not in col]
+
+elif do_single==1: # use single models in the clustering analysis: one regressor is remained in the model, how much is the explained variance compared to the full model? (-V_i) / V_F
+    cols_for_clustering = [col for col in cols_for_clustering if 'single' in col]
+    cols_for_clustering = [col for col in cols_for_clustering if col not in ['single-beh_model', 'single-visual']]
+    cols_for_clustering = [col for col in cols_for_clustering if col not in ['single-image0', 'single-image1', 'single-image2', 'single-image3', 'single-image4', 'single-image5', 'single-image6', 'single-image7']]
 
 '''
 # I'm removing the 'visual' dropout, since it's actually a combination of the omission and all-images dropouts.
@@ -185,6 +198,8 @@ def make_categorical(df, column):
 for column in ['cre_line','equipment_name','targeted_structure','session_id']:
     make_categorical(rsp, column)
 
+# ['CAM2P.3', 'CAM2P.4', 'CAM2P.5', 'MESO.1']  --> [0, 1, 2, 3]
+
 
 #%% keep a copy of rsp before merging it with "data" that includes the behavioral model parameters
 
@@ -213,7 +228,7 @@ np.unique(data['ophys_session_id'].values).shape, np.unique(rsp00['ophys_session
 #%% merge rsp and data on session_id
 
 # rsp = rsp.merge(data, on=['ophys_session_id'])
-rsp = rsp00.merge(data, on=['ophys_session_id', 'cre_line']) #, how='outer')
+rsp = rsp00.merge(data, on=['ophys_session_id', 'cre_line', 'equipment_name']) #, how='outer') # , 'equipment_name'
 
 print(rsp00.shape, rsp.shape)
 print(np.unique(rsp['ophys_session_id'].values).shape)
@@ -224,8 +239,11 @@ print(np.unique(rsp['ophys_session_id'].values).shape)
 list(rsp.columns) #, rsp.shape
 rsp = rsp.rename(columns = {'imaging_depth_x': 'imaging_depth'}, inplace = False)
 
-
 # rsp[rsp['ophys_experiment_id_x'].values==795948257][['cell_specimen_id', 'beh_model']]
+
+# average number of cells per experiment:
+# rsp.shape[0]/np.unique(rsp['ophys_experiment_id_x']).shape[0]
+
 
 
 #%% Redefine cols_for_clustering
@@ -245,12 +263,13 @@ rsp = rsp.rename(columns = {'imaging_depth_x': 'imaging_depth'}, inplace = False
 # rsp = rsp[rsp['cre_line']==cres[icre]]
 
 rsp_main = copy.deepcopy(rsp)
+print(rsp_main.shape)
 
-for what_cre in what_cre_all:
+for what_cre in what_cre_all: # what_cre = what_cre_all[0]
     
-    print('_____________________________________________________________')
+    print('____________________________')
     print(f'{what_cre}')
-    print('_____________________________________________________________')
+    print('____________________________')
     
     if what_cre != 'allCre':
 
@@ -270,6 +289,10 @@ for what_cre in what_cre_all:
     #####################################
     #####################################
 
+    # Remember umaps is performed on: 
+    # rsp[cols_for_clustering]
+        
+        
     #%% UMAP, set parameters
 
     neigh_vals = np.concatenate(([5, 10, 15, 50], np.arange(200, int(rsp.shape[0]/10), 500)))
@@ -283,7 +306,8 @@ for what_cre in what_cre_all:
     os.environ['PYTHONHASHSEED'] = str(rand_state)
     random.seed(rand_state)                                
 
-    print(cols_for_clustering, rsp.shape, rsp[cols_for_clustering].shape)
+    print(cols_for_clustering)
+    print(rsp.shape, rsp[cols_for_clustering].shape)
 
 
 
@@ -417,14 +441,14 @@ for what_cre in what_cre_all:
     #%% Print some clustering results
 
     # fract_per_clust = [np.mean(clusterer.labels_ == np.unique(clusterer.labels_)[i]) for i in range(len(np.unique(clusterer.labels_)))]
-    print(len(np.unique(clusterer.labels_)))
-
-    # noise points
-    print(sum(clusterer.labels_ == -1), np.mean(clusterer.labels_ == -1))
+    print('number of clusters: ', len(np.unique(clusterer.labels_)))
 
     print(rsp['clusterer_labels'].value_counts())
-    print(np.sort(cluster_size))
+#     print(np.sort(cluster_size))
 
+    # noise points
+    print('noise points:', sum(clusterer.labels_ == -1), np.mean(clusterer.labels_ == -1))
+    
     # # number of clusters with <th_neur neurons in them.
     # th_n = 20 # we dont want to have less than 20 neurons in a cluster, maybe.
     # print(sum(cluster_size < th_n), np.mean(cluster_size < th_n))
@@ -435,13 +459,15 @@ for what_cre in what_cre_all:
 
     plt.figure(figsize=(8,3))
 
-    plt.subplot(121), plt.plot(np.sort(clusterer.probabilities_)), plt.title('clusterer.probabilities_')
+    plt.subplot(121), plt.plot(np.sort(clusterer.probabilities_)), plt.ylabel('clusterer.probabilities_')
     plt.xlabel('cells')
-    plt.subplot(122), plt.plot(np.unique(clusterer.labels_), cluster_size), plt.title('cluster size')
+    plt.subplot(122), plt.plot(np.unique(clusterer.labels_), cluster_size), plt.ylabel('cluster size')
     plt.xlabel('cluster id')
-
+    plt.suptitle(f'{len(cluster_size)} clusters')
+    plt.subplots_adjust(wspace=.4)
+    
     if dosavefig:
-        nam = f'{what_cre_name}_cluster_prob_size_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{cluster_selection_epsilon}_glm{glm_model}_{now}'
+        nam = f'{what_cre_name}_cluster_prob_size_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{cluster_selection_epsilon}_{gmn}_{now}'
         fign = os.path.join(dir0, dir_now, nam+fmt)     
 
         plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
@@ -475,7 +501,7 @@ for what_cre in what_cre_all:
     plt.xlabel('umap_3d_embedding_0'), plt.ylabel('umap_3d_embedding_2')
 
     if dosavefig:
-        nam = f'{what_cre_name}_umapEmbed_clustColored_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{cluster_selection_epsilon}_glm{glm_model}_{now}'
+        nam = f'{what_cre_name}_umapEmbed_clustColored_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{cluster_selection_epsilon}_{gmn}_{now}'
         fign = os.path.join(dir0, dir_now, nam+fmt)     
 
         plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
@@ -507,7 +533,7 @@ for what_cre in what_cre_all:
     )
 
     if dosavefig:
-        nam = f'{what_cre_name}_umapEmbed_clustColored_Doug_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{cluster_selection_epsilon}_glm{glm_model}_{now}'
+        nam = f'{what_cre_name}_umapEmbed_clustColored_Doug_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{cluster_selection_epsilon}_{gmn}_{now}'
         fign = os.path.join(dir0, dir_now, nam+fmt)     
 
         plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
@@ -553,10 +579,8 @@ for what_cre in what_cre_all:
     #####################################
 
     #%% A little bit of prep for plotting
-    # first define the dominant dropout in each cluster
-
     # identify dominant dropouts for each cluster
-
+    
     gat.identify_dominant_dropouts(rsp, cluster_column_name='clusterer_labels', cols_to_search=cols_for_clustering)
     print(np.unique(rsp['dominant_dropout']))
 
@@ -570,74 +594,101 @@ for what_cre in what_cre_all:
     #%% only get those rsp rows that have non-noise cluster values
 
     # copy rsp before removing noise points
-
     rspall = copy.deepcopy(rsp)
-    rspall.shape
-
+    print(rspall.shape)
 
     # use all rsp rows in clustering
     '''
     rsp = rspall
     rsp.shape
     '''
-
     rsp['clusterer_labels'].value_counts(), sum(rsp['clusterer_labels'].value_counts())
 
 
     # only get those rsp rows that have non-noise cluster values
     rsp = rspall[rspall['clusterer_labels'] != -1]
     print(rsp.shape)
-
-    print(np.unique(rsp['dominant_dropout']))
+    
+    
+    ################### 
+    # print number of cells with a given dominant dropout
+#     print(np.unique(rsp['dominant_dropout']))
     print(rsp['dominant_dropout'].value_counts())
 
+    a = np.unique(rsp['dominant_dropout'])
+    ac = [sum(rsp['dominant_dropout']==a[i]) for i in range(len(a))]
+    ddtext = [f'{ac[i]}, {a[i]}' for i in range(len(a))]
 
-
+    
+    
     #############################################
-    # ## define heatmap parameters
+    # define heatmap parameters
     # lots here, but there are lots of options!
 
-    cols_to_plot = [
-        'clusterer_labels',      
+    cols_fract_change0 = [
         'all-images', 
         'omissions', 
         'pupil', 
         'running',
         'face_motion_energy',
-        'pre_lick_bouts',
-        'cre_line_categorical', 
+        'single-all-images', 
+        'single-omissions', 
+        'single-pupil', 
+        'single-running',
+        'single-face_motion_energy',            
+        ]
+    
+    
+    # add to it the dominant dropouts, to make sure the heatmap includes them
+    cols_fract_change = np.unique(np.concatenate((np.unique(rsp['dominant_dropout']),
+        cols_fract_change0)))
+
+    
+    # finalize the list of glm features (fract change in exp var) that will go into heatmap
+    cols_to_plot = np.concatenate((
+        ['clusterer_labels'],
+        cols_fract_change,
+        ['cre_line_categorical', 
         'dominant_dropout_categorical',
         'session_id_categorical', 
-    #    'equipment_name_categorical',
         'targeted_structure_categorical',
         'imaging_depth',
-        'task_dropout_index',  
-    ]
+        'task_dropout_index',
+        'equipment_name_categorical',
+        ]  
+    ))
 
-    # make sure there's a heatmap definition for every column, otherwise the column will plot without a heatmap!
+    
+    
+    
+    ########## make sure there's a heatmap definition for every column, otherwise the column will plot without a heatmap!
+
+    mnf = np.min(np.min(rsp[cols_to_plot[1:len(cols_fract_change)+1]]))
+    mxf = np.max(np.max(rsp[cols_to_plot[1:len(cols_fract_change)+1]]))
+
     heatmap_defs = [
         {
-            'columns':cols_to_plot[1:7],
-            'cbar_label':'fraction change\nin var explained',
-            'cbar_ticks':[-1,0,1],
-            'vmin':-1,
-            'vmax':1,
-            'cmap':'bwr',
+            'columns':cols_to_plot[1:len(cols_fract_change)+1],
+            'cbar_label':'adj fraction change\nin var explained',
+            'cbar_ticks':[mnf, mxf],
+            'vmin':mnf,
+            'vmax':mxf,
+            'cmap':'viridis', #'bwr',
         },
         {
             'columns':['cre_line_categorical'],
             'cbar_label':'cre_line',
-            'cbar_ticks':[0,1,2],
+            'cbar_ticks':np.arange(len(np.unique(rsp['cre_line']))),
             'cbar_ticklabels':np.sort(np.unique(rsp['cre_line'])),
             'vmin':-0.5,
-            'vmax':2.5,
-            'cmap':sns.color_palette("hls", 3),
+            'vmax':len(np.unique(rsp['cre_line']))+0.5,
+            'cmap':sns.color_palette("hls", len(np.unique(rsp['cre_line']))),            
         },    
         {
             'columns':['dominant_dropout_categorical'],
             'cbar_label':'dominant_dropout_categorical',
             'cbar_ticks':np.arange(len(rsp['dominant_dropout_categorical'].unique())),
-            'cbar_ticklabels':np.sort(np.unique(rsp['dominant_dropout'])),
+            'cbar_ticklabels':ddtext, #np.sort(np.unique(rsp['dominant_dropout'])),
             'vmin':-0.5,
             'vmax':len(rsp['dominant_dropout_categorical'].unique())-0.5,
             'cmap':sns.color_palette("hls", len(rsp['dominant_dropout_categorical'].unique())),
@@ -660,15 +711,15 @@ for what_cre in what_cre_all:
             'vmax':len(rsp['clusterer_labels'].unique())-.5,
             'cmap':sns.color_palette("hsv", len(rsp['clusterer_labels'].unique())),
         },
-    #     {
-    #         'columns':['equipment_name_categorical'],
-    #         'cbar_label':'equipment name',
-    #         'cbar_ticks':np.arange(len(rsp['equipment_name_categorical'].unique())),
-    #         'cbar_ticklabels':np.sort(np.unique(rsp['equipment_name'])),
-    #         'vmin':-0.5,
-    #         'vmax':len(rsp['equipment_name_categorical'].unique())-0.5,
-    #         'cmap':sns.color_palette("hls", len(rsp['equipment_name_categorical'].unique())),
-    #     },
+        {
+            'columns':['equipment_name_categorical'],
+            'cbar_label':'equipment name',
+            'cbar_ticks':np.arange(len(rsp['equipment_name_categorical'].unique())),
+            'cbar_ticklabels':np.sort(np.unique(rsp['equipment_name'])),
+            'vmin':-0.5,
+            'vmax':len(rsp['equipment_name_categorical'].unique())-0.5,
+            'cmap':sns.color_palette("hls", len(rsp['equipment_name_categorical'].unique())),
+        },
         {
             'columns':['targeted_structure_categorical'],
             'cbar_label':'targeted structure',
@@ -695,14 +746,20 @@ for what_cre in what_cre_all:
 
 
 
+    #############################################
+    #############################################
     #%% Make heatmaps, sort by whatever we want
+    #############################################
+    #############################################
+    
     # Note that it only makes sense to nest sorting values for categorical data. Any sorting value that follows a continuous variable will not have any effect.
 
     ### First sort by dominant dropout, the median value of the dominant dropout (for cases with multiple clusters sharing the same dominant dropout), then cre_line, session_id, imaging_depth
+   
+    sort_order = ['clusterer_labels', 'dominant_dropout','dominant_dropout_median','cre_line_categorical', 'session_id_categorical', 'targeted_structure_categorical', 'imaging_depth'] #'single-all-images', 'single-omissions']
     # sort_order = ['task_dropout_index', 'dominant_dropout','dominant_dropout_median','cre_line_categorical']
     # sort_order = ['dominant_dropout','dominant_dropout_median','cre_line_categorical','session_id_categorical','imaging_depth',]
     # sort_order = ['clusterer_labels', 'dominant_dropout','dominant_dropout_median','cre_line_categorical']
-    sort_order = ['clusterer_labels', 'dominant_dropout','dominant_dropout_median','cre_line_categorical', 'targeted_structure_categorical', 'session_id_categorical']
     # sort_order = ['clusterer_labels', 'task_dropout_index']
     # sort_order = ['task_dropout_index']
 
@@ -718,37 +775,50 @@ for what_cre in what_cre_all:
         heatmap_div=0.7, 
     )
 
-    # for idx,row in sorted_data.query('cluster_transition').iterrows():
-    #     axes['heatmap'].axhline(idx,color='black')
+    
+    # mark cluster boundaries only if there are <=20 clusters
+    if len(rsp['clusterer_labels'].value_counts()) < 21:
+        for idx,row in sorted_data.query('cluster_transition').iterrows():
+            axes['heatmap'].axhline(idx,color='black')
 
+            
     if dosavefig:
-        nam = f'{what_cre_name}_glmHeatmap_clusters_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{cluster_selection_epsilon}_glm{glm_model}_{now}'
+        nam = f'{what_cre_name}_glmHeatmap_clusters_UMAP_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{cluster_selection_epsilon}_{gmn}_{now}'
         fign = os.path.join(dir0, dir_now, nam+fmt)     
 
         plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
 
 
+        
 
 
     #############################################
+    #############################################
     #%% bin a feature (lets call it the primary feature: parameters_primary), and then for each bin look at the distribution of a bunch of other features (parameters_cont and parameters_categ)
-
-    norm_by_param_primary = np.nan # 0 # if nan, don't normalize the counts; if 1: # normalize each value of parameters_categ (that is in a given bin of param_primary) by the total number of cells in that bin of param_primary (eg normalize V1 neurons in bin0 of task_dropout_index by the sum of V1 and LM neurons in bin0 of task_dropout_index ).  If 0, # normalize each value of parameters_categ (that is in a given bin of param_primary) by the total number of cells that have that given value of param_categ (acorss all bins of param_primary); (eg normalize V1 neurons in bin0 of task_dropout_index by the total number of V1 neurons (ie in all bins of task_dropout_index)).
+    # note: the figure below is not related to umap/clustering (except if we add cluserer_labels as a parameters_categ).
+    # it is a general plot that demonstrates how different glm coefficients covary.
+    #############################################
+    #############################################
+    
+    norm_by_param_primary = 0 # np.nan # 
+    # if nan, don't normalize the counts; 
+    # if 1, normalize each value of parameters_categ (that is in a given bin of param_primary) by the total number of cells in that bin of param_primary (eg normalize V1 neurons in bin0 of task_dropout_index by the sum of V1 and LM neurons in bin0 of task_dropout_index ).  
+    # If 0, normalize each value of parameters_categ (that is in a given bin of param_primary) by the total number of cells that have that given value of param_categ (acorss all bins of param_primary); (eg normalize V1 neurons in bin0 of task_dropout_index by the total number of V1 neurons (ie in all bins of task_dropout_index)).
 
     parameter_primary_all = np.concatenate(([['task_dropout_index'], cols_for_clustering]))
-    parameters_cont = ['all-images', 'omissions', 'pupil', 'running', 'imaging_depth', 'face_motion_energy', 'pre_lick_bouts']
+    parameters_cont = ['all-images', 'omissions', 'pupil', 'running', 'face_motion_energy', 'pre_licks', 'post_licks', 'single-all-images', 'single-omissions', 'single-pupil', 'single-running', 'single-face_motion_energy', 'single-pre_licks', 'single-post_licks', 'imaging_depth']
     parameters_categ = ['cre_line','session_id','targeted_structure', 'clusterer_labels', 'equipment_name_categorical'] # , 'dominant_dropout' # session_id: 1 # novel
 
     for parameter_primary in parameter_primary_all:
 
         if norm_by_param_primary==1:
-            nv = 'norm_by_param_primar'
+            nv = 'norm_by_param_prim'
         elif norm_by_param_primary==0:
             nv = 'norm_by_param_categ'
         elif np.isnan(norm_by_param_primary):
             nv = 'no_norm'
 
-        nam = f'{what_cre_name}_bins_{parameter_primary}_{nv}_param_hists_glm{glm_model}_{now}'
+        nam = f'{what_cre_name}_bins_{parameter_primary}_{nv}_param_hists_{gmn}_{now}'
         fign = os.path.join(dir0, dir_now, nam+fmt)     
 
         # reload(plot_hist_parameter_bins)

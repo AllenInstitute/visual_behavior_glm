@@ -151,7 +151,7 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
-def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outlier_threshold=1.5):
+def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outlier_threshold=1.5):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:
@@ -167,52 +167,54 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outli
         results_dict = gat.retrieve_results()
         results = results_dict['full']
     if fig is None and ax is None:
-        fig, ax = plt.subplots(1, 2, figsize=figsize, sharey=True)
+        fig, ax = plt.subplots(2, 2, figsize=figsize, sharey=True, sharex='col')
 
     cre_line_order = np.sort(results['cre_line'].unique())
     glm_version_order = np.sort(results['glm_version'].unique())
 
-    plot1 = sns.boxplot(
-        data=results,
-        x='glm_version',
-        y='Full_avg_cv_var_test',
-        order = glm_version_order,
-        hue='cre_line',
-        hue_order=cre_line_order,
-        fliersize=0,
-        whis=outlier_threshold,
-        ax=ax[0],
-    )
+    for row,dataset in enumerate(['train','test']):
+        plot1 = sns.boxplot(
+            data=results,
+            x='glm_version',
+            y='Full_avg_cv_var_{}'.format(dataset),
+            order = glm_version_order,
+            hue='cre_line',
+            hue_order=cre_line_order,
+            fliersize=0,
+            whis=outlier_threshold,
+            ax=ax[row,0],
+        )
 
-    plot2 = sns.boxplot(
-        data=results,
-        x='cre_line',
-        y='Full_avg_cv_var_test',
-        order = cre_line_order,
-        hue='glm_version',
-        hue_order=glm_version_order,
-        fliersize=0,
-        whis=outlier_threshold,
-        ax=ax[1],
-        palette='brg',
-    )
-    ax[0].set_ylabel('variance explained')
-    ax[0].set_xlabel('GLM version')
+        plot2 = sns.boxplot(
+            data=results,
+            x='cre_line',
+            y='Full_avg_cv_var_{}'.format(dataset),
+            order = cre_line_order,
+            hue='glm_version',
+            hue_order=glm_version_order,
+            fliersize=0,
+            whis=outlier_threshold,
+            ax=ax[row,1],
+            palette='brg',
+        )
+        ax[row, 0].set_ylabel('variance explained')
+        ax[row, 0].set_xlabel('GLM version')
+        ax[row, 0].set_title('{} data full model performance\ngrouped by version'.format(dataset))
+        ax[row, 1].set_title('{} data full model performance\ngrouped by cre line'.format(dataset))
+
+        # calculate interquartile ranges
+        grp = results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_{}'.format(dataset)]
+        IQR = grp.quantile(0.75) - grp.quantile(0.25)
 
 
-    # calculate interquartile ranges
-    grp = results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_test']
-    IQR = grp.quantile(0.75) - grp.quantile(0.25)
+        lower_bounds = grp.quantile(0.25) - 1.5*IQR
+        upper_bounds = grp.quantile(0.75) + 1.5*IQR
 
-
-    lower_bounds = grp.quantile(0.25) - 1.5*IQR
-    upper_bounds = grp.quantile(0.75) + 1.5*IQR
-
-    for i in range(2):
-        ax[i].legend(loc='upper left')
-        ax[i].set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
-        ax[i].axhline(0, color='black', linestyle=':')
-        ax[i].set_xticklabels(ax[i].get_xticklabels(),rotation=30, ha='right')
+        for i in range(2):
+            ax[row, i].legend(loc='upper left',bbox_to_anchor=(1.01, 1),borderaxespad=0)
+            ax[row, i].set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
+            ax[row, i].axhline(0, color='black', linestyle=':')
+            ax[row, i].set_xticklabels(ax[row, i].get_xticklabels(),rotation=30, ha='right')
 
     fig.tight_layout()
     plt.subplots_adjust(top=0.9)

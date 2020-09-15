@@ -836,14 +836,20 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     cell_dropout_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','dropout','adj_fraction_change_from_full']], how='inner',on=['cell_specimen_id','ophys_experiment_id'])
     time_vec = np.round(np.array([int(x.split('_')[-1]) for x in weight_names])*(1/31),2) # HARD CODE HACK ALERT
 
+
+    colors=['C0','C1','C2']
+
     # Plotting
     fig,ax=plt.subplots(2,3,figsize=(12,6))
     sst_weights = weights[:,cell_data['cre_line'] == 'Sst-IRES-Cre']
     vip_weights = weights[:,cell_data['cre_line'] == 'Vip-IRES-Cre']
     slc_weights = weights[:,cell_data['cre_line'] == 'Slc17a7-IRES2-Cre']
-    ax[0,0].plot(time_vec, sst_weights.mean(axis=1),label='SST')
-    ax[0,0].plot(time_vec, vip_weights.mean(axis=1),label='VIP')
-    ax[0,0].plot(time_vec, slc_weights.mean(axis=1),label='SLC')
+    ax[0,0].fill_between(time_vec, sst_weights.mean(axis=1)-sst_weights.std(axis=1), sst_weights.mean(axis=1)+sst_weights.std(axis=1),facecolor=colors[0], alpha=0.1)   
+    ax[0,0].fill_between(time_vec, vip_weights.mean(axis=1)-vip_weights.std(axis=1), vip_weights.mean(axis=1)+vip_weights.std(axis=1),facecolor=colors[1], alpha=0.1)    
+    ax[0,0].fill_between(time_vec, slc_weights.mean(axis=1)-slc_weights.std(axis=1), slc_weights.mean(axis=1)+slc_weights.std(axis=1),facecolor=colors[2], alpha=0.1)    
+    ax[0,0].plot(time_vec, sst_weights.mean(axis=1),label='SST',color=colors[0])
+    ax[0,0].plot(time_vec, vip_weights.mean(axis=1),label='VIP',color=colors[1])
+    ax[0,0].plot(time_vec, slc_weights.mean(axis=1),label='SLC',color=colors[2])
     ax[0,0].axhline(0, color='k',linestyle='--',alpha=0.25)
     ax[0,0].axvline(0, color='k',linestyle='--',alpha=0.25)
     ax[0,0].set_ylabel('Weights (df/f)')
@@ -854,9 +860,12 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     sst_weights_norm = sst_weights/np.max(np.abs(sst_weights),axis=0)
     vip_weights_norm = vip_weights/np.max(np.abs(vip_weights),axis=0)
     slc_weights_norm = slc_weights/np.max(np.abs(slc_weights),axis=0)
-    ax[1,0].plot(time_vec, sst_weights_norm.mean(axis=1),label='SST')
-    ax[1,0].plot(time_vec, vip_weights_norm.mean(axis=1),label='VIP')
-    ax[1,0].plot(time_vec, slc_weights_norm.mean(axis=1),label='SLC')
+    ax[1,0].fill_between(time_vec, sst_weights_norm.mean(axis=1)-sst_weights_norm.std(axis=1), sst_weights_norm.mean(axis=1)+sst_weights_norm.std(axis=1),facecolor=colors[0],alpha=0.1) 
+    ax[1,0].fill_between(time_vec, vip_weights_norm.mean(axis=1)-vip_weights_norm.std(axis=1), vip_weights_norm.mean(axis=1)+vip_weights_norm.std(axis=1),facecolor=colors[1],alpha=0.1)
+    ax[1,0].fill_between(time_vec, slc_weights_norm.mean(axis=1)-slc_weights_norm.std(axis=1), slc_weights_norm.mean(axis=1)+slc_weights_norm.std(axis=1),facecolor=colors[2],alpha=0.1) 
+    ax[1,0].plot(time_vec, sst_weights_norm.mean(axis=1),label='SST',color=colors[0])
+    ax[1,0].plot(time_vec, vip_weights_norm.mean(axis=1),label='VIP',color=colors[1])
+    ax[1,0].plot(time_vec, slc_weights_norm.mean(axis=1),label='SLC',color=colors[2])
     ax[1,0].axhline(0, color='k',linestyle='--',alpha=0.25)
     ax[1,0].axvline(0, color='k',linestyle='--',alpha=0.25)
     ax[1,0].set_ylabel('Weights (df/f)')
@@ -894,14 +903,35 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     width = 0.25
     x = np.arange(2)
     bar1 = ax[0,2].bar(x-width, sst,width, label='SST') 
-    bar2 = ax[0,2].bar(x+width, vip,width, label='VIP') 
-    bar3 = ax[0,2].bar(x, slc,width, label='SLC')
+    bar2 = ax[0,2].bar(x, vip,width, label='VIP') 
+    bar3 = ax[0,2].bar(x+width, slc,width, label='SLC')
     ax[0,2].set_ylabel('Adj. Fraction from Full')
     ax[0,2].set_xticks(x)
     ax[0,2].set_xticklabels([kernel, single_kernel])
-    ax[0,2].set_ylim(-1,0)
+    ax[0,2].axhline(0,color='k',linestyle='--',alpha=0.25)
+    ax[0,2].set_ylim(-1.05,0.05)
     ax[0,2].legend()
     ax[0,2].set_title('Dropout Scores')
+
+    drop_sst = cell_dropout_data.query('(dropout == @kernel)&(cre_line=="Sst-IRES-Cre")')['adj_fraction_change_from_full'].values
+    drop_vip = cell_dropout_data.query('(dropout == @kernel)&(cre_line=="Vip-IRES-Cre")')['adj_fraction_change_from_full'].values
+    drop_slc = cell_dropout_data.query('(dropout == @kernel)&(cre_line=="Slc17a7-IRES2-Cre")')['adj_fraction_change_from_full'].values
+    drop_single_sst = cell_dropout_data.query('(dropout == @single_kernel)&(cre_line=="Sst-IRES-Cre")')['adj_fraction_change_from_full'].values
+    drop_single_vip = cell_dropout_data.query('(dropout == @single_kernel)&(cre_line=="Vip-IRES-Cre")')['adj_fraction_change_from_full'].values
+    drop_single_slc = cell_dropout_data.query('(dropout == @single_kernel)&(cre_line=="Slc17a7-IRES2-Cre")')['adj_fraction_change_from_full'].values
+    medianprops = dict(color='k')
+    drops = ax[1,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[1-width,1,1+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops)
+    singles = ax[1,2].boxplot([drop_single_sst,drop_single_vip,drop_single_slc],positions=[2-width,2,2+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops)
+    colors=['C0','C1','C2']
+    for p in (drops, singles):
+        for patch, color in zip(p['boxes'],colors):
+            patch.set_facecolor(color)
+    ax[1,2].set_ylabel('Adj. Fraction from Full')
+    ax[1,2].set_xticks(x+1)
+    ax[1,2].set_xticklabels([kernel, single_kernel])
+    ax[1,2].axhline(0,color='k',linestyle='--',alpha=0.25)
+    ax[1,2].set_ylim(-1.05,.05)
+    ax[1,2].set_title('Dropout Scores')
 
     weights_sorted_norm = weights_sorted/np.max(np.abs(weights_sorted),axis=0)
     cbar = ax[1,1].imshow(weights_sorted_norm.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights)[1]],cmap='bwr')
@@ -918,7 +948,7 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     plt.tight_layout()
     if save_results:
         plt.savefig(kernel+'_analysis.png')
-    return Ws, oeids, weights,cell_data,cell_dropout_data
+    return Ws, oeids, weights,cell_data,cell_dropout_data,drops
  
 def get_weights_for_kernel(Ws,oeids, kernel):
     weight_names = [w for w in Ws[0].weights.values if w.startswith(kernel)]

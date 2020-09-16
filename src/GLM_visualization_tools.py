@@ -816,11 +816,11 @@ def all_kernels_evaluation(results, run_params):
     kernels.remove('time')
     for k in kernels:
         try:
-            Ws,oeids, weights,cell_data,cell_dropout_data = kernel_evaluation(results,run_params, k,Ws=Ws,oeids=oeids,save_dir=run_params['output_dir']+'/')
+            Ws,oeids, weights,cell_data,cell_dropout_data = kernel_evaluation(results,run_params, k,Ws=Ws,oeids=oeids)
         except:
             print(k) 
 
-def kernel_evaluation(results,run_params, kernel,save_results=True,Ws=None, oeids=None,save_dir=''):
+def kernel_evaluation(results,run_params, kernel,save_results=True,Ws=None, oeids=None):
     '''
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
@@ -831,27 +831,21 @@ def kernel_evaluation(results,run_params, kernel,save_results=True,Ws=None, oeid
     # Make list of sessions
     #results = gat.retrieve_results(search_dict={'glm_version':'6_L2_optimize_by_session'}, results_type='summary')   
 
-    # TODO/Questions
-    # Make dataframe that includes all the weights for all the kernels for all cells, so we dont need to keep filtering over and over again.
-    # Organize this code, its a nightmare. Places things are hard coded. 
-    # do we want to filter cells that must have a certain variance explained, or the dropout has to matter a certain amount. 
-    # how do we deal with merging mesoscope and scientifica?   
-    # should we normalize each row?
-    # how do we filter cells
-    # Need to put weights into cell_data df, kinda absurd to be passing around them separately. 
-   
     version = run_params['version'] 
     # Getting Data
     if (Ws is None) or (oeids is None):
         Ws, oeids = get_weights_for_sessions(results, version)
     weights,weight_names,cell_data = get_weights_for_kernel(Ws,oeids, kernel)
-    cell_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','cre_line','session_number']], how='inner',on=['cell_specimen_id','ophys_experiment_id']).drop_duplicates()
-    cell_dropout_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','dropout','adj_fraction_change_from_full']], how='inner',on=['cell_specimen_id','ophys_experiment_id'])
+    cell_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','cre_line','session_number']], 
+                                    how='inner',on=['cell_specimen_id','ophys_experiment_id']).drop_duplicates()
+    cell_dropout_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','dropout','adj_fraction_change_from_full']], 
+                                    how='inner',on=['cell_specimen_id','ophys_experiment_id'])
     time_vec = np.round(np.array([int(x.split('_')[-1]) for x in weight_names])*(1/31),2) # HARD CODE HACK ALERT
 
-
+    # Plotting settings
     colors=['C0','C1','C2']
     line_alpha = 0.25
+    width=0.25
 
     # Plotting
     fig,ax=plt.subplots(2,3,figsize=(12,6))
@@ -915,8 +909,6 @@ def kernel_evaluation(results,run_params, kernel,save_results=True,Ws=None, oeid
     # Make list of dropouts 
     drop_list = [d for d in run_params['dropouts'].keys() if ((run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['kernels'])) or ((not run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['dropped_kernels']))]
     medianprops = dict(color='k')
-    colors=['C0','C1','C2']   
-    width=0.25
 
     # For each dropout, plot score
     for index, dropout in enumerate(drop_list):
@@ -949,7 +941,7 @@ def kernel_evaluation(results,run_params, kernel,save_results=True,Ws=None, oeid
 
     plt.tight_layout()
     if save_results:
-        plt.savefig(save_dir+kernel+'_analysis.png')
+        plt.savefig(run_params['output_dir']+'/'+kernel+'_analysis.png')
     return Ws, oeids, weights,cell_data,cell_dropout_data
  
 def get_weights_for_kernel(Ws,oeids, kernel):

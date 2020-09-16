@@ -668,7 +668,7 @@ class GLM_Movie(object):
         ax['running'].get_shared_x_axes().join(ax['running'], ax['cell_response'])
         ax['kernel_contributions'].get_shared_x_axes().join(ax['kernel_contributions'], ax['cell_response'])
 
-        variance_explained_string = 'Variance explained (full model) = {:0.1f}%'.format(100*self.glm.results.loc[self.cell_specimen_id]['Full_avg_cv_var_test'])
+        variance_explained_string = 'Variance explained (full model) = {:0.1f}%'.format(100*self.glm.results.loc[self.cell_specimen_id]['Full__avg_cv_var_test'])
         fig.suptitle(self.title+'\n'+variance_explained_string)
 
         return fig, ax

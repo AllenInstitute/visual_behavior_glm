@@ -816,11 +816,11 @@ def all_kernels_evaluation(results, run_params):
     kernels.remove('time')
     for k in kernels:
         try:
-            Ws,oeids, weights,cell_data,cell_dropout_data = kernel_evaluation(results, k,Ws=Ws,oeids=oeids,save_dir=run_params['output_dir']+'/')
+            Ws,oeids, weights,cell_data,cell_dropout_data = kernel_evaluation(results,run_params, k,Ws=Ws,oeids=oeids,save_dir=run_params['output_dir']+'/')
         except:
             print(k) 
 
-def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_by_session',Ws=None, oeids=None,save_dir=''):
+def kernel_evaluation(results,run_params, kernel,save_results=True,Ws=None, oeids=None,save_dir=''):
     '''
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
@@ -839,7 +839,8 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     # should we normalize each row?
     # how do we filter cells
     # Need to put weights into cell_data df, kinda absurd to be passing around them separately. 
-    
+   
+    version = run_params['version'] 
     # Getting Data
     if (Ws is None) or (oeids is None):
         Ws, oeids = get_weights_for_sessions(results, version)
@@ -903,49 +904,37 @@ def kernel_evaluation(results, kernel,save_results=True,version='6_L2_optimize_b
     ax[0,1].set_yticks([first_sst/2, first_sst+(first_vip-first_sst)/2, first_vip+(len(argmax)-first_vip)/2])
     ax[0,1].set_yticklabels(['Vip','Sst','Slc'])
     ax[0,1].set_title(kernel)
-    
-    drop = cell_dropout_data.query('dropout == @kernel').groupby('cre_line')['adj_fraction_change_from_full'].describe()
-    single_kernel = "single-"+kernel
-    single_drop = cell_dropout_data.query('dropout == @single_kernel').groupby('cre_line')['adj_fraction_change_from_full'].describe()
-    sst = [drop.loc['Sst-IRES-Cre']['mean'], single_drop.loc['Sst-IRES-Cre']['mean']]
-    sst_err = [drop.loc['Sst-IRES-Cre']['std'], single_drop.loc['Sst-IRES-Cre']['std']]
-    slc = [drop.loc['Slc17a7-IRES2-Cre']['mean'], single_drop.loc['Slc17a7-IRES2-Cre']['mean']]
-    slc_err = [drop.loc['Slc17a7-IRES2-Cre']['std'], single_drop.loc['Slc17a7-IRES2-Cre']['std']]
-    vip = [drop.loc['Vip-IRES-Cre']['mean'], single_drop.loc['Vip-IRES-Cre']['mean']]
-    vip_err = [drop.loc['Vip-IRES-Cre']['std'], single_drop.loc['Vip-IRES-Cre']['std']]
-    width = 0.25
-    x = np.arange(2)
-    bar1 = ax[0,2].bar(x-width, sst,width, label='SST') 
-    bar2 = ax[0,2].bar(x, vip,width, label='VIP') 
-    bar3 = ax[0,2].bar(x+width, slc,width, label='SLC')
+   
+    # Dropout Scores 
+    ax[1,2].tick_params(top='off',bottom='off', left='off',right='off')
+    ax[1,2].set_xticks([])
+    ax[1,2].set_yticks([])
+    for spine in ax[1,2].spines.values():
+        spine.set_visible(False)
+
+    # Make list of dropouts 
+    drop_list = [d for d in run_params['dropouts'].keys() if ((run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['kernels'])) or ((not run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['dropped_kernels']))]
+    medianprops = dict(color='k')
+    colors=['C0','C1','C2']   
+    width=0.25
+
+    # For each dropout, plot score
+    for index, dropout in enumerate(drop_list):
+        drop_sst = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Sst-IRES-Cre")')['adj_fraction_change_from_full'].values
+        drop_vip = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Vip-IRES-Cre")')['adj_fraction_change_from_full'].values
+        drop_slc = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Slc17a7-IRES2-Cre")')['adj_fraction_change_from_full'].values
+        drops = ax[0,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[index-width,index,index+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops,widths=.2)
+        for patch, color in zip(drops['boxes'],colors):
+            patch.set_facecolor(color)
+
     ax[0,2].set_ylabel('Adj. Fraction from Full')
-    ax[0,2].set_xticks(x)
-    ax[0,2].set_xticklabels([kernel, single_kernel])
+    ax[0,2].set_xticks(np.arange(0,len(drop_list)))
+    ax[0,2].set_xticklabels(drop_list,rotation=60)
     ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
-    ax[0,2].set_ylim(-1.05,0.05)
-    ax[0,2].legend()
+    ax[0,2].set_ylim(-1.05,.05)
     ax[0,2].set_title('Dropout Scores')
 
-    drop_sst = cell_dropout_data.query('(dropout == @kernel)&(cre_line=="Sst-IRES-Cre")')['adj_fraction_change_from_full'].values
-    drop_vip = cell_dropout_data.query('(dropout == @kernel)&(cre_line=="Vip-IRES-Cre")')['adj_fraction_change_from_full'].values
-    drop_slc = cell_dropout_data.query('(dropout == @kernel)&(cre_line=="Slc17a7-IRES2-Cre")')['adj_fraction_change_from_full'].values
-    drop_single_sst = cell_dropout_data.query('(dropout == @single_kernel)&(cre_line=="Sst-IRES-Cre")')['adj_fraction_change_from_full'].values
-    drop_single_vip = cell_dropout_data.query('(dropout == @single_kernel)&(cre_line=="Vip-IRES-Cre")')['adj_fraction_change_from_full'].values
-    drop_single_slc = cell_dropout_data.query('(dropout == @single_kernel)&(cre_line=="Slc17a7-IRES2-Cre")')['adj_fraction_change_from_full'].values
-    medianprops = dict(color='k')
-    drops = ax[1,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[1-width,1,1+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops)
-    singles = ax[1,2].boxplot([drop_single_sst,drop_single_vip,drop_single_slc],positions=[2-width,2,2+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops)
-    colors=['C0','C1','C2']
-    for p in (drops, singles):
-        for patch, color in zip(p['boxes'],colors):
-            patch.set_facecolor(color)
-    ax[1,2].set_ylabel('Adj. Fraction from Full')
-    ax[1,2].set_xticks(x+1)
-    ax[1,2].set_xticklabels([kernel, single_kernel])
-    ax[1,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
-    ax[1,2].set_ylim(-1.05,.05)
-    ax[1,2].set_title('Dropout Scores')
-
+    # Plot normalized things
     weights_sorted_norm = weights_sorted/np.max(np.abs(weights_sorted),axis=0)
     cbar = ax[1,1].imshow(weights_sorted_norm.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights)[1]],cmap='bwr')
     ax[1,1].axhline(first_sst,color='k',linewidth='1')

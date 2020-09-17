@@ -383,6 +383,15 @@ def retrieve_results(search_dict={}, results_type='full'):
     # make 'glm_version' column a string
     results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
+
+    # get experiment table, merge in details of each experiment
+    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    results = results.merge(
+        experiment_table, 
+        left_on='ophys_experiment_id',
+        right_on='ophys_experiment_id', 
+        how='left'
+    )
     return results
     
 

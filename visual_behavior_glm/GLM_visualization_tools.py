@@ -1030,15 +1030,14 @@ def process_session_to_df(oeid, run_params):
             session_df[k] = W.loc[dict(weights=weight_names)].values.T.tolist()
     return session_df
 
-def build_weights_df(run_params,results=None,cache_results=True,load_cache=True):
+def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False):
     '''
         Builds a dataframe of (cell_specimen_id, ophys_experiment_id) with the weight parameters for each kernel
         Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream   
  
         INPUTS:
         run_params, parameter json for the version to analyze
-        results, call to retrieve_results(results_type='summary') for this model version. This call is very
-                 slow, so the user can pass this in if its already computed. 
+        results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
         cache_results, if True, save dataframe as csv file
         load_cache, if True, load cached results, if it exists
     
@@ -1050,13 +1049,10 @@ def build_weights_df(run_params,results=None,cache_results=True,load_cache=True)
         # Need to convert things to np.array
         return pd.read_csv(run_params['output_dir']+'/weights_df.csv')
    
-    # Get results dataframe from mongo if it wasn't passed in (slow)
-    if results is None:
-        results=gat.retrieve_results(search_dict={'glm_version':run_params['version']},results_type='summary')
-
     # Make dataframe for cells and experiments 
-    session_info=results[['cell_specimen_id','ophys_experiment_id','cre_line','session_number','equipment_name','variance_explained_full']].drop_duplicates() 
-    oeids = session_info['ophys_experiment_id'].unique() 
+    #session_info=results_pivoted[['cell_specimen_id','ophys_experiment_id','cre_line','session_number','equipment_name','variance_explained_full']]#.drop_duplicates() 
+    #results_pivoted = results_pivoted    
+    oeids = results_pivoted['ophys_experiment_id'].unique() 
 
     # For each experiment, get the weight matrix from mongo (slow)
     # Then pull the weights from each kernel into a dataframe
@@ -1067,7 +1063,7 @@ def build_weights_df(run_params,results=None,cache_results=True,load_cache=True)
 
     # Merge all the session_dfs, and add more session level info
     weights_df = pd.concat(sessions,sort=False)
-    weights_df = pd.merge(weights_df,session_info, on = ['cell_specimen_id','ophys_experiment_id'])
+    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
     
     # Cache Results
     if cache_results:
@@ -1076,12 +1072,13 @@ def build_weights_df(run_params,results=None,cache_results=True,load_cache=True)
     # Return weights_df
     return weights_df 
 
-def kernel_evaluation(weights_df, results, run_params, kernel, save_results=True):
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True):
     '''
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
         plot the mean+std. What time point are different from 0?
         Plot a visualization of the dropouts that contain this kernel. 
+        results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
     '''
    
     # Filter out Mesoscope and make time basis 
@@ -1098,9 +1095,9 @@ def kernel_evaluation(weights_df, results, run_params, kernel, save_results=True
 
     # Plot Average Trajectories
     fig,ax=plt.subplots(3,3,figsize=(12,9))
-    sst_weights = weights.query('cre_line == "Sst-IRES-Cre"')[kernel]
-    vip_weights = weights.query('cre_line == "Vip-IRES-Cre"')[kernel]
-    slc_weights = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[kernel]
+    sst_weights = weights.query('cre_line == "Sst-IRES-Cre"')[kernel+'_weights']
+    vip_weights = weights.query('cre_line == "Vip-IRES-Cre"')[kernel+'_weights']
+    slc_weights = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[kernel+'_weights']
     sst = np.vstack([x for x in sst_weights[~sst_weights.isnull()].values])
     vip = np.vstack([x for x in vip_weights[~vip_weights.isnull()].values])
     slc = np.vstack([x for x in slc_weights[~slc_weights.isnull()].values])
@@ -1136,9 +1133,9 @@ def kernel_evaluation(weights_df, results, run_params, kernel, save_results=True
     ax[1,0].legend()
     ax[1,0].set_title('Normalized Avg. kernel')
 
-    sst_weights_filtered = weights.query('cre_line == "Sst-IRES-Cre" & variance_explained_full > @threshold')[kernel]
-    vip_weights_filtered = weights.query('cre_line == "Vip-IRES-Cre" & variance_explained_full > @threshold')[kernel]
-    slc_weights_filtered = weights.query('cre_line == "Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[kernel]
+    sst_weights_filtered = weights.query('cre_line == "Sst-IRES-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
+    vip_weights_filtered = weights.query('cre_line == "Vip-IRES-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
+    slc_weights_filtered = weights.query('cre_line == "Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
     sst_f = np.vstack([x for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values])
     vip_f = np.vstack([x for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values])
     slc_f = np.vstack([x for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values])
@@ -1215,15 +1212,14 @@ def kernel_evaluation(weights_df, results, run_params, kernel, save_results=True
     drop_list = [d for d in run_params['dropouts'].keys() if ((run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['kernels'])) or ((not run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['dropped_kernels']))]
     medianprops = dict(color='k')
     
-    if False:
-        # For each dropout, plot score
-        for index, dropout in enumerate(drop_list):
-            drop_sst = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Sst-IRES-Cre")')['adj_fraction_change_from_full'].values
-            drop_vip = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Vip-IRES-Cre")')['adj_fraction_change_from_full'].values
-            drop_slc = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Slc17a7-IRES2-Cre")')['adj_fraction_change_from_full'].values
-            drops = ax[0,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[index-width,index,index+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops,widths=.2)
-            for patch, color in zip(drops['boxes'],colors):
-                patch.set_facecolor(color)
+    # For each dropout, plot score
+    for index, dropout in enumerate(drop_list):
+        drop_sst = weights.query('cre_line=="Sst-IRES-Cre"')[dropout].values
+        drop_vip = weights.query('cre_line=="Vip-IRES-Cre"')[dropout].values
+        drop_slc = weights.query('cre_line=="Slc17a7-IRES2-Cre"')[dropout].values
+        drops = ax[0,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[index-width,index,index+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops,widths=.2)
+        for patch, color in zip(drops['boxes'],colors):
+            patch.set_facecolor(color)
 
     ax[0,2].set_ylabel('Adj. Fraction from Full')
     ax[0,2].set_xticks(np.arange(0,len(drop_list)))
@@ -1231,6 +1227,26 @@ def kernel_evaluation(weights_df, results, run_params, kernel, save_results=True
     ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
     ax[0,2].set_ylim(-1.05,.05)
     ax[0,2].set_title('Dropout Scores')
+
+
+    #sst_weights_filtered = weights.query('cre_line == "Sst-IRES-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
+    # For each dropout, plot score
+    for index, dropout in enumerate(drop_list):
+        drop_sst = weights.query('cre_line=="Sst-IRES-Cre" & variance_explained_full > @threshold')[dropout].values
+        drop_vip = weights.query('cre_line=="Vip-IRES-Cre" & variance_explained_full > @threshold')[dropout].values
+        drop_slc = weights.query('cre_line=="Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[dropout].values
+        drops = ax[2,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[index-width,index,index+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops,widths=.2)
+        for patch, color in zip(drops['boxes'],colors):
+            patch.set_facecolor(color)
+
+    ax[2,2].set_ylabel('Adj. Fraction from Full')
+    ax[2,2].set_xticks(np.arange(0,len(drop_list)))
+    ax[2,2].set_xticklabels(drop_list,rotation=60)
+    ax[2,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
+    ax[2,2].set_ylim(-1.05,.05)
+    ax[2,2].set_title('Dropout Scores-Filtered Cells')
+
+
 
     plt.tight_layout()
     if save_results:

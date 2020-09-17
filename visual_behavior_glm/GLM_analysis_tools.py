@@ -241,14 +241,15 @@ def log_results_to_mongo(glm):
     # TODO, arent the full_results and results_summary already in the glm object by this point? is it redundant to compute them again?
     full_results = glm.results.reset_index()
     results_summary = glm.dropout_summary
-    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
-    oeid = glm.oeid
-    for key,value in experiment_table.query('ophys_experiment_id == @oeid').iloc[0].items():
-        full_results[key] = value
-        results_summary[key] = value
 
     full_results['glm_version'] = str(glm.version)
     results_summary['glm_version'] = str(glm.version)
+
+    results_summary['ophys_experiment_id'] = glm.ophys_experiment_id
+    results_summary['ophys_session_id'] = glm.ophys_session_id
+
+    full_results['ophys_experiment_id'] = glm.ophys_experiment_id
+    full_results['ophys_session_id'] = glm.ophys_session_id
 
     conn = db.Database('visual_behavior_data')
 

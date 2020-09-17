@@ -1104,9 +1104,9 @@ def kernel_evaluation(weights_df, results, run_params, kernel, save_results=True
     fig.colorbar(cbar, ax=ax[0,1])
     ax[0,1].set_ylabel('Cells')
     ax[0,1].set_xlabel('Time (s)')
-    ax[0,1].axhline(len(vip.T),color='k',linewidth='1')
-    ax[0,1].axhline(len(vip.T) + len(sst.T),color='k',linewidth='1')
-    ax[0,1].set_yticks([len(vip.T)/2,len(vip.T)+len(sst.T)/2, len(vip.T)+len(sst.T)+len(slc.T)/2])
+    ax[0,1].axhline(np.shape(vip)[1],color='k',linewidth='1')
+    ax[0,1].axhline(np.shape(vip)[1] + np.shape(sst)[1],color='k',linewidth='1')
+    ax[0,1].set_yticks([np.shape(vip)[1]/2,np.shape(vip)[1]+np.shape(sst)[1]/2, np.shape(vip)[1]+np.shape(sst)[1]+np.shape(slc)[1]/2])
     ax[0,1].set_yticklabels(['Vip','Sst','Slc'])
     ax[0,1].set_title(kernel)
 
@@ -1117,9 +1117,9 @@ def kernel_evaluation(weights_df, results, run_params, kernel, save_results=True
     fig.colorbar(cbar, ax=ax[1,1])
     ax[1,1].set_ylabel('Cells')
     ax[1,1].set_xlabel('Time (s)')
-    ax[1,1].axhline(len(vip.T),color='k',linewidth='1')
-    ax[1,1].axhline(len(vip.T) + len(sst.T),color='k',linewidth='1')
-    ax[1,1].set_yticks([len(vip.T)/2,len(vip.T)+len(sst.T)/2, len(vip.T)+len(sst.T)+len(slc.T)/2])
+    ax[1,1].axhline(np.shape(vip)[1],color='k',linewidth='1')
+    ax[1,1].axhline(np.shape(vip)[1] + np.shape(sst)[1],color='k',linewidth='1')
+    ax[1,1].set_yticks([np.shape(vip)[1]/2,np.shape(vip)[1]+np.shape(sst)[1]/2, np.shape(vip)[1]+np.shape(sst)[1]+np.shape(slc)[1]/2])
     ax[1,1].set_yticklabels(['Vip','Sst','Slc'])
     ax[1,1].set_title('Normalized '+kernel)
  
@@ -1144,12 +1144,12 @@ def kernel_evaluation(weights_df, results, run_params, kernel, save_results=True
             for patch, color in zip(drops['boxes'],colors):
                 patch.set_facecolor(color)
 
-        ax[0,2].set_ylabel('Adj. Fraction from Full')
-        ax[0,2].set_xticks(np.arange(0,len(drop_list)))
-        ax[0,2].set_xticklabels(drop_list,rotation=60)
-        ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
-        ax[0,2].set_ylim(-1.05,.05)
-        ax[0,2].set_title('Dropout Scores')
+    ax[0,2].set_ylabel('Adj. Fraction from Full')
+    ax[0,2].set_xticks(np.arange(0,len(drop_list)))
+    ax[0,2].set_xticklabels(drop_list,rotation=60)
+    ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
+    ax[0,2].set_ylim(-1.05,.05)
+    ax[0,2].set_title('Dropout Scores')
 
     plt.tight_layout()
     if save_results:

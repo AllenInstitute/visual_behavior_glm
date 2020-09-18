@@ -1072,7 +1072,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Return weights_df
     return weights_df 
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10):
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=False):
     '''
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
@@ -1099,9 +1099,14 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     sst_weights = weights.query('cre_line == "Sst-IRES-Cre"')[kernel+'_weights']
     vip_weights = weights.query('cre_line == "Vip-IRES-Cre"')[kernel+'_weights']
     slc_weights = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[kernel+'_weights']
-    sst = np.vstack([x for x in sst_weights[~sst_weights.isnull()].values])
-    vip = np.vstack([x for x in vip_weights[~vip_weights.isnull()].values])
-    slc = np.vstack([x for x in slc_weights[~slc_weights.isnull()].values])
+    if normalize:
+        sst = np.vstack([x/np.max(np.abs(x)) for x in sst_weights[~sst_weights.isnull()].values])
+        vip = np.vstack([x/np.max(np.abs(x)) for x in vip_weights[~vip_weights.isnull()].values])
+        slc = np.vstack([x/np.max(np.abs(x)) for x in slc_weights[~slc_weights.isnull()].values])
+    else:
+        sst = np.vstack([x for x in sst_weights[~sst_weights.isnull()].values])
+        vip = np.vstack([x for x in vip_weights[~vip_weights.isnull()].values])
+        slc = np.vstack([x for x in slc_weights[~slc_weights.isnull()].values])
     ax[0,0].fill_between(time_vec, sst.mean(axis=0)-sst.std(axis=0), sst.mean(axis=0)+sst.std(axis=0),facecolor=colors[0], alpha=0.1)   
     ax[0,0].fill_between(time_vec, vip.mean(axis=0)-vip.std(axis=0), vip.mean(axis=0)+vip.std(axis=0),facecolor=colors[1], alpha=0.1)    
     ax[0,0].fill_between(time_vec, slc.mean(axis=0)-slc.std(axis=0), slc.mean(axis=0)+slc.std(axis=0),facecolor=colors[2], alpha=0.1)    
@@ -1110,7 +1115,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ax[0,0].plot(time_vec, slc.mean(axis=0),label='SLC',color=colors[2])
     ax[0,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[0,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
-    ax[0,0].set_ylabel('Weights (df/f)')
+    if normalize:
+        ax[0,0].set_ylabel('Weights (Normalized df/f)')
+    else:
+        ax[0,0].set_ylabel('Weights (df/f)')
     ax[0,0].set_xlabel('Time (s)')
     ax[0,0].legend()
     ax[0,0].set_title('Average kernel')
@@ -1137,9 +1145,14 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     sst_weights_filtered = weights.query('cre_line == "Sst-IRES-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
     vip_weights_filtered = weights.query('cre_line == "Vip-IRES-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
     slc_weights_filtered = weights.query('cre_line == "Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
-    sst_f = np.vstack([x for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values])
-    vip_f = np.vstack([x for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values])
-    slc_f = np.vstack([x for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values])
+    if normalize:
+        sst_f = np.vstack([x/np.max(np.abs(x)) for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values])
+        vip_f = np.vstack([x/np.max(np.abs(x)) for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values])
+        slc_f = np.vstack([x/np.max(np.abs(x)) for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values])
+    else:
+        sst_f = np.vstack([x for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values])
+        vip_f = np.vstack([x for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values])
+        slc_f = np.vstack([x for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values])
     ax[1,0].fill_between(time_vec, sst_f.mean(axis=0)-sst_f.std(axis=0), sst_f.mean(axis=0)+sst_f.std(axis=0),facecolor=colors[0], alpha=0.1)   
     ax[1,0].fill_between(time_vec, vip_f.mean(axis=0)-vip_f.std(axis=0), vip_f.mean(axis=0)+vip_f.std(axis=0),facecolor=colors[1], alpha=0.1)    
     ax[1,0].fill_between(time_vec, slc_f.mean(axis=0)-slc_f.std(axis=0), slc_f.mean(axis=0)+slc_f.std(axis=0),facecolor=colors[2], alpha=0.1)    
@@ -1148,7 +1161,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ax[1,0].plot(time_vec, slc_f.mean(axis=0),label='SLC',color=colors[2])
     ax[1,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[1,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
-    ax[1,0].set_ylabel('Weights (df/f)')
+    if normalize:
+        ax[1,0].set_ylabel('Weights (Normalized df/f)')
+    else:
+        ax[1,0].set_ylabel('Weights (df/f)')
     ax[1,0].set_xlabel('Time (s)')
     ax[1,0].legend()
     ax[1,0].set_title('Filtered on Full Model')
@@ -1159,9 +1175,14 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     sst_weights_dfiltered = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
     vip_weights_dfiltered = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
     slc_weights_dfiltered = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
-    sst_df = np.vstack([x for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values])
-    vip_df = np.vstack([x for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values])
-    slc_df = np.vstack([x for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values])
+    if normalize:
+        sst_df = np.vstack([x/np.max(np.abs(x)) for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values])
+        vip_df = np.vstack([x/np.max(np.abs(x)) for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values])
+        slc_df = np.vstack([x/np.max(np.abs(x)) for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values])
+    else:
+        sst_df = np.vstack([x for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values])
+        vip_df = np.vstack([x for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values])
+        slc_df = np.vstack([x for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values])   
     ax[2,0].fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors[0], alpha=0.1)   
     ax[2,0].fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors[1], alpha=0.1)    
     ax[2,0].fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors[2], alpha=0.1)    
@@ -1170,7 +1191,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ax[2,0].plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors[2])
     ax[2,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[2,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
-    ax[2,0].set_ylabel('Weights (df/f)')
+    if normalize:
+        ax[2,0].set_ylabel('Weights (Normalized df/f)')   
+    else:
+        ax[2,0].set_ylabel('Weights (df/f)')
     ax[2,0].set_xlabel('Time (s)')
     ax[2,0].legend()
     ax[2,0].set_title('Filtered on Dropout')

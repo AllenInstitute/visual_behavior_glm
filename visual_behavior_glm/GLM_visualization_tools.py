@@ -848,184 +848,191 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
-def all_kernels_evaluation_old(results, run_params):
-    '''
-        OLD, do not use
-        Makes the analysis plots for all kernels in this model version
-    '''
-    Ws, oeids = get_weights_for_sessions(results, run_params['version'])
-    kernels = set(run_params['kernels'].keys())
-    kernels.remove('intercept')
-    kernels.remove('time')
-    for k in kernels:
-        try:
-            Ws,oeids, weights,cell_data,cell_dropout_data = kernel_evaluation(results,run_params, k,Ws=Ws,oeids=oeids)
-        except:
-            print(k) 
+# def all_kernels_evaluation_old(results, run_params):
+#     '''
+#         OLD, do not use
+#         Makes the analysis plots for all kernels in this model version
+#     '''
+#     Ws, oeids = get_weights_for_sessions(results, run_params['version'])
+#     kernels = set(run_params['kernels'].keys())
+#     kernels.remove('intercept')
+#     kernels.remove('time')
+#     for k in kernels:
+#         try:
+#             Ws,oeids, weights,cell_data,cell_dropout_data = kernel_evaluation(results,run_params, k,Ws=Ws,oeids=oeids)
+#         except:
+#             print(k) 
 
-def kernel_evaluation_old(results,run_params, kernel,save_results=True,Ws=None, oeids=None):
-    '''
-        OLD, do not use
-        Get all the kernels across all cells. 
-        plot the matrix of all kernels, sorted by peak time
-        plot the mean+std. What time point are different from 0?
-        Plot a visualization of the dropouts that contain this kernel. 
-    '''
-
-    # Make list of sessions
-    #results = gat.retrieve_results(search_dict={'glm_version':'6_L2_optimize_by_session'}, results_type='summary')   
-
-    version = run_params['version'] 
-    # Getting Data
-    if (Ws is None) or (oeids is None):
-        Ws, oeids = get_weights_for_sessions(results, version)
-    weights,weight_names,cell_data = get_weights_for_kernel(Ws,oeids, kernel)
-    cell_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','cre_line','session_number']], 
-                                    how='inner',on=['cell_specimen_id','ophys_experiment_id']).drop_duplicates()
-    cell_dropout_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','dropout','adj_fraction_change_from_full']], 
-                                    how='inner',on=['cell_specimen_id','ophys_experiment_id'])
-    time_vec = np.round(np.array([int(x.split('_')[-1]) for x in weight_names])*(1/31),2) # HARD CODE HACK ALERT
-
-    # Plotting settings
-    colors=['C0','C1','C2']
-    line_alpha = 0.25
-    width=0.25
-
-    # Plotting
-    fig,ax=plt.subplots(2,3,figsize=(12,6))
-    sst_weights = weights[:,cell_data['cre_line'] == 'Sst-IRES-Cre']
-    vip_weights = weights[:,cell_data['cre_line'] == 'Vip-IRES-Cre']
-    slc_weights = weights[:,cell_data['cre_line'] == 'Slc17a7-IRES2-Cre']
-    ax[0,0].fill_between(time_vec, sst_weights.mean(axis=1)-sst_weights.std(axis=1), sst_weights.mean(axis=1)+sst_weights.std(axis=1),facecolor=colors[0], alpha=0.1)   
-    ax[0,0].fill_between(time_vec, vip_weights.mean(axis=1)-vip_weights.std(axis=1), vip_weights.mean(axis=1)+vip_weights.std(axis=1),facecolor=colors[1], alpha=0.1)    
-    ax[0,0].fill_between(time_vec, slc_weights.mean(axis=1)-slc_weights.std(axis=1), slc_weights.mean(axis=1)+slc_weights.std(axis=1),facecolor=colors[2], alpha=0.1)    
-    ax[0,0].plot(time_vec, sst_weights.mean(axis=1),label='SST',color=colors[0])
-    ax[0,0].plot(time_vec, vip_weights.mean(axis=1),label='VIP',color=colors[1])
-    ax[0,0].plot(time_vec, slc_weights.mean(axis=1),label='SLC',color=colors[2])
-    ax[0,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
-    ax[0,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
-    ax[0,0].set_ylabel('Weights (df/f)')
-    ax[0,0].set_xlabel('Time (s)')
-    ax[0,0].legend()
-    ax[0,0].set_title('Average kernel')
-
-    sst_weights_norm = sst_weights/np.max(np.abs(sst_weights),axis=0)
-    vip_weights_norm = vip_weights/np.max(np.abs(vip_weights),axis=0)
-    slc_weights_norm = slc_weights/np.max(np.abs(slc_weights),axis=0)
-    ax[1,0].fill_between(time_vec, sst_weights_norm.mean(axis=1)-sst_weights_norm.std(axis=1), sst_weights_norm.mean(axis=1)+sst_weights_norm.std(axis=1),facecolor=colors[0],alpha=0.1) 
-    ax[1,0].fill_between(time_vec, vip_weights_norm.mean(axis=1)-vip_weights_norm.std(axis=1), vip_weights_norm.mean(axis=1)+vip_weights_norm.std(axis=1),facecolor=colors[1],alpha=0.1)
-    ax[1,0].fill_between(time_vec, slc_weights_norm.mean(axis=1)-slc_weights_norm.std(axis=1), slc_weights_norm.mean(axis=1)+slc_weights_norm.std(axis=1),facecolor=colors[2],alpha=0.1) 
-    ax[1,0].plot(time_vec, sst_weights_norm.mean(axis=1),label='SST',color=colors[0])
-    ax[1,0].plot(time_vec, vip_weights_norm.mean(axis=1),label='VIP',color=colors[1])
-    ax[1,0].plot(time_vec, slc_weights_norm.mean(axis=1),label='SLC',color=colors[2])
-    ax[1,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
-    ax[1,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
-    ax[1,0].set_ylabel('Weights (df/f)')
-    ax[1,0].set_xlabel('Time (s)')
-    ax[1,0].legend()
-    ax[1,0].set_title('Normalized Avg. kernel')
+# def kernel_evaluation_old(results,run_params, kernel,save_results=True,Ws=None, oeids=None):
+#     '''
+#         OLD, do not use
+#         Get all the kernels across all cells. 
+#         plot the matrix of all kernels, sorted by peak time
+#         plot the mean+std. What time point are different from 0?
+#         Plot a visualization of the dropouts that contain this kernel. 
+#     '''
+# 
+#     # Make list of sessions
+#     #results = gat.retrieve_results(search_dict={'glm_version':'6_L2_optimize_by_session'}, results_type='summary')   
+# 
+#     version = run_params['version'] 
+#     # Getting Data
+#     if (Ws is None) or (oeids is None):
+#         Ws, oeids = get_weights_for_sessions(results, version)
+#     weights,weight_names,cell_data = get_weights_for_kernel(Ws,oeids, kernel)
+#     cell_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','cre_line','session_number']], 
+#                                     how='inner',on=['cell_specimen_id','ophys_experiment_id']).drop_duplicates()
+#     cell_dropout_data = pd.merge(cell_data, results[['ophys_experiment_id','cell_specimen_id','dropout','adj_fraction_change_from_full']], 
+#                                     how='inner',on=['cell_specimen_id','ophys_experiment_id'])
+#     time_vec = np.round(np.array([int(x.split('_')[-1]) for x in weight_names])*(1/31),2) # HARD CODE HACK ALERT
+# 
+#     # Plotting settings
+#     colors=['C0','C1','C2']
+#     line_alpha = 0.25
+#     width=0.25
+# 
+#     # Plotting
+#     fig,ax=plt.subplots(2,3,figsize=(12,6))
+#     sst_weights = weights[:,cell_data['cre_line'] == 'Sst-IRES-Cre']
+#     vip_weights = weights[:,cell_data['cre_line'] == 'Vip-IRES-Cre']
+#     slc_weights = weights[:,cell_data['cre_line'] == 'Slc17a7-IRES2-Cre']
+#     ax[0,0].fill_between(time_vec, sst_weights.mean(axis=1)-sst_weights.std(axis=1), sst_weights.mean(axis=1)+sst_weights.std(axis=1),facecolor=colors[0], alpha=0.1)   
+#     ax[0,0].fill_between(time_vec, vip_weights.mean(axis=1)-vip_weights.std(axis=1), vip_weights.mean(axis=1)+vip_weights.std(axis=1),facecolor=colors[1], alpha=0.1)    
+#     ax[0,0].fill_between(time_vec, slc_weights.mean(axis=1)-slc_weights.std(axis=1), slc_weights.mean(axis=1)+slc_weights.std(axis=1),facecolor=colors[2], alpha=0.1)    
+#     ax[0,0].plot(time_vec, sst_weights.mean(axis=1),label='SST',color=colors[0])
+#     ax[0,0].plot(time_vec, vip_weights.mean(axis=1),label='VIP',color=colors[1])
+#     ax[0,0].plot(time_vec, slc_weights.mean(axis=1),label='SLC',color=colors[2])
+#     ax[0,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
+#     ax[0,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+#     ax[0,0].set_ylabel('Weights (df/f)')
+#     ax[0,0].set_xlabel('Time (s)')
+#     ax[0,0].legend()
+#     ax[0,0].set_title('Average kernel')
+# 
+#     sst_weights_norm = sst_weights/np.max(np.abs(sst_weights),axis=0)
+#     vip_weights_norm = vip_weights/np.max(np.abs(vip_weights),axis=0)
+#     slc_weights_norm = slc_weights/np.max(np.abs(slc_weights),axis=0)
+#     ax[1,0].fill_between(time_vec, sst_weights_norm.mean(axis=1)-sst_weights_norm.std(axis=1), sst_weights_norm.mean(axis=1)+sst_weights_norm.std(axis=1),facecolor=colors[0],alpha=0.1) 
+#     ax[1,0].fill_between(time_vec, vip_weights_norm.mean(axis=1)-vip_weights_norm.std(axis=1), vip_weights_norm.mean(axis=1)+vip_weights_norm.std(axis=1),facecolor=colors[1],alpha=0.1)
+#     ax[1,0].fill_between(time_vec, slc_weights_norm.mean(axis=1)-slc_weights_norm.std(axis=1), slc_weights_norm.mean(axis=1)+slc_weights_norm.std(axis=1),facecolor=colors[2],alpha=0.1) 
+#     ax[1,0].plot(time_vec, sst_weights_norm.mean(axis=1),label='SST',color=colors[0])
+#     ax[1,0].plot(time_vec, vip_weights_norm.mean(axis=1),label='VIP',color=colors[1])
+#     ax[1,0].plot(time_vec, slc_weights_norm.mean(axis=1),label='SLC',color=colors[2])
+#     ax[1,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
+#     ax[1,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+#     ax[1,0].set_ylabel('Weights (df/f)')
+#     ax[1,0].set_xlabel('Time (s)')
+#     ax[1,0].legend()
+#     ax[1,0].set_title('Normalized Avg. kernel')
+#  
+#     argmax = np.argmax(weights,axis=0)
+#     argmax[cell_data['cre_line'] == 'Sst-IRES-Cre'] = argmax[cell_data['cre_line'] == 'Sst-IRES-Cre']+1000
+#     argmax[cell_data['cre_line'] == 'Vip-IRES-Cre'] = argmax[cell_data['cre_line'] == 'Vip-IRES-Cre']+2000
+#     sort_index = np.argsort(argmax)
+#     weights_sorted = weights[:,sort_index]
+#     first_sst = np.where(np.sort(argmax)[::-1] < 1000)[0][0]
+#     first_vip = np.where(np.sort(argmax)[::-1] < 2000)[0][0]
+#     cbar = ax[0,1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights)[1]],cmap='bwr')
+#     ax[0,1].axhline(first_sst,color='k',linewidth='1')
+#     ax[0,1].axhline(first_vip,color='k',linewidth='1')
+#     cbar.set_clim(-np.percentile(np.abs(weights),95),np.percentile(np.abs(weights),95))
+#     fig.colorbar(cbar, ax=ax[0,1])
+#     ax[0,1].set_ylabel('Cells')
+#     ax[0,1].set_xlabel('Time (s)')
+#     ax[0,1].set_yticks([first_sst/2, first_sst+(first_vip-first_sst)/2, first_vip+(len(argmax)-first_vip)/2])
+#     ax[0,1].set_yticklabels(['Vip','Sst','Slc'])
+#     ax[0,1].set_title(kernel)
+#    
+#     # Dropout Scores 
+#     ax[1,2].tick_params(top='off',bottom='off', left='off',right='off')
+#     ax[1,2].set_xticks([])
+#     ax[1,2].set_yticks([])
+#     for spine in ax[1,2].spines.values():
+#         spine.set_visible(False)
+# 
+#     # Make list of dropouts 
+#     drop_list = [d for d in run_params['dropouts'].keys() if ((run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['kernels'])) or ((not run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['dropped_kernels']))]
+#     medianprops = dict(color='k')
+# 
+#     # For each dropout, plot score
+#     for index, dropout in enumerate(drop_list):
+#         drop_sst = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Sst-IRES-Cre")')['adj_fraction_change_from_full'].values
+#         drop_vip = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Vip-IRES-Cre")')['adj_fraction_change_from_full'].values
+#         drop_slc = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Slc17a7-IRES2-Cre")')['adj_fraction_change_from_full'].values
+#         drops = ax[0,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[index-width,index,index+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops,widths=.2)
+#         for patch, color in zip(drops['boxes'],colors):
+#             patch.set_facecolor(color)
+# 
+#     ax[0,2].set_ylabel('Adj. Fraction from Full')
+#     ax[0,2].set_xticks(np.arange(0,len(drop_list)))
+#     ax[0,2].set_xticklabels(drop_list,rotation=60)
+#     ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
+#     ax[0,2].set_ylim(-1.05,.05)
+#     ax[0,2].set_title('Dropout Scores')
+# 
+#     # Plot normalized things
+#     weights_sorted_norm = weights_sorted/np.max(np.abs(weights_sorted),axis=0)
+#     cbar = ax[1,1].imshow(weights_sorted_norm.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights)[1]],cmap='bwr')
+#     ax[1,1].axhline(first_sst,color='k',linewidth='1')
+#     ax[1,1].axhline(first_vip,color='k',linewidth='1')
+#     cbar.set_clim(-np.max(np.abs(weights)),np.max(np.abs(weights)))
+#     fig.colorbar(cbar, ax=ax[1,1])
+#     ax[1,1].set_ylabel('Cells')
+#     ax[1,1].set_xlabel('Time (s)')
+#     ax[1,1].set_yticks([first_sst/2, first_sst+(first_vip-first_sst)/2, first_vip+(len(argmax)-first_vip)/2])
+#     ax[1,1].set_yticklabels(['Vip','Sst','Slc'])
+#     ax[1,1].set_title('Normalized '+kernel)
+# 
+#     plt.tight_layout()
+#     if save_results:
+#         plt.savefig(run_params['output_dir']+'/'+kernel+'_analysis.png')
+#     return Ws, oeids, weights,cell_data,cell_dropout_data
  
-    argmax = np.argmax(weights,axis=0)
-    argmax[cell_data['cre_line'] == 'Sst-IRES-Cre'] = argmax[cell_data['cre_line'] == 'Sst-IRES-Cre']+1000
-    argmax[cell_data['cre_line'] == 'Vip-IRES-Cre'] = argmax[cell_data['cre_line'] == 'Vip-IRES-Cre']+2000
-    sort_index = np.argsort(argmax)
-    weights_sorted = weights[:,sort_index]
-    first_sst = np.where(np.sort(argmax)[::-1] < 1000)[0][0]
-    first_vip = np.where(np.sort(argmax)[::-1] < 2000)[0][0]
-    cbar = ax[0,1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights)[1]],cmap='bwr')
-    ax[0,1].axhline(first_sst,color='k',linewidth='1')
-    ax[0,1].axhline(first_vip,color='k',linewidth='1')
-    cbar.set_clim(-np.percentile(np.abs(weights),95),np.percentile(np.abs(weights),95))
-    fig.colorbar(cbar, ax=ax[0,1])
-    ax[0,1].set_ylabel('Cells')
-    ax[0,1].set_xlabel('Time (s)')
-    ax[0,1].set_yticks([first_sst/2, first_sst+(first_vip-first_sst)/2, first_vip+(len(argmax)-first_vip)/2])
-    ax[0,1].set_yticklabels(['Vip','Sst','Slc'])
-    ax[0,1].set_title(kernel)
-   
-    # Dropout Scores 
-    ax[1,2].tick_params(top='off',bottom='off', left='off',right='off')
-    ax[1,2].set_xticks([])
-    ax[1,2].set_yticks([])
-    for spine in ax[1,2].spines.values():
-        spine.set_visible(False)
-
-    # Make list of dropouts 
-    drop_list = [d for d in run_params['dropouts'].keys() if ((run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['kernels'])) or ((not run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['dropped_kernels']))]
-    medianprops = dict(color='k')
-
-    # For each dropout, plot score
-    for index, dropout in enumerate(drop_list):
-        drop_sst = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Sst-IRES-Cre")')['adj_fraction_change_from_full'].values
-        drop_vip = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Vip-IRES-Cre")')['adj_fraction_change_from_full'].values
-        drop_slc = cell_dropout_data.query('(dropout == @dropout)&(cre_line=="Slc17a7-IRES2-Cre")')['adj_fraction_change_from_full'].values
-        drops = ax[0,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[index-width,index,index+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops,widths=.2)
-        for patch, color in zip(drops['boxes'],colors):
-            patch.set_facecolor(color)
-
-    ax[0,2].set_ylabel('Adj. Fraction from Full')
-    ax[0,2].set_xticks(np.arange(0,len(drop_list)))
-    ax[0,2].set_xticklabels(drop_list,rotation=60)
-    ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
-    ax[0,2].set_ylim(-1.05,.05)
-    ax[0,2].set_title('Dropout Scores')
-
-    # Plot normalized things
-    weights_sorted_norm = weights_sorted/np.max(np.abs(weights_sorted),axis=0)
-    cbar = ax[1,1].imshow(weights_sorted_norm.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights)[1]],cmap='bwr')
-    ax[1,1].axhline(first_sst,color='k',linewidth='1')
-    ax[1,1].axhline(first_vip,color='k',linewidth='1')
-    cbar.set_clim(-np.max(np.abs(weights)),np.max(np.abs(weights)))
-    fig.colorbar(cbar, ax=ax[1,1])
-    ax[1,1].set_ylabel('Cells')
-    ax[1,1].set_xlabel('Time (s)')
-    ax[1,1].set_yticks([first_sst/2, first_sst+(first_vip-first_sst)/2, first_vip+(len(argmax)-first_vip)/2])
-    ax[1,1].set_yticklabels(['Vip','Sst','Slc'])
-    ax[1,1].set_title('Normalized '+kernel)
-
-    plt.tight_layout()
-    if save_results:
-        plt.savefig(run_params['output_dir']+'/'+kernel+'_analysis.png')
-    return Ws, oeids, weights,cell_data,cell_dropout_data
- 
 
 
-def get_weights_for_kernel(Ws,oeids, kernel):
-    '''
-        OLD, do not use
-    '''
-    include = [i for i in range(0,len(Ws)) if len([w for w in Ws[i].weights.values if w.startswith(kernel)])>0]
-    weight_names = [w for w in Ws[0].weights.values if w.startswith(kernel)]
-    kernel_weights = [Ws[i].loc[dict(weights=weight_names)].values for i in include]
-    cells = [Ws[i].cell_specimen_id.values for i in include]
-    oeid_per_cell = [[x]*len(y) for (x,y) in zip(oeids[include], cells)]
-    cell_data = pd.DataFrame()
-    cell_data['cell_specimen_id'] = np.hstack(cells)
-    cell_data['ophys_experiment_id'] = np.hstack(oeid_per_cell)
-    return np.hstack(kernel_weights),weight_names, cell_data
-
-def get_weights_for_sessions(results,version):
-    '''
-        OLD, do not use
-    '''
-    oeids = results.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"])&(session_number in [1,3,4,6])').ophys_experiment_id.unique()[0:5]
-    Ws = []
-    for index, oeid in enumerate(oeids):
-        W = gat.get_weights_matrix_from_mongo(int(oeid), version) 
-        Ws.append(W)
-    return Ws,oeids
+# def get_weights_for_kernel(Ws,oeids, kernel):
+#     '''
+#         OLD, do not use
+#     '''
+#     include = [i for i in range(0,len(Ws)) if len([w for w in Ws[i].weights.values if w.startswith(kernel)])>0]
+#     weight_names = [w for w in Ws[0].weights.values if w.startswith(kernel)]
+#     kernel_weights = [Ws[i].loc[dict(weights=weight_names)].values for i in include]
+#     cells = [Ws[i].cell_specimen_id.values for i in include]
+#     oeid_per_cell = [[x]*len(y) for (x,y) in zip(oeids[include], cells)]
+#     cell_data = pd.DataFrame()
+#     cell_data['cell_specimen_id'] = np.hstack(cells)
+#     cell_data['ophys_experiment_id'] = np.hstack(oeid_per_cell)
+#     return np.hstack(kernel_weights),weight_names, cell_data
+# 
+# def get_weights_for_sessions(results,version):
+#     '''
+#         OLD, do not use
+#     '''
+#     oeids = results.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"])&(session_number in [1,3,4,6])').ophys_experiment_id.unique()[0:5]
+#     Ws = []
+#     for index, oeid in enumerate(oeids):
+#         W = gat.get_weights_matrix_from_mongo(int(oeid), version) 
+#         Ws.append(W)
+#     return Ws,oeids
 
 def process_session_to_df(oeid, run_params):
     '''
         For the ophys_experiment_id, loads the weight matrix, and builds a dataframe
         organized by cell_id and kernel 
     '''
+    # Get weights
     W = gat.get_weights_matrix_from_mongo(int(oeid), run_params['version'])
+    
+    # Make Dataframe with cell and experiment info
     session_df  = pd.DataFrame()
     session_df['cell_specimen_id'] = W.cell_specimen_id.values
     session_df['ophys_experiment_id'] = [int(oeid)]*len(W.cell_specimen_id.values)  
+    
+    # For each kernel, extract the weights for this kernel
     for k in run_params['kernels']:
         weight_names = [w for w in W.weights.values if w.startswith(k)]
+        
+        # Check if this kernel was in this model
         if len(weight_names) > 0:
             session_df[k] = W.loc[dict(weights=weight_names)].values.T.tolist()
     return session_df
@@ -1045,13 +1052,11 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         a dataframe
     '''
     
-    if load_cache & os.path.exists(run_params['output_dir']+'/weights_df.csv'):
-        # Need to convert things to np.array
-        return pd.read_csv(run_params['output_dir']+'/weights_df.csv')
+    #if load_cache & os.path.exists(run_params['output_dir']+'/weights_df.csv'):
+    #    # Need to convert things to np.array
+    #    return pd.read_csv(run_params['output_dir']+'/weights_df.csv')
    
     # Make dataframe for cells and experiments 
-    #session_info=results_pivoted[['cell_specimen_id','ophys_experiment_id','cre_line','session_number','equipment_name','variance_explained_full']]#.drop_duplicates() 
-    #results_pivoted = results_pivoted    
     oeids = results_pivoted['ophys_experiment_id'].unique() 
 
     # For each experiment, get the weight matrix from mongo (slow)
@@ -1065,14 +1070,14 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     weights_df = pd.concat(sessions,sort=False)
     weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
     
-    # Cache Results
-    if cache_results:
-        weights_df.to_csv(run_params['output_dir']+'/weights_df.csv') 
+    ## Cache Results
+    #if cache_results:
+    #    weights_df.to_csv(run_params['output_dir']+'/weights_df.csv') 
 
     # Return weights_df
     return weights_df 
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=False,drop_threshold_single=False):
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False):
     '''
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
@@ -1081,6 +1086,8 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
         threshold, the minimum variance explained by the full model
         drop_threshold, the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
+        normalize, if True, normalizes each cell to np.max(np.abs(x))
+        drop_threshold_single, if True, applies drop_threshold to single-<kernel> instead of <kernel> dropout model
     '''
    
     # Filter out Mesoscope and make time basis 
@@ -1247,7 +1254,9 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
 
     ## Right Column, Dropout Scores 
     # Make list of dropouts that contain this kernel
-    drop_list = [d for d in run_params['dropouts'].keys() if ((run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['kernels'])) or ((not run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['dropped_kernels']))]
+    drop_list = [d for d in run_params['dropouts'].keys() if (
+                    (run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['kernels'])) 
+                    or ((not run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['dropped_kernels']))]
     medianprops = dict(color='k')
     
     # All Cells
@@ -1256,7 +1265,13 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         drop_sst = weights.query('cre_line=="Sst-IRES-Cre"')[dropout].values
         drop_vip = weights.query('cre_line=="Vip-IRES-Cre"')[dropout].values
         drop_slc = weights.query('cre_line=="Slc17a7-IRES2-Cre"')[dropout].values
-        drops = ax[0,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[index-width,index,index+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops,widths=.2)
+        drops = ax[0,2].boxplot([drop_sst,drop_vip,drop_slc],
+                                positions=[index-width,index,index+width],
+                                labels=['SST','VIP','SLC'],
+                                showfliers=False,
+                                patch_artist=True,
+                                medianprops=medianprops,
+                                widths=.2)
         for patch, color in zip(drops['boxes'],colors):
             patch.set_facecolor(color)
 
@@ -1274,7 +1289,13 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         drop_sst = weights.query('cre_line=="Sst-IRES-Cre" & variance_explained_full > @threshold')[dropout].values
         drop_vip = weights.query('cre_line=="Vip-IRES-Cre" & variance_explained_full > @threshold')[dropout].values
         drop_slc = weights.query('cre_line=="Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[dropout].values
-        drops = ax[1,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[index-width,index,index+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops,widths=.2)
+        drops = ax[1,2].boxplot([drop_sst,drop_vip,drop_slc],
+                                positions=[index-width,index,index+width],
+                                labels=['SST','VIP','SLC'],
+                                showfliers=False,
+                                patch_artist=True,
+                                medianprops=medianprops,
+                                widths=.2)
         for patch, color in zip(drops['boxes'],colors):
             patch.set_facecolor(color)
 
@@ -1300,7 +1321,13 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
             drop_sst = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[dropout].values
             drop_vip = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[dropout].values
             drop_slc = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[dropout].values
-        drops = ax[2,2].boxplot([drop_sst,drop_vip,drop_slc],positions=[index-width,index,index+width],labels=['SST','VIP','SLC'],showfliers=False,patch_artist=True,medianprops=medianprops,widths=.2)
+        drops = ax[2,2].boxplot([drop_sst,drop_vip,drop_slc],
+                                positions=[index-width,index,index+width],
+                                labels=['SST','VIP','SLC'],
+                                showfliers=False,
+                                patch_artist=True,
+                                medianprops=medianprops,
+                                widths=.2)
         for patch, color in zip(drops['boxes'],colors):
             patch.set_facecolor(color)
 
@@ -1319,4 +1346,19 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     if save_results:
         plt.savefig(run_params['output_dir']+'/'+kernel+'_analysis.png')
 
- 
+def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False):
+    '''
+        Makes the analysis plots for all kernels in this model version
+    '''
+    kernels = set(run_params['kernels'].keys())
+    kernels.remove('intercept')
+    kernels.remove('time')
+    for k in kernels:
+        try:
+            kernel_evaluation(weights_df, run_params, k, save_results=True,
+                threshold=threshold, drop_threshold=drop_threshold,
+                normalize=normalize,drop_threshold_single=drop_threshold_single)
+        except:
+            print('Crashed - '+k) 
+
+

@@ -12,6 +12,7 @@ import importlib.util
 import sys
 import os
 import pandas as pd
+import visual_behavior.database as db
 
 class GLM(object):
     '''
@@ -32,6 +33,7 @@ class GLM(object):
         
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
+        self.ophys_session_id = db.lims_query('select ophys_session_id from ophys_experiments where id = {}'.format(self.ophys_experiment_id))
         self.oeid = self.ophys_experiment_id
         self.run_params = glm_params.load_run_json(self.version)
         self.kernels = self.run_params['kernels']

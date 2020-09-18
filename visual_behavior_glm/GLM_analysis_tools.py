@@ -241,14 +241,15 @@ def log_results_to_mongo(glm):
     # TODO, arent the full_results and results_summary already in the glm object by this point? is it redundant to compute them again?
     full_results = glm.results.reset_index()
     results_summary = glm.dropout_summary
-    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
-    oeid = glm.oeid
-    for key,value in experiment_table.query('ophys_experiment_id == @oeid').iloc[0].items():
-        full_results[key] = value
-        results_summary[key] = value
 
     full_results['glm_version'] = str(glm.version)
     results_summary['glm_version'] = str(glm.version)
+
+    results_summary['ophys_experiment_id'] = glm.ophys_experiment_id
+    results_summary['ophys_session_id'] = glm.ophys_session_id
+
+    full_results['ophys_experiment_id'] = glm.ophys_experiment_id
+    full_results['ophys_session_id'] = glm.ophys_session_id
 
     conn = db.Database('visual_behavior_data')
 
@@ -382,7 +383,18 @@ def retrieve_results(search_dict={}, results_type='full'):
     # make 'glm_version' column a string
     results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
-    return results
+
+    # get experiment table, merge in details of each experiment
+    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    results = results.merge(
+        experiment_table, 
+        left_on='ophys_experiment_id',
+        right_on='ophys_experiment_id', 
+        how='left',
+        suffixes=['', '_duplicated'],
+    )
+    duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
+    return results.drop(columns=duplicated_cols)
     
 
 def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None):

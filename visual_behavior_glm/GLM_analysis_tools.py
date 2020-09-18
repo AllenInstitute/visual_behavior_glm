@@ -390,9 +390,11 @@ def retrieve_results(search_dict={}, results_type='full'):
         experiment_table, 
         left_on='ophys_experiment_id',
         right_on='ophys_experiment_id', 
-        how='left'
+        how='left',
+        suffixes=['', '_duplicated'],
     )
-    return results
+    duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
+    return results.drop(columns=duplicated_cols)
     
 
 def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None):

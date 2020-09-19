@@ -910,7 +910,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Return weights_df
     return weights_df 
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False):
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6]):
     '''
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
@@ -925,7 +925,8 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
    
     # Filter out Mesoscope and make time basis 
     version = run_params['version'] 
-    weights = weights_df.query('equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]') 
+    weights = weights_df.query('equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]')
+    weights = weights.query('session_number in @session_filter')
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
 

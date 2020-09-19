@@ -849,68 +849,6 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
-def process_session_to_df(oeid, run_params):
-    '''
-        For the ophys_experiment_id, loads the weight matrix, and builds a dataframe
-        organized by cell_id and kernel 
-    '''
-    # Get weights
-    W = gat.get_weights_matrix_from_mongo(int(oeid), run_params['version'])
-    
-    # Make Dataframe with cell and experiment info
-    session_df  = pd.DataFrame()
-    session_df['cell_specimen_id'] = W.cell_specimen_id.values
-    session_df['ophys_experiment_id'] = [int(oeid)]*len(W.cell_specimen_id.values)  
-    
-    # For each kernel, extract the weights for this kernel
-    for k in run_params['kernels']:
-        weight_names = [w for w in W.weights.values if w.startswith(k)]
-        
-        # Check if this kernel was in this model
-        if len(weight_names) > 0:
-            session_df[k] = W.loc[dict(weights=weight_names)].values.T.tolist()
-    return session_df
-
-def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False):
-    '''
-        Builds a dataframe of (cell_specimen_id, ophys_experiment_id) with the weight parameters for each kernel
-        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream   
- 
-        INPUTS:
-        run_params, parameter json for the version to analyze
-        results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
-        cache_results, if True, save dataframe as csv file
-        load_cache, if True, load cached results, if it exists
-    
-        RETURNS:
-        a dataframe
-    '''
-    
-    #if load_cache & os.path.exists(run_params['output_dir']+'/weights_df.csv'):
-    #    # Need to convert things to np.array
-    #    return pd.read_csv(run_params['output_dir']+'/weights_df.csv')
-   
-    # Make dataframe for cells and experiments 
-    oeids = results_pivoted['ophys_experiment_id'].unique() 
-
-    # For each experiment, get the weight matrix from mongo (slow)
-    # Then pull the weights from each kernel into a dataframe
-    sessions = []
-    for index, oeid in enumerate(tqdm(oeids)):
-        session_df = process_session_to_df(oeid, run_params)
-        sessions.append(session_df)
-
-    # Merge all the session_dfs, and add more session level info
-    weights_df = pd.concat(sessions,sort=False)
-    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
-    
-    ## Cache Results
-    #if cache_results:
-    #    weights_df.to_csv(run_params['output_dir']+'/weights_df.csv') 
-
-    # Return weights_df
-    return weights_df 
-
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6]):
     '''
         Get all the kernels across all cells. 

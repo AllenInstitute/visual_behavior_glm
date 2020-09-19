@@ -3,6 +3,7 @@ import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
 import matplotlib as mpl
 import seaborn as sns
+import scipy
 import numpy as np
 import pandas as pd
 import os
@@ -929,6 +930,17 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     weights = weights.query('session_number in @session_filter')
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
+
+    # Was going to interpolate just the column of interest here
+    # For Mesoscope, you need to interpolate onto the scientificia time base
+    #meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
+    ##f = scipy.interpolate.interp1d(meso_time_vec,old_weights,fill_value="extrapolate")
+    ##new_weights = f(time_vec) 
+    ##new = scipy.interpolate.interp1d(meso_time_vec,old_weights,fill_value="extrapolate"))(time_vec)
+    ## Something like this, but this doesnt work
+    #weights.loc[weights['equipment_name']=="MESO.1",kernel+"_weights"] = [
+    #        scipy.interpolate.interp1d(meso_time_vec,x,fill_value="extrapolate",bounds_error=False)(time_vec) 
+    #        for x in weights[weights['equipment_name'] == "MESO.1"][kernel+"_weights"]]
 
     # Plotting settings
     colors=['C0','C1','C2']

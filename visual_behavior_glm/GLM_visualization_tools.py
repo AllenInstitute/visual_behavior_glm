@@ -941,13 +941,28 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     vip_weights = weights.query('cre_line == "Vip-IRES-Cre"')[kernel+'_weights']
     slc_weights = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[kernel+'_weights']
     if normalize:
-        sst = np.vstack([x/np.max(np.abs(x)) for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0])
-        vip = np.vstack([x/np.max(np.abs(x)) for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0])
-        slc = np.vstack([x/np.max(np.abs(x)) for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0])
+        sst = [x/np.max(np.abs(x)) for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0]
+        vip = [x/np.max(np.abs(x)) for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0]
+        slc = [x/np.max(np.abs(x)) for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0]
     else:
-        sst = np.vstack([x for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0])
-        vip = np.vstack([x for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0])
-        slc = np.vstack([x for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0])
+        sst = [x for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0]
+        vip = [x for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0]
+        slc = [x for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0]
+    if len(sst)>0:
+        sst = np.vstack(sst)
+    else:
+        sst = np.empty((2,len(time_vec)))
+        sst[:] = np.nan
+    if len(vip)>0:
+        vip = np.vstack(vip)
+    else:
+        vip = np.empty((2,len(time_vec)))
+        vip[:] = np.nan
+    if len(slc)>0:
+        slc = np.vstack(slc)
+    else:
+        slc = np.empty((2,len(time_vec)))
+        slc[:] = np.nan
     ax[0,0].fill_between(time_vec, sst.mean(axis=0)-sst.std(axis=0), sst.mean(axis=0)+sst.std(axis=0),facecolor=colors[0], alpha=0.1)   
     ax[0,0].fill_between(time_vec, vip.mean(axis=0)-vip.std(axis=0), vip.mean(axis=0)+vip.std(axis=0),facecolor=colors[1], alpha=0.1)    
     ax[0,0].fill_between(time_vec, slc.mean(axis=0)-slc.std(axis=0), slc.mean(axis=0)+slc.std(axis=0),facecolor=colors[2], alpha=0.1)    
@@ -972,13 +987,28 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     vip_weights_filtered = weights.query('cre_line == "Vip-IRES-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
     slc_weights_filtered = weights.query('cre_line == "Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
     if normalize: 
-        sst_f = np.vstack([x/np.max(np.abs(x)) for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
-        vip_f = np.vstack([x/np.max(np.abs(x)) for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
-        slc_f = np.vstack([x/np.max(np.abs(x)) for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
+        sst_f = [x/np.max(np.abs(x)) for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+        vip_f = [x/np.max(np.abs(x)) for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+        slc_f = [x/np.max(np.abs(x)) for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
     else:
-        sst_f = np.vstack([x for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
-        vip_f = np.vstack([x for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
-        slc_f = np.vstack([x for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
+        sst_f = [x for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+        vip_f = [x for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+        slc_f = [x for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+    if len(sst_f)>0:
+        sst_f = np.vstack(sst_f)
+    else:
+        sst_f = np.empty((2,len(time_vec)))
+        sst_f[:] = np.nan
+    if len(vip_f)>0:
+        vip_f = np.vstack(vip_f)
+    else:
+        vip_f = np.empty((2,len(time_vec)))
+        vip_f[:] = np.nan
+    if len(slc_f)>0:
+        slc_f = np.vstack(slc_f)
+    else:
+        slc_f = np.empty((2,len(time_vec)))
+        slc_f[:] = np.nan
     ax[1,0].fill_between(time_vec, sst_f.mean(axis=0)-sst_f.std(axis=0), sst_f.mean(axis=0)+sst_f.std(axis=0),facecolor=colors[0], alpha=0.1)   
     ax[1,0].fill_between(time_vec, vip_f.mean(axis=0)-vip_f.std(axis=0), vip_f.mean(axis=0)+vip_f.std(axis=0),facecolor=colors[1], alpha=0.1)    
     ax[1,0].fill_between(time_vec, slc_f.mean(axis=0)-slc_f.std(axis=0), slc_f.mean(axis=0)+slc_f.std(axis=0),facecolor=colors[2], alpha=0.1)    
@@ -1012,13 +1042,30 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         slc_weights_dfiltered = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
 
     if normalize:
-        sst_df = np.vstack([x/np.max(np.abs(x)) for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values])
-        vip_df = np.vstack([x/np.max(np.abs(x)) for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values])
-        slc_df = np.vstack([x/np.max(np.abs(x)) for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values])
+        sst_df = [x/np.max(np.abs(x)) for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values]
+
+        vip_df = [x/np.max(np.abs(x)) for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values]
+        slc_df = [x/np.max(np.abs(x)) for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values]
     else:
-        sst_df = np.vstack([x for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values])
-        vip_df = np.vstack([x for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values])
-        slc_df = np.vstack([x for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values])   
+        sst_df = [x for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values]
+        vip_df = [x for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values]
+        slc_df = [x for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values]  
+    if len(sst_df)>0:
+        sst_df = np.vstack(sst_df)
+    else:
+        sst_df = np.empty((2,len(time_vec)))
+        sst_df[:] = np.nan
+    if len(vip_df)>0:
+        vip_df = np.vstack(vip_df)
+    else:
+        vip_df = np.empty((2,len(time_vec)))
+        vip_df[:] = np.nan
+    if len(slc_df)>0:
+        slc_df = np.vstack(slc_df)
+    else:
+        slc_df = np.empty((2,len(time_vec)))
+        slc_df[:] = np.nan
+
     ax[2,0].fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors[0], alpha=0.1)   
     ax[2,0].fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors[1], alpha=0.1)    
     ax[2,0].fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors[2], alpha=0.1)    
@@ -1044,7 +1091,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     slc_sorted = slc[:,np.argsort(np.argmax(slc,axis=0))]
     weights_sorted = np.hstack([slc_sorted,sst_sorted, vip_sorted])
     cbar = ax[0,1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='bwr')
-    cbar.set_clim(-np.percentile(np.abs(weights_sorted),95),np.percentile(np.abs(weights_sorted),95))
+    cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95))
     fig.colorbar(cbar, ax=ax[0,1])
     ax[0,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted)[1]))
     ax[0,1].set_xlabel('Time (s)')
@@ -1060,7 +1107,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     slc_sorted_f = slc_f[:,np.argsort(np.argmax(slc_f,axis=0))]
     weights_sorted_f = np.hstack([slc_sorted_f,sst_sorted_f, vip_sorted_f])
     cbar = ax[1,1].imshow(weights_sorted_f.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_f)[1]],cmap='bwr')
-    cbar.set_clim(-np.percentile(np.abs(weights_sorted_f),95),np.percentile(np.abs(weights_sorted_f),95))
+    cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_f),95),np.nanpercentile(np.abs(weights_sorted_f),95))
     fig.colorbar(cbar, ax=ax[1,1])
     ax[1,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted_f)[1]))
     ax[1,1].set_xlabel('Time (s)')
@@ -1076,7 +1123,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     slc_sorted_df = slc_df[:,np.argsort(np.argmax(slc_df,axis=0))]
     weights_sorted_df = np.hstack([slc_sorted_df,sst_sorted_df, vip_sorted_df])
     cbar = ax[2,1].imshow(weights_sorted_df.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_df)[1]],cmap='bwr')
-    cbar.set_clim(-np.percentile(np.abs(weights_sorted_df),95),np.percentile(np.abs(weights_sorted_df),95))
+    cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_df),95),np.nanpercentile(np.abs(weights_sorted_df),95))
     fig.colorbar(cbar, ax=ax[2,1])
     ax[2,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted_df)[1]))
     ax[2,1].set_xlabel('Time (s)')

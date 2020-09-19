@@ -854,8 +854,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
         plot the mean+std. What time point are different from 0?
-        Plot a visualization of the dropouts that contain this kernel. 
+        Plot a visualization of the dropouts that contain this kernel.
+        run_params = glm_params.load_run_params(<version>) 
         results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+        weights_df = gat.build_weights_df(run_params, results_pivoted)
         threshold, the minimum variance explained by the full model
         drop_threshold, the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
         normalize, if True, normalizes each cell to np.max(np.abs(x))

@@ -1107,13 +1107,13 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     vip_weights = weights.query('cre_line == "Vip-IRES-Cre"')[kernel+'_weights']
     slc_weights = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[kernel+'_weights']
     if normalize:
-        sst = np.vstack([x/np.max(np.abs(x)) for x in sst_weights[~sst_weights.isnull()].values])
-        vip = np.vstack([x/np.max(np.abs(x)) for x in vip_weights[~vip_weights.isnull()].values])
-        slc = np.vstack([x/np.max(np.abs(x)) for x in slc_weights[~slc_weights.isnull()].values])
+        sst = np.vstack([x/np.max(np.abs(x)) for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0])
+        vip = np.vstack([x/np.max(np.abs(x)) for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0])
+        slc = np.vstack([x/np.max(np.abs(x)) for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0])
     else:
-        sst = np.vstack([x for x in sst_weights[~sst_weights.isnull()].values])
-        vip = np.vstack([x for x in vip_weights[~vip_weights.isnull()].values])
-        slc = np.vstack([x for x in slc_weights[~slc_weights.isnull()].values])
+        sst = np.vstack([x for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0])
+        vip = np.vstack([x for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0])
+        slc = np.vstack([x for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0])
     ax[0,0].fill_between(time_vec, sst.mean(axis=0)-sst.std(axis=0), sst.mean(axis=0)+sst.std(axis=0),facecolor=colors[0], alpha=0.1)   
     ax[0,0].fill_between(time_vec, vip.mean(axis=0)-vip.std(axis=0), vip.mean(axis=0)+vip.std(axis=0),facecolor=colors[1], alpha=0.1)    
     ax[0,0].fill_between(time_vec, slc.mean(axis=0)-slc.std(axis=0), slc.mean(axis=0)+slc.std(axis=0),facecolor=colors[2], alpha=0.1)    
@@ -1137,14 +1137,14 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     sst_weights_filtered = weights.query('cre_line == "Sst-IRES-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
     vip_weights_filtered = weights.query('cre_line == "Vip-IRES-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
     slc_weights_filtered = weights.query('cre_line == "Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
-    if normalize:
-        sst_f = np.vstack([x/np.max(np.abs(x)) for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values])
-        vip_f = np.vstack([x/np.max(np.abs(x)) for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values])
-        slc_f = np.vstack([x/np.max(np.abs(x)) for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values])
+    if normalize: 
+        sst_f = np.vstack([x/np.max(np.abs(x)) for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
+        vip_f = np.vstack([x/np.max(np.abs(x)) for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
+        slc_f = np.vstack([x/np.max(np.abs(x)) for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
     else:
-        sst_f = np.vstack([x for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values])
-        vip_f = np.vstack([x for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values])
-        slc_f = np.vstack([x for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values])
+        sst_f = np.vstack([x for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
+        vip_f = np.vstack([x for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
+        slc_f = np.vstack([x for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0])
     ax[1,0].fill_between(time_vec, sst_f.mean(axis=0)-sst_f.std(axis=0), sst_f.mean(axis=0)+sst_f.std(axis=0),facecolor=colors[0], alpha=0.1)   
     ax[1,0].fill_between(time_vec, vip_f.mean(axis=0)-vip_f.std(axis=0), vip_f.mean(axis=0)+vip_f.std(axis=0),facecolor=colors[1], alpha=0.1)    
     ax[1,0].fill_between(time_vec, slc_f.mean(axis=0)-slc_f.std(axis=0), slc_f.mean(axis=0)+slc_f.std(axis=0),facecolor=colors[2], alpha=0.1)    
@@ -1262,9 +1262,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     # All Cells
     # For each dropout, plot the score distribution by cre line 
     for index, dropout in enumerate(drop_list):
-        drop_sst = weights.query('cre_line=="Sst-IRES-Cre"')[dropout].values
-        drop_vip = weights.query('cre_line=="Vip-IRES-Cre"')[dropout].values
-        drop_slc = weights.query('cre_line=="Slc17a7-IRES2-Cre"')[dropout].values
+        drop_sst = weights.query('cre_line=="Sst-IRES-Cre"')[dropout]
+        drop_vip = weights.query('cre_line=="Vip-IRES-Cre"')[dropout]
+        drop_slc = weights.query('cre_line=="Slc17a7-IRES2-Cre"')[dropout]
+        drop_sst = drop_sst[~drop_sst.isnull()].values
+        drop_vip = drop_vip[~drop_vip.isnull()].values
+        drop_slc = drop_slc[~drop_slc.isnull()].values
         drops = ax[0,2].boxplot([drop_sst,drop_vip,drop_slc],
                                 positions=[index-width,index,index+width],
                                 labels=['SST','VIP','SLC'],
@@ -1276,7 +1279,8 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
             patch.set_facecolor(color)
 
     # Clean up plot
-    ax[0,2].set_ylabel('Adj. Fraction from Full')
+    num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
+    ax[0,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
     ax[0,2].set_xticks(np.arange(0,len(drop_list)))
     ax[0,2].set_xticklabels(drop_list,rotation=60)
     ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
@@ -1286,9 +1290,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     # Filtered by Full model
     # For each dropout, plot score
     for index, dropout in enumerate(drop_list):
-        drop_sst = weights.query('cre_line=="Sst-IRES-Cre" & variance_explained_full > @threshold')[dropout].values
-        drop_vip = weights.query('cre_line=="Vip-IRES-Cre" & variance_explained_full > @threshold')[dropout].values
-        drop_slc = weights.query('cre_line=="Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[dropout].values
+        drop_sst = weights.query('cre_line=="Sst-IRES-Cre" & variance_explained_full > @threshold')[dropout]
+        drop_vip = weights.query('cre_line=="Vip-IRES-Cre" & variance_explained_full > @threshold')[dropout]
+        drop_slc = weights.query('cre_line=="Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[dropout]
+        drop_sst = drop_sst[~drop_sst.isnull()].values
+        drop_vip = drop_vip[~drop_vip.isnull()].values
+        drop_slc = drop_slc[~drop_slc.isnull()].values
         drops = ax[1,2].boxplot([drop_sst,drop_vip,drop_slc],
                                 positions=[index-width,index,index+width],
                                 labels=['SST','VIP','SLC'],
@@ -1300,7 +1307,8 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
             patch.set_facecolor(color)
 
     # Clean up plot
-    ax[1,2].set_ylabel('Adj. Fraction from Full')
+    num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
+    ax[1,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
     ax[1,2].set_xticks(np.arange(0,len(drop_list)))
     ax[1,2].set_xticklabels(drop_list,rotation=60)
     ax[1,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
@@ -1332,7 +1340,8 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
             patch.set_facecolor(color)
 
     # Clean Up Plot
-    ax[2,2].set_ylabel('Adj. Fraction from Full')
+    num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
+    ax[2,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
     ax[2,2].set_xticks(np.arange(0,len(drop_list)))
     ax[2,2].set_xticklabels(drop_list,rotation=60)
     ax[2,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
@@ -1353,12 +1362,16 @@ def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold
     kernels = set(run_params['kernels'].keys())
     kernels.remove('intercept')
     kernels.remove('time')
+    crashed = set()
     for k in kernels:
         try:
             kernel_evaluation(weights_df, run_params, k, save_results=True,
                 threshold=threshold, drop_threshold=drop_threshold,
                 normalize=normalize,drop_threshold_single=drop_threshold_single)
         except:
-            print('Crashed - '+k) 
+            crashed.add(k)
+
+    for k in crashed:
+        print('Crashed - '+k) 
 
 

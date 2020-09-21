@@ -866,6 +866,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         drop_threshold_single,  if True, applies drop_threshold to single-<kernel> instead of <kernel> dropout model
         session_filter,         The list of session numbers to include
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both
+        mode,                   if "diagnostic" then it plots marina's suggestions for kernel length in red. Otherwise does nothing
         
     '''
 

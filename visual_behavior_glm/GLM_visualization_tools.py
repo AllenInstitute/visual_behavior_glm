@@ -849,7 +849,7 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all"):
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science'):
     '''
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
@@ -868,7 +868,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both
         
     '''
-   
+
     # Filter out Mesoscope and make time basis 
     # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
@@ -888,6 +888,17 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     time_vec = np.round(time_vec,2)
     meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
 
+    if mode == 'diagnostic':
+        suggestions = pd.read_csv('/allen/programs/braintv/workgroups/nc-ophys/alex.piet/glm_figs/kernels_and_dropouts_MG_suggestions.csv',engine='python').set_index('Unnamed: 0')
+        suggestions.index.name=None
+        if isinstance(suggestions.loc[kernel]['MG suggestion'],str):
+            x = suggestions.loc[kernel]['MG suggestion']
+            start = float(x[1:-1].split(',')[0].replace(' ',''))
+            end = float(x[1:-1].split(',')[1].replace(' ',''))
+        else: 
+            start = time_vec[0]
+            end = time_vec[-1]
+ 
     # Plotting settings
     colors=['C0','C1','C2']
     line_alpha = 0.25
@@ -897,7 +908,9 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     if not normalize:
         filter_string+='_unnormalized'
     if session_filter != [1,2,3,4,5,6]:
-        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])    
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
+    if mode == "diagnostic":
+        filter_string+='_suggestions' 
     filename = run_params['output_dir']+'/'+kernel+'_analysis'+filter_string+'.png'
 
     # Get all cells data and plot Average Trajectories
@@ -947,6 +960,9 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ax[0,0].plot(time_vec, slc.mean(axis=0),label='SLC',color=colors[2])
     ax[0,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[0,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+    if mode == 'diagnostic':
+        ax[0,0].axvline(start, color='r',linestyle='-')
+        ax[0,0].axvline(end, color='r',linestyle='-')
     if normalize:
         ax[0,0].set_ylabel('Weights (Normalized df/f)')
     else:
@@ -954,7 +970,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ax[0,0].set_xlabel('Time (s)')
     ax[0,0].legend()
     ax[0,0].set_title('Average kernel')
-    ax[0,0].set_xlim(time_vec[0],time_vec[-1])
+    if mode == 'diagnostic':
+        ax[0,0].set_xlim(np.min([start-.1,time_vec[0]]),np.max([end+.1,time_vec[-1]]))
+    else:
+        ax[0,0].set_xlim(time_vec[0],time_vec[-1])   
     add_stimulus_bars(ax[0,0],kernel)
     sst = sst.T
     vip = vip.T
@@ -1001,6 +1020,9 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ax[1,0].plot(time_vec, slc_f.mean(axis=0),label='SLC',color=colors[2])
     ax[1,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[1,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+    if mode == 'diagnostic':
+        ax[1,0].axvline(start, color='r',linestyle='-')
+        ax[1,0].axvline(end, color='r',linestyle='-')
     if normalize:
         ax[1,0].set_ylabel('Weights (Normalized df/f)')
     else:
@@ -1008,7 +1030,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ax[1,0].set_xlabel('Time (s)')
     ax[1,0].legend()
     ax[1,0].set_title('Filtered on Full Model')
-    ax[1,0].set_xlim(time_vec[0],time_vec[-1])
+    if mode == 'diagnostic':
+        ax[1,0].set_xlim(np.min([start-.1,time_vec[0]]),np.max([end+.1,time_vec[-1]]))
+    else:
+        ax[1,0].set_xlim(time_vec[0],time_vec[-1])   
     add_stimulus_bars(ax[1,0],kernel)
     sst_f = sst_f.T
     vip_f = vip_f.T
@@ -1066,6 +1091,9 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ax[2,0].plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors[2])
     ax[2,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[2,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+    if mode == 'diagnostic':
+        ax[2,0].axvline(start, color='r',linestyle='-')
+        ax[2,0].axvline(end, color='r',linestyle='-')
     if normalize:
         ax[2,0].set_ylabel('Weights (Normalized df/f)')   
     else:
@@ -1073,7 +1101,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ax[2,0].set_xlabel('Time (s)')
     ax[2,0].legend()
     ax[2,0].set_title('Filtered on Dropout')
-    ax[2,0].set_xlim(time_vec[0],time_vec[-1])
+    if mode == 'diagnostic':
+        ax[2,0].set_xlim(np.min([start-.1,time_vec[0]]),np.max([end+.1,time_vec[-1]]))
+    else:
+        ax[2,0].set_xlim(time_vec[0],time_vec[-1])   
     add_stimulus_bars(ax[2,0],kernel)
     sst_df = sst_df.T
     vip_df = vip_df.T
@@ -1231,7 +1262,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         print('Figure Saved to: '+filename)
         plt.savefig(filename)
 
-def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all"):
+def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science'):
     '''
         Makes the analysis plots for all kernels in this model version
     '''
@@ -1244,7 +1275,7 @@ def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold
             kernel_evaluation(weights_df, run_params, k, save_results=True,
                 threshold=threshold, drop_threshold=drop_threshold,
                 normalize=normalize,drop_threshold_single=drop_threshold_single,
-                session_filter=session_filter, equipment_filter=equipment_filter)
+                session_filter=session_filter, equipment_filter=equipment_filter,mode=mode)
             plt.close(plt.gcf().number)
         except:
             crashed.add(k)

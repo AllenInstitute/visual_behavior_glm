@@ -849,38 +849,38 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6]):
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all"):
     '''
         Get all the kernels across all cells. 
         plot the matrix of all kernels, sorted by peak time
         plot the mean+std. What time point are different from 0?
         Plot a visualization of the dropouts that contain this kernel.
-        run_params = glm_params.load_run_params(<version>) 
+        run_params      = glm_params.load_run_params(<version>) 
         results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
-        weights_df = gat.build_weights_df(run_params, results_pivoted)
-        threshold, the minimum variance explained by the full model
-        drop_threshold, the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
-        normalize, if True, normalizes each cell to np.max(np.abs(x))
-        drop_threshold_single, if True, applies drop_threshold to single-<kernel> instead of <kernel> dropout model
+        weights_df      = gat.build_weights_df(run_params, results_pivoted)
+        threshold,              the minimum variance explained by the full model
+        drop_threshold,         the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
+        normalize,              if True, normalizes each cell to np.max(np.abs(x))
+        drop_threshold_single,  if True, applies drop_threshold to single-<kernel> instead of <kernel> dropout model
+        session_filter,         The list of session numbers to include
+        equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both
     '''
    
     # Filter out Mesoscope and make time basis 
-    version = run_params['version'] 
-    weights = weights_df.query('equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]')
-    weights = weights.query('session_number in @session_filter')
+    # Filtering out that one session because something is wrong with it, need to follow up TODO
+    version = run_params['version']
+    if equipment_filter == "scientifica": 
+        weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676]) ')
+    elif equipment_filter == "mesoscope":
+        weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676])')   
+    else:
+        weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in [962045676])')
+
+    # Set up time vectors.
+    # Mesoscope sessions have not been interpolated onto the right time basis yet
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
-
-    # Was going to interpolate just the column of interest here
-    # For Mesoscope, you need to interpolate onto the scientificia time base
-    #meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
-    ##f = scipy.interpolate.interp1d(meso_time_vec,old_weights,fill_value="extrapolate")
-    ##new_weights = f(time_vec) 
-    ##new = scipy.interpolate.interp1d(meso_time_vec,old_weights,fill_value="extrapolate"))(time_vec)
-    ## Something like this, but this doesnt work
-    #weights.loc[weights['equipment_name']=="MESO.1",kernel+"_weights"] = [
-    #        scipy.interpolate.interp1d(meso_time_vec,x,fill_value="extrapolate",bounds_error=False)(time_vec) 
-    #        for x in weights[weights['equipment_name'] == "MESO.1"][kernel+"_weights"]]
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
 
     # Plotting settings
     colors=['C0','C1','C2']
@@ -900,6 +900,15 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         sst = [x for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0]
         vip = [x for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0]
         slc = [x for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0]
+    
+    # Interpolate Mesoscope
+    # Doing interpolation step here because we have removed the NaN results
+    sst = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst]
+    vip = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip]
+    slc = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc]
+   
+    # Make into 2D array, but only if we have results.
+    # Else make a 2D array of NaNs 
     if len(sst)>0:
         sst = np.vstack(sst)
     else:
@@ -915,6 +924,8 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     else:
         slc = np.empty((2,len(time_vec)))
         slc[:] = np.nan
+
+    # Plot
     ax[0,0].fill_between(time_vec, sst.mean(axis=0)-sst.std(axis=0), sst.mean(axis=0)+sst.std(axis=0),facecolor=colors[0], alpha=0.1)   
     ax[0,0].fill_between(time_vec, vip.mean(axis=0)-vip.std(axis=0), vip.mean(axis=0)+vip.std(axis=0),facecolor=colors[1], alpha=0.1)    
     ax[0,0].fill_between(time_vec, slc.mean(axis=0)-slc.std(axis=0), slc.mean(axis=0)+slc.std(axis=0),facecolor=colors[2], alpha=0.1)    
@@ -948,6 +959,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         sst_f = [x for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
         vip_f = [x for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
         slc_f = [x for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+
+    # Interpolate Mesoscope
+    sst_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst_f]
+    vip_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip_f]
+    slc_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc_f] 
+
     if len(sst_f)>0:
         sst_f = np.vstack(sst_f)
     else:
@@ -1005,7 +1022,13 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     else:
         sst_df = [x for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values]
         vip_df = [x for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values]
-        slc_df = [x for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values]  
+        slc_df = [x for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values] 
+
+    # Interpolate Mesoscope
+    sst_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst_df]
+    vip_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip_df]
+    slc_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc_df] 
+ 
     if len(sst_df)>0:
         sst_df = np.vstack(sst_df)
     else:

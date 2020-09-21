@@ -1254,6 +1254,9 @@ def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold
         print('Crashed - '+k) 
 
 def add_stimulus_bars(ax, kernel):
+    '''
+        Adds stimulus bars to the given axis, but only for certain kernels 
+    '''
     if kernel in ['change','hits','misses','false_alarms','omissions','image_expectation','image0','image1','image2','image3','image4','image5','image6','image7']:
         lims = ax.get_xlim()
         times = set(np.concatenate([np.arange(0,lims[1],0.75),np.arange(-0.75,lims[0]-0.001,-0.75)]))
@@ -1269,17 +1272,5 @@ def add_stimulus_bars(ax, kernel):
             for flash_start in times:
                 ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)
          
-#def designate_flashes(ax, omit=None, pre_color='blue', post_color='blue'):
-#    '''add vertical spans to designate stimulus flashes'''
-#    lims = ax.get_xlim()
-#    for flash_start in np.arange(0, lims[1], 0.75):
-#        if flash_start != omit:
-#            ax.axvspan(flash_start, flash_start + 0.25,
-#                       color=post_color, alpha=0.25, zorder=-np.inf)
-#    for flash_start in np.arange(-0.75, lims[0] - 0.001, -0.75):
-#        if flash_start != omit:
-#            ax.axvspan(flash_start, flash_start + 0.25,
-#                       color=pre_color, alpha=0.25, zorder=-np.inf)
-
 
 

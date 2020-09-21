@@ -858,12 +858,15 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         run_params      = glm_params.load_run_params(<version>) 
         results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
         weights_df      = gat.build_weights_df(run_params, results_pivoted)
+        kernel                  The name of the kernel to be plotted
+        save_results            if True, saves a figure to the directory in run_params['output_dir']
         threshold,              the minimum variance explained by the full model
         drop_threshold,         the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
         normalize,              if True, normalizes each cell to np.max(np.abs(x))
         drop_threshold_single,  if True, applies drop_threshold to single-<kernel> instead of <kernel> dropout model
         session_filter,         The list of session numbers to include
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both
+        
     '''
    
     # Filter out Mesoscope and make time basis 
@@ -896,7 +899,6 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     if session_filter != [1,2,3,4,5,6]:
         filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])    
     filename = run_params['output_dir']+'/'+kernel+'_analysis'+filter_string+'.png'
-    print(filename)
 
     # Get all cells data and plot Average Trajectories
     fig,ax=plt.subplots(3,3,figsize=(12,9))
@@ -1226,10 +1228,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ## Final Clean up and Save
     plt.tight_layout()
     if save_results:
+        print('Figure Saved to: '+filename)
         plt.savefig(filename)
-        #        plt.savefig(run_params['output_dir']+'/'+kernel+'_analysis.png')
 
-def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False):
+def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all"):
     '''
         Makes the analysis plots for all kernels in this model version
     '''
@@ -1241,9 +1243,12 @@ def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold
         try:
             kernel_evaluation(weights_df, run_params, k, save_results=True,
                 threshold=threshold, drop_threshold=drop_threshold,
-                normalize=normalize,drop_threshold_single=drop_threshold_single)
+                normalize=normalize,drop_threshold_single=drop_threshold_single,
+                session_filter=session_filter, equipment_filter=equipment_filter)
+            plt.close(plt.gcf().number)
         except:
             crashed.add(k)
+            plt.close(plt.gcf().number)
 
     for k in crashed:
         print('Crashed - '+k) 

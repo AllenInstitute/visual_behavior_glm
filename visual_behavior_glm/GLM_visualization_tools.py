@@ -869,10 +869,13 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     # Filter out Mesoscope and make time basis 
     # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
+    filter_string = ''
     if equipment_filter == "scientifica": 
         weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676]) ')
+        filter_string+='_scientifica'
     elif equipment_filter == "mesoscope":
         weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676])')   
+        filter_string+='_mesoscope'
     else:
         weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in [962045676])')
 
@@ -886,6 +889,14 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     colors=['C0','C1','C2']
     line_alpha = 0.25
     width=0.25
+
+    # Determine filename
+    if not normalize:
+        filter_string+='_unnormalized'
+    if session_filter != [1,2,3,4,5,6]:
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])    
+    filename = run_params['output_dir']+'/'+kernel+'_analysis'+filter_string+'.png'
+    print(filename)
 
     # Get all cells data and plot Average Trajectories
     fig,ax=plt.subplots(3,3,figsize=(12,9))
@@ -1215,7 +1226,8 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     ## Final Clean up and Save
     plt.tight_layout()
     if save_results:
-        plt.savefig(run_params['output_dir']+'/'+kernel+'_analysis.png')
+        plt.savefig(filename)
+        #        plt.savefig(run_params['output_dir']+'/'+kernel+'_analysis.png')
 
 def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False):
     '''

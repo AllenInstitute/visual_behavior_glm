@@ -12,7 +12,7 @@ do_single = 1 # if 1, use single models in the clustering analysis: one regresso
 dir0 = '/home/farzaneh/OneDrive/Analysis' # from def_paths import * 
 dir_now = 'umap_cluster'
 
-fmt = '.pdf'
+fmt = '.png' #'.pdf' # '.svg'
 
 import datetime
 now = (datetime.datetime.now()).strftime("%Y%m%d_%H%M%S")
@@ -254,16 +254,13 @@ rsp = rsp.rename(columns = {'imaging_depth_x': 'imaging_depth'}, inplace = False
 # np.shape(cols_for_clustering), cols_for_clustering
 
 
-#####################################
-#%% Choose what cre line goes into umap/clustering
-
-# cres = np.unique(rsp['cre_line'])
-# print(cres) # ['Slc17a7-IRES2-Cre' 'Sst-IRES-Cre' 'Vip-IRES-Cre']
-# icre = 2
-# rsp = rsp[rsp['cre_line']==cres[icre]]
-
+#%%
 rsp_main = copy.deepcopy(rsp)
 print(rsp_main.shape)
+
+
+#####################################
+#%% Choose what cre line goes into umap/clustering
 
 for what_cre in what_cre_all: # what_cre = what_cre_all[0]
     
@@ -282,7 +279,9 @@ for what_cre in what_cre_all: # what_cre = what_cre_all[0]
         rsp = copy.deepcopy(rsp_main)
         what_cre_name = what_cre
 
-        
+    print(rsp.shape)
+    
+    
     #####################################
     #####################################
     # Dimensionality reduction 
@@ -351,6 +350,45 @@ for what_cre in what_cre_all: # what_cre = what_cre_all[0]
 
 
 
+    
+    #####################################
+    #####################################    
+    #%% Compute correlation between pairs of features , across all cells 
+    # we should run this before clustering (bc rsp loses some rows after clustering for noise clusters)
+    #####################################
+    #####################################    
+    import scipy.stats as st
+    
+    corr_cols = np.concatenate((cols_for_clustering, [cols_for_clustering[i][7:] for i in range(len(cols_for_clustering))], ['imaging_depth', 'task_dropout_index'], ['umap_3d_embedding_0', 'umap_3d_embedding_1', 'umap_3d_embedding_2']))
+    print(np.shape(rsp[corr_cols]))
+
+    t = rsp[corr_cols] # neurons x features
+    nf = t.shape[1]
+    
+    # how is each pair of features correlated with each other , across all cells
+    cf, pf = st.spearmanr(t)
+#     cf.shape
+
+
+    # make a heatmap of correlation coeffs
+    plt.figure(figsize=(20,20))
+    plt.imshow(cf); plt.colorbar(label='spearman cc', aspect=50)
+    ax = plt.gca()
+    ax.set_xticks(range(nf))
+    ax.set_xticklabels(corr_cols, rotation=45, ha='right', fontsize=11)
+    ax.set_yticks(range(nf))
+    ax.set_yticklabels(corr_cols, rotation=45, ha='right', fontsize=11)    
+    plt.title(f'{what_cre}');
+    
+    if dosavefig:
+        nam = f'{what_cre_name}_corr_features_{gmn}_{now}'
+        fign = os.path.join(dir0, dir_now, nam+fmt)     
+
+        plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
+
+        
+        
+    
     #####################################
     #####################################
     # Clustering
@@ -517,7 +555,7 @@ for what_cre in what_cre_all: # what_cre = what_cre_all[0]
         hue='clusterer_labels',
         palette=sns.color_palette("hsv", len(rsp['clusterer_labels'].unique())),
         data=rsp,
-        legend='full',
+        legend=False, #'full',
         alpha=0.3,
         ax=ax[0],
     )
@@ -527,7 +565,7 @@ for what_cre in what_cre_all: # what_cre = what_cre_all[0]
         hue='clusterer_labels',
         palette=sns.color_palette("hsv", len(rsp['clusterer_labels'].unique())),
         data=rsp,
-        legend='full',
+        legend=False, #'full',
         alpha=0.3,
         ax=ax[1],
     )
@@ -620,17 +658,33 @@ for what_cre in what_cre_all: # what_cre = what_cre_all[0]
     ddtext = [f'{ac[i]}, {a[i]}' for i in range(len(a))]
 
     
+    ### make a plot of dominant dropout and save it
+    fig,ax = plt.subplots(1, 1, figsize=(4, 4))
+    ax.bar(range(len(a)), rsp['dominant_dropout'].value_counts().values)
+    ax.set_xticks(np.arange(len(a)));
+    ttext = rsp['dominant_dropout'].value_counts().index #np.sort(ddtext) #
+    ax.set_xticklabels(ttext, rotation=45, ha='right')
+    ax.set_ylabel('Number of cells')
+    ax.set_title('Dominant dropout');
+    
+    if dosavefig:
+        nam = f'{what_cre_name}_dominant_dropout_{n_components}_{neigh}_{mindist}_hdbscan_{min_cluster_size}_{min_samples}_{cluster_selection_epsilon}_{gmn}_{now}'
+        fign = os.path.join(dir0, dir_now, nam+fmt)     
+
+        plt.savefig(fign, bbox_inches='tight') # , bbox_extra_artists=(lgd,)    
+
+    
     
     #############################################
     # define heatmap parameters
     # lots here, but there are lots of options!
 
     cols_fract_change0 = [
-        'all-images', 
-        'omissions', 
-        'pupil', 
-        'running',
-        'face_motion_energy',
+#         'all-images', 
+#         'omissions', 
+#         'pupil', 
+#         'running',
+#         'face_motion_energy',
         'single-all-images', 
         'single-omissions', 
         'single-pupil', 
@@ -644,107 +698,202 @@ for what_cre in what_cre_all: # what_cre = what_cre_all[0]
         cols_fract_change0)))
 
     
-    # finalize the list of glm features (fract change in exp var) that will go into heatmap
-    cols_to_plot = np.concatenate((
-        ['clusterer_labels'],
-        cols_fract_change,
-        ['cre_line_categorical', 
-        'dominant_dropout_categorical',
-        'session_id_categorical', 
-        'targeted_structure_categorical',
-        'imaging_depth',
-        'task_dropout_index',
-        'equipment_name_categorical',
-        ]  
-    ))
-
-    
-    
-    
-    ########## make sure there's a heatmap definition for every column, otherwise the column will plot without a heatmap!
-
-    mnf = np.min(np.min(rsp[cols_to_plot[1:len(cols_fract_change)+1]]))
-    mxf = np.max(np.max(rsp[cols_to_plot[1:len(cols_fract_change)+1]]))
-
-    heatmap_defs = [
-        {
-            'columns':cols_to_plot[1:len(cols_fract_change)+1],
-            'cbar_label':'adj fraction change\nin var explained',
-            'cbar_ticks':[mnf, mxf],
-            'vmin':mnf,
-            'vmax':mxf,
-            'cmap':'viridis', #'bwr',
-        },
-        {
-            'columns':['cre_line_categorical'],
-            'cbar_label':'cre_line',
-            'cbar_ticks':np.arange(len(np.unique(rsp['cre_line']))),
-            'cbar_ticklabels':np.sort(np.unique(rsp['cre_line'])),
-            'vmin':-0.5,
-            'vmax':len(np.unique(rsp['cre_line']))+0.5,
-            'cmap':sns.color_palette("hls", len(np.unique(rsp['cre_line']))),            
-        },    
-        {
-            'columns':['dominant_dropout_categorical'],
-            'cbar_label':'dominant_dropout_categorical',
-            'cbar_ticks':np.arange(len(rsp['dominant_dropout_categorical'].unique())),
-            'cbar_ticklabels':ddtext, #np.sort(np.unique(rsp['dominant_dropout'])),
-            'vmin':-0.5,
-            'vmax':len(rsp['dominant_dropout_categorical'].unique())-0.5,
-            'cmap':sns.color_palette("hls", len(rsp['dominant_dropout_categorical'].unique())),
-
-        },
-        {
-            'columns':['session_id_categorical'],
-            'cbar_label':'session ID',
-            'cbar_ticks':[0,1], #[0,1,2,3],
-            'cbar_ticklabels':['familiar', 'novel'], #[1,3,4,6],
-            'vmin':-0.5,
-            'vmax':1.5, #3.5,
-            'cmap':sns.color_palette("Dark2", 2), # 4
-        },
-        {
-            'columns':['clusterer_labels'],
-            'cbar_label':'clusterer label',
-            'cbar_ticks':np.arange(min(rsp['clusterer_labels'].unique()),len(rsp['clusterer_labels'].unique()),2),
-            'vmin':min(rsp['clusterer_labels'].unique())-.5,
-            'vmax':len(rsp['clusterer_labels'].unique())-.5,
-            'cmap':sns.color_palette("hsv", len(rsp['clusterer_labels'].unique())),
-        },
-        {
-            'columns':['equipment_name_categorical'],
-            'cbar_label':'equipment name',
-            'cbar_ticks':np.arange(len(rsp['equipment_name_categorical'].unique())),
-            'cbar_ticklabels':np.sort(np.unique(rsp['equipment_name'])),
-            'vmin':-0.5,
-            'vmax':len(rsp['equipment_name_categorical'].unique())-0.5,
-            'cmap':sns.color_palette("hls", len(rsp['equipment_name_categorical'].unique())),
-        },
-        {
-            'columns':['targeted_structure_categorical'],
-            'cbar_label':'targeted structure',
-            'cbar_ticks':np.unique(rsp['targeted_structure_categorical']), #np.arange(len(rsp['targeted_structure_categorical'].unique())),
-            'cbar_ticklabels':np.unique(rsp['targeted_structure']), #np.sort(np.unique(rsp['targeted_structure'])),
-            'vmin':min(rsp['targeted_structure_categorical'].unique())-0.5,
-            'vmax':max(rsp['targeted_structure_categorical'].unique())+0.5,
-            'cmap':sns.color_palette("hls", len(rsp['targeted_structure'].unique())),
-        },
-        {
-            'columns':['imaging_depth'],
-            'cbar_label':'imaging_depth',
-            'cbar_ticks':[0,100,200,300,400],
-            'vmin':0,
-            'vmax':400,
-            'cmap':'magma',
-        },
-        {
-            'columns':['task_dropout_index'],
-            'cbar_label':'task_dropout_index',
-            'cmap':'inferno',
-        },    
-    ]
+    if what_cre=='allCre':
+        
+        # finalize the list of glm features (fract change in exp var) that will go into heatmap
+        cols_to_plot = np.concatenate((
+            ['clusterer_labels',
+            'dominant_dropout_categorical'],
+            cols_fract_change,
+            ['cre_line_categorical', 
+            'targeted_structure_categorical',
+            'imaging_depth',
+            'session_id_categorical',              
+#             'task_dropout_index',
+            'equipment_name_categorical',
+            ]  
+        ))    
 
 
+        ########## make sure there's a heatmap definition for every column, otherwise the column will plot without a heatmap!
+
+        mnf = np.min(np.min(rsp[cols_to_plot[2:len(cols_fract_change)+2]]))
+        mxf = np.max(np.max(rsp[cols_to_plot[2:len(cols_fract_change)+2]]))
+
+        heatmap_defs = [
+            {
+                'columns':cols_to_plot[2:len(cols_fract_change)+2],
+                'cbar_label':'adj fraction change\nin var explained',
+                'cbar_ticks':[mnf, mxf],
+                'vmin':mnf,
+                'vmax':mxf,
+                'cmap':'viridis', #'bwr',
+            },
+            {
+                'columns':['cre_line_categorical'],
+                'cbar_label':'cre_line',
+                'cbar_ticks':np.arange(len(np.unique(rsp['cre_line']))),
+                'cbar_ticklabels':np.sort(np.unique(rsp['cre_line'])),
+                'vmin':-0.5,
+                'vmax':len(np.unique(rsp['cre_line']))-0.5,
+                'cmap':sns.color_palette("hls", len(np.unique(rsp['cre_line']))),            
+            },    
+            {
+                'columns':['dominant_dropout_categorical'],
+                'cbar_label':'dominant_dropout_categorical',
+                'cbar_ticks':np.arange(len(rsp['dominant_dropout_categorical'].unique())),
+                'cbar_ticklabels':ddtext, #np.sort(np.unique(rsp['dominant_dropout'])),
+                'vmin':-0.5,
+                'vmax':len(rsp['dominant_dropout_categorical'].unique())-0.5,
+                'cmap':sns.color_palette("hls", len(rsp['dominant_dropout_categorical'].unique())),
+
+            },
+            {
+                'columns':['session_id_categorical'],
+                'cbar_label':'session ID',
+                'cbar_ticks':[0,1], #[0,1,2,3],
+                'cbar_ticklabels':['familiar', 'novel'], #[1,3,4,6],
+                'vmin':-0.5,
+                'vmax':1.5, #3.5,
+                'cmap':sns.color_palette("Dark2", 2), # 4
+            },
+            {
+                'columns':['clusterer_labels'],
+                'cbar_label':'clusterer label',
+                'cbar_ticks':np.arange(min(rsp['clusterer_labels'].unique()),len(rsp['clusterer_labels'].unique()),2),
+                'vmin':min(rsp['clusterer_labels'].unique())-.5,
+                'vmax':len(rsp['clusterer_labels'].unique())-.5,
+                'cmap':sns.color_palette("hsv", len(rsp['clusterer_labels'].unique())),
+            },
+            {
+                'columns':['equipment_name_categorical'],
+                'cbar_label':'equipment name',
+                'cbar_ticks':np.arange(len(rsp['equipment_name_categorical'].unique())),
+                'cbar_ticklabels':np.sort(np.unique(rsp['equipment_name'])),
+                'vmin':-0.5,
+                'vmax':len(rsp['equipment_name_categorical'].unique())-0.5,
+                'cmap':sns.color_palette("hls", len(rsp['equipment_name_categorical'].unique())),
+            },
+            {
+                'columns':['targeted_structure_categorical'],
+                'cbar_label':'targeted structure',
+                'cbar_ticks':np.unique(rsp['targeted_structure_categorical']), #np.arange(len(rsp['targeted_structure_categorical'].unique())),
+                'cbar_ticklabels':np.unique(rsp['targeted_structure']), #np.sort(np.unique(rsp['targeted_structure'])),
+                'vmin':min(rsp['targeted_structure_categorical'].unique())-0.5,
+                'vmax':max(rsp['targeted_structure_categorical'].unique())+0.5,
+                'cmap':sns.color_palette("hls", len(rsp['targeted_structure'].unique())),
+            },
+            {
+                'columns':['imaging_depth'],
+                'cbar_label':'imaging_depth',
+                'cbar_ticks':[0,100,200,300,400],
+                'vmin':0,
+                'vmax':400,
+                'cmap':'magma',
+            },
+            {
+                'columns':['task_dropout_index'],
+                'cbar_label':'task_dropout_index',
+                'cmap':'inferno',
+            },    
+        ]
+
+
+    else: # individual cre lines; no need to plot a column for cre line
+
+        # finalize the list of glm features (fract change in exp var) that will go into heatmap
+        cols_to_plot = np.concatenate((
+            ['clusterer_labels',
+            'dominant_dropout_categorical'],
+            cols_fract_change,
+            ['cre_line_categorical', 
+            'targeted_structure_categorical',
+            'imaging_depth',
+            'session_id_categorical',              
+#             'task_dropout_index',
+            'equipment_name_categorical',
+            ]  
+        ))    
+
+
+        ########## make sure there's a heatmap definition for every column, otherwise the column will plot without a heatmap!
+
+        mnf = np.min(np.min(rsp[cols_to_plot[2:len(cols_fract_change)+2]]))
+        mxf = np.max(np.max(rsp[cols_to_plot[2:len(cols_fract_change)+2]]))
+
+        heatmap_defs = [
+            {
+                'columns':cols_to_plot[2:len(cols_fract_change)+2],
+                'cbar_label':'adj fraction change\nin var explained',
+                'cbar_ticks':[mnf, mxf],
+                'vmin':mnf,
+                'vmax':mxf,
+                'cmap':'viridis', #'bwr',
+            },
+            {
+                'columns':['dominant_dropout_categorical'],
+                'cbar_label':'dominant_dropout_categorical',
+                'cbar_ticks':np.arange(len(rsp['dominant_dropout_categorical'].unique())),
+                'cbar_ticklabels':ddtext, #np.sort(np.unique(rsp['dominant_dropout'])),
+                'vmin':-0.5,
+                'vmax':len(rsp['dominant_dropout_categorical'].unique())-0.5,
+                'cmap':sns.color_palette("hls", len(rsp['dominant_dropout_categorical'].unique())),
+
+            },
+            {
+                'columns':['session_id_categorical'],
+                'cbar_label':'session ID',
+                'cbar_ticks':[0,1], #[0,1,2,3],
+                'cbar_ticklabels':['familiar', 'novel'], #[1,3,4,6],
+                'vmin':-0.5,
+                'vmax':1.5, #3.5,
+                'cmap':sns.color_palette("Dark2", 2), # 4
+            },
+            {
+                'columns':['clusterer_labels'],
+                'cbar_label':'clusterer label',
+                'cbar_ticks':np.arange(min(rsp['clusterer_labels'].unique()),len(rsp['clusterer_labels'].unique()),2),
+                'vmin':min(rsp['clusterer_labels'].unique())-.5,
+                'vmax':len(rsp['clusterer_labels'].unique())-.5,
+                'cmap':sns.color_palette("hsv", len(rsp['clusterer_labels'].unique())),
+            },
+            {
+                'columns':['equipment_name_categorical'],
+                'cbar_label':'equipment name',
+                'cbar_ticks':np.arange(len(rsp['equipment_name_categorical'].unique())),
+                'cbar_ticklabels':np.sort(np.unique(rsp['equipment_name'])),
+                'vmin':-0.5,
+                'vmax':len(rsp['equipment_name_categorical'].unique())-0.5,
+                'cmap':sns.color_palette("hls", len(rsp['equipment_name_categorical'].unique())),
+            },
+            {
+                'columns':['targeted_structure_categorical'],
+                'cbar_label':'targeted structure',
+                'cbar_ticks':np.unique(rsp['targeted_structure_categorical']), #np.arange(len(rsp['targeted_structure_categorical'].unique())),
+                'cbar_ticklabels':np.unique(rsp['targeted_structure']), #np.sort(np.unique(rsp['targeted_structure'])),
+                'vmin':min(rsp['targeted_structure_categorical'].unique())-0.5,
+                'vmax':max(rsp['targeted_structure_categorical'].unique())+0.5,
+                'cmap':sns.color_palette("hls", len(rsp['targeted_structure'].unique())),
+            },
+            {
+                'columns':['imaging_depth'],
+                'cbar_label':'imaging_depth',
+                'cbar_ticks':[0,100,200,300,400],
+                'vmin':0,
+                'vmax':400,
+                'cmap':'magma',
+            },
+            {
+                'columns':['task_dropout_index'],
+                'cbar_label':'task_dropout_index',
+                'cmap':'inferno',
+            },    
+        ]
+        
+        
+        
+        
+        
 
     #############################################
     #############################################
@@ -765,6 +914,9 @@ for what_cre in what_cre_all: # what_cre = what_cre_all[0]
 
     sorted_data = gat.sort_data(rsp, sort_order, cluster_column_name='clusterer_labels')
 
+    
+    ###### plot the heatmap
+    
     fig, axes = vbp.make_multi_cmap_heatmap(
         sorted_data[cols_to_plot], 
         heatmap_defs, 
@@ -790,8 +942,8 @@ for what_cre in what_cre_all: # what_cre = what_cre_all[0]
 
 
         
-
-
+        
+    
     #############################################
     #############################################
     #%% bin a feature (lets call it the primary feature: parameters_primary), and then for each bin look at the distribution of a bunch of other features (parameters_cont and parameters_categ)

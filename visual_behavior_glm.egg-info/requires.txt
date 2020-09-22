@@ -1,3 +1,4 @@
+allensdk
 h5py
 matplotlib
 plotly
@@ -7,4 +8,3 @@ numpy
 pymongo
 xarray==0.15.1
 xarray_mongodb
-allensdk

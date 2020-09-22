@@ -3,6 +3,7 @@ import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
 import matplotlib as mpl
 import seaborn as sns
+import scipy
 import numpy as np
 import pandas as pd
 import os
@@ -12,6 +13,38 @@ from matplotlib import animation, rc
 import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
+
+def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save_fig=False,filename=None):
+    sessions = np.array([1,2,3,4,5,6])
+    cre = ["Sst-IRES-Cre", "Vip-IRES-Cre","Slc17a7-IRES2-Cre"]
+    colors=['C0','C1','C2']
+    plt.figure(figsize=(6,4))
+    
+    # Iterate over cre lines 
+    for i,c in enumerate(cre):
+        cells = results_pivoted.query('cre_line == @c')       
+        num_cells = len(cells)
+        cell_count = np.array([np.sum(cells.query('session_number == @x')[dropout] < dropout_threshold) for x in sessions])
+        cell_p = cell_count/num_cells
+        cell_err = 1.98*np.sqrt((cell_p*(1-cell_p))/cell_count)
+        plt.errorbar(sessions-0.05, cell_p, yerr=cell_err, color=colors[i],label=c)
+
+    plt.legend()
+    plt.ylim(bottom=0)
+    plt.xlabel('Session #')
+    plt.ylabel('Fraction Cells Significant')
+    plt.title(dropout + ', threshold: '+str(dropout_threshold))
+    plt.tight_layout()
+    if save_fig:
+        plt.savefig(filename+dropout+".png")
+
+def plot_all_significant_cells(results_pivoted,run_params):
+    dropouts = set(run_params['dropouts'].keys())
+    dropouts.remove('Full')
+    filename = run_params['output_dir']+'/'+'significant_cells/'
+    for d in dropouts:
+        plot_significant_cells(results_pivoted, d, save_fig=True, filename=filename)
+        plt.close(plt.gcf().number)
 
 def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     '''
@@ -151,7 +184,7 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
-def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outlier_threshold=1.5):
+def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outlier_threshold=1.5):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:
@@ -167,52 +200,54 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(12,5), outli
         results_dict = gat.retrieve_results()
         results = results_dict['full']
     if fig is None and ax is None:
-        fig, ax = plt.subplots(1, 2, figsize=figsize, sharey=True)
+        fig, ax = plt.subplots(2, 2, figsize=figsize, sharey=True, sharex='col')
 
     cre_line_order = np.sort(results['cre_line'].unique())
     glm_version_order = np.sort(results['glm_version'].unique())
 
-    plot1 = sns.boxplot(
-        data=results,
-        x='glm_version',
-        y='Full_avg_cv_var_test',
-        order = glm_version_order,
-        hue='cre_line',
-        hue_order=cre_line_order,
-        fliersize=0,
-        whis=outlier_threshold,
-        ax=ax[0],
-    )
+    for row,dataset in enumerate(['train','test']):
+        plot1 = sns.boxplot(
+            data=results,
+            x='glm_version',
+            y='Full_avg_cv_var_{}'.format(dataset),
+            order = glm_version_order,
+            hue='cre_line',
+            hue_order=cre_line_order,
+            fliersize=0,
+            whis=outlier_threshold,
+            ax=ax[row,0],
+        )
 
-    plot2 = sns.boxplot(
-        data=results,
-        x='cre_line',
-        y='Full_avg_cv_var_test',
-        order = cre_line_order,
-        hue='glm_version',
-        hue_order=glm_version_order,
-        fliersize=0,
-        whis=outlier_threshold,
-        ax=ax[1],
-        palette='brg',
-    )
-    ax[0].set_ylabel('variance explained')
-    ax[0].set_xlabel('GLM version')
+        plot2 = sns.boxplot(
+            data=results,
+            x='cre_line',
+            y='Full_avg_cv_var_{}'.format(dataset),
+            order = cre_line_order,
+            hue='glm_version',
+            hue_order=glm_version_order,
+            fliersize=0,
+            whis=outlier_threshold,
+            ax=ax[row,1],
+            palette='brg',
+        )
+        ax[row, 0].set_ylabel('variance explained')
+        ax[row, 0].set_xlabel('GLM version')
+        ax[row, 0].set_title('{} data full model performance\ngrouped by version'.format(dataset))
+        ax[row, 1].set_title('{} data full model performance\ngrouped by cre line'.format(dataset))
+
+        # calculate interquartile ranges
+        grp = results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_{}'.format(dataset)]
+        IQR = grp.quantile(0.75) - grp.quantile(0.25)
 
 
-    # calculate interquartile ranges
-    grp = results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_test']
-    IQR = grp.quantile(0.75) - grp.quantile(0.25)
+        lower_bounds = grp.quantile(0.25) - 1.5*IQR
+        upper_bounds = grp.quantile(0.75) + 1.5*IQR
 
-
-    lower_bounds = grp.quantile(0.25) - 1.5*IQR
-    upper_bounds = grp.quantile(0.75) + 1.5*IQR
-
-    for i in range(2):
-        ax[i].legend(loc='upper left')
-        ax[i].set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
-        ax[i].axhline(0, color='black', linestyle=':')
-        ax[i].set_xticklabels(ax[i].get_xticklabels(),rotation=30, ha='right')
+        for i in range(2):
+            ax[row, i].legend(loc='upper left',bbox_to_anchor=(1.01, 1),borderaxespad=0)
+            ax[row, i].set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
+            ax[row, i].axhline(0, color='black', linestyle=':')
+            ax[row, i].set_xticklabels(ax[row, i].get_xticklabels(),rotation=30, ha='right')
 
     fig.tight_layout()
     plt.subplots_adjust(top=0.9)
@@ -830,7 +865,8 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
     # clean up axes
     plt.ylim(0,len(kernels))
     plt.xlim(0,1)
-    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],['Individual Model','Minor Component','Minor Component','Minor Component','Major Component','Full Model'],fontsize=12)
+    labels = ['Individual Model']+['Minor Component']*(num_levels-3)+['Major Component','Full Model']
+    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],labels,fontsize=12)
     plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
     plt.gca().get_yaxis().set_tick_params(pad=400)
     plt.title('Nested Models')
@@ -844,4 +880,461 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         plt.savefig(run_params['output_dir']+'/nested_models_'+str(num_levels)+'.png')
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
+
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science'):
+    '''
+        Get all the kernels across all cells. 
+        plot the matrix of all kernels, sorted by peak time
+        plot the mean+std. What time point are different from 0?
+        Plot a visualization of the dropouts that contain this kernel.
+        run_params      = glm_params.load_run_params(<version>) 
+        results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+        weights_df      = gat.build_weights_df(run_params, results_pivoted)
+        kernel                  The name of the kernel to be plotted
+        save_results            if True, saves a figure to the directory in run_params['output_dir']
+        threshold,              the minimum variance explained by the full model
+        drop_threshold,         the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
+        normalize,              if True, normalizes each cell to np.max(np.abs(x))
+        drop_threshold_single,  if True, applies drop_threshold to single-<kernel> instead of <kernel> dropout model
+        session_filter,         The list of session numbers to include
+        equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both
+        mode,                   if "diagnostic" then it plots marina's suggestions for kernel length in red. Otherwise does nothing
+        
+    '''
+
+    # Filter out Mesoscope and make time basis 
+    # Filtering out that one session because something is wrong with it, need to follow up TODO
+    version = run_params['version']
+    filter_string = ''
+    if equipment_filter == "scientifica": 
+        weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676]) ')
+        filter_string+='_scientifica'
+    elif equipment_filter == "mesoscope":
+        weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676])')   
+        filter_string+='_mesoscope'
+    else:
+        weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in [962045676])')
+
+    # Set up time vectors.
+    # Mesoscope sessions have not been interpolated onto the right time basis yet
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
+
+    if mode == 'diagnostic':
+        suggestions = pd.read_csv('/allen/programs/braintv/workgroups/nc-ophys/alex.piet/glm_figs/kernels_and_dropouts_MG_suggestions.csv',engine='python').set_index('Unnamed: 0')
+        suggestions.index.name=None
+        if isinstance(suggestions.loc[kernel]['MG suggestion'],str):
+            x = suggestions.loc[kernel]['MG suggestion']
+            start = float(x[1:-1].split(',')[0].replace(' ',''))
+            end = float(x[1:-1].split(',')[1].replace(' ',''))
+        else: 
+            start = time_vec[0]
+            end = time_vec[-1]
+ 
+    # Plotting settings
+    colors=['C0','C1','C2']
+    line_alpha = 0.25
+    width=0.25
+
+    # Determine filename
+    if not normalize:
+        filter_string+='_unnormalized'
+    if session_filter != [1,2,3,4,5,6]:
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
+    if mode == "diagnostic":
+        filter_string+='_suggestions' 
+    filename = run_params['output_dir']+'/'+kernel+'_analysis'+filter_string+'.png'
+
+    # Get all cells data and plot Average Trajectories
+    fig,ax=plt.subplots(3,3,figsize=(12,9))
+    sst_weights = weights.query('cre_line == "Sst-IRES-Cre"')[kernel+'_weights']
+    vip_weights = weights.query('cre_line == "Vip-IRES-Cre"')[kernel+'_weights']
+    slc_weights = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[kernel+'_weights']
+    if normalize:
+        sst = [x/np.max(np.abs(x)) for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0]
+        vip = [x/np.max(np.abs(x)) for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0]
+        slc = [x/np.max(np.abs(x)) for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0]
+    else:
+        sst = [x for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0]
+        vip = [x for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0]
+        slc = [x for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0]
+    
+    # Interpolate Mesoscope
+    # Doing interpolation step here because we have removed the NaN results
+    sst = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst]
+    vip = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip]
+    slc = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc]
+   
+    # Make into 2D array, but only if we have results.
+    # Else make a 2D array of NaNs 
+    if len(sst)>0:
+        sst = np.vstack(sst)
+    else:
+        sst = np.empty((2,len(time_vec)))
+        sst[:] = np.nan
+    if len(vip)>0:
+        vip = np.vstack(vip)
+    else:
+        vip = np.empty((2,len(time_vec)))
+        vip[:] = np.nan
+    if len(slc)>0:
+        slc = np.vstack(slc)
+    else:
+        slc = np.empty((2,len(time_vec)))
+        slc[:] = np.nan
+
+    # Plot
+    ax[0,0].fill_between(time_vec, sst.mean(axis=0)-sst.std(axis=0), sst.mean(axis=0)+sst.std(axis=0),facecolor=colors[0], alpha=0.1)   
+    ax[0,0].fill_between(time_vec, vip.mean(axis=0)-vip.std(axis=0), vip.mean(axis=0)+vip.std(axis=0),facecolor=colors[1], alpha=0.1)    
+    ax[0,0].fill_between(time_vec, slc.mean(axis=0)-slc.std(axis=0), slc.mean(axis=0)+slc.std(axis=0),facecolor=colors[2], alpha=0.1)    
+    ax[0,0].plot(time_vec, sst.mean(axis=0),label='SST',color=colors[0])
+    ax[0,0].plot(time_vec, vip.mean(axis=0),label='VIP',color=colors[1])
+    ax[0,0].plot(time_vec, slc.mean(axis=0),label='SLC',color=colors[2])
+    ax[0,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
+    ax[0,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+    if mode == 'diagnostic':
+        ax[0,0].axvline(start, color='r',linestyle='-')
+        ax[0,0].axvline(end, color='r',linestyle='-')
+    if normalize:
+        ax[0,0].set_ylabel('Weights (Normalized df/f)')
+    else:
+        ax[0,0].set_ylabel('Weights (df/f)')
+    ax[0,0].set_xlabel('Time (s)')
+    ax[0,0].legend()
+    ax[0,0].set_title('Average kernel')
+    if mode == 'diagnostic':
+        ax[0,0].set_xlim(np.min([start-.1,time_vec[0]]),np.max([end+.1,time_vec[-1]]))
+    else:
+        ax[0,0].set_xlim(time_vec[0],time_vec[-1])   
+    add_stimulus_bars(ax[0,0],kernel)
+    sst = sst.T
+    vip = vip.T
+    slc = slc.T
+
+    # Get Full model filtered data, and plot average kernels
+    sst_weights_filtered = weights.query('cre_line == "Sst-IRES-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
+    vip_weights_filtered = weights.query('cre_line == "Vip-IRES-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
+    slc_weights_filtered = weights.query('cre_line == "Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[kernel+'_weights']
+    if normalize: 
+        sst_f = [x/np.max(np.abs(x)) for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+        vip_f = [x/np.max(np.abs(x)) for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+        slc_f = [x/np.max(np.abs(x)) for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+    else:
+        sst_f = [x for x in sst_weights_filtered[~sst_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+        vip_f = [x for x in vip_weights_filtered[~vip_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+        slc_f = [x for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
+
+    # Interpolate Mesoscope
+    sst_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst_f]
+    vip_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip_f]
+    slc_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc_f] 
+
+    if len(sst_f)>0:
+        sst_f = np.vstack(sst_f)
+    else:
+        sst_f = np.empty((2,len(time_vec)))
+        sst_f[:] = np.nan
+    if len(vip_f)>0:
+        vip_f = np.vstack(vip_f)
+    else:
+        vip_f = np.empty((2,len(time_vec)))
+        vip_f[:] = np.nan
+    if len(slc_f)>0:
+        slc_f = np.vstack(slc_f)
+    else:
+        slc_f = np.empty((2,len(time_vec)))
+        slc_f[:] = np.nan
+    ax[1,0].fill_between(time_vec, sst_f.mean(axis=0)-sst_f.std(axis=0), sst_f.mean(axis=0)+sst_f.std(axis=0),facecolor=colors[0], alpha=0.1)   
+    ax[1,0].fill_between(time_vec, vip_f.mean(axis=0)-vip_f.std(axis=0), vip_f.mean(axis=0)+vip_f.std(axis=0),facecolor=colors[1], alpha=0.1)    
+    ax[1,0].fill_between(time_vec, slc_f.mean(axis=0)-slc_f.std(axis=0), slc_f.mean(axis=0)+slc_f.std(axis=0),facecolor=colors[2], alpha=0.1)    
+    ax[1,0].plot(time_vec, sst_f.mean(axis=0),label='SST',color=colors[0])
+    ax[1,0].plot(time_vec, vip_f.mean(axis=0),label='VIP',color=colors[1])
+    ax[1,0].plot(time_vec, slc_f.mean(axis=0),label='SLC',color=colors[2])
+    ax[1,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
+    ax[1,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+    if mode == 'diagnostic':
+        ax[1,0].axvline(start, color='r',linestyle='-')
+        ax[1,0].axvline(end, color='r',linestyle='-')
+    if normalize:
+        ax[1,0].set_ylabel('Weights (Normalized df/f)')
+    else:
+        ax[1,0].set_ylabel('Weights (df/f)')
+    ax[1,0].set_xlabel('Time (s)')
+    ax[1,0].legend()
+    ax[1,0].set_title('Filtered on Full Model')
+    if mode == 'diagnostic':
+        ax[1,0].set_xlim(np.min([start-.1,time_vec[0]]),np.max([end+.1,time_vec[-1]]))
+    else:
+        ax[1,0].set_xlim(time_vec[0],time_vec[-1])   
+    add_stimulus_bars(ax[1,0],kernel)
+    sst_f = sst_f.T
+    vip_f = vip_f.T
+    slc_f = slc_f.T
+
+    # Get Dropout filtered data, and plot average kernels
+    if drop_threshold_single:
+        sst_weights_dfiltered = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold)')
+        vip_weights_dfiltered = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold)')
+        slc_weights_dfiltered = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold)')
+        sst_weights_dfiltered = sst_weights_dfiltered[sst_weights_dfiltered['single-'+kernel] < drop_threshold][kernel+'_weights']
+        vip_weights_dfiltered = vip_weights_dfiltered[vip_weights_dfiltered['single-'+kernel] < drop_threshold][kernel+'_weights']
+        slc_weights_dfiltered = slc_weights_dfiltered[slc_weights_dfiltered['single-'+kernel] < drop_threshold][kernel+'_weights']
+    else:
+        sst_weights_dfiltered = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
+        vip_weights_dfiltered = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
+        slc_weights_dfiltered = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
+
+    if normalize:
+        sst_df = [x/np.max(np.abs(x)) for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values]
+
+        vip_df = [x/np.max(np.abs(x)) for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values]
+        slc_df = [x/np.max(np.abs(x)) for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values]
+    else:
+        sst_df = [x for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values]
+        vip_df = [x for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values]
+        slc_df = [x for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values] 
+
+    # Interpolate Mesoscope
+    sst_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst_df]
+    vip_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip_df]
+    slc_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc_df] 
+ 
+    if len(sst_df)>0:
+        sst_df = np.vstack(sst_df)
+    else:
+        sst_df = np.empty((2,len(time_vec)))
+        sst_df[:] = np.nan
+    if len(vip_df)>0:
+        vip_df = np.vstack(vip_df)
+    else:
+        vip_df = np.empty((2,len(time_vec)))
+        vip_df[:] = np.nan
+    if len(slc_df)>0:
+        slc_df = np.vstack(slc_df)
+    else:
+        slc_df = np.empty((2,len(time_vec)))
+        slc_df[:] = np.nan
+
+    ax[2,0].fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors[0], alpha=0.1)   
+    ax[2,0].fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors[1], alpha=0.1)    
+    ax[2,0].fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors[2], alpha=0.1)    
+    ax[2,0].plot(time_vec, sst_df.mean(axis=0),label='SST',color=colors[0])
+    ax[2,0].plot(time_vec, vip_df.mean(axis=0),label='VIP',color=colors[1])
+    ax[2,0].plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors[2])
+    ax[2,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
+    ax[2,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+    if mode == 'diagnostic':
+        ax[2,0].axvline(start, color='r',linestyle='-')
+        ax[2,0].axvline(end, color='r',linestyle='-')
+    if normalize:
+        ax[2,0].set_ylabel('Weights (Normalized df/f)')   
+    else:
+        ax[2,0].set_ylabel('Weights (df/f)')
+    ax[2,0].set_xlabel('Time (s)')
+    ax[2,0].legend()
+    ax[2,0].set_title('Filtered on Dropout')
+    if mode == 'diagnostic':
+        ax[2,0].set_xlim(np.min([start-.1,time_vec[0]]),np.max([end+.1,time_vec[-1]]))
+    else:
+        ax[2,0].set_xlim(time_vec[0],time_vec[-1])   
+    add_stimulus_bars(ax[2,0],kernel)
+    sst_df = sst_df.T
+    vip_df = vip_df.T
+    slc_df = slc_df.T
+
+    # Plot Heat maps
+    sst_sorted = sst[:,np.argsort(np.argmax(sst,axis=0))]
+    vip_sorted = vip[:,np.argsort(np.argmax(vip,axis=0))]
+    slc_sorted = slc[:,np.argsort(np.argmax(slc,axis=0))]
+    weights_sorted = np.hstack([slc_sorted,sst_sorted, vip_sorted])
+    cbar = ax[0,1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='bwr')
+    cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95))
+    fig.colorbar(cbar, ax=ax[0,1])
+    ax[0,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted)[1]))
+    ax[0,1].set_xlabel('Time (s)')
+    ax[0,1].axhline(np.shape(vip)[1],color='k',linewidth='1')
+    ax[0,1].axhline(np.shape(vip)[1] + np.shape(sst)[1],color='k',linewidth='1')
+    ax[0,1].set_yticks([np.shape(vip)[1]/2,np.shape(vip)[1]+np.shape(sst)[1]/2, np.shape(vip)[1]+np.shape(sst)[1]+np.shape(slc)[1]/2])
+    ax[0,1].set_yticklabels(['Vip','Sst','Slc'])
+    ax[0,1].set_title(kernel)
+
+    # Plot Heatmap of filtered cells
+    sst_sorted_f = sst_f[:,np.argsort(np.argmax(sst_f,axis=0))]
+    vip_sorted_f = vip_f[:,np.argsort(np.argmax(vip_f,axis=0))]
+    slc_sorted_f = slc_f[:,np.argsort(np.argmax(slc_f,axis=0))]
+    weights_sorted_f = np.hstack([slc_sorted_f,sst_sorted_f, vip_sorted_f])
+    cbar = ax[1,1].imshow(weights_sorted_f.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_f)[1]],cmap='bwr')
+    cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_f),95),np.nanpercentile(np.abs(weights_sorted_f),95))
+    fig.colorbar(cbar, ax=ax[1,1])
+    ax[1,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted_f)[1]))
+    ax[1,1].set_xlabel('Time (s)')
+    ax[1,1].axhline(np.shape(vip_f)[1],color='k',linewidth='1')
+    ax[1,1].axhline(np.shape(vip_f)[1] + np.shape(sst_f)[1],color='k',linewidth='1')
+    ax[1,1].set_yticks([np.shape(vip_f)[1]/2,np.shape(vip_f)[1]+np.shape(sst_f)[1]/2, np.shape(vip_f)[1]+np.shape(sst_f)[1]+np.shape(slc_f)[1]/2])
+    ax[1,1].set_yticklabels(['Vip','Sst','Slc'])
+    ax[1,1].set_title('Filtered on Full Model')
+
+    # Plot Heatmap of filtered cells
+    sst_sorted_df = sst_df[:,np.argsort(np.argmax(sst_df,axis=0))]
+    vip_sorted_df = vip_df[:,np.argsort(np.argmax(vip_df,axis=0))]
+    slc_sorted_df = slc_df[:,np.argsort(np.argmax(slc_df,axis=0))]
+    weights_sorted_df = np.hstack([slc_sorted_df,sst_sorted_df, vip_sorted_df])
+    cbar = ax[2,1].imshow(weights_sorted_df.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_df)[1]],cmap='bwr')
+    cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_df),95),np.nanpercentile(np.abs(weights_sorted_df),95))
+    fig.colorbar(cbar, ax=ax[2,1])
+    ax[2,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted_df)[1]))
+    ax[2,1].set_xlabel('Time (s)')
+    ax[2,1].axhline(np.shape(vip_df)[1],color='k',linewidth='1')
+    ax[2,1].axhline(np.shape(vip_df)[1] + np.shape(sst_df)[1],color='k',linewidth='1')
+    ax[2,1].set_yticks([np.shape(vip_df)[1]/2,np.shape(vip_df)[1]+np.shape(sst_df)[1]/2, np.shape(vip_df)[1]+np.shape(sst_df)[1]+np.shape(slc_df)[1]/2])
+    ax[2,1].set_yticklabels(['Vip','Sst','Slc'])
+    ax[2,1].set_title('Filtered on Dropout')
+
+    ## Right Column, Dropout Scores 
+    # Make list of dropouts that contain this kernel
+    drop_list = [d for d in run_params['dropouts'].keys() if (
+                    (run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['kernels'])) 
+                    or ((not run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['dropped_kernels']))]
+    medianprops = dict(color='k')
+    
+    # All Cells
+    # For each dropout, plot the score distribution by cre line 
+    for index, dropout in enumerate(drop_list):
+        drop_sst = weights.query('cre_line=="Sst-IRES-Cre"')[dropout]
+        drop_vip = weights.query('cre_line=="Vip-IRES-Cre"')[dropout]
+        drop_slc = weights.query('cre_line=="Slc17a7-IRES2-Cre"')[dropout]
+        drop_sst = drop_sst[~drop_sst.isnull()].values
+        drop_vip = drop_vip[~drop_vip.isnull()].values
+        drop_slc = drop_slc[~drop_slc.isnull()].values
+        drops = ax[0,2].boxplot([drop_sst,drop_vip,drop_slc],
+                                positions=[index-width,index,index+width],
+                                labels=['SST','VIP','SLC'],
+                                showfliers=False,
+                                patch_artist=True,
+                                medianprops=medianprops,
+                                widths=.2)
+        for patch, color in zip(drops['boxes'],colors):
+            patch.set_facecolor(color)
+
+    # Clean up plot
+    num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
+    ax[0,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
+    ax[0,2].set_xticks(np.arange(0,len(drop_list)))
+    ax[0,2].set_xticklabels(drop_list,rotation=60)
+    ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
+    ax[0,2].set_ylim(-1.05,.05)
+    ax[0,2].set_title('Dropout Scores')
+
+    # Filtered by Full model
+    # For each dropout, plot score
+    for index, dropout in enumerate(drop_list):
+        drop_sst = weights.query('cre_line=="Sst-IRES-Cre" & variance_explained_full > @threshold')[dropout]
+        drop_vip = weights.query('cre_line=="Vip-IRES-Cre" & variance_explained_full > @threshold')[dropout]
+        drop_slc = weights.query('cre_line=="Slc17a7-IRES2-Cre" & variance_explained_full > @threshold')[dropout]
+        drop_sst = drop_sst[~drop_sst.isnull()].values
+        drop_vip = drop_vip[~drop_vip.isnull()].values
+        drop_slc = drop_slc[~drop_slc.isnull()].values
+        drops = ax[1,2].boxplot([drop_sst,drop_vip,drop_slc],
+                                positions=[index-width,index,index+width],
+                                labels=['SST','VIP','SLC'],
+                                showfliers=False,
+                                patch_artist=True,
+                                medianprops=medianprops,
+                                widths=.2)
+        for patch, color in zip(drops['boxes'],colors):
+            patch.set_facecolor(color)
+
+    # Clean up plot
+    num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
+    ax[1,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
+    ax[1,2].set_xticks(np.arange(0,len(drop_list)))
+    ax[1,2].set_xticklabels(drop_list,rotation=60)
+    ax[1,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
+    ax[1,2].set_ylim(-1.05,.05)
+    ax[1,2].set_title('Filter on Full Model')
+
+    # Filtered by Dropout Score
+    # For each dropout, plot score
+    for index, dropout in enumerate(drop_list):
+        if drop_threshold_single:
+            drop_sst = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold)')
+            drop_vip = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold)')
+            drop_slc = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold)')
+            drop_sst = drop_sst[drop_sst['single-'+kernel] < drop_threshold][dropout].values
+            drop_vip = drop_vip[drop_vip['single-'+kernel] < drop_threshold][dropout].values
+            drop_slc = drop_slc[drop_slc['single-'+kernel] < drop_threshold][dropout].values
+        else:
+            drop_sst = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[dropout].values
+            drop_vip = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[dropout].values
+            drop_slc = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[dropout].values
+        drops = ax[2,2].boxplot([drop_sst,drop_vip,drop_slc],
+                                positions=[index-width,index,index+width],
+                                labels=['SST','VIP','SLC'],
+                                showfliers=False,
+                                patch_artist=True,
+                                medianprops=medianprops,
+                                widths=.2)
+        for patch, color in zip(drops['boxes'],colors):
+            patch.set_facecolor(color)
+
+    # Clean Up Plot
+    num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
+    ax[2,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
+    ax[2,2].set_xticks(np.arange(0,len(drop_list)))
+    ax[2,2].set_xticklabels(drop_list,rotation=60)
+    ax[2,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
+    ax[2,2].set_ylim(-1.05,.05)
+    ax[2,2].set_title('Filter on Dropout Score')
+    ax[2,2].axhline(drop_threshold, color='r',linestyle='--', alpha=line_alpha)
+
+    
+    ## Final Clean up and Save
+    plt.tight_layout()
+    if save_results:
+        print('Figure Saved to: '+filename)
+        plt.savefig(filename)
+
+def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science'):
+    '''
+        Makes the analysis plots for all kernels in this model version
+    '''
+    kernels = set(run_params['kernels'].keys())
+    kernels.remove('intercept')
+    kernels.remove('time')
+    crashed = set()
+    for k in kernels:
+        try:
+            kernel_evaluation(weights_df, run_params, k, save_results=True,
+                threshold=threshold, drop_threshold=drop_threshold,
+                normalize=normalize,drop_threshold_single=drop_threshold_single,
+                session_filter=session_filter, equipment_filter=equipment_filter,mode=mode)
+            plt.close(plt.gcf().number)
+        except:
+            crashed.add(k)
+            plt.close(plt.gcf().number)
+
+    for k in crashed:
+        print('Crashed - '+k) 
+
+def add_stimulus_bars(ax, kernel):
+    '''
+        Adds stimulus bars to the given axis, but only for certain kernels 
+    '''
+    if kernel in ['change','hits','misses','false_alarms','omissions','image_expectation','image0','image1','image2','image3','image4','image5','image6','image7']:
+        lims = ax.get_xlim()
+        times = set(np.concatenate([np.arange(0,lims[1],0.75),np.arange(-0.75,lims[0]-0.001,-0.75)]))
+        if kernel == 'omissions':
+            times.remove(0.0)
+        if kernel in ['change','hits','misses','false_alarms']:
+            for flash_start in times:
+                if flash_start < 0:
+                    ax.axvspan(flash_start,flash_start+0.25,color='green',alpha=0.25,zorder=-np.inf)                   
+                else:
+                    ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)                   
+        else:
+            for flash_start in times:
+                ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)
+         
+
 

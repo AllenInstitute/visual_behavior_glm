@@ -241,14 +241,15 @@ def log_results_to_mongo(glm):
     # TODO, arent the full_results and results_summary already in the glm object by this point? is it redundant to compute them again?
     full_results = glm.results.reset_index()
     results_summary = glm.dropout_summary
-    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
-    oeid = glm.oeid
-    for key,value in experiment_table.query('ophys_experiment_id == @oeid').iloc[0].items():
-        full_results[key] = value
-        results_summary[key] = value
 
     full_results['glm_version'] = str(glm.version)
     results_summary['glm_version'] = str(glm.version)
+
+    results_summary['ophys_experiment_id'] = glm.ophys_experiment_id
+    results_summary['ophys_session_id'] = glm.ophys_session_id
+
+    full_results['ophys_experiment_id'] = glm.ophys_experiment_id
+    full_results['ophys_session_id'] = glm.ophys_session_id
 
     conn = db.Database('visual_behavior_data')
 
@@ -382,7 +383,18 @@ def retrieve_results(search_dict={}, results_type='full'):
     # make 'glm_version' column a string
     results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
-    return results
+
+    # get experiment table, merge in details of each experiment
+    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    results = results.merge(
+        experiment_table, 
+        left_on='ophys_experiment_id',
+        right_on='ophys_experiment_id', 
+        how='left',
+        suffixes=['', '_duplicated'],
+    )
+    duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
+    return results.drop(columns=duplicated_cols)
     
 
 def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None):
@@ -405,7 +417,7 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         
     # get results summary if none was passed
     if results_summary is None:
-        results_summary = gat.retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary')
+        results_summary = retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary')
         
     results_summary['identifier'] = results_summary['ophys_experiment_id'].astype(str) + '_' +  results_summary['cell_specimen_id'].astype(str)
     
@@ -499,6 +511,70 @@ def run_pca(dropout_matrix, n_components=40, deal_with_nans='fill_with_zero'):
     pca.component_names = dropout_matrix.columns
     return pca
     
+
+def process_session_to_df(oeid, run_params):
+    '''
+        For the ophys_experiment_id, loads the weight matrix, and builds a dataframe
+        organized by cell_id and kernel 
+    '''
+    # Get weights
+    W = get_weights_matrix_from_mongo(int(oeid), run_params['version'])
+    
+    # Make Dataframe with cell and experiment info
+    session_df  = pd.DataFrame()
+    session_df['cell_specimen_id'] = W.cell_specimen_id.values
+    session_df['ophys_experiment_id'] = [int(oeid)]*len(W.cell_specimen_id.values)  
+    
+    # For each kernel, extract the weights for this kernel
+    for k in run_params['kernels']:
+        weight_names = [w for w in W.weights.values if w.startswith(k)]
+        
+        # Check if this kernel was in this model
+        if len(weight_names) > 0:
+            session_df[k] = W.loc[dict(weights=weight_names)].values.T.tolist()
+    return session_df
+
+def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False):
+    '''
+        Builds a dataframe of (cell_specimen_id, ophys_experiment_id) with the weight parameters for each kernel
+        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream   
+ 
+        INPUTS:
+        run_params, parameter json for the version to analyze
+        results_pivoted = build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+        cache_results, if True, save dataframe as csv file
+        load_cache, if True, load cached results, if it exists
+    
+        RETURNS:
+        a dataframe
+    '''
+    
+    #if load_cache & os.path.exists(run_params['output_dir']+'/weights_df.csv'):
+    #    # Need to convert things to np.array
+    #    return pd.read_csv(run_params['output_dir']+'/weights_df.csv')
+   
+    # Make dataframe for cells and experiments 
+    oeids = results_pivoted['ophys_experiment_id'].unique() 
+
+    # For each experiment, get the weight matrix from mongo (slow)
+    # Then pull the weights from each kernel into a dataframe
+    sessions = []
+    for index, oeid in enumerate(tqdm(oeids)):
+        session_df = process_session_to_df(oeid, run_params)
+        sessions.append(session_df)
+
+    # Merge all the session_dfs, and add more session level info
+    weights_df = pd.concat(sessions,sort=False)
+    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
+    
+    ## Cache Results
+    #if cache_results:
+    #    weights_df.to_csv(run_params['output_dir']+'/weights_df.csv') 
+
+    # Return weights_df
+    return weights_df 
+
+
      
     
 # NOTE:

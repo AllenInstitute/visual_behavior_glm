@@ -13,6 +13,38 @@ import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
 
+def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save_fig=False,filename=None):
+    sessions = np.array([1,2,3,4,5,6])
+    cre = ["Sst-IRES-Cre", "Vip-IRES-Cre","Slc17a7-IRES2-Cre"]
+    colors=['C0','C1','C2']
+    plt.figure(figsize=(6,4))
+    
+    # Iterate over cre lines 
+    for i,c in enumerate(cre):
+        cells = results_pivoted.query('cre_line == @c')       
+        num_cells = len(cells)
+        cell_count = np.array([np.sum(cells.query('session_number == @x')[dropout] < dropout_threshold) for x in sessions])
+        cell_p = cell_count/num_cells
+        cell_err = 1.98*np.sqrt((cell_p*(1-cell_p))/cell_count)
+        plt.errorbar(sessions-0.05, cell_p, yerr=cell_err, color=colors[i],label=c)
+
+    plt.legend()
+    plt.ylim(bottom=0)
+    plt.xlabel('Session #')
+    plt.ylabel('Fraction Cells Significant')
+    plt.title(dropout + ', threshold: '+str(dropout_threshold))
+    plt.tight_layout()
+    if save_fig:
+        plt.savefig(filename+dropout+".png")
+
+def plot_all_significant_cells(results_pivoted,run_params):
+    dropouts = set(run_params['dropouts'].keys())
+    dropouts.remove('Full')
+    filename = run_params['output_dir']+'/'+'significant_cells/'
+    for d in dropouts:
+        plot_significant_cells(results_pivoted, d, save_fig=True, filename=filename)
+        plt.close(plt.gcf().number)
+
 def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     '''
         Plots the correlation of the design matrix for this glm object

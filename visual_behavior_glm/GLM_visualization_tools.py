@@ -14,6 +14,38 @@ import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
 
+def plot_kernel_support(glm):
+    '''
+        plots a side-scroller of the kernel supports
+    '''  
+    discrete = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='discrete']
+    continuous = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
+
+    plt.figure(figsize=(12,6))
+    start = 10000
+    end = 11000 
+    time_vec = glm.fit['dff_trace_timestamps'][start:end]
+    start_t = time_vec[0]
+    end_t = time_vec[-1]
+    ones = np.ones(np.shape(time_vec))
+    colors = sns.color_palette('hls', len(discrete)+len(continuous)) 
+    for index, d in enumerate(discrete):
+        X = glm.design.get_X(kernels = [d])
+        support = np.any(X.values[start:end],axis=1)
+        plt.plot(time_vec[support],index*ones[support], 's',color=colors[index])
+    plt.axhline(len(discrete), linestyle='-', color='k',alpha=0.25)
+    for index, d in enumerate(continuous):
+        plt.plot(time_vec,len(discrete)+1+index*ones, 's',color=colors[index+len(discrete)])
+  
+    all_k = discrete+[' ']+continuous 
+    reward_dex = np.where(np.array(all_k) == 'rewards')[0][0]
+    rewards =glm.session.dataset.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
+    plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'ro')
+    plt.xlabel('Time (s)')
+    plt.yticks(np.arange(0,len(discrete)+len(continuous)+1),all_k)
+    plt.tight_layout()
+    return discrete, continuous
+
 def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save_fig=False,filename=None):
     sessions = np.array([1,2,3,4,5,6])
     cre = ["Sst-IRES-Cre", "Vip-IRES-Cre","Slc17a7-IRES2-Cre"]

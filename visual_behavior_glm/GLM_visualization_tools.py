@@ -14,13 +14,15 @@ import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
 
-def plot_kernel_support(glm):
+def plot_kernel_support(glm,include_cont = False,plot_bands=True):
     '''
         plots a side-scroller of the kernel supports
     '''  
+    # Grab the kernels
     discrete = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='discrete']
     continuous = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
 
+    # Basic figure set up
     plt.figure(figsize=(12,6))
     start = 10000
     end = 11000 
@@ -29,20 +31,55 @@ def plot_kernel_support(glm):
     end_t = time_vec[-1]
     ones = np.ones(np.shape(time_vec))
     colors = sns.color_palette('hls', len(discrete)+len(continuous)) 
+
+    # Plot the kernels
     for index, d in enumerate(discrete):
         X = glm.design.get_X(kernels = [d])
-        support = np.any(X.values[start:end],axis=1)
-        plt.plot(time_vec[support],index*ones[support], 's',color=colors[index])
+        if plot_bands:
+            for dex in range(0,np.shape(X)[1]): 
+                support = X.values[start:end,dex] != 0 
+                plt.plot(time_vec[support],(index+.6*(1-dex/np.shape(X)[1]))*ones[support], 'o',color=colors[index])
+        else:
+            support = np.any(X.values[start:end,:],axis=1)
+            plt.plot(time_vec[support],index*ones[support], 'o',color=colors[index])
     plt.axhline(len(discrete), linestyle='-', color='k',alpha=0.25)
     for index, d in enumerate(continuous):
-        plt.plot(time_vec,len(discrete)+1+index*ones, 's',color=colors[index+len(discrete)])
-  
+        plt.plot(time_vec,len(discrete)+1+index*ones, 'o',color=colors[index+len(discrete)])
     all_k = discrete+[' ']+continuous 
+
+    # Plot Rewards
     reward_dex = np.where(np.array(all_k) == 'rewards')[0][0]
     rewards =glm.session.dataset.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
     plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'ro')
+    
+    # Stimulus Presentations
+    stim = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & not omitted')
+    for index, time in enumerate(stim['start_time'].values):
+        plt.axvspan(time, time+0.25, color='k',alpha=.1)
+    change = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & change')
+    for index, time in enumerate(change['start_time'].values):
+        plt.axvspan(time, time+0.25, color='b',alpha=.2)
+
+    # Licks
+    pre_dex = np.where(np.array(all_k) == 'pre_lick_bouts')[0][0]
+    post_dex = np.where(np.array(all_k) == 'post_lick_bouts')[0][0]
+    bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
+    plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
+    plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
+
+    pre_dex = np.where(np.array(all_k) == 'pre_licks')[0][0]
+    post_dex = np.where(np.array(all_k) == 'post_licks')[0][0]
+    licks = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
+    plt.plot(licks, pre_dex*np.ones(np.shape(licks)),'k|')
+    plt.plot(licks, post_dex*np.ones(np.shape(licks)),'k|')
+
+    # Trials
+
     plt.xlabel('Time (s)')
     plt.yticks(np.arange(0,len(discrete)+len(continuous)+1),all_k)
+    plt.xlim(stim.iloc[0].start_time, stim.iloc[-1].start_time+.75)
+    if not include_cont:
+        plt.ylim(top = len(discrete))
     plt.tight_layout()
     return discrete, continuous
 

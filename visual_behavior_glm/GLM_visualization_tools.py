@@ -14,16 +14,27 @@ import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
 
-def plot_kernel_support(glm,include_cont = False,plot_bands=True):
+def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True):
     '''
         plots a side-scroller of the kernel supports
     '''  
+    #TODO
+    # Make bands all have the same slope
+    # fix yticks that will get fucked up
+    # fix reward/lick times that will get fucked up
+    # Image-expection/omission confound. Document, suggest fix
+    # Image alignment issue. 
     # Grab the kernels
+    # Document rewards/change/hit confound. Suggest fix
+    # Post-lick bouts are aligned to start of lick bout. Should we align to end of lick bout? We know from behavior that timing is better described by duration from end of lick bout
     discrete = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='discrete']
     continuous = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
 
     # Basic figure set up
-    plt.figure(figsize=(12,6))
+    if plot_bands:
+        plt.figure(figsize=(12,10))
+    else:
+        plt.figure(figsize=(12,6))
     start = 10000
     end = 11000 
     time_vec = glm.fit['dff_trace_timestamps'][start:end]
@@ -33,55 +44,97 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True):
     colors = sns.color_palette('hls', len(discrete)+len(continuous)) 
 
     # Plot the kernels
+    dk = 5
+    dt = .4
+    ms = 2
+    if not plot_bands:
+        dt = 0
+        dk = 1
+        ms = 10
+    count = 0
+    starts = []
+    ends = []
+    stim_points = {}
     for index, d in enumerate(discrete):
+        starts.append(count)
         X = glm.design.get_X(kernels = [d])
-        if plot_bands:
-            for dex in range(0,np.shape(X)[1]): 
-                support = X.values[start:end,dex] != 0 
-                plt.plot(time_vec[support],(index+.6*(1-dex/np.shape(X)[1]))*ones[support], 'o',color=colors[index])
-        else:
-            support = np.any(X.values[start:end,:],axis=1)
-            plt.plot(time_vec[support],index*ones[support], 'o',color=colors[index])
-    plt.axhline(len(discrete), linestyle='-', color='k',alpha=0.25)
-    for index, d in enumerate(continuous):
-        plt.plot(time_vec,len(discrete)+1+index*ones, 'o',color=colors[index+len(discrete)])
-    all_k = discrete+[' ']+continuous 
+        for dex in range(0,np.shape(X)[1]): 
+            support = X.values[start:end,dex] != 0 
+            plt.plot(time_vec[support],count*ones[support], 'o',color=colors[index],markersize=ms)
+            count +=dt
+        ends.append(count)
+        count+=dk
+        stim_points[d] = (starts[-1],ends[-1])
+    ticks = [np.mean([x,y]) for (x,y) in zip(starts,ends)]
+    all_k = discrete
 
     # Plot Rewards
-    reward_dex = np.where(np.array(all_k) == 'rewards')[0][0]
-    rewards =glm.session.dataset.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
-    plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'ro')
+    reward_dex = stim_points['rewards'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['rewards']['offset'])*31)
+    if plot_bands:
+        reward_dex += -.4
+    if plot_ticks:
+        rewards =glm.session.dataset.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
+        plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'k|')
     
     # Stimulus Presentations
     stim = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & not omitted')
     for index, time in enumerate(stim['start_time'].values):
         plt.axvspan(time, time+0.25, color='k',alpha=.1)
+    if plot_ticks:
+        for index in range(0,8):
+            image = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & image_index == @index')['start_time']
+            image_dex = stim_points['image'+str(index)][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['image'+str(index)]['offset'])*31)
+            plt.plot(image, image_dex*np.ones(np.shape(image)),'k|')
+
+    # Stimulus Changes
     change = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & change')
+    if plot_ticks:
+        change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*31)
+        plt.plot(change['start_time'], change_dex*np.ones(np.shape(change['start_time'])),'k|')
     for index, time in enumerate(change['start_time'].values):
         plt.axvspan(time, time+0.25, color='b',alpha=.2)
 
-    # Licks
-    pre_dex = np.where(np.array(all_k) == 'pre_lick_bouts')[0][0]
-    post_dex = np.where(np.array(all_k) == 'post_lick_bouts')[0][0]
-    bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
-    plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
-    plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
+    # Stimulus Omissions
+    if plot_ticks:
+        omitted = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & omitted')['start_time']
+        omitted_dex = stim_points['omissions'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['omissions']['offset'])*31)
+        plt.plot(omitted, omitted_dex*np.ones(np.shape(omitted)),'k|')
 
-    pre_dex = np.where(np.array(all_k) == 'pre_licks')[0][0]
-    post_dex = np.where(np.array(all_k) == 'post_licks')[0][0]
-    licks = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
-    plt.plot(licks, pre_dex*np.ones(np.shape(licks)),'k|')
-    plt.plot(licks, post_dex*np.ones(np.shape(licks)),'k|')
+    # Image Expectation
+    if plot_ticks:
+        expectation = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & not omitted')['start_time']
+        expectation_dex = stim_points['image_expectation'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['image_expectation']['offset'])*31)
+        plt.plot(expectation, expectation_dex*np.ones(np.shape(expectation)),'k|')
+
+    # Licks
+    if plot_ticks:
+        pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
+        post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
+        bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
+        plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
+        plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
+
+        pre_dex = stim_points['pre_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_licks']['offset'])*31)
+        post_dex = stim_points['post_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_licks']['offset'])*31)
+        licks = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
+        plt.plot(licks, pre_dex*np.ones(np.shape(licks)),'k|')
+        plt.plot(licks, post_dex*np.ones(np.shape(licks)),'k|')
 
     # Trials
+    if plot_ticks:
+        types = ['hit','miss','false_alarm','correct_reject']
+        ks = ['hits','misses','false_alarms','correct_rejects']
+        trials = glm.session.dataset.trials.query('change_time < @end_t & change_time > @start_t')
+        for index, t in enumerate(types):
+            change_time = trials[trials[t]]['change_time'] 
+            trial_dex = stim_points[ks[index]][0] + dt*np.ceil(np.abs(glm.run_params['kernels'][ks[index]]['offset'])*31)
+            plt.plot(change_time, trial_dex*np.ones(np.shape(change_time)),'k|')
 
     plt.xlabel('Time (s)')
-    plt.yticks(np.arange(0,len(discrete)+len(continuous)+1),all_k)
+    plt.yticks(ticks,all_k)
     plt.xlim(stim.iloc[0].start_time, stim.iloc[-1].start_time+.75)
-    if not include_cont:
-        plt.ylim(top = len(discrete))
     plt.tight_layout()
-    return discrete, continuous
+    return
 
 def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save_fig=False,filename=None):
     sessions = np.array([1,2,3,4,5,6])

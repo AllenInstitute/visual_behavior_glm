@@ -1272,7 +1272,11 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     weights_sorted = np.hstack([slc_sorted,sst_sorted, vip_sorted])
     cbar = ax[0,1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='bwr')
     cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95))
-    fig.colorbar(cbar, ax=ax[0,1])
+    color_bar=fig.colorbar(cbar, ax=ax[0,1])
+    if normalize:
+        color_bar.ax.set_ylabel('Normalized Weights')
+    else:
+        color_bar.ax.set_ylabel('Weights')   
     ax[0,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted)[1]))
     ax[0,1].set_xlabel('Time (s)')
     ax[0,1].axhline(np.shape(vip)[1],color='k',linewidth='1')
@@ -1288,7 +1292,11 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     weights_sorted_f = np.hstack([slc_sorted_f,sst_sorted_f, vip_sorted_f])
     cbar = ax[1,1].imshow(weights_sorted_f.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_f)[1]],cmap='bwr')
     cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_f),95),np.nanpercentile(np.abs(weights_sorted_f),95))
-    fig.colorbar(cbar, ax=ax[1,1])
+    color_bar = fig.colorbar(cbar, ax=ax[1,1])
+    if normalize:
+        color_bar.ax.set_ylabel('Normalized Weights')
+    else:
+        color_bar.ax.set_ylabel('Weights')   
     ax[1,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted_f)[1]))
     ax[1,1].set_xlabel('Time (s)')
     ax[1,1].axhline(np.shape(vip_f)[1],color='k',linewidth='1')
@@ -1304,7 +1312,11 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     weights_sorted_df = np.hstack([slc_sorted_df,sst_sorted_df, vip_sorted_df])
     cbar = ax[2,1].imshow(weights_sorted_df.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_df)[1]],cmap='bwr')
     cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_df),95),np.nanpercentile(np.abs(weights_sorted_df),95))
-    fig.colorbar(cbar, ax=ax[2,1])
+    color_bar = fig.colorbar(cbar, ax=ax[2,1])
+    if normalize:
+        color_bar.ax.set_ylabel('Normalized Weights')
+    else:
+        color_bar.ax.set_ylabel('Weights')   
     ax[2,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted_df)[1]))
     ax[2,1].set_xlabel('Time (s)')
     ax[2,1].axhline(np.shape(vip_df)[1],color='k',linewidth='1')

@@ -574,8 +574,27 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Return weights_df
     return weights_df 
 
+def compute_over_fitting_proportion(results_full,run_params):
+    '''
+        Computes the over-fitting proportion for each cell on each dropout model:
+        (train_ve - test_ve)/train_ve
+        1 = completely overfit
+        0 = no over-fitting
 
-     
+        Also computes the over-fitting proportion attributable to each dropout:
+        1-dropout_over_fit/full_over_fit
+        1 = This dropout was responsible for all the overfitting in the full model
+        0 = This dropout was responsible for none of the overfitting in the full model
+
+    '''
+    dropouts = set(run_params['dropouts'].keys())
+    for d in dropouts:
+        results_full[d+'__over_fit'] = (results_full[d+'__avg_cv_var_train']-results_full[d+'__avg_cv_var_test'])/(results_full[d+'__avg_cv_var_train'])
+    
+    dropouts.remove('Full')
+    for d in dropouts:
+        results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full_over_fit']
+ 
     
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.

@@ -14,6 +14,126 @@ import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
 
+def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True):
+    '''
+        Plots the time points where each kernel has support
+    
+        INPUTS:
+        glm, glm object for the session to plot
+        include_cont, if True, includes the continuous kernels which have support everywhere
+        plot_bands, if True, plots diagonal bands to asses how kernels overlap
+        plot_ticks, if True, plots a tick mark at the triggering event for each kernel
+ 
+    '''  
+    discrete = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='discrete']
+    continuous = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
+
+    # Basic figure set up
+    if plot_bands:
+        plt.figure(figsize=(12,10))
+    else:
+        plt.figure(figsize=(12,6))
+    start = 10000
+    end = 11000 
+    time_vec = glm.fit['dff_trace_timestamps'][start:end]
+    start_t = time_vec[0]
+    end_t = time_vec[-1]
+    ones = np.ones(np.shape(time_vec))
+    colors = sns.color_palette('hls', len(discrete)+len(continuous)) 
+
+    # Plot the kernels
+    dk = 5
+    dt = .4
+    ms = 2
+    if not plot_bands:
+        dt = 0
+        dk = 1
+        ms = 10
+    count = 0
+    starts = []
+    ends = []
+    stim_points = {}
+    for index, d in enumerate(discrete):
+        starts.append(count)
+        X = glm.design.get_X(kernels = [d])
+        for dex in range(0,np.shape(X)[1]): 
+            support = X.values[start:end,dex] != 0 
+            plt.plot(time_vec[support],count*ones[support], 'o',color=colors[index],markersize=ms)
+            count +=dt
+        ends.append(count)
+        count+=dk
+        stim_points[d] = (starts[-1],ends[-1])
+    ticks = [np.mean([x,y]) for (x,y) in zip(starts,ends)]
+    all_k = discrete
+
+    # Plot Rewards
+    reward_dex = stim_points['rewards'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['rewards']['offset'])*31)
+    if plot_bands:
+        reward_dex += -.4
+    if plot_ticks:
+        rewards =glm.session.dataset.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
+        plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'k|')
+    
+    # Stimulus Presentations
+    stim = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & not omitted')
+    for index, time in enumerate(stim['start_time'].values):
+        plt.axvspan(time, time+0.25, color='k',alpha=.1)
+    if plot_ticks:
+        for index in range(0,8):
+            image = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & image_index == @index')['start_time']
+            image_dex = stim_points['image'+str(index)][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['image'+str(index)]['offset'])*31)
+            plt.plot(image, image_dex*np.ones(np.shape(image)),'k|')
+
+    # Stimulus Changes
+    change = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & change')
+    if plot_ticks:
+        change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*31)
+        plt.plot(change['start_time'], change_dex*np.ones(np.shape(change['start_time'])),'k|')
+    for index, time in enumerate(change['start_time'].values):
+        plt.axvspan(time, time+0.25, color='b',alpha=.2)
+
+    # Stimulus Omissions
+    if plot_ticks:
+        omitted = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & omitted')['start_time']
+        omitted_dex = stim_points['omissions'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['omissions']['offset'])*31)
+        plt.plot(omitted, omitted_dex*np.ones(np.shape(omitted)),'k|')
+
+    # Image Expectation
+    if plot_ticks:
+        expectation = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & not omitted')['start_time']
+        expectation_dex = stim_points['image_expectation'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['image_expectation']['offset'])*31)
+        plt.plot(expectation, expectation_dex*np.ones(np.shape(expectation)),'k|')
+
+    # Licks
+    if plot_ticks:
+        pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
+        post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
+        bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
+        plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
+        plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
+
+        pre_dex = stim_points['pre_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_licks']['offset'])*31)
+        post_dex = stim_points['post_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_licks']['offset'])*31)
+        licks = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
+        plt.plot(licks, pre_dex*np.ones(np.shape(licks)),'k|')
+        plt.plot(licks, post_dex*np.ones(np.shape(licks)),'k|')
+
+    # Trials
+    if plot_ticks:
+        types = ['hit','miss','false_alarm','correct_reject']
+        ks = ['hits','misses','false_alarms','correct_rejects']
+        trials = glm.session.dataset.trials.query('change_time < @end_t & change_time > @start_t')
+        for index, t in enumerate(types):
+            change_time = trials[trials[t]]['change_time'] 
+            trial_dex = stim_points[ks[index]][0] + dt*np.ceil(np.abs(glm.run_params['kernels'][ks[index]]['offset'])*31)
+            plt.plot(change_time, trial_dex*np.ones(np.shape(change_time)),'k|')
+
+    plt.xlabel('Time (s)')
+    plt.yticks(ticks,all_k)
+    plt.xlim(stim.iloc[0].start_time, stim.iloc[-1].start_time+.75)
+    plt.tight_layout()
+    return
+
 def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save_fig=False,filename=None):
     sessions = np.array([1,2,3,4,5,6])
     cre = ["Sst-IRES-Cre", "Vip-IRES-Cre","Slc17a7-IRES2-Cre"]
@@ -881,15 +1001,17 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science'):
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True):
     '''
-        Get all the kernels across all cells. 
-        plot the matrix of all kernels, sorted by peak time
-        plot the mean+std. What time point are different from 0?
-        Plot a visualization of the dropouts that contain this kernel.
-        run_params      = glm_params.load_run_params(<version>) 
-        results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
-        weights_df      = gat.build_weights_df(run_params, results_pivoted)
+        Plots the average kernel for each cell line. 
+        Plots the heatmap of the kernels sorted by time. 
+        Plots the distribution of dropout scores for this kernel.   
+        Does that analysis for all cells, just cells with a significant variance_explained, and just cells with a significant dropout score. 
+
+        INPUTS:
+        run_params              = glm_params.load_run_params(<version>) 
+        results_pivoted         = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+        weights_df              = gat.build_weights_df(run_params, results_pivoted)
         kernel                  The name of the kernel to be plotted
         save_results            if True, saves a figure to the directory in run_params['output_dir']
         threshold,              the minimum variance explained by the full model
@@ -899,6 +1021,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         session_filter,         The list of session numbers to include
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both
         mode,                   if "diagnostic" then it plots marina's suggestions for kernel length in red. Otherwise does nothing
+        interpolate,            if True, then interpolates mesoscope data onto scientifica timebase. This value is forced to True if plotting a mix of the two datasets. 
         
     '''
 
@@ -914,12 +1037,17 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         filter_string+='_mesoscope'
     else:
         weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in [962045676])')
+        if not interpolate:
+            print('Forcing interpolate=True because we have mixed scientifica and mesoscope data')
+            interpolate=True
 
     # Set up time vectors.
     # Mesoscope sessions have not been interpolated onto the right time basis yet
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
     meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
+    if (equipment_filter == "mesoscope") & (not interpolate):
+        time_vec = meso_time_vec
 
     if mode == 'diagnostic':
         suggestions = pd.read_csv('/allen/programs/braintv/workgroups/nc-ophys/alex.piet/glm_figs/kernels_and_dropouts_MG_suggestions.csv',engine='python').set_index('Unnamed: 0')
@@ -962,10 +1090,11 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     
     # Interpolate Mesoscope
     # Doing interpolation step here because we have removed the NaN results
-    sst = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst]
-    vip = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip]
-    slc = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc]
-   
+    if interpolate:
+        sst = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst]
+        vip = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip]
+        slc = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc]
+ 
     # Make into 2D array, but only if we have results.
     # Else make a 2D array of NaNs 
     if len(sst)>0:
@@ -1026,9 +1155,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         slc_f = [x for x in slc_weights_filtered[~slc_weights_filtered.isnull()].values if np.max(np.abs(x)) > 0]
 
     # Interpolate Mesoscope
-    sst_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst_f]
-    vip_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip_f]
-    slc_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc_f] 
+    if interpolate:
+        sst_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst_f]
+        vip_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip_f]
+        slc_f = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc_f] 
 
     if len(sst_f)>0:
         sst_f = np.vstack(sst_f)
@@ -1096,9 +1226,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         slc_df = [x for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values] 
 
     # Interpolate Mesoscope
-    sst_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst_df]
-    vip_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip_df]
-    slc_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc_df] 
+    if interpolate:
+        sst_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst_df]
+        vip_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip_df]
+        slc_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc_df] 
  
     if len(sst_df)>0:
         sst_df = np.vstack(sst_df)
@@ -1150,7 +1281,11 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     weights_sorted = np.hstack([slc_sorted,sst_sorted, vip_sorted])
     cbar = ax[0,1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='bwr')
     cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95))
-    fig.colorbar(cbar, ax=ax[0,1])
+    color_bar=fig.colorbar(cbar, ax=ax[0,1])
+    if normalize:
+        color_bar.ax.set_ylabel('Normalized Weights')
+    else:
+        color_bar.ax.set_ylabel('Weights')   
     ax[0,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted)[1]))
     ax[0,1].set_xlabel('Time (s)')
     ax[0,1].axhline(np.shape(vip)[1],color='k',linewidth='1')
@@ -1166,7 +1301,11 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     weights_sorted_f = np.hstack([slc_sorted_f,sst_sorted_f, vip_sorted_f])
     cbar = ax[1,1].imshow(weights_sorted_f.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_f)[1]],cmap='bwr')
     cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_f),95),np.nanpercentile(np.abs(weights_sorted_f),95))
-    fig.colorbar(cbar, ax=ax[1,1])
+    color_bar = fig.colorbar(cbar, ax=ax[1,1])
+    if normalize:
+        color_bar.ax.set_ylabel('Normalized Weights')
+    else:
+        color_bar.ax.set_ylabel('Weights')   
     ax[1,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted_f)[1]))
     ax[1,1].set_xlabel('Time (s)')
     ax[1,1].axhline(np.shape(vip_f)[1],color='k',linewidth='1')
@@ -1182,7 +1321,11 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     weights_sorted_df = np.hstack([slc_sorted_df,sst_sorted_df, vip_sorted_df])
     cbar = ax[2,1].imshow(weights_sorted_df.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_df)[1]],cmap='bwr')
     cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_df),95),np.nanpercentile(np.abs(weights_sorted_df),95))
-    fig.colorbar(cbar, ax=ax[2,1])
+    color_bar = fig.colorbar(cbar, ax=ax[2,1])
+    if normalize:
+        color_bar.ax.set_ylabel('Normalized Weights')
+    else:
+        color_bar.ax.set_ylabel('Weights')   
     ax[2,1].set_ylabel('{0} Cells'.format(np.shape(weights_sorted_df)[1]))
     ax[2,1].set_xlabel('Time (s)')
     ax[2,1].axhline(np.shape(vip_df)[1],color='k',linewidth='1')
@@ -1297,7 +1440,14 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
 
 def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science'):
     '''
-        Makes the analysis plots for all kernels in this model version
+        Makes the analysis plots for all kernels in this model version. Excludes intercept and time kernels
+                
+        INPUTS:
+        Same as kernel_evaluation
+        
+        SAVES:
+        a figure for each kernel    
+
     '''
     kernels = set(run_params['kernels'].keys())
     kernels.remove('intercept')
@@ -1321,20 +1471,132 @@ def add_stimulus_bars(ax, kernel):
     '''
         Adds stimulus bars to the given axis, but only for certain kernels 
     '''
+    # Check if this is an image aligned kernel
     if kernel in ['change','hits','misses','false_alarms','omissions','image_expectation','image0','image1','image2','image3','image4','image5','image6','image7']:
+        # Define timepoints of stimuli
         lims = ax.get_xlim()
         times = set(np.concatenate([np.arange(0,lims[1],0.75),np.arange(-0.75,lims[0]-0.001,-0.75)]))
         if kernel == 'omissions':
+            # For omissions, remove omitted stimuli
             times.remove(0.0)
         if kernel in ['change','hits','misses','false_alarms']:
+            # For change aligned kernels, plot the two stimuli different colors
             for flash_start in times:
                 if flash_start < 0:
                     ax.axvspan(flash_start,flash_start+0.25,color='green',alpha=0.25,zorder=-np.inf)                   
                 else:
                     ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)                   
         else:
+            # Normal case, just plot all the same color
             for flash_start in times:
                 ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)
          
+def plot_over_fitting(full_results, dropout,save_file=""):
+    ''' 
+        Plots an evaluation of how this dropout model contributed to overfitting. 
 
+        INPUTS:
+        full_results, with overfitting values
+            full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
+            gat.compute_over_fitting_proportion(full_results,run_params)
+        dropout, (str) name of dropout to plot
+        save_file (str), if not empty will save figure to that location
+    
+        SAVES:
+        a figure to the location specified by save_file, if not the empty string
+     
+    '''
+    # Set Up Figure. Only two panels for the full model
+    if dropout == "Full":
+        fig, ax = plt.subplots(1,2,figsize=(8,4))   
+    else:
+        fig, ax = plt.subplots(1,3,figsize=(12,4))
+    
+    # First panel, relationship between variance explained and overfitting proportion
+    ax[0].plot(full_results[dropout+'__avg_cv_var_test'], full_results[dropout+'__over_fit'],'ko',alpha=.1)
+    ax[0].set_xlim(0,1)
+    ax[0].set_ylim(0,1)
+    ax[0].set_ylabel('Overfitting Proportion: '+dropout)
+    ax[0].set_xlabel('Test Variance Explained')
+    
+    # Second panel, histogram of overfitting proportion, with mean/median marked
+    hist_output = ax[1].hist(full_results[dropout+'__over_fit'],100)
+    ax[1].set_xlim(0,1)
+    ax[1].set_ylim(0,1.25*np.max(hist_output[0][:-1]))
+    ax[1].plot(np.mean(full_results[dropout+'__over_fit']), 1.1*np.max(hist_output[0][:-1]),'rv',markerfacecolor='none',label='Mean All Cells')
+    ax[1].plot(np.mean(full_results[dropout+'__over_fit'][full_results[dropout+'__over_fit']<1]), 1.1*np.max(hist_output[0][:-1]),'rv',label='Mean Exclude overfit=1 cells')
+    ax[1].plot(np.median(full_results[dropout+'__over_fit']), 1.1*np.max(hist_output[0][:-1]),'bv',markerfacecolor='none',label='Median All Cells')
+    ax[1].plot(np.median(full_results[dropout+'__over_fit'][full_results[dropout+'__over_fit']<1]), 1.1*np.max(hist_output[0][:-1]),'bv',label='Median Exclude overfit=1 cells')
+    ax[1].set_ylabel('Count')
+    ax[1].set_xlabel('Overfitting Proportion: '+dropout)
+    ax[1].legend(loc='lower right')
+    
+    # Third panel, distribution of dropout_overfitting_proportion compared to full model
+    if dropout != "Full":
+        ax[2].hist(full_results[dropout+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1)),100)
+        ax[2].axvline(full_results[dropout+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1)).median(),color='r',linestyle='--')
+        ax[2].set_xlim(-1,1)
 
+    # Clean up and save
+    plt.tight_layout()
+    if save_file !="":
+        plt.savefig(save_file+dropout+'.png')
+
+def plot_over_fitting_summary(full_results, run_params):
+    '''
+        Plots a summary figure that shows which kernels were the most responsible for overfitting.
+        
+        INPUTS:
+        full_results, with overfitting values
+            full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
+            gat.compute_over_fitting_proportion(full_results,run_params)
+        run_params, the parameter dictionary for this model version
+        
+        SAVES:
+        a summary figure
+    '''
+    # Set up
+    plt.figure(figsize=(6,6))
+    p = []
+    labels = [] 
+
+    # Iterate over model dropouts, and get mean overfitting proportion
+    for index,d in enumerate(run_params['dropouts']):
+        if (d != "Full")&(not d.startswith('single-')):
+            p.append(np.mean(full_results[d+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1))))        
+            labels.append(d)
+    
+    # Sort by proportion, and save order for yticks
+    sort_labels=[]
+    for index,x in enumerate(sorted(zip(p,labels))):
+        plt.plot(x[0],index,'ko')
+        sort_labels.append(x[1])
+
+    # Clean up plot and save
+    plt.yticks(range(0,len(sort_labels)),labels=sort_labels)
+    plt.xlabel('Avg. Overfitting fraction from kernel')
+    plt.axvline(0,color='k',alpha=.25)
+    plt.tight_layout()
+    plt.savefig(run_params['output_dir']+'/over_fitting_figures/over_fitting_summary.png')
+
+def plot_all_over_fitting(full_results, run_params):
+    '''
+        Iterates over all the dropouts and plots the over_fitting_proportion
+    
+        INPUTS:
+        full_results, with overfitting values
+            full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
+            gat.compute_over_fitting_proportion(full_results,run_params)
+        run_params, the parameter dictionary for this run, used for where to save and which dropouts to plot
+
+        SAVES:
+        a collection of figures
+    '''
+    # Iterate over model dropouts
+    for d in run_params['dropouts']:
+        try:
+            # Plot each dropout
+            plot_over_fitting(full_results, d,save_file=run_params['output_dir']+'/over_fitting_figures/')
+        except:
+            # Plot crashed for some reason, print error and move on
+            print('crashed - '+d)

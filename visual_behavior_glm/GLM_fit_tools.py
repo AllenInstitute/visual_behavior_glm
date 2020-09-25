@@ -1002,12 +1002,16 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = event_times[~np.isnan(event_times)]
         elif event == 'any-image':
             event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
+        elif event == 'image-expectation':
+            event_times = session.dataset.stimulus_presentations['start_time'].values
         elif event == 'omissions':
             event_times = session.dataset.stimulus_presentations.query('omitted')['start_time'].values
         elif (len(event)>5) & (event[0:5] == 'image'):
             event_times = session.dataset.stimulus_presentations.query('image_index == @event[-1]')['start_time'].values
         else:
             raise Exception('Could not resolve kernel label')
+        if len(event_times) < 5: # HARD CODING THIS VALUE HERE
+            raise Exception('Less than minimum number of events: '+str(len(event_times)) +' '+event)
     except Exception as e:
         print('Error encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
         print(e)

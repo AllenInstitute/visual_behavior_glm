@@ -16,17 +16,15 @@ from scipy import ndimage
 
 def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True):
     '''
-        plots a side-scroller of the kernel supports
+        Plots the time points where each kernel has support
+    
+        INPUTS:
+        glm, glm object for the session to plot
+        include_cont, if True, includes the continuous kernels which have support everywhere
+        plot_bands, if True, plots diagonal bands to asses how kernels overlap
+        plot_ticks, if True, plots a tick mark at the triggering event for each kernel
+ 
     '''  
-    #TODO
-    # Make bands all have the same slope
-    # fix yticks that will get fucked up
-    # fix reward/lick times that will get fucked up
-    # Image-expection/omission confound. Document, suggest fix
-    # Image alignment issue. 
-    # Grab the kernels
-    # Document rewards/change/hit confound. Suggest fix
-    # Post-lick bouts are aligned to start of lick bout. Should we align to end of lick bout? We know from behavior that timing is better described by duration from end of lick bout
     discrete = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='discrete']
     continuous = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
 
@@ -1005,13 +1003,15 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
 
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True):
     '''
-        Get all the kernels across all cells. 
-        plot the matrix of all kernels, sorted by peak time
-        plot the mean+std. What time point are different from 0?
-        Plot a visualization of the dropouts that contain this kernel.
-        run_params      = glm_params.load_run_params(<version>) 
-        results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
-        weights_df      = gat.build_weights_df(run_params, results_pivoted)
+        Plots the average kernel for each cell line. 
+        Plots the heatmap of the kernels sorted by time. 
+        Plots the distribution of dropout scores for this kernel.   
+        Does that analysis for all cells, just cells with a significant variance_explained, and just cells with a significant dropout score. 
+
+        INPUTS:
+        run_params              = glm_params.load_run_params(<version>) 
+        results_pivoted         = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+        weights_df              = gat.build_weights_df(run_params, results_pivoted)
         kernel                  The name of the kernel to be plotted
         save_results            if True, saves a figure to the directory in run_params['output_dir']
         threshold,              the minimum variance explained by the full model
@@ -1021,6 +1021,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         session_filter,         The list of session numbers to include
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both
         mode,                   if "diagnostic" then it plots marina's suggestions for kernel length in red. Otherwise does nothing
+        interpolate,            if True, then interpolates mesoscope data onto scientifica timebase. This value is forced to True if plotting a mix of the two datasets. 
         
     '''
 
@@ -1439,7 +1440,14 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
 
 def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science'):
     '''
-        Makes the analysis plots for all kernels in this model version
+        Makes the analysis plots for all kernels in this model version. Excludes intercept and time kernels
+                
+        INPUTS:
+        Same as kernel_evaluation
+        
+        SAVES:
+        a figure for each kernel    
+
     '''
     kernels = set(run_params['kernels'].keys())
     kernels.remove('intercept')
@@ -1463,34 +1471,55 @@ def add_stimulus_bars(ax, kernel):
     '''
         Adds stimulus bars to the given axis, but only for certain kernels 
     '''
+    # Check if this is an image aligned kernel
     if kernel in ['change','hits','misses','false_alarms','omissions','image_expectation','image0','image1','image2','image3','image4','image5','image6','image7']:
+        # Define timepoints of stimuli
         lims = ax.get_xlim()
         times = set(np.concatenate([np.arange(0,lims[1],0.75),np.arange(-0.75,lims[0]-0.001,-0.75)]))
         if kernel == 'omissions':
+            # For omissions, remove omitted stimuli
             times.remove(0.0)
         if kernel in ['change','hits','misses','false_alarms']:
+            # For change aligned kernels, plot the two stimuli different colors
             for flash_start in times:
                 if flash_start < 0:
                     ax.axvspan(flash_start,flash_start+0.25,color='green',alpha=0.25,zorder=-np.inf)                   
                 else:
                     ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)                   
         else:
+            # Normal case, just plot all the same color
             for flash_start in times:
                 ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)
          
 def plot_over_fitting(full_results, dropout,save_file=""):
     ''' 
-        You have to get the full_results, then compute the overfitting values
+        Plots an evaluation of how this dropout model contributed to overfitting. 
+
+        INPUTS:
+        full_results, with overfitting values
+            full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
+            gat.compute_over_fitting_proportion(full_results,run_params)
+        dropout, (str) name of dropout to plot
+        save_file (str), if not empty will save figure to that location
+    
+        SAVES:
+        a figure to the location specified by save_file, if not the empty string
+     
     '''
+    # Set Up Figure. Only two panels for the full model
     if dropout == "Full":
         fig, ax = plt.subplots(1,2,figsize=(8,4))   
     else:
         fig, ax = plt.subplots(1,3,figsize=(12,4))
+    
+    # First panel, relationship between variance explained and overfitting proportion
     ax[0].plot(full_results[dropout+'__avg_cv_var_test'], full_results[dropout+'__over_fit'],'ko',alpha=.1)
     ax[0].set_xlim(0,1)
     ax[0].set_ylim(0,1)
     ax[0].set_ylabel('Overfitting Proportion: '+dropout)
     ax[0].set_xlabel('Test Variance Explained')
+    
+    # Second panel, histogram of overfitting proportion, with mean/median marked
     hist_output = ax[1].hist(full_results[dropout+'__over_fit'],100)
     ax[1].set_xlim(0,1)
     ax[1].set_ylim(0,1.25*np.max(hist_output[0][:-1]))
@@ -1502,26 +1531,48 @@ def plot_over_fitting(full_results, dropout,save_file=""):
     ax[1].set_xlabel('Overfitting Proportion: '+dropout)
     ax[1].legend(loc='lower right')
     
+    # Third panel, distribution of dropout_overfitting_proportion compared to full model
     if dropout != "Full":
         ax[2].hist(full_results[dropout+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1)),100)
         ax[2].axvline(full_results[dropout+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1)).median(),color='r',linestyle='--')
         ax[2].set_xlim(-1,1)
+
+    # Clean up and save
     plt.tight_layout()
     if save_file !="":
         plt.savefig(save_file+dropout+'.png')
 
 def plot_over_fitting_summary(full_results, run_params):
+    '''
+        Plots a summary figure that shows which kernels were the most responsible for overfitting.
+        
+        INPUTS:
+        full_results, with overfitting values
+            full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
+            gat.compute_over_fitting_proportion(full_results,run_params)
+        run_params, the parameter dictionary for this model version
+        
+        SAVES:
+        a summary figure
+    '''
+    # Set up
     plt.figure(figsize=(6,6))
     p = []
     labels = [] 
+
+    # Iterate over model dropouts, and get mean overfitting proportion
     for index,d in enumerate(run_params['dropouts']):
         if (d != "Full")&(not d.startswith('single-')):
             p.append(np.mean(full_results[d+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1))))        
             labels.append(d)
+    
+    # Sort by proportion, and save order for yticks
     sort_labels=[]
     for index,x in enumerate(sorted(zip(p,labels))):
         plt.plot(x[0],index,'ko')
         sort_labels.append(x[1])
+
+    # Clean up plot and save
     plt.yticks(range(0,len(sort_labels)),labels=sort_labels)
     plt.xlabel('Avg. Overfitting fraction from kernel')
     plt.axvline(0,color='k',alpha=.25)
@@ -1531,9 +1582,21 @@ def plot_over_fitting_summary(full_results, run_params):
 def plot_all_over_fitting(full_results, run_params):
     '''
         Iterates over all the dropouts and plots the over_fitting_proportion
+    
+        INPUTS:
+        full_results, with overfitting values
+            full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
+            gat.compute_over_fitting_proportion(full_results,run_params)
+        run_params, the parameter dictionary for this run, used for where to save and which dropouts to plot
+
+        SAVES:
+        a collection of figures
     '''
+    # Iterate over model dropouts
     for d in run_params['dropouts']:
         try:
+            # Plot each dropout
             plot_over_fitting(full_results, d,save_file=run_params['output_dir']+'/over_fitting_figures/')
         except:
+            # Plot crashed for some reason, print error and move on
             print('crashed - '+d)

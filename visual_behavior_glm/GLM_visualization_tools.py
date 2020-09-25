@@ -1479,6 +1479,9 @@ def add_stimulus_bars(ax, kernel):
                 ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)
          
 def plot_over_fitting(full_results, dropout,save_file=""):
+    ''' 
+        You have to get the full_results, then compute the overfitting values
+    '''
     if dropout == "Full":
         fig, ax = plt.subplots(1,2,figsize=(8,4))   
     else:

@@ -32,7 +32,7 @@ def define_kernels():
     }
     ## add face motion energy PCs
     for PC in range(5):
-        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':False, 'text':'PCA from face motion videos'}
+        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':True, 'text':'PCA from face motion videos'}
     return kernels
 
 
@@ -362,8 +362,6 @@ def define_dropouts(kernels,kernel_definitions):
         if k in kernel_definitions:
             dropouts['cognitive']['kernels'].remove(k)
             dropouts['cognitive']['dropped_kernels'].append(k)
-
-    #     
 
 
     # Remove all behavior model kernels

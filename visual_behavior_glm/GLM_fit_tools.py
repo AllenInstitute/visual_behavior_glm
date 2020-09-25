@@ -1003,6 +1003,8 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = event_times[~np.isnan(event_times)]
         elif event == 'any-image':
             event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
+        elif event == 'image-expectation':
+            event_times = session.dataset.stimulus_presentations['start_time'].values
         elif event == 'omissions':
             event_times = session.dataset.stimulus_presentations.query('omitted')['start_time'].values
         elif (len(event)>5) & (event[0:5] == 'image'):

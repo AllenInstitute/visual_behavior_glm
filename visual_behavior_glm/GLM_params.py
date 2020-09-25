@@ -25,7 +25,7 @@ def define_kernels():
         'correct_rejects':  {'event':'correct_reject','type':'discrete','length':3,     'offset':-1,    'dropout':True, 'text': 'no lick on catch trials'},
         'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'dropout':True, 'text': 'image was omitted'},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.8,   'offset':0,     'dropout':True, 'text': 'image presentation'},
-        'image_expectation':   {'event':'any-image',  'type':'discrete','length':0.8,   'offset':-0.767,'dropout':True, 'text': '750ms from last image'},
+        'image_expectation':   {'event':'image_expectation','type':'discrete','length':0.767, 'offset':-0.767,'dropout':True, 'text': '750ms from last image'},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'normalized running speed'},
         'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25,  'dropout':True, 'text': 'behavioral model weights'},
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'Z-scored pupil diameter'},

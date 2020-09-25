@@ -7,7 +7,7 @@ plt.ion()
 def make_test_json():
     # Make run JSON
     VERSION = 1
-    src_path = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 
+    src_path = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/visual_behavior_glm/' 
     glm_params.make_run_json(VERSION,label='testing',username='alex', src_path = src_path, TESTING=True)
     
 if False:

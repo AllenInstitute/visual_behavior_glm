@@ -105,7 +105,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     if src_path is None:
         raise Exception('You need to provide a path to the model source code')
 
-    shutil.copyfile(os.path.join(src_path, 'src/GLM_fit_tools.py'),   python_file_full_path)
+    shutil.copyfile(os.path.join(src_path, 'visual_behavior_glm/GLM_fit_tools.py'),   python_file_full_path)
     shutil.copyfile(os.path.join(src_path, 'scripts/fit_glm.py'),     python_fit_script)
     
     # Define list of experiments to fit

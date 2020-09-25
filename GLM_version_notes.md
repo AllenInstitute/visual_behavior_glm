@@ -16,3 +16,4 @@ Every time a regressor is added, or parameters of a regressor changes, we have i
 * V4 : Similiar parameter set as V3, with decreased support for visual and omission regressors to limit interactions. First version with multiple regularization schemes applied.
 * V5 : Included first 50 PCs of face motion energy
 * V6 : Modified some regressors slightly. Did some troubleshooting on regularization calculations. Added adjusted dropout scores to account for different levels of support across regressors (i.e, control for fact that some events are rare, some frequent). Added single model dropout scores.
+* V7 : Adds a significant number of dropout groups that now form a series of nested models. Slightly modifies the times of some of the kernels. Computes an over-fitting proportion. Adds a threshold that only adds a discrete kernel if there are at least 5 of that event in the entire session. 

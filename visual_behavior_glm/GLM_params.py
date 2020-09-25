@@ -24,7 +24,7 @@ def define_kernels():
         'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':3,     'offset':-1,    'dropout':True, 'text': 'lick on catch trials'},
         'correct_rejects':  {'event':'correct_reject','type':'discrete','length':3,     'offset':-1,    'dropout':True, 'text': 'no lick on catch trials'},
         'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'dropout':True, 'text': 'image was omitted'},
-        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.8,   'offset':0,     'dropout':True, 'text': 'image presentation'},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.767, 'offset':0,     'dropout':True, 'text': 'image presentation'},
         'image_expectation':   {'event':'image_expectation','type':'discrete','length':0.767, 'offset':-0.767,'dropout':True, 'text': '750ms from last image'},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'normalized running speed'},
         'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25,  'dropout':True, 'text': 'behavioral model weights'},
@@ -161,19 +161,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100              # If 1, has no effect. Scales running speed to be O(1). 
-    }
-
-    # Regularization parameter checks
-    a = run_params['L2_optimize_by_cell']
-    b = run_params['L2_optimize_by_session']
-    c = run_params['L2_use_fixed_value']
-    assert (a or b or c) and not ((a and b) or (b and c) or (a and c)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value"
-
-    # Check L2 Fixed value parameters
-    if run_params['L2_use_fixed_value'] and (run_params['L2_fixed_lambda'] is None):
-        raise Exception('L2_use_fixed_value is True, but have None for L2_fixed_lambda')
-    if (not run_params['L2_use_fixed_value']) and (run_params['L2_fixed_lambda'] is not None):
-        raise Exception('L2_use_fixed_value is False, but L2_fixed_lambda has been set')      
+    } # Regularization parameter checks a = run_params['L2_optimize_by_cell'] b = run_params['L2_optimize_by_session'] c = run_params['L2_use_fixed_value'] assert (a or b or c) and not ((a and b) or (b and c) or (a and c)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" # Check L2 Fixed value parameters if run_params['L2_use_fixed_value'] and (run_params['L2_fixed_lambda'] is None): raise Exception('L2_use_fixed_value is True, but have None for L2_fixed_lambda') if (not run_params['L2_use_fixed_value']) and (run_params['L2_fixed_lambda'] is not None): raise Exception('L2_use_fixed_value is False, but L2_fixed_lambda has been set')      
     if run_params['L2_use_fixed_value']:
         assert run_params['L2_fixed_lambda'] > 0, "Must have some positive regularization value to prevent singular matrix"
 

@@ -987,6 +987,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         event = run_params['kernels'][kernel_name]['event']
         if event == 'licks':
             event_times = session.dataset.licks['timestamps'].values
+
         elif event == 'lick_bouts':
             licks = session.dataset.licks
             licks['pre_ILI'] = licks['timestamps'] - licks['timestamps'].shift(fill_value=-10)
@@ -1008,6 +1009,8 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = session.dataset.stimulus_presentations.query('image_index == @event[-1]')['start_time'].values
         else:
             raise Exception('Could not resolve kernel label')
+        if len(event_times) < 5: # HARD CODING THIS VALUE HERE
+            raise Exception('Less than minimum number of events: '+str(len(event_times)) +' '+event)
     except Exception as e:
         print('Error encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
         print(e)

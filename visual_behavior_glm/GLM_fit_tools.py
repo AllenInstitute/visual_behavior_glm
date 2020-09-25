@@ -987,7 +987,6 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         event = run_params['kernels'][kernel_name]['event']
         if event == 'licks':
             event_times = session.dataset.licks['timestamps'].values
-
         elif event == 'lick_bouts':
             licks = session.dataset.licks
             licks['pre_ILI'] = licks['timestamps'] - licks['timestamps'].shift(fill_value=-10)

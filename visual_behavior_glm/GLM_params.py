@@ -13,10 +13,10 @@ def define_kernels():
     kernels = {
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'constant value'},
         'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'linear ramp from 0 to 1'},
-        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':5,     'offset':-5,    'dropout':True, 'text': 'mouse lick'},
+        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':2,     'offset':-2,    'dropout':True, 'text': 'mouse lick'},
         'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0,     'dropout':True, 'text': 'mouse lick'},
-        'pre_lick_bouts':   {'event':'lick_bouts','type':'discrete',    'length':5,     'offset':-5,    'dropout':True, 'text': 'lick bout'},
-        'post_lick_bouts':  {'event':'lick_bouts','type':'discrete',    'length':1,     'offset':0,     'dropout':True, 'text': 'lick bout'},
+        'pre_lick_bouts':   {'event':'lick_bouts','type':'discrete',    'length':2,     'offset':-2,    'dropout':True, 'text': 'lick bout'},
+        'post_lick_bouts':  {'event':'lick_bouts','type':'discrete',    'length':2,     'offset':0,     'dropout':True, 'text': 'lick bout'},
         'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5,  'dropout':True, 'text': 'water reward'},
         'change':       {'event':'change',      'type':'discrete',      'length':2,     'offset':0,     'dropout':True, 'text': 'image change'},
         'hits':         {'event':'hit',         'type':'discrete',      'length':3,     'offset':-1,    'dropout':True, 'text': 'lick to image change'},

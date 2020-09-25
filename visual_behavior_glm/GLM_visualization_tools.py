@@ -1478,5 +1478,59 @@ def add_stimulus_bars(ax, kernel):
             for flash_start in times:
                 ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)
          
+def plot_over_fitting(full_results, dropout,save_file=""):
+    if dropout == "Full":
+        fig, ax = plt.subplots(1,2,figsize=(8,4))   
+    else:
+        fig, ax = plt.subplots(1,3,figsize=(12,4))
+    ax[0].plot(full_results[dropout+'__avg_cv_var_test'], full_results[dropout+'__over_fit'],'ko',alpha=.1)
+    ax[0].set_xlim(0,1)
+    ax[0].set_ylim(0,1)
+    ax[0].set_ylabel('Overfitting Proportion: '+dropout)
+    ax[0].set_xlabel('Test Variance Explained')
+    hist_output = ax[1].hist(full_results[dropout+'__over_fit'],100)
+    ax[1].set_xlim(0,1)
+    ax[1].set_ylim(0,1.25*np.max(hist_output[0][:-1]))
+    ax[1].plot(np.mean(full_results[dropout+'__over_fit']), 1.1*np.max(hist_output[0][:-1]),'rv',markerfacecolor='none',label='Mean All Cells')
+    ax[1].plot(np.mean(full_results[dropout+'__over_fit'][full_results[dropout+'__over_fit']<1]), 1.1*np.max(hist_output[0][:-1]),'rv',label='Mean Exclude overfit=1 cells')
+    ax[1].plot(np.median(full_results[dropout+'__over_fit']), 1.1*np.max(hist_output[0][:-1]),'bv',markerfacecolor='none',label='Median All Cells')
+    ax[1].plot(np.median(full_results[dropout+'__over_fit'][full_results[dropout+'__over_fit']<1]), 1.1*np.max(hist_output[0][:-1]),'bv',label='Median Exclude overfit=1 cells')
+    ax[1].set_ylabel('Count')
+    ax[1].set_xlabel('Overfitting Proportion: '+dropout)
+    ax[1].legend(loc='lower right')
+    
+    if dropout != "Full":
+        ax[2].hist(full_results[dropout+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1)),100)
+        ax[2].axvline(full_results[dropout+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1)).median(),color='r',linestyle='--')
+        ax[2].set_xlim(-1,1)
+    plt.tight_layout()
+    if save_file !="":
+        plt.savefig(save_file+dropout+'.png')
 
+def plot_over_fitting_summary(full_results, run_params):
+    plt.figure(figsize=(6,6))
+    p = []
+    labels = [] 
+    for index,d in enumerate(run_params['dropouts']):
+        if (d != "Full")&(not d.startswith('single-')):
+            p.append(np.mean(full_results[d+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1))))        
+            labels.append(d)
+    sort_labels=[]
+    for index,x in enumerate(sorted(zip(p,labels))):
+        plt.plot(x[0],index,'ko')
+        sort_labels.append(x[1])
+    plt.yticks(range(0,len(sort_labels)),labels=sort_labels)
+    plt.xlabel('Avg. Overfitting fraction from kernel')
+    plt.axvline(0,color='k',alpha=.25)
+    plt.tight_layout()
+    plt.savefig(run_params['output_dir']+'/over_fitting_figures/over_fitting_summary.png')
 
+def plot_all_over_fitting(full_results, run_params):
+    '''
+        Iterates over all the dropouts and plots the over_fitting_proportion
+    '''
+    for d in run_params['dropouts']:
+        try:
+            plot_over_fitting(full_results, d,save_file=run_params['output_dir']+'/over_fitting_figures/')
+        except:
+            print('crashed - '+d)

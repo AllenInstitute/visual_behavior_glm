@@ -134,6 +134,30 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     plt.tight_layout()
     return
 
+def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None):
+    '''
+    makes a scatterplot comparing cellwise performance on two GLM versions
+
+    if a comparison table is not passed, the versions to compare must be passed (as a list of strings)
+    comparison table will be built using GLM_analysis_tools.get_glm_version_comparison_table, which takes about 2 minutes
+    '''
+    assert not (comparison_table is None and versions_to_compare is None), 'must pass either a comparison table or a list of two versions to compare'
+    if comparison_table is None:
+        comparison_table = gat.get_glm_version_comparison_table(versions_to_compare)
+
+    jointplot = sns.jointplot(
+        data = comparison_table,
+        x='6_L2_optimize_by_session',
+        y='7_L2_optimize_by_session',
+        hue='cre_line',
+        hue_order=np.sort(comparison_table['cre_line'].unique()),
+        alpha=0.15,
+        marginal_kws={'common_norm':False},
+    )
+
+    jointplot.ax_joint.plot([0,1],[0,1],color='k',linewidth=2,alpha=0.5,zorder=np.inf)
+    return jointplot
+
 def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save_fig=False,filename=None):
     sessions = np.array([1,2,3,4,5,6])
     cre = ["Sst-IRES-Cre", "Vip-IRES-Cre","Slc17a7-IRES2-Cre"]

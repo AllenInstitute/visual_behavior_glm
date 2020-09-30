@@ -87,6 +87,7 @@ def build_mongo_stdout_entry(oeid, glm_version):
     
     entry = {
         'ophys_experiment_id':oeid,
+        'glm_version':glm_version,
         'filename':filename,
         'file_text':file_text,
         'job_timestamp':get_timestamp(filename),
@@ -102,7 +103,7 @@ def log_to_mongo(entry):
     '''
     conn = db.Database('visual_behavior_data')
     collection = conn['ophys_glm']['cluster_stdout']
-    db.update_or_create(collection, entry, keys_to_check = ['ophys_experiment_id','job_timestamp'])
+    db.update_or_create(collection, entry, keys_to_check = ['ophys_experiment_id','glm_version','job_timestamp'])
     conn.close()
 
 def find_and_log_stdout(oeid, glm_version,verbose=True):

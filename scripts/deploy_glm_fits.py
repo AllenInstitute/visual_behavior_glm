@@ -73,8 +73,8 @@ if __name__ == "__main__":
 
         #calculate resource needs based on ROI count
         roi_count = experiment_table.loc[experiment_id]['roi_count']
-        job_settings['walltime'] = job_settings['walltime'].format(calculate_required_walltime(roi_count))
-        job_settings['mem'] = job_settings['mem'].format(calculate_required_mem(roi_count))
+        job_settings['walltime'] = job_settings['walltime'].format(int(calculate_required_walltime(roi_count)))
+        job_settings['mem'] = job_settings['mem'].format(int(calculate_required_mem(roi_count)))
 
         if args.force_overwrite or not gat.already_fit(experiment_id, args.version):
             job_count += 1

@@ -39,10 +39,18 @@ parser.add_argument(
 job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_jobs/ophys_glm"
 
 job_settings = {'queue': 'braintv',
-                'mem': '64g',
-                'walltime': '12:00:00',
+                'mem': '{}g',
+                'walltime': '{}:00:00',
                 'ppn': 16,
                 }
+
+def calculate_required_mem(roi_count):
+    '''calculate required memory in GB'''
+    return 12 + 0.25*roi_count
+
+def calculate_required_walltime(roi_count):
+    '''calculate required walltime in hours'''
+    return 1.5 + 0.075*roi_count
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -51,6 +59,8 @@ if __name__ == "__main__":
     python_file = "{}/scripts/fit_glm.py".format(args.src_path)
 
     experiments_table = loading.get_filtered_ophys_experiment_table()
+    # get ROI count for each experiment
+    experiment_table['roi_count'] = experiment_table.reset_index()['ophys_experiment_id'].map(lambda oeid: gat.get_roi_count(oeid))
     experiment_ids = experiments_table.index.values
     job_count = 0
 
@@ -60,6 +70,11 @@ if __name__ == "__main__":
         job_string = "--oeid {} --version {}"
 
     for experiment_id in experiment_ids:
+
+        #calculate resource needs based on ROI count
+        roi_count = experiment_table.loc[experiment_id]['roi_count']
+        job_settings['walltime'] = job_settings['walltime'].format(calculate_required_walltime(roi_count))
+        job_settings['mem'] = job_settings['mem'].format(calculate_required_mem(roi_count))
 
         if args.force_overwrite or not gat.already_fit(experiment_id, args.version):
             job_count += 1

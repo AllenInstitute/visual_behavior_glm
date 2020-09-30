@@ -471,7 +471,32 @@ def retrieve_results(search_dict={}, results_type='full'):
     )
     duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
     return results.drop(columns=duplicated_cols)
+
+def make_identifier(row):
+    return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
+
+def get_glm_version_comparison_table(versions_to_compare, metric='Full__avg_cv_var_test'):
+    '''
+    builds a table that allows to glm versions to be directly compared
+    input is list of glm versions to compare (list of strings)
+    '''
+    results = []
+    for glm_version in versions_to_compare:
+        results.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
+    results = pd.concat(results, sort=True)
     
+    results['identifier'] = results.apply(make_identifier, axis=1)
+    pivoted_results = results.pivot(index='identifier', columns='glm_version',values=metric)
+    cols= [col for col in results.columns if col not in pivoted_results.columns and 'test' not in col and 'train' not in col and '__' not in col and 'dropout' not in col]
+
+    pivoted_results = pivoted_results.merge(
+        results[cols],
+        left_on='identifier',
+        right_on='identifier',
+        how='left'
+    )
+
+    return pivoted_results
 
 def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None):
     '''

@@ -155,7 +155,7 @@ def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None)
         marginal_kws={'common_norm':False},
     )
 
-    jointplot.ax_joint.plot([0,1],[0,1],color='k',linewidth=2,alpha=0.5,zorder=-np.inf)
+    jointplot.ax_joint.plot([0,1],[0,1],color='k',linewidth=2,alpha=0.5,zorder=np.inf)
     return jointplot
 
 def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save_fig=False,filename=None):

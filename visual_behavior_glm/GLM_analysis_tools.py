@@ -241,14 +241,15 @@ def log_results_to_mongo(glm):
     # TODO, arent the full_results and results_summary already in the glm object by this point? is it redundant to compute them again?
     full_results = glm.results.reset_index()
     results_summary = glm.dropout_summary
-    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
-    oeid = glm.oeid
-    for key,value in experiment_table.query('ophys_experiment_id == @oeid').iloc[0].items():
-        full_results[key] = value
-        results_summary[key] = value
 
     full_results['glm_version'] = str(glm.version)
     results_summary['glm_version'] = str(glm.version)
+
+    results_summary['ophys_experiment_id'] = glm.ophys_experiment_id
+    results_summary['ophys_session_id'] = glm.ophys_session_id
+
+    full_results['ophys_experiment_id'] = glm.ophys_experiment_id
+    full_results['ophys_session_id'] = glm.ophys_session_id
 
     conn = db.Database('visual_behavior_data')
 
@@ -357,7 +358,83 @@ def log_weights_matrix_to_mongo(glm):
         w_matrix_lookup_table.insert_one(db.clean_and_timestamp(lookup_table_document))
 
     conn.close()
+
+def get_experiment_table(glm_version):
+    '''
+    gets the experiment table
+    appends the following:
+        * roi count
+        * cluster job summary for each experiment
+        * number of existing dropouts
     
+    Warning: this takes a couple of minutes to run.
+    '''
+    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    dropout_summary = retrieve_results({'glm_version':glm_version}, results_type='summary')
+    stdout_summary = get_stdout_summary(glm_version)
+
+    # add ROI count to experiment table
+    experiment_table['roi_count'] = experiment_table['ophys_experiment_id'].map(lambda oeid: get_roi_count(oeid))
+
+    # get a count of the dropoutsof for each experiment/cell
+    dropout_count = pd.DataFrame(
+        (dropout_summary
+            .groupby(['ophys_experiment_id','cell_specimen_id'])['dropout']
+            .count())
+            .reset_index()
+            .rename(columns={'dropout': 'dropout_count'}
+        )
+    )
+
+    # merge in stdout summary
+    experiment_table_merged = experiment_table.merge(
+        stdout_summary,
+        left_on = 'ophys_experiment_id',
+        right_on = 'ophys_experiment_id',
+        how='left'
+    )
+    # merge in dropout count (average dropout count per experiment - should be same for all cells)
+    experiment_table_merged = experiment_table_merged.merge(
+        pd.DataFrame(dropout_count.groupby('ophys_experiment_id')['dropout_count'].mean()).reset_index(),
+        left_on = 'ophys_experiment_id',
+        right_on = 'ophys_experiment_id',
+        how='left'
+    )
+
+    return experiment_table_merged
+    
+
+def get_stdout_summary(glm_version):
+    '''
+    retrieves statistics about a given model run from mongo
+    '''
+    conn = db.Database('visual_behavior_data')
+    collection = conn['ophys_glm']['cluster_stdout']
+    stdout_summary = pd.DataFrame(list(collection.find({'glm_version':glm_version})))
+    conn.close()
+
+    # parse the walltime column
+    stdout_summary['required_walltime_seconds'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str))
+    stdout_summary['required_walltime_minutes'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str)/60)
+    stdout_summary['required_walltime_hours'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str)/3600)
+
+    return stdout_summary
+
+def walltime_to_seconds(walltime_str):
+    '''
+    converts the walltime string from stdout summary to seconds (int)
+    string is assumed to be of format HH:MM:SS
+    '''
+    h, m, s = walltime_str.split(':')
+    return int(h)*60*60 + int(m)*60 + int(s)
+
+def get_roi_count(ophys_experiment_id):
+    '''
+    a LIMS query to get the valid ROI count for a given experiment
+    '''
+    query= 'select * from cell_rois where ophys_experiment_id = {}'.format(ophys_experiment_id)
+    df = db.lims_query(query)
+    return df['valid_roi'].sum()
 
 def retrieve_results(search_dict={}, results_type='full'):
     '''
@@ -382,8 +459,44 @@ def retrieve_results(search_dict={}, results_type='full'):
     # make 'glm_version' column a string
     results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
-    return results
+
+    # get experiment table, merge in details of each experiment
+    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    results = results.merge(
+        experiment_table, 
+        left_on='ophys_experiment_id',
+        right_on='ophys_experiment_id', 
+        how='left',
+        suffixes=['', '_duplicated'],
+    )
+    duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
+    return results.drop(columns=duplicated_cols)
+
+def make_identifier(row):
+    return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
+
+def get_glm_version_comparison_table(versions_to_compare, metric='Full__avg_cv_var_test'):
+    '''
+    builds a table that allows to glm versions to be directly compared
+    input is list of glm versions to compare (list of strings)
+    '''
+    results = []
+    for glm_version in versions_to_compare:
+        results.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
+    results = pd.concat(results, sort=True)
     
+    results['identifier'] = results.apply(make_identifier, axis=1)
+    pivoted_results = results.pivot(index='identifier', columns='glm_version',values=metric)
+    cols= [col for col in results.columns if col not in pivoted_results.columns and 'test' not in col and 'train' not in col and '__' not in col and 'dropout' not in col]
+
+    pivoted_results = pivoted_results.merge(
+        results[cols],
+        left_on='identifier',
+        right_on='identifier',
+        how='left'
+    )
+
+    return pivoted_results
 
 def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None):
     '''
@@ -405,7 +518,7 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         
     # get results summary if none was passed
     if results_summary is None:
-        results_summary = gat.retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary')
+        results_summary = retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary')
         
     results_summary['identifier'] = results_summary['ophys_experiment_id'].astype(str) + '_' +  results_summary['cell_specimen_id'].astype(str)
     
@@ -499,8 +612,92 @@ def run_pca(dropout_matrix, n_components=40, deal_with_nans='fill_with_zero'):
     pca.component_names = dropout_matrix.columns
     return pca
     
-     
+
+def process_session_to_df(oeid, run_params):
+    '''
+        For the ophys_experiment_id, loads the weight matrix, and builds a dataframe
+        organized by cell_id and kernel 
+    '''
+    # Get weights
+    W = get_weights_matrix_from_mongo(int(oeid), run_params['version'])
     
+    # Make Dataframe with cell and experiment info
+    session_df  = pd.DataFrame()
+    session_df['cell_specimen_id'] = W.cell_specimen_id.values
+    session_df['ophys_experiment_id'] = [int(oeid)]*len(W.cell_specimen_id.values)  
+    
+    # For each kernel, extract the weights for this kernel
+    for k in run_params['kernels']:
+        weight_names = [w for w in W.weights.values if w.startswith(k)]
+        
+        # Check if this kernel was in this model
+        if len(weight_names) > 0:
+            session_df[k] = W.loc[dict(weights=weight_names)].values.T.tolist()
+    return session_df
+
+def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False):
+    '''
+        Builds a dataframe of (cell_specimen_id, ophys_experiment_id) with the weight parameters for each kernel
+        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream   
+ 
+        INPUTS:
+        run_params, parameter json for the version to analyze
+        results_pivoted = build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+        cache_results, if True, save dataframe as csv file
+        load_cache, if True, load cached results, if it exists
+    
+        RETURNS:
+        a dataframe
+    '''
+    
+    #if load_cache & os.path.exists(run_params['output_dir']+'/weights_df.csv'):
+    #    # Need to convert things to np.array
+    #    return pd.read_csv(run_params['output_dir']+'/weights_df.csv')
+   
+    # Make dataframe for cells and experiments 
+    oeids = results_pivoted['ophys_experiment_id'].unique() 
+
+    # For each experiment, get the weight matrix from mongo (slow)
+    # Then pull the weights from each kernel into a dataframe
+    sessions = []
+    for index, oeid in enumerate(tqdm(oeids)):
+        session_df = process_session_to_df(oeid, run_params)
+        sessions.append(session_df)
+
+    # Merge all the session_dfs, and add more session level info
+    weights_df = pd.concat(sessions,sort=False)
+    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
+    
+    ## Cache Results
+    #if cache_results:
+    #    weights_df.to_csv(run_params['output_dir']+'/weights_df.csv') 
+
+    # Return weights_df
+    return weights_df 
+
+def compute_over_fitting_proportion(results_full,run_params):
+    '''
+        Computes the over-fitting proportion for each cell on each dropout model:
+        (train_ve - test_ve)/train_ve
+        1 = completely overfit
+        0 = no over-fitting
+
+        Also computes the over-fitting proportion attributable to each dropout:
+        1-dropout_over_fit/full_over_fit
+        1 = This dropout was responsible for all the overfitting in the full model
+        0 = This dropout was responsible for none of the overfitting in the full model
+
+    '''
+    dropouts = set(run_params['dropouts'].keys())
+    for d in dropouts:
+        results_full[d+'__over_fit'] = (results_full[d+'__avg_cv_var_train']-results_full[d+'__avg_cv_var_test'])/(results_full[d+'__avg_cv_var_train'])
+    
+    dropouts.remove('Full')
+    for d in dropouts:
+        results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full_over_fit']
+ 
+
+
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.
 #dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_lambda_70/'

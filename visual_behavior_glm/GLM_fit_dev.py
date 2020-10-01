@@ -7,7 +7,7 @@ plt.ion()
 def make_test_json():
     # Make run JSON
     VERSION = 1
-    src_path = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 
+    src_path = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/visual_behavior_glm/' 
     glm_params.make_run_json(VERSION,label='testing',username='alex', src_path = src_path, TESTING=True)
     
 if False:
@@ -37,6 +37,19 @@ if False:
     
     # Make GLM object
     g = glm.GLM(oeid, VERSION, use_previous_fit=True, log_results=False, log_weights=False)
+    
+    # Results_full
+    full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
+    gat.compute_over_fitting_proportion(full_results,run_params)   
+ 
+    # results
+    results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='summary')
+ 
+    # results_pivoted
+    results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+ 
+    # weights_df
+    weights_df = gat.build_weights_df(run_params, results_pivoted)
 
 def check_adjustments(fit):
     plt.figure()

@@ -11,28 +11,28 @@ OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/o
 
 def define_kernels():
     kernels = {
-        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0, 'dropout':True, 'text': 'constant value'},
-        'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0, 'dropout':True, 'text': 'linear ramp from 0 to 1'},
-        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True, 'text': 'mouse lick'},
-        'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True, 'text': 'mouse lick'},
-        'pre_lick_bouts':    {'event':'lick_bouts',       'type':'discrete',      'length':5,   'offset':-5, 'dropout':True, 'text': 'lick bout'},
-        'post_lick_bouts':   {'event':'lick_bouts',       'type':'discrete',      'length':1,     'offset':0, 'dropout':True, 'text': 'lick bout'},
-        'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5, 'dropout':True, 'text': 'water reward'},
-        'change':       {'event':'change',      'type':'discrete',      'length':2,     'offset':0, 'dropout':True, 'text': 'image change'},
-        'hits':       {'event':'hit',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'lick to image change'},
-        'misses':       {'event':'miss',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'no lick to image change'},
-        'false_alarms':       {'event':'false_alarm',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'lick on catch trials'},
-        'correct_rejects':       {'event':'correct_reject',      'type':'discrete',      'length':3,     'offset':-1, 'dropout':True, 'text': 'no lick on catch trials'},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':6,     'offset':-1, 'dropout':True, 'text': 'image was omitted'},
-        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.8,  'offset':0, 'dropout':True, 'text': 'image presentation'},
-        'image_expectation':   {'event':'any-image',  'type':'discrete','length':0.8,  'offset':-0.767, 'dropout':True, 'text': '750ms from last image'},
-        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1, 'dropout':True, 'text': 'normalized running speed'},
-        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'dropout':True, 'text': 'behavioral model weights'},
-        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1, 'dropout':True, 'text': 'Z-scored pupil diameter'},
+        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'constant value'},
+        'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'linear ramp from 0 to 1'},
+        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':2,     'offset':-2,    'dropout':True, 'text': 'mouse lick'},
+        'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0,     'dropout':True, 'text': 'mouse lick'},
+        'pre_lick_bouts':   {'event':'lick_bouts','type':'discrete',    'length':2,     'offset':-2,    'dropout':True, 'text': 'lick bout'},
+        'post_lick_bouts':  {'event':'lick_bouts','type':'discrete',    'length':2,     'offset':0,     'dropout':True, 'text': 'lick bout'},
+        'rewards':      {'event':'rewards',     'type':'discrete',      'length':4,     'offset':-0.5,  'dropout':True, 'text': 'water reward'},
+        'change':       {'event':'change',      'type':'discrete',      'length':3,     'offset':0,     'dropout':True, 'text': 'image change'},
+        'hits':         {'event':'hit',         'type':'discrete',      'length':3,     'offset':-1,    'dropout':True, 'text': 'lick to image change'},
+        'misses':       {'event':'miss',        'type':'discrete',      'length':3,     'offset':-1,    'dropout':True, 'text': 'no lick to image change'},
+        'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':3,     'offset':-1,    'dropout':True, 'text': 'lick on catch trials'},
+        'correct_rejects':  {'event':'correct_reject','type':'discrete','length':3,     'offset':-1,    'dropout':True, 'text': 'no lick on catch trials'},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'dropout':True, 'text': 'image was omitted'},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.767, 'offset':0,     'dropout':True, 'text': 'image presentation'},
+        'image_expectation':   {'event':'image_expectation','type':'discrete','length':0.767, 'offset':-0.767,'dropout':True, 'text': '750ms from last image'},
+        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'normalized running speed'},
+        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25,  'dropout':True, 'text': 'behavioral model weights'},
+        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'Z-scored pupil diameter'},
     }
     ## add face motion energy PCs
     for PC in range(5):
-        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':False, 'text':'PCA from face motion videos'}
+        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':True, 'text':'PCA from face motion videos'}
     return kernels
 
 
@@ -105,7 +105,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     if src_path is None:
         raise Exception('You need to provide a path to the model source code')
 
-    shutil.copyfile(os.path.join(src_path, 'src/GLM_fit_tools.py'),   python_file_full_path)
+    shutil.copyfile(os.path.join(src_path, 'visual_behavior_glm/GLM_fit_tools.py'),   python_file_full_path)
     shutil.copyfile(os.path.join(src_path, 'scripts/fit_glm.py'),     python_fit_script)
     
     # Define list of experiments to fit
@@ -161,18 +161,17 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100              # If 1, has no effect. Scales running speed to be O(1). 
-    }
+    } 
+    # Regularization parameter checks 
+    a = run_params['L2_optimize_by_cell'] 
+    b = run_params['L2_optimize_by_session'] 
+    c = run_params['L2_use_fixed_value'] 
+    assert (a or b or c) and not ((a and b) or (b and c) or (a and c)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
 
-    # Regularization parameter checks
-    a = run_params['L2_optimize_by_cell']
-    b = run_params['L2_optimize_by_session']
-    c = run_params['L2_use_fixed_value']
-    assert (a or b or c) and not ((a and b) or (b and c) or (a and c)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value"
-
-    # Check L2 Fixed value parameters
-    if run_params['L2_use_fixed_value'] and (run_params['L2_fixed_lambda'] is None):
-        raise Exception('L2_use_fixed_value is True, but have None for L2_fixed_lambda')
-    if (not run_params['L2_use_fixed_value']) and (run_params['L2_fixed_lambda'] is not None):
+    # Check L2 Fixed value parameters 
+    if run_params['L2_use_fixed_value'] and (run_params['L2_fixed_lambda'] is None): 
+        raise Exception('L2_use_fixed_value is True, but have None for L2_fixed_lambda') 
+    if (not run_params['L2_use_fixed_value']) and (run_params['L2_fixed_lambda'] is not None): 
         raise Exception('L2_use_fixed_value is False, but L2_fixed_lambda has been set')      
     if run_params['L2_use_fixed_value']:
         assert run_params['L2_fixed_lambda'] > 0, "Must have some positive regularization value to prevent singular matrix"
@@ -363,8 +362,6 @@ def define_dropouts(kernels,kernel_definitions):
             dropouts['cognitive']['kernels'].remove(k)
             dropouts['cognitive']['dropped_kernels'].append(k)
 
-    #     
-
 
     # Remove all behavior model kernels
     if 'beh_model' in kernel_definitions:
@@ -389,7 +386,7 @@ def define_dropouts(kernels,kernel_definitions):
     
     # Adds single kernel dropouts:
     for drop in [drop for drop in dropouts.keys()]:
-        if (drop is not 'Full') & (drop is not 'intercept'):
+        if (drop != 'Full') & (drop != 'intercept'):
             # Make a list of kernels by taking the difference between the kernels in 
             # the full model, and those in the dropout specified by this kernel.
             # This formulation lets us do single kernel dropouts for things like beh_model,

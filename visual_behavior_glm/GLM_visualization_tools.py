@@ -1,6 +1,8 @@
 import visual_behavior.plotting as vbp
+import visual_behavior.utilities as vbu
 import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior.database as db
 import matplotlib as mpl
 import seaborn as sns
 import scipy
@@ -409,8 +411,10 @@ def plot_licks(session, ax, y_loc=0, t_span=None):
     ax.plot(
         df['timestamps'],
         y_loc*np.ones_like(df['timestamps']),
-        'ok',
-        alpha=0.5
+        marker='o',
+        color='white',
+        linestyle='none',
+        alpha=0.9
     )
 
 
@@ -423,13 +427,17 @@ def plot_running(session, ax, t_span=None):
     ax.plot(
         running_df['timestamps'],
         running_df['speed'],
-        color='blue',
+        color='skyblue',
         linewidth=3
+    )
+    ax.set_ylim(
+        session.dataset.running_data_df['speed'].min(),
+        session.dataset.running_data_df['speed'].max(),
     )
 
 def plot_pupil(session, ax, t_span=None):
     '''shares axis with running'''
-    vbp.initialize_legend(ax=ax, colors=['blue','black'],linewidth=3)
+    vbp.initialize_legend(ax=ax, colors=['skyblue','LemonChiffon'],linewidth=3)
     if t_span:
         pupil_df = session.dataset.eye_tracking.query(
             'time >= {} and time <= {}'.format(t_span[0], t_span[1]))
@@ -438,8 +446,12 @@ def plot_pupil(session, ax, t_span=None):
     ax.plot(
         pupil_df['time'],
         pupil_df['pupil_area'],
-        color='black',
+        color='LemonChiffon',
         linewidth=3
+    )
+    ax.set_ylim(
+        0,
+        np.percentile(session.dataset.eye_tracking['pupil_area'].fillna(0), 95)
     )
 
     ax.legend(
@@ -484,9 +496,26 @@ def plot_stimuli(session, ax, t_span=None):
             stimulus['start_time'],
             stimulus['stop_time'],
             color=stimulus['color'],
-            alpha=0.5
+            alpha=0.25,
+            edgecolor=None,
         )
 
+def get_movie_filepath(session_id, session_type='OphysSession', movie_type='RawBehaviorTrackingVideo'):
+    well_known_files = db.get_well_known_files(session_id, session_type)
+    behavior_video_path = ''.join(well_known_files.loc[movie_type][[
+                                  'storage_directory', 'filename']].tolist())
+    return behavior_video_path
+
+def get_sync_data(session_id, session_type='OphysSession'):
+    sync_key_map = {
+        'OphysSession': 'OphysRigSync',
+        'EcephysSession': 'EcephysRigSync',
+    }
+    well_known_files = db.get_well_known_files(session_id, session_type)
+    sync_path = ''.join(well_known_files.loc[sync_key_map[session_type]][[
+                        'storage_directory', 'filename']].tolist())
+    sync_data = vbu.get_sync_data(sync_path)
+    return sync_data
 
 def build_simulated_FOV(session, F_dataframe, column):
 
@@ -538,7 +567,7 @@ def plot_kernels(kernel_df, ax, palette_df, t_span=None, legend=False, annotate=
         )
     if annotate:
         max_locs = get_max_locs_df(data_to_plot)
-        percentile_threshold = 90
+        percentile_threshold = 95
         for idx,row in max_locs.iterrows():
             kernel_name = row['kernel_name']
             if row['percentile'] > percentile_threshold:
@@ -617,7 +646,7 @@ def plot_dropout_summary(results_summary, cell_specimen_id, ax):
         x = 'fraction_change_from_full',
         y = 'dropout',
         ax=axis_for_fractional_change,
-        palette=palette
+        # palette=palette
     )
     if (isinstance(ax, np.ndarray) or isinstance(ax, list)) and len(ax) == 3:
         ax[0].set_title('variance explained\nfor each model dropout')
@@ -720,7 +749,13 @@ class GLM_Movie(object):
         mpl.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
         plt.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
 
-        plt.style.use('seaborn-white')
+        # plt.style.use('seaborn-white')
+        plt.style.use('dark_background')
+        mpl.rcParams['axes.labelsize'] = 14
+        mpl.rcParams['axes.titlesize'] = 16
+        mpl.rcParams['xtick.labelsize'] = 12
+        mpl.rcParams['ytick.labelsize'] = 12
+        # mpl.rcParams['axes.ticklabelesize'] = 14
 
         self.glm = glm
         self.cell_specimen_id = cell_specimen_id
@@ -749,12 +784,21 @@ class GLM_Movie(object):
             'kernel_name':self.kernel_df['kernel_name'].unique(),
             'kernel_color':vbp.generate_random_colors(
                 len(self.kernel_df['kernel_name'].unique()), 
-                lightness_range=(0.1,.65), 
-                saturation_range=(0.5,1), 
+                lightness_range=(0.6,1), 
+                saturation_range=(0.75,1), 
                 random_seed=3, 
                 order_colors=False
             )
         })
+
+        self.sync_data = get_sync_data(glm.ophys_session_id)
+        self.tracking_movies = {}
+        for ii,movie_name in enumerate(['Behavior','Eye']):
+            self.tracking_movies[movie_name.lower()] = vbu.Movie(
+                get_movie_filepath(glm.ophys_session_id, 
+                movie_type='Raw{}TrackingVideo'.format(movie_name)), 
+                sync_timestamps=self.sync_data['cam{}_exposure_rising'.format(ii+1)]
+            )
 
         # try to make destination folder if it doesn't already exist
         if os.path.exists(self.destination_folder) == False:
@@ -796,22 +840,43 @@ class GLM_Movie(object):
             self.com = ndimage.measurements.center_of_mass(glm.session.dataset.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values)
             self.cell_roi_plotted = True
 
-        reconstructed_fov = build_simulated_FOV(glm.session, F_this_frame, 'dff')
-        ax['reconstructed_fov'].imshow(reconstructed_fov, cmap='seismic', clim=[-0.5, .5])
+        # reconstructed_fov = build_simulated_FOV(glm.session, F_this_frame, 'dff')
+        # ax['reconstructed_fov'].imshow(reconstructed_fov, cmap='seismic', clim=[-0.5, .5])
 
-        simulated_fov = build_simulated_FOV(glm.session, F_this_frame, 'dff_predicted')
-        ax['simulated_fov'].imshow(simulated_fov, cmap='seismic', clim=[-0.5, .5])
+        # simulated_fov = build_simulated_FOV(glm.session, F_this_frame, 'dff_predicted')
+        # ax['simulated_fov'].imshow(simulated_fov, cmap='seismic', clim=[-0.5, .5])
+
+        for movie_name in ['behavior','eye']:
+            # what follows is an attempt at adjusting the contrast, but keeping it somewhat constant in a local window
+            # if I adjust contrast as the 99th percentile for every frame, it looks flickery
+            frame = self.tracking_movies[movie_name].get_frame(time=t_now)[:,:,0]
+            frame_n1 = self.tracking_movies[movie_name].get_frame(time=1710-0.1)[:,:,0]
+            frame_p1 = self.tracking_movies[movie_name].get_frame(time=1710+0.1)[:,:,0]
+            frame_n2 = self.tracking_movies[movie_name].get_frame(time=1710-0.2)[:,:,0]
+            frame_p2 = self.tracking_movies[movie_name].get_frame(time=1710+0.2)[:,:,0]
+            p99 = np.percentile(
+                np.hstack((
+                    frame.flatten(),
+                    frame_n1.flatten(),
+                    frame_p1.flatten(),
+                    frame_n2.flatten(),
+                    frame_p2.flatten()
+                    )),
+                99
+            )
+            ax['{}_movie'.format(movie_name)].imshow(frame ,clim=[0,p99], cmap='gray')
+            ax['{}_movie'.format(movie_name)].axis('off')
 
         real_fov = self.real_2p_movie[F_index]
         cmax = np.percentile(real_fov, 95) #set cmax to 95th percentile of this image
         ax['real_fov'].imshow(real_fov, cmap='gray', clim=[0, cmax])
 
         # ax['cell_roi'].set_title('ROI mask for cell {}'.format(cell_specimen_id))
-        ax['reconstructed_fov'].set_title('Reconstructed FOV')
-        ax['simulated_fov'].set_title('Simulated FOV')
+        # ax['reconstructed_fov'].set_title('Reconstructed FOV')
+        # ax['simulated_fov'].set_title('Simulated FOV')
         ax['real_fov'].set_title('Real FOV')
 
-        for axis_name in ['real_fov','reconstructed_fov','simulated_fov']:
+        for axis_name in ['real_fov']: #,'reconstructed_fov','simulated_fov']:
             ax[axis_name].set_xticks([])
             ax[axis_name].set_yticks([])
             ax[axis_name].axvline(self.com[1],color='MediumAquamarine',alpha=0.5)
@@ -827,8 +892,8 @@ class GLM_Movie(object):
         ax['cell_response'].plot(
             local_df['dff_trace_timestamps'],
             local_df['dff'],
-            alpha=0.5,
-            color='darkgreen',
+            alpha=0.9,
+            color='lightgreen',
             linewidth=3,
         )
         ax['cell_response'].set_ylim(
@@ -840,7 +905,7 @@ class GLM_Movie(object):
             local_df['dff_trace_timestamps'],
             local_df['dff_predicted'],
             alpha=1,
-            color='black',
+            color='white',
             linewidth=3,
         )
 
@@ -858,7 +923,7 @@ class GLM_Movie(object):
 
         # some axis formatting: 
         for axis_name in ['licks', 'cell_response', 'running','kernel_contributions']:
-            ax[axis_name].axvline(t_now, color='black', linewidth=3, alpha=0.5)
+            ax[axis_name].axvline(t_now, color='white', linewidth=3, alpha=0.5)
             plot_stimuli(glm.session, ax[axis_name], t_span=t_span)
             if axis_name != 'kernel_contributions':
                 ax[axis_name].set_xticklabels([])
@@ -909,9 +974,11 @@ class GLM_Movie(object):
         fig = plt.figure(figsize=(24, 18))
         ax = {
             # 'cell_roi': vbp.placeAxesOnGrid(fig, xspan=(0, 0.25), yspan=(0, 0.25)),
-            'real_fov': vbp.placeAxesOnGrid(fig, xspan=(0.3, 0.5), yspan=(0, 0.3)),
-            'reconstructed_fov': vbp.placeAxesOnGrid(fig, xspan=(0.55, 0.75), yspan=(0, 0.3)),
-            'simulated_fov': vbp.placeAxesOnGrid(fig, xspan=(0.8, 1), yspan=(0, 0.3)),
+            'real_fov': vbp.placeAxesOnGrid(fig, xspan=(0.3, 0.49), yspan=(0, 0.3)),
+            # 'reconstructed_fov': vbp.placeAxesOnGrid(fig, xspan=(0.55, 0.75), yspan=(0, 0.3)),
+            # 'simulated_fov': vbp.placeAxesOnGrid(fig, xspan=(0.8, 1), yspan=(0, 0.3)),
+            'behavior_movie': vbp.placeAxesOnGrid(fig, xspan=(0.5, 0.75), yspan=(0, 0.3)),
+            'eye_movie': vbp.placeAxesOnGrid(fig, xspan=(0.75, 1), yspan=(0, 0.3)),
             'dropout_summary':vbp.placeAxesOnGrid(fig, xspan=[0,0.2], yspan=[0,1]),
             'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.35, 0.5]),
             'licks': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.5, 0.525]),

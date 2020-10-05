@@ -416,10 +416,10 @@ def load_run_json(version):
 
 def describe_model_version(version):
     '''
-        Prints a text description of the model kernels and dropouts. Tries to load the information from v_alex_test
+        Prints a text description of the model kernels and dropouts. Tries to load the information from v_7_L2_optimize_by_session_
     '''
     run_params = load_run_json(version)
-    just_for_text = load_run_json('alex_test')   
+    just_for_text = load_run_json('7_L2_optimize_by_session')   
 
     print('\nThe model contains the following kernels:') 
     for kernel in run_params['kernels']:

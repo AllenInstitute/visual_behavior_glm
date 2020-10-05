@@ -1,6 +1,8 @@
 import visual_behavior.plotting as vbp
+import visual_behavior.utilities as vbu
 import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior.database as db
 import matplotlib as mpl
 import seaborn as sns
 import scipy
@@ -13,11 +15,11 @@ from matplotlib import animation, rc
 import matplotlib.pyplot as plt
 import gc
 from scipy import ndimage
+from scipy import stats
 
 def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True):
     '''
-        Plots the time points where each kernel has support
-    
+        Plots the time points where each kernel has support 
         INPUTS:
         glm, glm object for the session to plot
         include_cont, if True, includes the continuous kernels which have support everywhere
@@ -409,8 +411,26 @@ def plot_licks(session, ax, y_loc=0, t_span=None):
     ax.plot(
         df['timestamps'],
         y_loc*np.ones_like(df['timestamps']),
-        'ok',
-        alpha=0.5
+        marker='o',
+        color='white',
+        linestyle='none',
+        alpha=0.9
+    )
+
+def plot_rewards(session, ax, y_loc=0, t_span=None):
+    if t_span:
+        df = session.dataset.rewards.query(
+            'timestamps >= {} and timestamps <= {}'.format(t_span[0], t_span[1]))
+    else:
+        df = session.dataset.licks
+    ax.plot(
+        df['timestamps'],
+        y_loc*np.ones_like(df['timestamps']),
+        marker='o',
+        color='skyblue',
+        linestyle='none',
+        alpha=0.9,
+        markersize=12,
     )
 
 
@@ -423,13 +443,17 @@ def plot_running(session, ax, t_span=None):
     ax.plot(
         running_df['timestamps'],
         running_df['speed'],
-        color='blue',
+        color='skyblue',
         linewidth=3
+    )
+    ax.set_ylim(
+        session.dataset.running_data_df['speed'].min(),
+        session.dataset.running_data_df['speed'].max(),
     )
 
 def plot_pupil(session, ax, t_span=None):
     '''shares axis with running'''
-    vbp.initialize_legend(ax=ax, colors=['blue','black'],linewidth=3)
+    vbp.initialize_legend(ax=ax, colors=['skyblue','LemonChiffon'],linewidth=3)
     if t_span:
         pupil_df = session.dataset.eye_tracking.query(
             'time >= {} and time <= {}'.format(t_span[0], t_span[1]))
@@ -438,8 +462,12 @@ def plot_pupil(session, ax, t_span=None):
     ax.plot(
         pupil_df['time'],
         pupil_df['pupil_area'],
-        color='black',
+        color='LemonChiffon',
         linewidth=3
+    )
+    ax.set_ylim(
+        0,
+        np.percentile(session.dataset.eye_tracking['pupil_area'].fillna(0), 95)
     )
 
     ax.legend(
@@ -484,9 +512,26 @@ def plot_stimuli(session, ax, t_span=None):
             stimulus['start_time'],
             stimulus['stop_time'],
             color=stimulus['color'],
-            alpha=0.5
+            alpha=0.35,
+            edgecolor=None,
         )
 
+def get_movie_filepath(session_id, session_type='OphysSession', movie_type='RawBehaviorTrackingVideo'):
+    well_known_files = db.get_well_known_files(session_id, session_type)
+    behavior_video_path = ''.join(well_known_files.loc[movie_type][[
+                                  'storage_directory', 'filename']].tolist())
+    return behavior_video_path
+
+def get_sync_data(session_id, session_type='OphysSession'):
+    sync_key_map = {
+        'OphysSession': 'OphysRigSync',
+        'EcephysSession': 'EcephysRigSync',
+    }
+    well_known_files = db.get_well_known_files(session_id, session_type)
+    sync_path = ''.join(well_known_files.loc[sync_key_map[session_type]][[
+                        'storage_directory', 'filename']].tolist())
+    sync_data = vbu.get_sync_data(sync_path)
+    return sync_data
 
 def build_simulated_FOV(session, F_dataframe, column):
 
@@ -496,28 +541,25 @@ def build_simulated_FOV(session, F_dataframe, column):
     for ii, cell_specimen_id in enumerate(session.dataset.cell_specimen_ids):
 
         F_cell = F_dataframe.loc[cell_specimen_id][column]
-        arr += session.cell_specimen_table.loc[cell_specimen_id]['image_mask']*F_cell
+        # arr += session.cell_specimen_table.loc[cell_specimen_id]['image_mask']*F_cell
+        arr += session.dataset.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values*F_cell
 
     return arr
 
 
-def plot_kernels(kernel_df,ax,t_span=None):
+def plot_kernels(kernel_df, ax, palette_df, t_span=None, legend=False, annotate=True, t0=0, t1=np.inf):
     # kernels_to_exclude_from_plot = []#['intercept','time',]#['intercept','time','model_task0','model_timing1D','model_bias','model_omissions1']
     # kernels_to_exclude_from_plot = ['intercept','time',]#['intercept','time','model_task0','model_timing1D','model_bias','model_omissions1']
     kernels_to_exclude_from_plot = ['intercept','time','model_task0','model_timing1D','model_bias','model_omissions1']
+    kernels_to_include_in_plot = [k for k in kernel_df['kernel_name'].unique() if k not in kernels_to_exclude_from_plot]
+    palette = palette_df.query('kernel_name in @kernels_to_include_in_plot')['kernel_color'].to_list()
 
     if t_span:
         t0,t1 = t_span
         data_to_plot = kernel_df.query('timestamps >= @t0 and timestamps <= @t1 and kernel_name not in @kernels_to_exclude_from_plot')
     else:
         data_to_plot = kernel_df.query('kernel_name not in @kernels_to_exclude_from_plot')
-    palette = vbp.generate_random_colors(
-        len(data_to_plot['kernel_name'].unique()), 
-        lightness_range=(0.1,.65), 
-        saturation_range=(0.5,1), 
-        random_seed=3, 
-        order_colors=False
-    )
+
     sns.lineplot(
         data = data_to_plot,
         x='timestamps',
@@ -531,14 +573,39 @@ def plot_kernels(kernel_df,ax,t_span=None):
         legend=False,
         linewidth=3,
     )
-    ax.legend(
-        data_to_plot['kernel_name'].unique(),
-        loc='upper left',
-        ncol=10, 
-        mode="expand", 
-        framealpha = 0.5,
+    if legend:
+        ax.legend(
+            data_to_plot['kernel_name'].unique(),
+            loc='upper left',
+            ncol=10, 
+            mode="expand", 
+            framealpha = 0.5,
+        )
+    if annotate:
+        max_locs = get_max_locs_df(data_to_plot)
+        percentile_threshold = 95
+        for idx,row in max_locs.iterrows():
+            kernel_name = row['kernel_name']
+            if row['percentile'] > percentile_threshold:
+                va = 'top' if row['abs_max_sign'] < 0 else 'bottom'
+                ax.text(
+                    row['time'], 
+                    row['abs_max_sign']*row['abs_max_value'],
+                    row['kernel_name'],
+                    ha='center',
+                    va=va,
+                    fontweight='bold',
+                    color=palette_df.query('kernel_name == @kernel_name')['kernel_color'].iloc[0],
+                    fontsize=15
+                )
+    qs = 'timestamps >= {} and timestamps <= {}'.format(
+        t0,
+        t1
     )
-    # plt.setp(ax.lines,linewidth=4)
+    ax.set_ylim(
+        kernel_df.query(qs)['kernel_outputs'].min(),
+        kernel_df.query(qs)['kernel_outputs'].max(),
+    )
 
 def plot_session_summary(glm):
     plt.figure()
@@ -556,51 +623,46 @@ def plot_dropout_summary(results_summary, cell_specimen_id, ax):
     inputs:
         glm -- glm object
         cell_specimen_id -- cell to plot
-        ax -- a vector of three matplotlib axis handles
+        ax -- axis on which to plot
     '''
     data_to_plot = (
         results_summary
         .query('cell_specimen_id == @cell_specimen_id')
-        .sort_values(by='fraction_change_from_full', ascending=False)
-    )
+        .sort_values(by='adj_fraction_change_from_full', ascending=False)
+    ).copy().reset_index(drop=True)
 
-    mixed_dropout_color = 'DimGray'
-    special_dropout_colors = {
-        'Full':'DarkGreen',
-        'beh_model':mixed_dropout_color,
-        'all-images':mixed_dropout_color,
-        'visual':mixed_dropout_color,
-        
-    }
-    palette = [special_dropout_colors[key] if key in special_dropout_colors else 'black' for key in data_to_plot['dropout']]
+    dropouts = data_to_plot.dropout.unique()
+    single_dropouts = [d for d in dropouts if d.startswith('single-')]
+    combined_dropouts = [d.split('single-')[1] for d in single_dropouts]
 
-    sns.barplot(
-        data = data_to_plot,
-        x = 'variance_explained',
-        y = 'dropout',
-        ax=ax[0],
-        palette=palette
+    for idx,row in data_to_plot.iterrows():
+        if row['dropout'] in single_dropouts:
+            data_to_plot.at[idx,'dropout_type']='single'
+            data_to_plot.at[idx,'dropout_simple']=row['dropout'].split('single-')[1]
+        elif row['dropout'] in combined_dropouts:
+            data_to_plot.at[idx,'dropout_type']='combined'
+            data_to_plot.at[idx,'dropout_simple']=row['dropout']
+
+    yorder = (
+        data_to_plot
+        .query('dropout_type == "single"')
+        .sort_values(by='adj_fraction_change_from_full',ascending=False)['dropout_simple']
+        .values
     )
+    
     sns.barplot(
-        data = data_to_plot,
-        x = 'absolute_change_from_full',
-        y = 'dropout',
-        ax=ax[1],
-        palette=palette
+        data = data_to_plot.sort_values(by='adj_fraction_change_from_full', ascending=False),
+        x = 'adj_fraction_change_from_full',
+        y = 'dropout_simple',
+        ax=ax,
+        hue='dropout_type',
+        hue_order=['combined','single'],
+        order=yorder,
+        palette=['magenta','cyan']
     )
-    sns.barplot(
-        data = data_to_plot,
-        x = 'fraction_change_from_full',
-        y = 'dropout',
-        ax=ax[2],
-        palette=palette
-    )
-    ax[0].set_title('variance explained\nfor each model dropout')
-    ax[1].set_title('absolute change\nin variance explained')
-    ax[2].set_title('fractional change\nin variance explained')
-    for col in [1,2]:
-        ax[col].set_yticklabels([])
-        ax[col].set_ylabel('')
+    ax.set_ylabel('Dropout')
+    ax.set_title('Fraction Change\nin Variance Explained')
+
 
 def plot_filters(glm, cell_specimen_id, n_cols=5):
     '''plots all filters for a given cell'''
@@ -643,14 +705,14 @@ def plot_filters(glm, cell_specimen_id, n_cols=5):
     return fig, ax
 
 
-def get_title(ophys_experiment_id, cell_specimen_id):
+def get_title(ophys_experiment_id, cell_specimen_id, glm_version):
     '''
     generate a standardized figure title containing identifying information
     '''
     experiments_table = loading.get_filtered_ophys_experiment_table().reset_index()
 
     row = experiments_table.query('ophys_experiment_id == @ophys_experiment_id').iloc[0].to_dict()
-    title = '{}__specimen_id={}__exp_id={}__{}__{}__depth={}__cell_id={}'.format(
+    title = '{}__specimen_id={}__exp_id={}__{}__{}__depth={}__cell_id={}__glm_version={}'.format(
         row['cre_line'],
         row['specimen_id'],
         row['ophys_experiment_id'],
@@ -658,19 +720,47 @@ def get_title(ophys_experiment_id, cell_specimen_id):
         row['targeted_structure'],
         row['imaging_depth'],
         cell_specimen_id,
+        glm_version,
     )
     return title
 
+def get_max_locs_df(df_in):
+    '''
+    find max location of each kernel in the kernel_df
+    '''
+    df_in = df_in.copy()
+    df_in['kernel_outputs_abs'] = df_in['kernel_outputs'].abs()
+    max_df = df_in.groupby('kernel_name')[['kernel_outputs','kernel_outputs_abs']].max().sort_values(by='kernel_outputs', ascending=False)
+    max_locs = []
+    for kernel_name,row in max_df.iterrows():
+        kernel_subset = df_in.query('kernel_name == @kernel_name')
+        m = kernel_subset['kernel_outputs_abs'].abs().max()
+        max_locs.append({
+            'kernel_name': kernel_name,
+            'abs_max_value': kernel_subset['kernel_outputs_abs'].abs().max(),
+            'abs_max_sign': np.sign(kernel_subset.loc[kernel_subset['kernel_outputs_abs'].idxmax()]['kernel_outputs']),
+            'idx': kernel_subset['kernel_outputs_abs'].idxmax(),
+            'time': kernel_subset.loc[kernel_subset['kernel_outputs_abs'].idxmax()]['timestamps'],
+            'percentile':stats.percentileofscore(df_in['kernel_outputs_abs'], kernel_subset['kernel_outputs_abs'].abs().max(), kind='strict')
+        })
+    return pd.DataFrame(max_locs)
+
 class GLM_Movie(object):
 
-    def __init__(self, glm, cell_specimen_id, start_frame, end_frame, frame_interval=1, fps=10):
+    def __init__(self, glm, cell_specimen_id, start_frame, end_frame, frame_interval=1, fps=10, destination_folder=None):
 
         # note that ffmpeg must be installed on your system
         # this is tested on linux (not sure if it works on windows)
         mpl.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
         plt.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
 
-        plt.style.use('ggplot')
+        # plt.style.use('seaborn-white')
+        plt.style.use('dark_background')
+        mpl.rcParams['axes.labelsize'] = 14
+        mpl.rcParams['axes.titlesize'] = 16
+        mpl.rcParams['xtick.labelsize'] = 12
+        mpl.rcParams['ytick.labelsize'] = 12
+        mpl.rcParams['legend.fontsize'] = 16
 
         self.glm = glm
         self.cell_specimen_id = cell_specimen_id
@@ -678,7 +768,11 @@ class GLM_Movie(object):
         self.end_frame = end_frame
         self.frame_interval = frame_interval
 
-        self.title = get_title(self.glm.oeid, self.cell_specimen_id)
+        self.model_timestamps = glm.fit['dff_trace_arr']['dff_trace_timestamps'].values
+        self.initial_time = self.model_timestamps[self.start_frame]
+        self.final_time = self.model_timestamps[self.end_frame]
+
+        self.title = get_title(self.glm.oeid, self.cell_specimen_id, self.glm.version)
 
         self.kernel_df = gat.build_kernel_df(self.glm, self.cell_specimen_id)
 
@@ -687,7 +781,47 @@ class GLM_Movie(object):
         self.frames = np.arange(self.start_frame, self.end_frame, self.frame_interval)
         self.fps = fps
 
-        self.results_summary = gat.generate_results_summary(self.glm)
+        if destination_folder is None:
+            # if destination_folder is not specified, set it to {run_params['output_dir']}/output_files
+            base_path = self.glm.run_params['output_dir'].split('/v_')[0]
+            save_folder = os.path.join(base_path, 'output_files')
+            self.destination_folder = os.path.join(base_path, 'output_files')
+        else:
+            self.destination_folder = destination_folder
+
+        self.palette_df = pd.DataFrame({
+            'kernel_name':self.kernel_df['kernel_name'].unique(),
+            'kernel_color':vbp.generate_random_colors(
+                len(self.kernel_df['kernel_name'].unique()), 
+                lightness_range=(0.6,1), 
+                saturation_range=(0.75,1), 
+                random_seed=3, 
+                order_colors=False
+            )
+        })
+
+        self.sync_data = get_sync_data(glm.ophys_session_id)
+        self.tracking_movies = {}
+        for ii,movie_name in enumerate(['Behavior','Eye']):
+            try:
+                sync_timestamps = self.sync_data['cam{}_exposure_rising'.format(ii+1)]
+            except KeyError:
+                if movie_name == 'Eye':
+                    sync_timestamps = self.sync_data['eye_tracking_rising']
+                elif movie_name == 'Behavior':
+                    sync_timestamps = self.sync_data['behavior_monitoring_rising']
+            self.tracking_movies[movie_name.lower()] = vbu.Movie(
+                get_movie_filepath(glm.ophys_session_id, 
+                movie_type='Raw{}TrackingVideo'.format(movie_name)), 
+                sync_timestamps=sync_timestamps,
+            )
+
+        # try to make destination folder if it doesn't already exist
+        if os.path.exists(self.destination_folder) == False:
+                os.mkdir(self.destination_folder)
+
+
+        self.results_summary = gat.generate_results_summary(self.glm).reset_index()
         self.dropout_summary_plotted = False
         self.cell_roi_plotted = False
 
@@ -699,8 +833,7 @@ class GLM_Movie(object):
         this_cell = glm.df_full.query('cell_specimen_id == @cell_specimen_id')
         cell_index = np.where(glm.W['cell_specimen_id'] == cell_specimen_id)[0][0]
 
-        model_timestamps = glm.fit['dff_trace_arr']['dff_trace_timestamps'].values
-        t_now = model_timestamps[F_index]
+        t_now = self.model_timestamps[F_index]
         t_span = [t_now - t_before, t_now + t_after]
         # print('setup done at {} seconds'.format(time.time() - ti))
         if not self.dropout_summary_plotted:
@@ -711,32 +844,49 @@ class GLM_Movie(object):
             if axis_name != 'dropout_summary' and axis_name != 'cell_roi':
                 ax[axis_name].cla()
 
-        # print('setup done at {} seconds'.format(time.time() - ti))
         F_this_frame = glm.df_full.query('frame_index == @F_index').set_index('cell_specimen_id')
-        # dff_actual = dft.loc[glm.W['cell_specimen_id'].values]['dff'].values
-        # dff_pred = dft.loc[glm.W['cell_specimen_id'].values]['dff_predicted'].values
+
         
         # 2P ROI images:
         if not self.cell_roi_plotted:
-            ax['cell_roi'].imshow(glm.session.dataset.cell_specimen_table.loc[cell_specimen_id]['image_mask'],cmap='gray')
-            self.com = ndimage.measurements.center_of_mass(glm.session.dataset.cell_specimen_table.loc[cell_specimen_id]['image_mask'])
+            # ax['cell_roi'].imshow(glm.session.dataset.cell_specimen_table.loc[cell_specimen_id]['image_mask'],cmap='gray')
+            self.com = ndimage.measurements.center_of_mass(glm.session.dataset.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values)
             self.cell_roi_plotted = True
 
-        reconstructed_fov = build_simulated_FOV(glm.session, F_this_frame, 'dff')
-        ax['reconstructed_fov'].imshow(reconstructed_fov, cmap='seismic', clim=[-0.5, .5])
 
-        simulated_fov = build_simulated_FOV(glm.session, F_this_frame, 'dff_predicted')
-        ax['simulated_fov'].imshow(simulated_fov, cmap='seismic', clim=[-0.5, .5])
+        for movie_name in ['behavior','eye']:
+            # what follows is an attempt at adjusting the contrast, but keeping it somewhat constant in a local window
+            # if I adjust contrast as the 99th percentile for every frame, it looks flickery
+            frame = self.tracking_movies[movie_name].get_frame(time=t_now)[:,:,0]
+            frame_n1 = self.tracking_movies[movie_name].get_frame(time=1710-0.035)[:,:,0]
+            frame_p1 = self.tracking_movies[movie_name].get_frame(time=1710+0.035)[:,:,0]
+            frame_n2 = self.tracking_movies[movie_name].get_frame(time=1710-0.070)[:,:,0]
+            frame_p2 = self.tracking_movies[movie_name].get_frame(time=1710+0.070)[:,:,0]
+            p99 = np.percentile(
+                np.hstack((
+                    frame.flatten(),
+                    frame_n1.flatten(),
+                    frame_p1.flatten(),
+                    frame_n2.flatten(),
+                    frame_p2.flatten()
+                    )),
+                99
+            )
+            ax['{}_movie'.format(movie_name)].imshow(
+                frame ,
+                # clim=[0,p99], 
+                cmap='gray'
+            )
+            ax['{}_movie'.format(movie_name)].axis('off')
+            ax['{}_movie'.format(movie_name)].set_title('{} tracking movie'.format(movie_name))
 
         real_fov = self.real_2p_movie[F_index]
-        ax['real_fov'].imshow(real_fov, cmap='gray', clim=[0, 15000])
+        cmax = np.percentile(real_fov, 95) #set cmax to 95th percentile of this image
+        ax['real_fov'].imshow(real_fov, cmap='gray', clim=[0, cmax])
 
-        ax['cell_roi'].set_title('ROI mask for cell {}'.format(cell_specimen_id))
-        ax['reconstructed_fov'].set_title('Reconstructed FOV')
-        ax['simulated_fov'].set_title('Simulated FOV')
         ax['real_fov'].set_title('Real FOV')
 
-        for axis_name in ['cell_roi','real_fov','reconstructed_fov','simulated_fov']:
+        for axis_name in ['real_fov']: #,'reconstructed_fov','simulated_fov']:
             ax[axis_name].set_xticks([])
             ax[axis_name].set_yticks([])
             ax[axis_name].axvline(self.com[1],color='MediumAquamarine',alpha=0.5)
@@ -752,8 +902,8 @@ class GLM_Movie(object):
         ax['cell_response'].plot(
             local_df['dff_trace_timestamps'],
             local_df['dff'],
-            alpha=0.5,
-            color='darkgreen',
+            alpha=0.9,
+            color='lightgreen',
             linewidth=3,
         )
 
@@ -761,8 +911,16 @@ class GLM_Movie(object):
             local_df['dff_trace_timestamps'],
             local_df['dff_predicted'],
             alpha=1,
-            color='black',
+            color='white',
             linewidth=3,
+        )
+        qs = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+            self.initial_time,
+            self.final_time
+        )
+        ax['cell_response'].set_ylim(
+            this_cell.query(qs)['dff'].min(),
+            this_cell.query(qs)['dff'].max(),
         )
 
         ax['cell_response'].legend(
@@ -772,31 +930,19 @@ class GLM_Movie(object):
             framealpha = 0.2,
         )
 
+        plot_rewards(glm.session, ax['licks'], t_span=t_span)
         plot_licks(glm.session, ax['licks'], t_span=t_span)
+        
         plot_running(glm.session, ax['running'], t_span=t_span)
         plot_pupil(glm.session, ax['pupil'], t_span=t_span)
-        plot_kernels(self.kernel_df, ax['kernel_contributions'], t_span)
+        plot_kernels(self.kernel_df, ax['kernel_contributions'], self.palette_df, t_span)
 
         # some axis formatting: 
         for axis_name in ['licks', 'cell_response', 'running','kernel_contributions']:
-            ax[axis_name].axvline(t_now, color='black', linewidth=3, alpha=0.5)
+            ax[axis_name].axvline(t_now, color='white', linewidth=3, alpha=0.5)
             plot_stimuli(glm.session, ax[axis_name], t_span=t_span)
             if axis_name != 'kernel_contributions':
                 ax[axis_name].set_xticklabels([])
-
-        # ax['running'].set_ylim(
-        #     self.glm.session.dataset.running_data_df['speed'].min(),
-        #     self.glm.session.dataset.running_data_df['speed'].max()
-        # )
-        # ax['pupil'].set_ylim(
-        #     self.glm.session.dataset.eye_tracking['pupil_area'].min(),
-        #     self.glm.session.dataset.eye_tracking['pupil_area'].max()
-        # )
-
-        # ax['cell_response'].set_ylim(
-        #     glm.df_full['dff_predicted'].min(),
-        #     glm.df_full['dff_predicted'].max()
-        # )
 
         ax['cell_response'].set_title('Time series plots for cell {}'.format(cell_specimen_id))
         ax['licks'].set_xlim(t_span[0], t_span[1])
@@ -806,7 +952,7 @@ class GLM_Movie(object):
 
         ax['licks'].set_xlabel('time')
 
-        ax['licks'].set_ylabel('licks       ', rotation=0,ha='right', va='center')
+        ax['licks'].set_ylabel('licks/rewards       ', rotation=0,ha='right', va='center')
         ax['cell_response'].set_ylabel('$\Delta$F/F', rotation=0, ha='right', va='center')
         ax['running'].set_ylabel('Running\nSpeed\n(cm/s)', rotation=0, ha='right', va='center')
         ax['pupil'].set_ylabel('Pupil\nDiameter\n(pix^2)', rotation=0, ha='left', va='center')
@@ -827,17 +973,17 @@ class GLM_Movie(object):
         gc.collect()
 
     def set_up_axes(self):
-        fig = plt.figure(figsize=(24, 18))
+        fig = plt.figure(figsize=(24, 14))
         ax = {
-            'cell_roi': vbp.placeAxesOnGrid(fig, xspan=(0, 0.25), yspan=(0, 0.25)),
-            'real_fov': vbp.placeAxesOnGrid(fig, xspan=(0.25, 0.5), yspan=(0, 0.25)),
-            'reconstructed_fov': vbp.placeAxesOnGrid(fig, xspan=(0.5, 0.75), yspan=(0, 0.25)),
-            'simulated_fov': vbp.placeAxesOnGrid(fig, xspan=(0.75, 1), yspan=(0, 0.25)),
-            'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.3, 0.45]),
-            'licks': vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.45, 0.475]),
-            'running': vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.475, 0.575]),
-            'kernel_contributions':vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.575, 0.70]),
-            'dropout_summary':vbp.placeAxesOnGrid(fig, xspan=[0, 1], yspan=[0.775, 1], dim=[1,3], wspace=0.01),
+            'real_fov': vbp.placeAxesOnGrid(fig, xspan=(0.3, 0.49), yspan=(0, 0.25)),
+            'behavior_movie': vbp.placeAxesOnGrid(fig, xspan=(0.5, 0.75), yspan=(0, 0.25)),
+            'eye_movie': vbp.placeAxesOnGrid(fig, xspan=(0.75, 1), yspan=(0, 0.25)),
+            'dropout_summary':vbp.placeAxesOnGrid(fig, xspan=[0,0.2], yspan=[0,1]),
+            'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.30, 0.5]),
+            'licks': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.5, 0.525]),
+            'running': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.525, 0.625]),
+            'kernel_contributions':vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.625, 1]),
+            
         }
         ax['pupil'] = ax['running'].twinx()
 
@@ -845,8 +991,8 @@ class GLM_Movie(object):
         ax['running'].get_shared_x_axes().join(ax['running'], ax['cell_response'])
         ax['kernel_contributions'].get_shared_x_axes().join(ax['kernel_contributions'], ax['cell_response'])
 
-        variance_explained_string = 'Variance explained (full model) = {:0.1f}%'.format(100*self.glm.results.loc[self.cell_specimen_id]['Full_avg_cv_var_test'])
-        fig.suptitle(self.title+'\n'+variance_explained_string)
+        variance_explained_string = 'Variance explained (full model) = {:0.1f}%'.format(100*self.glm.results.loc[self.cell_specimen_id]['Full__avg_cv_var_test'])
+        fig.suptitle(self.title+'\n'+variance_explained_string, fontsize=18)
 
         return fig, ax
 
@@ -873,16 +1019,11 @@ class GLM_Movie(object):
             blit=False
         )
 
-        base_path = self.glm.run_params['output_dir'].split('/v_')[0]
-        save_folder = os.path.join(base_path, 'output_files')
-        if os.path.exists(save_folder) == False:
-            os.mkdir(save_folder)
-
         filename = self.title+'_frame_{}_to_{}.mp4'.format(self.start_frame, self.end_frame)
 
         with tqdm(total=len(self.frames)) as self.pbar:
             a.save(
-                os.path.join(save_folder, filename),
+                os.path.join(self.destination_folder, filename),
                 writer=self.writer
             )
 

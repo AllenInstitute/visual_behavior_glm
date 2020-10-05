@@ -417,6 +417,22 @@ def plot_licks(session, ax, y_loc=0, t_span=None):
         alpha=0.9
     )
 
+def plot_rewards(session, ax, y_loc=0, t_span=None):
+    if t_span:
+        df = session.dataset.rewards.query(
+            'timestamps >= {} and timestamps <= {}'.format(t_span[0], t_span[1]))
+    else:
+        df = session.dataset.licks
+    ax.plot(
+        df['timestamps'],
+        y_loc*np.ones_like(df['timestamps']),
+        marker='o',
+        color='skyblue',
+        linestyle='none',
+        alpha=0.9,
+        markersize=12,
+    )
+
 
 def plot_running(session, ax, t_span=None):
     if t_span:
@@ -496,7 +512,7 @@ def plot_stimuli(session, ax, t_span=None):
             stimulus['start_time'],
             stimulus['stop_time'],
             color=stimulus['color'],
-            alpha=0.25,
+            alpha=0.35,
             edgecolor=None,
         )
 
@@ -603,61 +619,46 @@ def plot_dropout_summary(results_summary, cell_specimen_id, ax):
     inputs:
         glm -- glm object
         cell_specimen_id -- cell to plot
-        ax -- a vector of three matplotlib axis handles OR a single axis
-        (if only a single axis is passed, only the fractional change will be plotted)
+        ax -- axis on which to plot
     '''
     data_to_plot = (
         results_summary
         .query('cell_specimen_id == @cell_specimen_id')
-        .sort_values(by='fraction_change_from_full', ascending=False)
+        .sort_values(by='adj_fraction_change_from_full', ascending=False)
+    ).copy().reset_index(drop=True)
+
+    dropouts = data_to_plot.dropout.unique()
+    single_dropouts = [d for d in dropouts if d.startswith('single-')]
+    combined_dropouts = [d.split('single-')[1] for d in single_dropouts]
+
+    for idx,row in data_to_plot.iterrows():
+        if row['dropout'] in single_dropouts:
+            data_to_plot.at[idx,'dropout_type']='single'
+            data_to_plot.at[idx,'dropout_simple']=row['dropout'].split('single-')[1]
+        elif row['dropout'] in combined_dropouts:
+            data_to_plot.at[idx,'dropout_type']='combined'
+            data_to_plot.at[idx,'dropout_simple']=row['dropout']
+
+    yorder = (
+        data_to_plot
+        .query('dropout_type == "single"')
+        .sort_values(by='adj_fraction_change_from_full',ascending=False)['dropout_simple']
+        .values
     )
-
-    mixed_dropout_color = 'DimGray'
-    special_dropout_colors = {
-        'Full':'DarkGreen',
-        'beh_model':mixed_dropout_color,
-        'all-images':mixed_dropout_color,
-        'visual':mixed_dropout_color,
-        
-    }
-    palette = [special_dropout_colors[key] if key in special_dropout_colors else 'black' for key in data_to_plot['dropout']]
-
-    if (isinstance(ax, np.ndarray) or isinstance(ax, list)) and len(ax) == 3:
-        sns.barplot(
-            data = data_to_plot,
-            x = 'variance_explained',
-            y = 'dropout',
-            ax=ax[0],
-            palette=palette
-        )
-        sns.barplot(
-            data = data_to_plot,
-            x = 'absolute_change_from_full',
-            y = 'dropout',
-            ax=ax[1],
-            palette=palette
-        )
-    if (isinstance(ax, np.ndarray) or isinstance(ax, list)) and len(ax) == 3:
-        axis_for_fractional_change = ax[2]
-    else:
-        axis_for_fractional_change = ax
+    
     sns.barplot(
-        data = data_to_plot,
-        x = 'fraction_change_from_full',
-        y = 'dropout',
-        ax=axis_for_fractional_change,
-        # palette=palette
+        data = data_to_plot.sort_values(by='adj_fraction_change_from_full', ascending=False),
+        x = 'adj_fraction_change_from_full',
+        y = 'dropout_simple',
+        ax=ax,
+        hue='dropout_type',
+        hue_order=['combined','single'],
+        order=yorder,
+        palette=['magenta','cyan']
     )
-    if (isinstance(ax, np.ndarray) or isinstance(ax, list)) and len(ax) == 3:
-        ax[0].set_title('variance explained\nfor each model dropout')
-        ax[1].set_title('absolute change\nin variance explained')
-        ax[2].set_title('fractional change\nin variance explained')
-        for col in [1,2]:
-            ax[col].set_yticklabels([])
-            ax[col].set_ylabel('')
-    else:
-        ax.set_title('fractional change\nin variance explained')
-        ax.set_yticklabels(ax.get_yticklabels(), fontsize=8)
+    ax.set_ylabel('Dropout')
+    ax.set_title('Fraction Change\nin Variance Explained')
+
 
 def plot_filters(glm, cell_specimen_id, n_cols=5):
     '''plots all filters for a given cell'''
@@ -755,7 +756,7 @@ class GLM_Movie(object):
         mpl.rcParams['axes.titlesize'] = 16
         mpl.rcParams['xtick.labelsize'] = 12
         mpl.rcParams['ytick.labelsize'] = 12
-        # mpl.rcParams['axes.ticklabelesize'] = 14
+        mpl.rcParams['legend.fontsize'] = 16
 
         self.glm = glm
         self.cell_specimen_id = cell_specimen_id
@@ -794,10 +795,17 @@ class GLM_Movie(object):
         self.sync_data = get_sync_data(glm.ophys_session_id)
         self.tracking_movies = {}
         for ii,movie_name in enumerate(['Behavior','Eye']):
+            try:
+                sync_timestamps = self.sync_data['cam{}_exposure_rising'.format(ii+1)]
+            except KeyError:
+                if movie_name == 'Eye':
+                    sync_timestamps = self.sync_data['eye_tracking_rising']
+                elif movie_name == 'Behavior':
+                    sync_timestamps = self.sync_data['behavior_monitoring_rising']
             self.tracking_movies[movie_name.lower()] = vbu.Movie(
                 get_movie_filepath(glm.ophys_session_id, 
                 movie_type='Raw{}TrackingVideo'.format(movie_name)), 
-                sync_timestamps=self.sync_data['cam{}_exposure_rising'.format(ii+1)]
+                sync_timestamps=sync_timestamps,
             )
 
         # try to make destination folder if it doesn't already exist
@@ -850,10 +858,10 @@ class GLM_Movie(object):
             # what follows is an attempt at adjusting the contrast, but keeping it somewhat constant in a local window
             # if I adjust contrast as the 99th percentile for every frame, it looks flickery
             frame = self.tracking_movies[movie_name].get_frame(time=t_now)[:,:,0]
-            frame_n1 = self.tracking_movies[movie_name].get_frame(time=1710-0.1)[:,:,0]
-            frame_p1 = self.tracking_movies[movie_name].get_frame(time=1710+0.1)[:,:,0]
-            frame_n2 = self.tracking_movies[movie_name].get_frame(time=1710-0.2)[:,:,0]
-            frame_p2 = self.tracking_movies[movie_name].get_frame(time=1710+0.2)[:,:,0]
+            frame_n1 = self.tracking_movies[movie_name].get_frame(time=1710-0.035)[:,:,0]
+            frame_p1 = self.tracking_movies[movie_name].get_frame(time=1710+0.035)[:,:,0]
+            frame_n2 = self.tracking_movies[movie_name].get_frame(time=1710-0.070)[:,:,0]
+            frame_p2 = self.tracking_movies[movie_name].get_frame(time=1710+0.070)[:,:,0]
             p99 = np.percentile(
                 np.hstack((
                     frame.flatten(),
@@ -864,8 +872,13 @@ class GLM_Movie(object):
                     )),
                 99
             )
-            ax['{}_movie'.format(movie_name)].imshow(frame ,clim=[0,p99], cmap='gray')
+            ax['{}_movie'.format(movie_name)].imshow(
+                frame ,
+                # clim=[0,p99], 
+                cmap='gray'
+            )
             ax['{}_movie'.format(movie_name)].axis('off')
+            ax['{}_movie'.format(movie_name)].set_title('{} tracking movie'.format(movie_name))
 
         real_fov = self.real_2p_movie[F_index]
         cmax = np.percentile(real_fov, 95) #set cmax to 95th percentile of this image
@@ -916,7 +929,9 @@ class GLM_Movie(object):
             framealpha = 0.2,
         )
 
+        plot_rewards(glm.session, ax['licks'], t_span=t_span)
         plot_licks(glm.session, ax['licks'], t_span=t_span)
+        
         plot_running(glm.session, ax['running'], t_span=t_span)
         plot_pupil(glm.session, ax['pupil'], t_span=t_span)
         plot_kernels(self.kernel_df, ax['kernel_contributions'], self.palette_df, t_span)
@@ -950,7 +965,7 @@ class GLM_Movie(object):
 
         ax['licks'].set_xlabel('time')
 
-        ax['licks'].set_ylabel('licks       ', rotation=0,ha='right', va='center')
+        ax['licks'].set_ylabel('licks/rewards       ', rotation=0,ha='right', va='center')
         ax['cell_response'].set_ylabel('$\Delta$F/F', rotation=0, ha='right', va='center')
         ax['running'].set_ylabel('Running\nSpeed\n(cm/s)', rotation=0, ha='right', va='center')
         ax['pupil'].set_ylabel('Pupil\nDiameter\n(pix^2)', rotation=0, ha='left', va='center')
@@ -971,16 +986,16 @@ class GLM_Movie(object):
         gc.collect()
 
     def set_up_axes(self):
-        fig = plt.figure(figsize=(24, 18))
+        fig = plt.figure(figsize=(24, 14))
         ax = {
             # 'cell_roi': vbp.placeAxesOnGrid(fig, xspan=(0, 0.25), yspan=(0, 0.25)),
-            'real_fov': vbp.placeAxesOnGrid(fig, xspan=(0.3, 0.49), yspan=(0, 0.3)),
+            'real_fov': vbp.placeAxesOnGrid(fig, xspan=(0.3, 0.49), yspan=(0, 0.25)),
             # 'reconstructed_fov': vbp.placeAxesOnGrid(fig, xspan=(0.55, 0.75), yspan=(0, 0.3)),
             # 'simulated_fov': vbp.placeAxesOnGrid(fig, xspan=(0.8, 1), yspan=(0, 0.3)),
-            'behavior_movie': vbp.placeAxesOnGrid(fig, xspan=(0.5, 0.75), yspan=(0, 0.3)),
-            'eye_movie': vbp.placeAxesOnGrid(fig, xspan=(0.75, 1), yspan=(0, 0.3)),
+            'behavior_movie': vbp.placeAxesOnGrid(fig, xspan=(0.5, 0.75), yspan=(0, 0.25)),
+            'eye_movie': vbp.placeAxesOnGrid(fig, xspan=(0.75, 1), yspan=(0, 0.25)),
             'dropout_summary':vbp.placeAxesOnGrid(fig, xspan=[0,0.2], yspan=[0,1]),
-            'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.35, 0.5]),
+            'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.30, 0.5]),
             'licks': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.5, 0.525]),
             'running': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.525, 0.625]),
             'kernel_contributions':vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.625, 1]),
@@ -993,7 +1008,7 @@ class GLM_Movie(object):
         ax['kernel_contributions'].get_shared_x_axes().join(ax['kernel_contributions'], ax['cell_response'])
 
         variance_explained_string = 'Variance explained (full model) = {:0.1f}%'.format(100*self.glm.results.loc[self.cell_specimen_id]['Full__avg_cv_var_test'])
-        fig.suptitle(self.title+'\n'+variance_explained_string)
+        fig.suptitle(self.title+'\n'+variance_explained_string, fontsize=18)
 
         return fig, ax
 

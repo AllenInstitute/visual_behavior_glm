@@ -547,7 +547,7 @@ def build_simulated_FOV(session, F_dataframe, column):
     return arr
 
 
-def plot_kernels(kernel_df, ax, palette_df, t_span=None, legend=False, annotate=True):
+def plot_kernels(kernel_df, ax, palette_df, t_span=None, legend=False, annotate=True, t0=0, t1=np.inf):
     # kernels_to_exclude_from_plot = []#['intercept','time',]#['intercept','time','model_task0','model_timing1D','model_bias','model_omissions1']
     # kernels_to_exclude_from_plot = ['intercept','time',]#['intercept','time','model_task0','model_timing1D','model_bias','model_omissions1']
     kernels_to_exclude_from_plot = ['intercept','time','model_task0','model_timing1D','model_bias','model_omissions1']
@@ -598,9 +598,13 @@ def plot_kernels(kernel_df, ax, palette_df, t_span=None, legend=False, annotate=
                     color=palette_df.query('kernel_name == @kernel_name')['kernel_color'].iloc[0],
                     fontsize=15
                 )
+    qs = 'timestamps >= {} and timestamps <= {}'.format(
+        t0,
+        t1
+    )
     ax.set_ylim(
-        kernel_df['kernel_outputs'].min(),
-        kernel_df['kernel_outputs'].max(),
+        kernel_df.query(qs)['kernel_outputs'].min(),
+        kernel_df.query(qs)['kernel_outputs'].max(),
     )
 
 def plot_session_summary(glm):
@@ -764,6 +768,10 @@ class GLM_Movie(object):
         self.end_frame = end_frame
         self.frame_interval = frame_interval
 
+        self.model_timestamps = glm.fit['dff_trace_arr']['dff_trace_timestamps'].values
+        self.initial_time = self.model_timestamps[self.start_frame]
+        self.final_time = self.model_timestamps[self.end_frame]
+
         self.title = get_title(self.glm.oeid, self.cell_specimen_id, self.glm.version)
 
         self.kernel_df = gat.build_kernel_df(self.glm, self.cell_specimen_id)
@@ -825,8 +833,7 @@ class GLM_Movie(object):
         this_cell = glm.df_full.query('cell_specimen_id == @cell_specimen_id')
         cell_index = np.where(glm.W['cell_specimen_id'] == cell_specimen_id)[0][0]
 
-        model_timestamps = glm.fit['dff_trace_arr']['dff_trace_timestamps'].values
-        t_now = model_timestamps[F_index]
+        t_now = self.model_timestamps[F_index]
         t_span = [t_now - t_before, t_now + t_after]
         # print('setup done at {} seconds'.format(time.time() - ti))
         if not self.dropout_summary_plotted:
@@ -837,10 +844,8 @@ class GLM_Movie(object):
             if axis_name != 'dropout_summary' and axis_name != 'cell_roi':
                 ax[axis_name].cla()
 
-        # print('setup done at {} seconds'.format(time.time() - ti))
         F_this_frame = glm.df_full.query('frame_index == @F_index').set_index('cell_specimen_id')
-        # dff_actual = dft.loc[glm.W['cell_specimen_id'].values]['dff'].values
-        # dff_pred = dft.loc[glm.W['cell_specimen_id'].values]['dff_predicted'].values
+
         
         # 2P ROI images:
         if not self.cell_roi_plotted:
@@ -848,11 +853,6 @@ class GLM_Movie(object):
             self.com = ndimage.measurements.center_of_mass(glm.session.dataset.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values)
             self.cell_roi_plotted = True
 
-        # reconstructed_fov = build_simulated_FOV(glm.session, F_this_frame, 'dff')
-        # ax['reconstructed_fov'].imshow(reconstructed_fov, cmap='seismic', clim=[-0.5, .5])
-
-        # simulated_fov = build_simulated_FOV(glm.session, F_this_frame, 'dff_predicted')
-        # ax['simulated_fov'].imshow(simulated_fov, cmap='seismic', clim=[-0.5, .5])
 
         for movie_name in ['behavior','eye']:
             # what follows is an attempt at adjusting the contrast, but keeping it somewhat constant in a local window
@@ -884,9 +884,6 @@ class GLM_Movie(object):
         cmax = np.percentile(real_fov, 95) #set cmax to 95th percentile of this image
         ax['real_fov'].imshow(real_fov, cmap='gray', clim=[0, cmax])
 
-        # ax['cell_roi'].set_title('ROI mask for cell {}'.format(cell_specimen_id))
-        # ax['reconstructed_fov'].set_title('Reconstructed FOV')
-        # ax['simulated_fov'].set_title('Simulated FOV')
         ax['real_fov'].set_title('Real FOV')
 
         for axis_name in ['real_fov']: #,'reconstructed_fov','simulated_fov']:
@@ -909,10 +906,6 @@ class GLM_Movie(object):
             color='lightgreen',
             linewidth=3,
         )
-        ax['cell_response'].set_ylim(
-            this_cell['dff'].min(),
-            this_cell['dff'].max(),
-        )
 
         ax['cell_response'].plot(
             local_df['dff_trace_timestamps'],
@@ -920,6 +913,14 @@ class GLM_Movie(object):
             alpha=1,
             color='white',
             linewidth=3,
+        )
+        qs = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+            self.initial_time,
+            self.final_time
+        )
+        ax['cell_response'].set_ylim(
+            this_cell.query(qs)['dff'].min(),
+            this_cell.query(qs)['dff'].max(),
         )
 
         ax['cell_response'].legend(
@@ -942,20 +943,6 @@ class GLM_Movie(object):
             plot_stimuli(glm.session, ax[axis_name], t_span=t_span)
             if axis_name != 'kernel_contributions':
                 ax[axis_name].set_xticklabels([])
-
-        # ax['running'].set_ylim(
-        #     self.glm.session.dataset.running_data_df['speed'].min(),
-        #     self.glm.session.dataset.running_data_df['speed'].max()
-        # )
-        # ax['pupil'].set_ylim(
-        #     self.glm.session.dataset.eye_tracking['pupil_area'].min(),
-        #     self.glm.session.dataset.eye_tracking['pupil_area'].max()
-        # )
-
-        # ax['cell_response'].set_ylim(
-        #     glm.df_full['dff_predicted'].min(),
-        #     glm.df_full['dff_predicted'].max()
-        # )
 
         ax['cell_response'].set_title('Time series plots for cell {}'.format(cell_specimen_id))
         ax['licks'].set_xlim(t_span[0], t_span[1])
@@ -988,10 +975,7 @@ class GLM_Movie(object):
     def set_up_axes(self):
         fig = plt.figure(figsize=(24, 14))
         ax = {
-            # 'cell_roi': vbp.placeAxesOnGrid(fig, xspan=(0, 0.25), yspan=(0, 0.25)),
             'real_fov': vbp.placeAxesOnGrid(fig, xspan=(0.3, 0.49), yspan=(0, 0.25)),
-            # 'reconstructed_fov': vbp.placeAxesOnGrid(fig, xspan=(0.55, 0.75), yspan=(0, 0.3)),
-            # 'simulated_fov': vbp.placeAxesOnGrid(fig, xspan=(0.8, 1), yspan=(0, 0.3)),
             'behavior_movie': vbp.placeAxesOnGrid(fig, xspan=(0.5, 0.75), yspan=(0, 0.25)),
             'eye_movie': vbp.placeAxesOnGrid(fig, xspan=(0.75, 1), yspan=(0, 0.25)),
             'dropout_summary':vbp.placeAxesOnGrid(fig, xspan=[0,0.2], yspan=[0,1]),

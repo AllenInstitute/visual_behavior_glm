@@ -12,23 +12,30 @@ import matplotlib.pyplot as plt
 
 from multiprocessing import Pool
 
-def make_movie_of_top_five_cells(oeid):
+def make_movie_of_top_cells(oeid):
     print('making movies for oeid {}'.format(oeid))
-    glm = GLM(int(oeid))
-    glm_results = glm.results.sort_values(by=['Full_avg_cv_var_test'], ascending=False)
-    for cell_specimen_id in glm_results.iloc[:5].index.values:
+    version = '7_L2_optimize_by_session'
+    glm = GLM(int(oeid), version, use_previous_fit=True, log_results=False, log_weights=False)
+    glm_results = glm.results.sort_values(by=['Full__avg_cv_var_test'], ascending=False)
+    for cell_specimen_id in glm_results.iloc[:2].index.values:
         movie = gvt.GLM_Movie(
             glm,
             cell_specimen_id = cell_specimen_id, 
-            start_frame = 20000,
-            end_frame = 40000,
-            frame_interval = 15,
-            fps = 5
+            start_frame = 30000,
+            end_frame = 35000,
+            frame_interval = 1,
+            destination_folder='/home/dougo/OneDrive/glm_movies',
+            fps = 15
         )
         movie.make_movie()
 
 experiment_table = loading.get_filtered_ophys_experiment_table()
-table_sample = experiment_table.sample(500, random_state = 0)
+table_sample = experiment_table.sample(500, random_state = 1)
 
-with Pool(10) as pool:
-    pool.map(make_movie_of_top_five_cells, table_sample.index.values)
+for ophys_experiment_id in table_sample.index.values:
+    try:
+        make_movie_of_top_cells(ophys_experiment_id)
+    except Exception as e:
+        print('failed on {}'.format(ophys_experiment_id))
+        print(e)
+        print(' ')

@@ -62,6 +62,12 @@ if False:
     gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[0,299])
     gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[299,1000])
 
+    # Make over-fitting figures
+    gat.compute_over_fitting_proportion(full_results, run_params) 
+    gvt.plot_over_fitting_summary(full_results, run_params)
+    gvt.plot_all_over_fitting(full_results, run_params)
+
+
 def check_adjustments(fit):
     plt.figure()
     labels = []

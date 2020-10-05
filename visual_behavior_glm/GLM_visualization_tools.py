@@ -1603,7 +1603,7 @@ def plot_over_fitting_summary(full_results, run_params):
     plt.xlabel('Avg. Overfitting fraction from kernel')
     plt.axvline(0,color='k',alpha=.25)
     plt.tight_layout()
-    plt.savefig(run_params['output_dir']+'/over_fitting_figures/over_fitting_summary.png')
+    plt.savefig(run_params['output_dir']+'/figures/over_fitting_figures/over_fitting_summary.png')
 
 def plot_all_over_fitting(full_results, run_params):
     '''
@@ -1622,7 +1622,7 @@ def plot_all_over_fitting(full_results, run_params):
     for d in run_params['dropouts']:
         try:
             # Plot each dropout
-            plot_over_fitting(full_results, d,save_file=run_params['output_dir']+'/over_fitting_figures/')
+            plot_over_fitting(full_results, d,save_file=run_params['output_dir']+'/figures/over_fitting_figures/')
         except:
             # Plot crashed for some reason, print error and move on
             print('crashed - '+d)

@@ -695,7 +695,7 @@ def compute_over_fitting_proportion(results_full,run_params):
     
     dropouts.remove('Full')
     for d in dropouts:
-        results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full_over_fit']
+        results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
  
 
 

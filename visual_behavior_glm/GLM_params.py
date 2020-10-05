@@ -71,6 +71,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
 
     # Make directory, will throw an error if already exists
     output_dir              = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(VERSION))
+    figure_dir              = os.path.join(output_dir, 'figures')
     model_freeze_dir        = os.path.join(output_dir, 'frozen_model_files')
     experiment_output_dir   = os.path.join(output_dir, 'experiment_model_files')
     manifest_dir            = os.path.join(output_dir, 'manifest')
@@ -80,6 +81,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     experiment_table_path   = os.path.join(output_dir, 'experiment_table_v_'+str(VERSION)+'.csv')
     beh_model_dir           = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/model_output/'
     os.mkdir(output_dir)
+    os.mkdir(figure_dir)
     os.mkdir(model_freeze_dir)
     os.mkdir(experiment_output_dir)
     os.mkdir(job_dir)

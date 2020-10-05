@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import xarray_mongodb
+from tqdm import tqdm
 
 import visual_behavior.data_access.loading as loading
 import visual_behavior.database as db

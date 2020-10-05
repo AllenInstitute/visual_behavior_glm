@@ -50,6 +50,17 @@ if False:
  
     # weights_df
     weights_df = gat.build_weights_df(run_params, results_pivoted)
+    gvt.all_kernels_evaluation(weights_df,run_params)
+    gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="mesoscope")
+    gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="scientifica")
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[1])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[2])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[3])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[4])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[5])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[6])
+    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[0,299])
+    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[299,1000])
 
 def check_adjustments(fit):
     plt.figure()

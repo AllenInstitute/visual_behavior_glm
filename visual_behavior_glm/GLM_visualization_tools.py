@@ -1025,7 +1025,7 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True):
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000]):
     '''
         Plots the average kernel for each cell line. 
         Plots the heatmap of the kernels sorted by time. 
@@ -1054,13 +1054,13 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     version = run_params['version']
     filter_string = ''
     if equipment_filter == "scientifica": 
-        weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676]) ')
+        weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676]) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')
         filter_string+='_scientifica'
     elif equipment_filter == "mesoscope":
-        weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676])')   
+        weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676])& (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')   
         filter_string+='_mesoscope'
     else:
-        weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in [962045676])')
+        weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in [962045676]) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])')
         if not interpolate:
             print('Forcing interpolate=True because we have mixed scientifica and mesoscope data')
             interpolate=True
@@ -1096,7 +1096,9 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
     if mode == "diagnostic":
         filter_string+='_suggestions' 
-    filename = run_params['output_dir']+'/'+kernel+'_analysis'+filter_string+'.png'
+    if depth_filter !=[0,1000]:
+        filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
+    filename = run_params['output_dir']+'/figures/'+kernel+'_analysis'+filter_string+'.png'
 
     # Get all cells data and plot Average Trajectories
     fig,ax=plt.subplots(3,3,figsize=(12,9))
@@ -1462,7 +1464,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         print('Figure Saved to: '+filename)
         plt.savefig(filename)
 
-def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science'):
+def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',depth_filter=[0,1000]):
     '''
         Makes the analysis plots for all kernels in this model version. Excludes intercept and time kernels
                 
@@ -1482,7 +1484,7 @@ def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold
             kernel_evaluation(weights_df, run_params, k, save_results=True,
                 threshold=threshold, drop_threshold=drop_threshold,
                 normalize=normalize,drop_threshold_single=drop_threshold_single,
-                session_filter=session_filter, equipment_filter=equipment_filter,mode=mode)
+                session_filter=session_filter, equipment_filter=equipment_filter,mode=mode,depth_filter=depth_filter)
             plt.close(plt.gcf().number)
         except:
             crashed.add(k)

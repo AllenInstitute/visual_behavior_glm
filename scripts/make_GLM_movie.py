@@ -67,6 +67,7 @@ def make_movie(oeid, glm_version, cell_specimen_id, start_frame, end_frame, fram
         start_frame = start_frame,
         end_frame = end_frame,
         frame_interval = frame_interval,
+        destination_folder = '/home/dougo/OneDrive/glm_movies',
         fps = fps
     )
     t0=time.time()
@@ -75,6 +76,7 @@ def make_movie(oeid, glm_version, cell_specimen_id, start_frame, end_frame, fram
 
 
 if __name__ == '__main__':
+    print('parsing args...')
     args = parser.parse_args()
 
     make_movie(

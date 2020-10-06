@@ -1768,11 +1768,12 @@ def plot_all_over_fitting(full_results, run_params):
             # Plot crashed for some reason, print error and move on
             print('crashed - '+d)
 
-def plot_feature_matrix(pivoted_results_summary, glm_version, features_to_plot=None, sort_by=None, ax=None, save_figure=False):
+def plot_feature_matrix(pivoted_results_summary, value_to_use, glm_version, features_to_plot=None, sort_by=None, ax=None, save_figure=False):
     """
     Plots a heatmap of GLM features from the pivoted_results_summary for a given glm_version
-    
+
     :param pivoted_results_summary: output of GLM_analysis_tools.build_pivoted_results_summary(), with value_to_use such as 'adj_fraction_change_from_full'
+    :param value_to_use: model output type used to create pivoted_results_summary, such as 'adj_fraction_change_from_full'
     :param glm_version: string of GLM version, ex: '7_L2_optimize_by_session'
     :param features_to_plot: list of GLM features to include in the plot. If None provided, will select defaults from GLM_params.define_kernels()
     :param sort_by: GLM feature to sort by, such as 'omissions', or 'Full'
@@ -1784,6 +1785,7 @@ def plot_feature_matrix(pivoted_results_summary, glm_version, features_to_plot=N
         figsize = (10,10)
         fig, ax = plt.subplots(figsize=figsize)
     if features_to_plot is None:
+        import visual_behavior_glm.GLM_params as glm_params
         params = glm_params.define_kernels()
         params = list(params.keys())
         params.remove('each-image')
@@ -1796,7 +1798,7 @@ def plot_feature_matrix(pivoted_results_summary, glm_version, features_to_plot=N
     else:
         feature_matrix = pivoted_results_summary[features_to_plot]
         sort_by = ''
-    ax = sns.heatmap(feature_matrix, vmin=-0.5, vmax=0, center=0, cmap='RdBu_r', ax=ax, cbar_kws={'label':model_output_type})
+    ax = sns.heatmap(feature_matrix, vmin=-0.5, vmax=0, center=0, cmap='RdBu_r', ax=ax, cbar_kws={'label':value_to_use})
     ax.set_ylabel('cells')
     ax.set_title('GLM feature matrix')
     if save_figure:

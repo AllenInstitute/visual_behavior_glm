@@ -289,8 +289,9 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     if save_plot:
         plt.savefig('continuous_events.png') 
 
-def plot_PCA_var_explained(pca, figsize=(10,8)):
-    fig,ax=plt.subplots(2,1,figsize=figsize, sharex=True)
+def plot_PCA_var_explained(pca, ax=None, figsize=(10,8)):
+    if ax is None:
+        fig,ax=plt.subplots(2,1,figsize=figsize, sharex=True)
     ax[0].plot(
         np.arange(40),
         pca.explained_variance_ratio_,
@@ -309,13 +310,13 @@ def plot_PCA_var_explained(pca, figsize=(10,8)):
     ax[1].set_ylabel('cumulative variance explained')
     ax[0].set_title('variance explained by PC')
     ax[1].set_title('cumulative variance explained by PC')
-    fig.tight_layout()
-    return fig, ax
 
-def pc_component_heatmap(pca, figsize=(18,4)):
+
+def pc_component_heatmap(pca, ax=None, figsize=(18,4)):
     components = pd.DataFrame(pca.components_, columns=pca.component_names)
     sorted_cols = np.array(pca.component_names)[np.argsort(pca.components_[0,:])]
-    fig,ax=plt.subplots(figsize=figsize)
+    if ax is None:
+        fig,ax=plt.subplots(figsize=figsize)
     sns.heatmap(
         components[sorted_cols[::-1]].iloc[:10],
         cmap='seismic',
@@ -327,8 +328,8 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     ax.set_xticks(np.arange(0.5,len(pca.component_names)+0.5))
     ax.set_xticklabels(sorted_cols[::-1],rotation=45,ha='right')
     ax.set_ylabel('PC number')
-    fig.tight_layout()
-    return fig, ax
+
+
 
 def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outlier_threshold=1.5):
     '''
@@ -355,7 +356,7 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outl
         plot1 = sns.boxplot(
             data=results,
             x='glm_version',
-            y='Full_avg_cv_var_{}'.format(dataset),
+            y='Full__avg_cv_var_{}'.format(dataset),
             order = glm_version_order,
             hue='cre_line',
             hue_order=cre_line_order,
@@ -367,7 +368,7 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outl
         plot2 = sns.boxplot(
             data=results,
             x='cre_line',
-            y='Full_avg_cv_var_{}'.format(dataset),
+            y='Full__avg_cv_var_{}'.format(dataset),
             order = cre_line_order,
             hue='glm_version',
             hue_order=glm_version_order,
@@ -1768,41 +1769,14 @@ def plot_all_over_fitting(full_results, run_params):
             # Plot crashed for some reason, print error and move on
             print('crashed - '+d)
 
-def plot_feature_matrix(pivoted_results_summary, value_to_use, glm_version, features_to_plot=None, sort_by=None, ax=None, save_figure=False):
-    """
-    Plots a heatmap of GLM features from the pivoted_results_summary for a given glm_version
-
-    :param pivoted_results_summary: output of GLM_analysis_tools.build_pivoted_results_summary(), with value_to_use such as 'adj_fraction_change_from_full'
-    :param value_to_use: model output type used to create pivoted_results_summary, such as 'adj_fraction_change_from_full'
-    :param glm_version: string of GLM version, ex: '7_L2_optimize_by_session'
-    :param features_to_plot: list of GLM features to include in the plot. If None provided, will select defaults from GLM_params.define_kernels()
-    :param sort_by: GLM feature to sort by, such as 'omissions', or 'Full'
-    :param ax: axis to plot, if None provided, figure will be created
-    :param save_figure: if True, figure will be saved to a default location with figure title reflecting customized inputs to function
-    :return: figure axis
-    """
-    if ax is None:
-        figsize = (10,10)
-        fig, ax = plt.subplots(figsize=figsize)
-    if features_to_plot is None:
-        import visual_behavior_glm.GLM_params as glm_params
-        params = glm_params.define_kernels()
-        params = list(params.keys())
-        params.remove('each-image')
-        features_to_plot = list(np.sort(np.hstack((params,'all-images'))))
-        features = 'default_features'
-    else:
-        features = 'custom_features'
-    if sort_by is not None:
-        feature_matrix = pivoted_results_summary.sort_values(sort_by).reset_index()[features_to_plot]
-    else:
-        feature_matrix = pivoted_results_summary[features_to_plot]
-        sort_by = ''
-    ax = sns.heatmap(feature_matrix, vmin=-0.5, vmax=0, center=0, cmap='RdBu_r', ax=ax, cbar_kws={'label':value_to_use})
-    ax.set_ylabel('cells')
-    ax.set_title('GLM feature matrix')
-    if save_figure:
-        import visual_behavior.visualization.utils as ut
-        save_dir = os.path.join(loading.get_ophys_glm_dir(), 'v_'+glm_version, 'figures')
-        ut.save_figure(fig, figsize, save_dir, 'feature_matrix_heatmaps', 'glm_feature_matrix_'+glm_version+'_sort_by_'+sort_by+'_'+features)
-    return ax
+def save_figure(fig, fname, formats=['.png'], transparent=False, dpi=300,):
+    mpl.rcParams['pdf.fonttype'] = 42
+    if 'size' in kwargs.keys():
+        fig.set_size_inches(kwargs['size'])
+    for f in formats:
+        fig.savefig(
+            fname + f,
+            transparent=transparent,
+            orientation='landscape',
+            dpi=dpi
+        )

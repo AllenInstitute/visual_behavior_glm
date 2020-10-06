@@ -1769,7 +1769,7 @@ def plot_all_over_fitting(full_results, run_params):
             print('crashed - '+d)
 
 
-def plot_nested_dropouts(results_pivoted,num_levels=2,size=0.3,force_nesting=True,filter_cre=False, cre='Slc17a7-IRES2-Cre'):
+def plot_nested_dropouts(results_pivoted,num_levels=2,size=0.3,force_nesting=True,filter_cre=False, cre='Slc17a7-IRES2-Cre',invert=False):
 
     if filter_cre:
         rsp = results_pivoted.query('(variance_explained_full > 0.01) & (cre_line == @cre)').copy()
@@ -1781,18 +1781,24 @@ def plot_nested_dropouts(results_pivoted,num_levels=2,size=0.3,force_nesting=Tru
     outer_colors = cmap(np.array([0,4,8]))
     inner_colors = cmap(np.array([1,2,3,5,6,7,9,10]))
 
-    levels={
-            num_levels-1:['visual','behavioral','cognitive'],
-            num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
-            num_levels-3:['licking_bouts','licking_each_lick','pupil_and_omissions','trial_type','change_and_rewards'],
-            num_levels-4:['running_and_omissions','hits_and_rewards'],
-        }
-    
+    # Just notes on the current levels definitions
+    #levels={
+    #        num_levels-1:['visual','behavioral','cognitive'],
+    #        num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
+    #        num_levels-3:['licking_bouts','licking_each_lick','pupil_and_omissions','trial_type','change_and_rewards'],
+    #        num_levels-4:['running_and_omissions','hits_and_rewards'],
+    #    }
+
+    if invert:
+        r = [1-size,1]
+    else:
+        r = [1,1-size]   
+ 
     # make a layerd pie chart 
     rsp['level1'] = [np.argmin(x) for x in zip(rsp['visual'],rsp['behavioral'],rsp['cognitive'])]
     level_1_props = rsp.groupby('level1')['level1'].count()
     level_1_props = level_1_props/np.sum(level_1_props)
-    wedges, texts= ax[0].pie(level_1_props,radius=1,colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    wedges, texts= ax[0].pie(level_1_props,radius=r[0],colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
     ax[0].legend(wedges, ['Visual','Behavioral','Cognitive'],loc='lower center',bbox_to_anchor=(0,-.25,1,2))
 
 
@@ -1806,12 +1812,12 @@ def plot_nested_dropouts(results_pivoted,num_levels=2,size=0.3,force_nesting=Tru
 
     level_2_props = rsp.groupby('level2')['level2'].count()
     level_2_props = level_2_props/np.sum(level_2_props)
-    wedges, texts = ax[1].pie(level_2_props,radius=1,colors=inner_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    wedges, texts = ax[1].pie(level_2_props,radius=r[1],colors=inner_colors,wedgeprops=dict(width=size,edgecolor='w'))
     ax[1].legend(wedges,['all-images','expectation','omissions','face_motion_energy','licking','pupil_and_running','beh_model','task'],loc='lower center',bbox_to_anchor=(0,-.4,1,2))
 
 
-    wedges, texts = ax[2].pie(level_1_props,radius=1,colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
-    wedges, texts = ax[2].pie(level_2_props,radius=1-size,colors=inner_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    wedges, texts = ax[2].pie(level_1_props,radius=r[0],colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    wedges, texts = ax[2].pie(level_2_props,radius=r[1],colors=inner_colors,wedgeprops=dict(width=size,edgecolor='w'))
     if filter_cre:
         ax[2].set_title(cre)
 

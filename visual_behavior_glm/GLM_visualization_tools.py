@@ -1767,3 +1767,40 @@ def plot_all_over_fitting(full_results, run_params):
         except:
             # Plot crashed for some reason, print error and move on
             print('crashed - '+d)
+
+def plot_feature_matrix(pivoted_results_summary, glm_version, features_to_plot=None, sort_by=None, ax=None, save_figure=False):
+    """
+    Plots a heatmap of GLM features from the pivoted_results_summary for a given glm_version
+    
+    :param pivoted_results_summary: output of GLM_analysis_tools.build_pivoted_results_summary(), with value_to_use such as 'adj_fraction_change_from_full'
+    :param glm_version: string of GLM version, ex: '7_L2_optimize_by_session'
+    :param features_to_plot: list of GLM features to include in the plot. If None provided, will select defaults from GLM_params.define_kernels()
+    :param sort_by: GLM feature to sort by, such as 'omissions', or 'Full'
+    :param ax: axis to plot, if None provided, figure will be created
+    :param save_figure: if True, figure will be saved to a default location with figure title reflecting customized inputs to function
+    :return: figure axis
+    """
+    if ax is None:
+        figsize = (10,10)
+        fig, ax = plt.subplots(figsize=figsize)
+    if features_to_plot is None:
+        params = glm_params.define_kernels()
+        params = list(params.keys())
+        params.remove('each-image')
+        features_to_plot = list(np.sort(np.hstack((params,'all-images'))))
+        features = 'default_features'
+    else:
+        features = 'custom_features'
+    if sort_by is not None:
+        feature_matrix = pivoted_results_summary.sort_values(sort_by).reset_index()[features_to_plot]
+    else:
+        feature_matrix = pivoted_results_summary[features_to_plot]
+        sort_by = ''
+    ax = sns.heatmap(feature_matrix, vmin=-0.5, vmax=0, center=0, cmap='RdBu_r', ax=ax, cbar_kws={'label':model_output_type})
+    ax.set_ylabel('cells')
+    ax.set_title('GLM feature matrix')
+    if save_figure:
+        import visual_behavior.visualization.utils as ut
+        save_dir = os.path.join(loading.get_ophys_glm_dir(), 'v_'+glm_version, 'figures')
+        ut.save_figure(fig, figsize, save_dir, 'feature_matrix_heatmaps', 'glm_feature_matrix_'+glm_version+'_sort_by_'+sort_by+'_'+features)
+    return ax

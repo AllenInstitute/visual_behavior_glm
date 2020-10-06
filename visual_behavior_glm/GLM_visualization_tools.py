@@ -1767,3 +1767,54 @@ def plot_all_over_fitting(full_results, run_params):
         except:
             # Plot crashed for some reason, print error and move on
             print('crashed - '+d)
+
+
+def plot_nested_dropouts(results_pivoted,num_levels=2,size=0.3,force_nesting=True,filter_cre=False, cre='Slc17a7-IRES2-Cre'):
+
+    if filter_cre:
+        rsp = results_pivoted.query('(variance_explained_full > 0.01) & (cre_line == @cre)').copy()
+    else:
+        rsp = results_pivoted.query('variance_explained_full > 0.01').copy()
+
+    fig, ax = plt.subplots(1,3,figsize=(10,4))
+    cmap= plt.get_cmap("tab20c")
+    outer_colors = cmap(np.array([0,4,8]))
+    inner_colors = cmap(np.array([1,2,3,5,6,7,9,10]))
+
+    levels={
+            num_levels-1:['visual','behavioral','cognitive'],
+            num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
+            num_levels-3:['licking_bouts','licking_each_lick','pupil_and_omissions','trial_type','change_and_rewards'],
+            num_levels-4:['running_and_omissions','hits_and_rewards'],
+        }
+    
+    # make a layerd pie chart 
+    rsp['level1'] = [np.argmin(x) for x in zip(rsp['visual'],rsp['behavioral'],rsp['cognitive'])]
+    level_1_props = rsp.groupby('level1')['level1'].count()
+    level_1_props = level_1_props/np.sum(level_1_props)
+    wedges, texts= ax[0].pie(level_1_props,radius=1,colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    ax[0].legend(wedges, ['Visual','Behavioral','Cognitive'],loc='lower center',bbox_to_anchor=(0,-.25,1,2))
+
+
+    if force_nesting:
+        rsp['level2_0'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'])]
+        rsp['level2_1'] = [np.argmin(x) for x in zip(rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'])]
+        rsp['level2_2'] = [np.argmin(x) for x in zip(rsp['beh_model'],rsp['task'])]
+        rsp['level2'] = [x[x[0]+1]+4*x[0] for x in zip(rsp['level1'], rsp['level2_0'],rsp['level2_1'],rsp['level2_2'])] 
+    else:
+        rsp['level2'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+
+    level_2_props = rsp.groupby('level2')['level2'].count()
+    level_2_props = level_2_props/np.sum(level_2_props)
+    wedges, texts = ax[1].pie(level_2_props,radius=1,colors=inner_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    ax[1].legend(wedges,['all-images','expectation','omissions','face_motion_energy','licking','pupil_and_running','beh_model','task'],loc='lower center',bbox_to_anchor=(0,-.4,1,2))
+
+
+    wedges, texts = ax[2].pie(level_1_props,radius=1,colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    wedges, texts = ax[2].pie(level_2_props,radius=1-size,colors=inner_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    if filter_cre:
+        ax[2].set_title(cre)
+
+    plt.tight_layout()
+    return level_1_props, level_2_props,rsp
+

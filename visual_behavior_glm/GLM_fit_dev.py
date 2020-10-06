@@ -42,10 +42,10 @@ if False:
     full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
     gat.compute_over_fitting_proportion(full_results,run_params)   
  
-    # results
+    # results summary # results are experiment/cell/dropout
     results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='summary')
  
-    # results_pivoted
+    # results_pivoted # rows are experiment/cell
     results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
  
     # weights_df

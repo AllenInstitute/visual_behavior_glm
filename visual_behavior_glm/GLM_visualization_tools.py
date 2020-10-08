@@ -1531,7 +1531,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
     ax[0,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
     ax[0,2].set_xticks(np.arange(0,len(drop_list)))
-    ax[0,2].set_xticklabels(drop_list,rotation=60,fontsize=8)
+    ax[0,2].set_xticklabels(drop_list,rotation=60,fontsize=8,ha='right')
     ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
     ax[0,2].set_ylim(-1.05,.05)
     ax[0,2].set_title('Dropout Scores')
@@ -1559,7 +1559,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
     ax[1,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
     ax[1,2].set_xticks(np.arange(0,len(drop_list)))
-    ax[1,2].set_xticklabels(drop_list,rotation=60,fontsize=8)
+    ax[1,2].set_xticklabels(drop_list,rotation=60,fontsize=8,ha='right')
     ax[1,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
     ax[1,2].set_ylim(-1.05,.05)
     ax[1,2].set_title('Filter on Full Model')
@@ -1592,7 +1592,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
     ax[2,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
     ax[2,2].set_xticks(np.arange(0,len(drop_list)))
-    ax[2,2].set_xticklabels(drop_list,rotation=60,fontsize=8)
+    ax[2,2].set_xticklabels(drop_list,rotation=60,fontsize=8,ha='right')
     ax[2,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
     ax[2,2].set_ylim(-1.05,.05)
     ax[2,2].set_title('Filter on Dropout Score')
@@ -1767,3 +1767,203 @@ def plot_all_over_fitting(full_results, run_params):
         except:
             # Plot crashed for some reason, print error and move on
             print('crashed - '+d)
+
+def plot_top_level_dropouts(results_pivoted, filter_cre=False, cre='Slc17a7-IRES2-Cre',bins=150, cmax=10):
+    '''
+         IN DEVELOPMENT
+    '''
+    if filter_cre:
+        rsp = results_pivoted.query('(variance_explained_full > 0.01) & (cre_line == @cre)').copy()
+    else:
+        rsp = results_pivoted.query('variance_explained_full > 0.01').copy()
+        cre='All'
+    rsp.fillna(value=0,inplace=True)
+
+    #fig, ax = plt.subplots(1,3,figsize=(12,4))
+    #ax[0].plot(rsp['visual'],rsp['behavioral'],'ko',alpha=.1)
+    #ax[0].set_ylabel('behavioral')
+    #ax[0].set_xlabel('visual')
+    #ax[1].plot(rsp['visual'],rsp['cognitive'],'ko',alpha=.1)
+    #ax[1].set_ylabel('cognitive')
+    #ax[1].set_xlabel('visual')
+    #ax[2].plot(rsp['cognitive'],rsp['behavioral'],'ko',alpha=.1)
+    #ax[2].set_ylabel('behavioral')
+    #ax[2].set_xlabel('cognitive')
+    #ax[0].plot([-1,0],[-1,0],'r--')
+    #ax[1].plot([-1,0],[-1,0],'r--')
+    #ax[2].plot([-1,0],[-1,0],'r--')
+
+    fig, ax = plt.subplots(1,3,figsize=(12,4))
+    ax[0].hist2d(rsp['visual'],rsp['behavioral'],bins=bins,density=True, cmax=cmax,cmap='inferno')
+    ax[1].hist2d(rsp['visual'],rsp['cognitive'],bins=bins,density=True, cmax=cmax,cmap='inferno')
+    ax[2].hist2d(rsp['cognitive'],rsp['behavioral'],bins=bins,density=True, cmax=cmax,cmap='inferno')
+    ax[0].set_ylabel('behavioral')
+    ax[0].set_xlabel('visual')
+    ax[1].set_ylabel('cognitive')
+    ax[1].set_xlabel('visual')
+    ax[2].set_ylabel('behavioral')
+    ax[2].set_xlabel('cognitive')
+    ax[2].set_title(cre)
+    plt.tight_layout()
+
+def plot_nested_dropouts(results_pivoted,run_params, num_levels=2,size=0.3,force_nesting=True,filter_cre=False, cre='Slc17a7-IRES2-Cre',invert=False,mixing=True,thresh=-.2,savefig=True,force_subsets=True):
+
+    if filter_cre:
+        rsp = results_pivoted.query('(variance_explained_full > 0.01) & (cre_line == @cre)').copy()
+    else:
+        rsp = results_pivoted.query('variance_explained_full > 0.01').copy()
+
+    fig, ax = plt.subplots(1,num_levels+1,figsize=((num_levels+1)*3+1,4))
+    cmap= plt.get_cmap("tab20c")
+    outer_colors = cmap(np.array([0,4,8,12]))
+    inner_colors = cmap(np.array([1,2,3,5,6,7,9,10,11]))
+    
+    if num_levels==1:
+        size=size*2
+
+    if invert:
+        r = [1-size,1]
+    else:
+        r = [1,1-size]   
+ 
+    # Compute Level 1 clusters
+    if mixing:
+        rsp['level1'] = [np.argmin(x) for x in zip(rsp['visual'],rsp['behavioral'],rsp['cognitive'])]
+        rsp['level1'] = [3 if (x[0]<thresh)&(x[1]<thresh) else x[2] for x in zip(rsp['visual'],rsp['behavioral'],rsp['level1'])]
+    else:
+        rsp['level1'] = [np.argmin(x) for x in zip(rsp['visual'],rsp['behavioral'],rsp['cognitive'])]
+    level_1_props = rsp.groupby('level1')['level1'].count()
+    if 0 not in level_1_props.index:
+        level_1_props.loc[0] = 0
+    if 1 not in level_1_props.index:
+        level_1_props.loc[1] = 0
+    if 2 not in level_1_props.index:
+        level_1_props.loc[2] = 0
+    level_1_props = level_1_props.sort_index(inplace=False)
+    level_1_props = level_1_props/np.sum(level_1_props)
+
+    # Compute Level 2 clusters
+    if force_nesting:
+        rsp['level2_0'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'])]
+        rsp['level2_1'] = [np.argmin(x) for x in zip(rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'])]
+        rsp['level2_2'] = [np.argmin(x) for x in zip(rsp['beh_model'],rsp['task'])]
+        if mixing:
+            rsp['level2_3'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'])]
+            rsp['level2'] = [x[x[0]+1]+3*x[0] for x in zip(rsp['level1'], rsp['level2_0'],rsp['level2_1'],rsp['level2_2'],rsp['level2_3'])]
+        else:
+            rsp['level2'] = [x[x[0]+1]+3*x[0] for x in zip(rsp['level1'], rsp['level2_0'],rsp['level2_1'],rsp['level2_2'])]
+        level_2_props = rsp.groupby('level2')['level2'].count()
+        for i in range(0,9):    
+            if i not in level_2_props.index:
+                level_2_props.loc[i] = 0
+        if mixing:
+            for i in range(9,15):    
+                if i not in level_2_props.index:
+                    level_2_props.loc[i] = 0
+        level_2_props = level_2_props.sort_index(inplace=False)       
+        level_2_props = level_2_props/np.sum(level_2_props)
+
+    elif force_subsets:
+        rsp['level2_0'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+        rsp['level2_1'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+        rsp['level2_2'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+        if mixing:
+            rsp['level2_3'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+            rsp['level2'] = [x[x[0]+1]+100*x[0] for x in zip(rsp['level1'], rsp['level2_0'],rsp['level2_1'],rsp['level2_2'],rsp['level2_3'])] 
+        else:
+            rsp['level2'] = [x[x[0]+1]+100*x[0] for x in zip(rsp['level1'], rsp['level2_0'],rsp['level2_1'],rsp['level2_2'])] 
+        level_2_props = rsp.groupby('level2')['level2'].count()
+        for i in range(0,9):
+            if i not in level_2_props.index:
+                level_2_props.loc[i] = 0
+        for i in range(100,109):
+            if i not in level_2_props.index:
+                level_2_props.loc[i] = 0
+        for i in range(200,209):
+            if i not in level_2_props.index:
+                level_2_props.loc[i] = 0
+        if mixing:
+            for i in range(300,309):
+                if i not in level_2_props.index:
+                    level_2_props.loc[i] = 0       
+        level_2_props = level_2_props.sort_index(inplace=False)       
+        level_2_props = level_2_props/np.sum(level_2_props)
+
+    else:
+        rsp['level2'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+        level_2_props = rsp.groupby('level2')['level2'].count()
+        level_2_props.loc[8] = 0 # Add third category for cognitive
+        level_2_props = level_2_props.sort_index(inplace=False)       
+        level_2_props = level_2_props/np.sum(level_2_props)
+
+    # Plot Layer 1 for legend
+    wedges, texts= ax[0].pie(level_1_props,radius=0,colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    ax[0].legend(wedges, ['Visual','Behavioral','Cognitive','Mixed'],loc='center')#,bbox_to_anchor=(0,-.25,1,2))
+    ax[0].set_title('Level 1')
+
+    # Plot Layer 2 for legend
+    if num_levels ==2:
+        wedges, texts = ax[1].pie(level_2_props,radius=0,colors=inner_colors,wedgeprops=dict(width=size,edgecolor='w'))
+        ax[1].legend(wedges,['all-images','expectation','omissions','face_motion_energy','licking','pupil_and_running','beh_model','task'],loc='center')#,bbox_to_anchor=(0,-.4,1,2))
+        if force_nesting:
+            ax[1].set_title('Level 2\nForced Hierarchy')   
+        else:
+            ax[1].set_title('Level 2')
+        final_ax = 2
+    else:
+        final_ax = 1
+
+    # Plot Full chart
+    wedges, texts = ax[final_ax].pie(level_1_props,radius=r[0],colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    if num_levels ==2:
+        wedges, texts = ax[final_ax].pie(level_2_props,radius=r[1],colors=inner_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    if filter_cre:
+        ax[final_ax].set_title(cre)
+    else:
+        ax[final_ax].set_title('All cells')
+
+    plt.tight_layout()
+    if savefig:
+        filename = run_params['output_dir']+'/figures/nested_dropouts/pie'+str(num_levels)
+        if filter_cre:
+            filename+='_'+cre[0:3]
+        if num_levels ==2:
+            if force_nesting:
+                filename+='_forced'
+        if mixing:
+            filename+='_mixing'
+        plt.savefig(filename+'.png')
+    return level_1_props, level_2_props, rsp
+
+def plot_all_nested_dropouts(results_pivoted, run_params):
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=False, force_nesting=False, num_levels=1)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=1,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=1,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=1,cre='Sst-IRES-Cre')
+
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=True, force_nesting=False, num_levels=1)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=1,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=1,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=1,cre='Sst-IRES-Cre')
+
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=False, force_nesting=False, num_levels=2)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=2,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=2,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=2,cre='Sst-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=True, force_nesting=False, num_levels=2)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=2,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=2,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=2,cre='Sst-IRES-Cre')
+
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=False, force_nesting=True, num_levels=2)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=True, num_levels=2,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=True, num_levels=2,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=True, num_levels=2,cre='Sst-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=True, force_nesting=True, num_levels=2)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Sst-IRES-Cre')
+
+
+
+

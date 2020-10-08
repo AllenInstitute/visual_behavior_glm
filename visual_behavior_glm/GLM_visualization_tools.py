@@ -17,7 +17,7 @@ import gc
 from scipy import ndimage
 from scipy import stats
 
-def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True):
+def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True,start=10000,end=11000):
     '''
         Plots the time points where each kernel has support 
         INPUTS:
@@ -35,8 +35,6 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         plt.figure(figsize=(12,10))
     else:
         plt.figure(figsize=(12,6))
-    start = 10000
-    end = 11000 
     time_vec = glm.fit['dff_trace_timestamps'][start:end]
     start_t = time_vec[0]
     end_t = time_vec[-1]
@@ -126,9 +124,12 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         ks = ['hits','misses','false_alarms','correct_rejects']
         trials = glm.session.dataset.trials.query('change_time < @end_t & change_time > @start_t')
         for index, t in enumerate(types):
-            change_time = trials[trials[t]]['change_time'] 
-            trial_dex = stim_points[ks[index]][0] + dt*np.ceil(np.abs(glm.run_params['kernels'][ks[index]]['offset'])*31)
-            plt.plot(change_time, trial_dex*np.ones(np.shape(change_time)),'k|')
+            try:
+                change_time = trials[trials[t]]['change_time'] 
+                trial_dex = stim_points[ks[index]][0] + dt*np.ceil(np.abs(glm.run_params['kernels'][ks[index]]['offset'])*31)
+                plt.plot(change_time, trial_dex*np.ones(np.shape(change_time)),'k|')
+            except:
+                print('error plotting - '+t)
 
     plt.xlabel('Time (s)')
     plt.yticks(ticks,all_k)

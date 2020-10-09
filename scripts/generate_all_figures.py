@@ -23,9 +23,19 @@ def generate_all_figures(glm_version):
         results_type='summary'
     )
 
+    dropout_scores = gat.retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary')
+
     # generate a figure that compares variance explained across all sessions
     results_comparison_fig = generate_results_comparison(full_results, savepath=savepath)
 
+    # make a boxplot that compares all dropout scores
+    make_and_save_dropout_comparison(dropout_scores=dropout_scores, savepath=savepath)
+    
+
+def make_and_save_dropout_comparison(dropout_scores, savepath, figname='dropout_comparison_boxplot'):
+    fig, ax = gvt.plot_all_dropout_scores(dropout_scores=dropout_scores)
+    if savepath:
+        gvt.save_figure(fig, os.path.join(savepath, figname))
 
 
 def get_savepath(glm_version):

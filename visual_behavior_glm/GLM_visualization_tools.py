@@ -1780,3 +1780,87 @@ def save_figure(fig, fname, formats=['.png'], transparent=False, dpi=300,):
             orientation='landscape',
             dpi=dpi
         )
+
+
+def plot_all_dropout_scores(glm_version=None, dropout_scores=None, show_dots = False):
+    '''
+    makes a boxplot of all dropout scores, with hue = cre_line
+    pass either:
+        glm_version: associated dropout scores will be retrieved from mongo
+        dropout_scores: avoids need to get from mongo (faster)
+    '''
+    assert glm_version is not None or dropout_scores is not None, 'must pass either glm_version or dropout scores'
+    if dropout_scores is None:
+        rs = gat.retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary')
+    else:
+        rs = dropout_scores
+
+    # drop values where session type is NaN
+    rs.dropna(subset=['session_type'], inplace=True)
+
+    # add session prefix, allowing all "OPHYS_1", "OPHYS_2", etc to be grouped
+    rs['session_prefix'] = rs['session_type'].map(lambda st: st.split('_images')[0])
+
+    # order dropouts by the magnitude of the single score
+    # keep single and combined dropouts adjacent
+    dropouts = rs.dropout.unique()
+    single_dropouts = [d for d in dropouts if d.startswith('single-')]
+    combined_dropouts = [d.split('single-')[1] for d in single_dropouts]
+    single_dropout_order = (
+        rs
+        .query('dropout in @single_dropouts')
+        .groupby('dropout')['adj_fraction_change_from_full']
+        .mean()
+        .sort_values(ascending=False)
+        .index
+    )
+    dropout_order = [item for sublist in [[single_dropout.split('single-')[1], single_dropout] for single_dropout in single_dropout_order] for item in sublist]
+
+    fig,ax=plt.subplots(6,1,figsize=(25,25),sharex=True)
+    
+    colors = ['black','gray']
+    genotype_order = np.sort(rs['cre_line'].unique())
+    row = 0
+    for _,session_prefix in enumerate(np.sort(rs['session_prefix'].unique())):
+        data_to_plot = rs.query('dropout in @dropout_order and session_prefix == @session_prefix')
+        bp = sns.boxplot(
+            data = data_to_plot,
+            x = 'dropout',
+            y = 'adj_fraction_change_from_full',
+            order=dropout_order,
+            hue='cre_line',
+            hue_order=genotype_order,
+            ax=ax[row],
+            fliersize=0,
+            boxprops=dict(alpha=.5)
+        )
+
+        if show_dots:
+            sp = sns.stripplot(
+                data = data_to_plot,
+                x = 'dropout',
+                y = 'adj_fraction_change_from_full',
+                order=dropout_order,
+                hue='cre_line',
+                hue_order=genotype_order,
+                ax=ax[row],
+                dodge=True,
+                alpha=0.2
+            )
+
+        bp.set_xticklabels(labels=dropout_order, rotation=45,ha='right')
+        ax[row].set_title('Ophys Session = {}'.format(session_prefix))
+        ax[row].set_ylabel('fraction\nchange in\nvar explained',rotation=0,ha='right')
+
+        if row != 0:
+            bp.legend_.remove()
+        else:
+            bp.legend(loc='lower left')
+            
+        for i in range(len(dropout_order)):
+            ax[row].axvspan(i-0.5,i+0.5,color=colors[i%2],alpha=0.25, zorder=-np.inf)
+        row += 1
+        
+    fig.tight_layout()
+
+    return fig, ax

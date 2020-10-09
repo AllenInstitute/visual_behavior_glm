@@ -995,7 +995,8 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'rewards':
             event_times = session.dataset.rewards['timestamps'].values
         elif event == 'change':
-            event_times = session.dataset.trials.query('go')['change_time'].values
+            #event_times = session.dataset.trials.query('go')['change_time'].values # This method drops auto-rewarded changes
+            event_times = session.dataset.stimulus_presetations.query('change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]
         elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
             event_times = session.dataset.trials.query(event)['change_time'].values

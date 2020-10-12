@@ -995,15 +995,21 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'rewards':
             event_times = session.dataset.rewards['timestamps'].values
         elif event == 'change':
-            event_times = session.dataset.trials.query('go')['change_time'].values
+            #event_times = session.dataset.trials.query('go')['change_time'].values # This method drops auto-rewarded changes
+            event_times = session.dataset.stimulus_presentations.query('change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]
         elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
-            event_times = session.dataset.trials.query(event)['change_time'].values
+            if event == 'hit': # Includes auto-rewarded changes as hits, since they include a reward. 
+                event_times = session.dataset.trials.query('hit or auto_rewarded')['change_time'].values           
+            else:
+                event_times = session.dataset.trials.query(event)['change_time'].values
             event_times = event_times[~np.isnan(event_times)]
         elif event == 'any-image':
             event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
         elif event == 'image_expectation':
             event_times = session.dataset.stimulus_presentations['start_time'].values
+            # Append last image
+            event_times = np.concatenate([event_times,[event_times[-1]+.75]])
         elif event == 'omissions':
             event_times = session.dataset.stimulus_presentations.query('omitted')['start_time'].values
         elif (len(event)>5) & (event[0:5] == 'image'):

@@ -433,11 +433,13 @@ def get_stdout_summary(glm_version):
     stdout_summary = pd.DataFrame(list(collection.find({'glm_version':glm_version})))
     conn.close()
 
-    # parse the walltime column
-    stdout_summary['required_walltime_seconds'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str))
-    stdout_summary['required_walltime_minutes'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str)/60)
-    stdout_summary['required_walltime_hours'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str)/3600)
-
+    try:
+        # parse the walltime column
+        stdout_summary['required_walltime_seconds'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str))
+        stdout_summary['required_walltime_minutes'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str)/60)
+        stdout_summary['required_walltime_hours'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str)/3600)
+    except KeyError:
+        warnings.warn('no stdout summary exists for version {}'.format(glm_version))
     return stdout_summary
 
 def walltime_to_seconds(walltime_str):

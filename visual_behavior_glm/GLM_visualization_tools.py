@@ -4,8 +4,10 @@ import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior.database as db
 from sklearn.decomposition import PCA
-from mpl_toolkits.mplot3d import Axes3D
-from sklearn.cluster import KMeans
+from mpl_toolkits.mplot3d import Axes3D # dev
+from sklearn.cluster import KMeans # Dev
+from sklearn.mixture import GaussianMixture
+
 import matplotlib as mpl
 import seaborn as sns
 import scipy
@@ -1772,7 +1774,91 @@ def plot_all_over_fitting(full_results, run_params):
             # Plot crashed for some reason, print error and move on
             print('crashed - '+d)
 
-def plot_top_level_dropouts(results_pivoted, filter_cre=False, cre='Slc17a7-IRES2-Cre',bins=150, cmax=10,n_clusters=10):
+def plot_top_level_dropouts_gmm(results_pivoted, filter_cre=False, cre='Slc17a7-IRES2-Cre',bins=150, cmax=10,n_clusters=10):
+    '''
+         IN DEVELOPMENT
+    '''
+    if filter_cre:
+        rsp = results_pivoted.query('(variance_explained_full > 0.01) & (cre_line == @cre)').copy()
+    else:
+        rsp = results_pivoted.query('variance_explained_full > 0.01').copy()
+        cre='All'
+    rsp.fillna(value=0,inplace=True)
+
+    pca = PCA()
+    pca.fit(rsp[['visual','behavioral','cognitive']].values) 
+    transformed = pca.transform(rsp[['visual','behavioral','cognitive']].values)
+    rsp['pc1'] = transformed[:,0] 
+    rsp['pc2'] = transformed[:,1] 
+
+    # Determine best cluster size
+    bic = []
+    es = []
+    for i in np.arange(1,15,1):
+        e = fit_and_plot_gmm(transformed[:,0:2],i)
+        bic.append(e.bic(transformed[:,0:2]))
+        es.append(e)
+        rsp['cluster_num_gmm_'+str(i)] = e.predict(transformed[:,0:2])
+        plot_top_level_clustering(rsp, 'gmm',i)
+
+    plt.figure()
+    plt.plot(np.arange(1,15,1),bic,'ko-')
+    plt.ylabel('BIC')
+    plt.xlabel('# Clusters (k)')
+    n_clusters = np.argmin(bic)
+    plt.savefig('nested_gmm_elbow.png') 
+    return rsp
+    
+
+def fit_and_plot_gmm(data,n,cmax=10, bins=150,offset=0,h=0.01):
+    estimator = GaussianMixture(n_components=n,covariance_type='full') 
+    estimator.fit(data)
+
+    plt.figure()
+    plt.axis('equal')
+    plt.xlabel('PC 1')
+    plt.ylabel('PC 2')
+    plt.hist2d(data[:,0],data[:,1],bins=bins,density=True, cmap='inferno',cmax=cmax)  
+    xmin,xmax = data[:,0].min()-offset,data[:,0].max()+offset
+    ymin,ymax = data[:,1].min()-offset,data[:,1].max()+offset
+    xx,yy = np.meshgrid(np.arange(xmin,xmax,h),np.arange(ymin,ymax,h))
+    Z = estimator.predict(np.c_[xx.ravel(),yy.ravel()])
+    Z = Z.reshape(xx.shape)
+    plt.imshow(Z,interpolation='nearest',extent=(xx.min(),xx.max(),yy.min(),yy.max()),cmap=plt.cm.tab10,origin='lower',alpha=0.35,zorder=9)
+    centroids = estimator.means_
+    cmap= plt.get_cmap("tab10")
+    outer_colors = cmap(np.arange(0,10))
+    for i in range(0,len(centroids)):
+        plt.scatter(centroids[i,0],centroids[i,1],marker='o',s=35,color=outer_colors[np.mod(i,10)],zorder=10)
+    plt.title(n)
+    plt.savefig('nested_gmm_'+str(n)+'.png')
+    return estimator
+
+
+def fit_and_plot_kmeans(data,n,cmax=10, bins=150,offset=0,h=0.01):
+    estimator = KMeans(init='k-means++',n_clusters=n,n_init=10)
+    estimator.fit(data)
+    plt.figure()
+    plt.axis('equal')
+    plt.xlabel('PC 1')
+    plt.ylabel('PC 2')
+    plt.hist2d(data[:,0],data[:,1],bins=bins,density=True, cmap='inferno',cmax=cmax)  
+    xmin,xmax = data[:,0].min()-offset,data[:,0].max()+offset
+    ymin,ymax = data[:,1].min()-offset,data[:,1].max()+offset
+    xx,yy = np.meshgrid(np.arange(xmin,xmax,h),np.arange(ymin,ymax,h))
+    Z = estimator.predict(np.c_[xx.ravel(),yy.ravel()])
+    Z = Z.reshape(xx.shape)
+    plt.imshow(Z,interpolation='nearest',extent=(xx.min(),xx.max(),yy.min(),yy.max()),cmap=plt.cm.tab10,origin='lower',alpha=0.35,zorder=9)
+    centroids = estimator.cluster_centers_
+    cmap= plt.get_cmap("tab10")
+    outer_colors = cmap(np.arange(0,10))
+    for i in range(0,len(centroids)):
+        plt.scatter(centroids[i,0],centroids[i,1],marker='o',s=35,color=outer_colors[np.mod(i,10)],zorder=10)
+    plt.title(n)
+    plt.savefig('nested_kmeans_'+str(n)+'.png')
+    return estimator
+
+def plot_top_level_dropouts_kmeans(results_pivoted, filter_cre=False, cre='Slc17a7-IRES2-Cre',bins=150, cmax=10,max_clusters=15):
     '''
          IN DEVELOPMENT
     '''
@@ -1798,123 +1884,19 @@ def plot_top_level_dropouts(results_pivoted, filter_cre=False, cre='Slc17a7-IRES
  
     # Determine best kmeans cluster size
     sse = []
-    for i in np.arange(1,15,1):
-        kmeans = KMeans(init='k-means++',n_clusters=i,n_init=10)
-        kmeans.fit(transformed[:,0:2])
+    for i in np.arange(1,max_clusters,1):
+        kmeans = fit_and_plot_kmeans(transformed[:,0:2],i) 
         sse.append(kmeans.inertia_)
+        rsp['cluster_num_kmeans_'+str(i)] = kmeans.predict(transformed[:,0:2])
+        plot_top_level_clustering(rsp, 'kmeans',i) 
 
     plt.figure()
-    plt.plot(np.arange(1,15,1),sse,'ko-')
+    plt.plot(np.arange(1,max_clusters,1),sse,'ko-')
     plt.ylabel('SSE')
     plt.xlabel('# Clusters (k)')
     n_clusters = np.argmin(sse)
     plt.savefig('nested_kmeans_elbow.png')   
  
-    kmeans2 = KMeans(init='k-means++',n_clusters=2,n_init=10)
-    kmeans2.fit(transformed[:,0:2])
-
-    kmeans3 = KMeans(init='k-means++',n_clusters=3,n_init=10)
-    kmeans3.fit(transformed[:,0:2])
-
-
-    kmeans4 = KMeans(init='k-means++',n_clusters=4,n_init=10)
-    kmeans4.fit(transformed[:,0:2])
-
-
-    kmeans20 = KMeans(init='k-means++',n_clusters=20,n_init=10)
-    kmeans20.fit(transformed[:,0:2])
-
-
-
-    # Kmeans in PC1-2 space overlayed on histogram
-    plt.figure()
-    plt.axis('equal')
-    plt.xlabel('PC 1')
-    plt.ylabel('PC 2')
-    plt.hist2d(transformed[:,0],transformed[:,1],bins=bins,density=True, cmap='inferno',cmax=cmax)  
-    h= 0.01
-    offset = 0
-    xmin,xmax = transformed[:,0].min()-offset,transformed[:,0].max()+offset
-    ymin,ymax = transformed[:,1].min()-offset,transformed[:,1].max()+offset
-    xx,yy = np.meshgrid(np.arange(xmin,xmax,h),np.arange(ymin,ymax,h))
-    Z = kmeans2.predict(np.c_[xx.ravel(),yy.ravel()])
-    Z = Z.reshape(xx.shape)
-    plt.imshow(Z,interpolation='nearest',extent=(xx.min(),xx.max(),yy.min(),yy.max()),cmap=plt.cm.Paired,origin='lower',alpha=0.25,zorder=9)
-    centroids = kmeans2.cluster_centers_
-    plt.scatter(centroids[:,0],centroids[:,1],marker='x',color='w',zorder=10)
-    plt.savefig('nested_kmeans_2.png')
-
-
-    # Kmeans in PC1-2 space overlayed on histogram
-    plt.figure()
-    plt.axis('equal')
-    plt.xlabel('PC 1')
-    plt.ylabel('PC 2')
-    plt.hist2d(transformed[:,0],transformed[:,1],bins=bins,density=True, cmap='inferno',cmax=cmax)  
-    h= 0.01
-    offset = 0
-    xmin,xmax = transformed[:,0].min()-offset,transformed[:,0].max()+offset
-    ymin,ymax = transformed[:,1].min()-offset,transformed[:,1].max()+offset
-    xx,yy = np.meshgrid(np.arange(xmin,xmax,h),np.arange(ymin,ymax,h))
-    Z = kmeans3.predict(np.c_[xx.ravel(),yy.ravel()])
-    Z = Z.reshape(xx.shape)
-    plt.imshow(Z,interpolation='nearest',extent=(xx.min(),xx.max(),yy.min(),yy.max()),cmap=plt.cm.Paired,origin='lower',alpha=0.25,zorder=9)
-
-    centroids = kmeans3.cluster_centers_
-    plt.scatter(centroids[:,0],centroids[:,1],marker='x',color='w',zorder=10)
-    plt.savefig('nested_kmeans_3.png')
-
-
-    # Kmeans in PC1-2 space overlayed on histogram
-    plt.figure()
-    plt.axis('equal')
-    plt.xlabel('PC 1')
-    plt.ylabel('PC 2')
-    plt.hist2d(transformed[:,0],transformed[:,1],bins=bins,density=True, cmap='inferno',cmax=cmax)  
-    h= 0.01
-    offset = 0
-    xmin,xmax = transformed[:,0].min()-offset,transformed[:,0].max()+offset
-    ymin,ymax = transformed[:,1].min()-offset,transformed[:,1].max()+offset
-    xx,yy = np.meshgrid(np.arange(xmin,xmax,h),np.arange(ymin,ymax,h))
-    Z = kmeans4.predict(np.c_[xx.ravel(),yy.ravel()])
-    Z = Z.reshape(xx.shape)
-    plt.imshow(Z,interpolation='nearest',extent=(xx.min(),xx.max(),yy.min(),yy.max()),cmap=plt.cm.Paired,origin='lower',alpha=0.25,zorder=9)
-
-    centroids = kmeans4.cluster_centers_
-    plt.scatter(centroids[:,0],centroids[:,1],marker='x',color='w',zorder=10)
-    plt.savefig('nested_kmeans_4.png')
-
-
-
-
-
-    # Kmeans in PC1-2 space overlayed on histogram
-    plt.figure()
-    plt.axis('equal')
-    plt.xlabel('PC 1')
-    plt.ylabel('PC 2')
-    plt.hist2d(transformed[:,0],transformed[:,1],bins=bins,density=True, cmap='inferno',cmax=cmax)  
-    h= 0.01
-    offset = 0
-    xmin,xmax = transformed[:,0].min()-offset,transformed[:,0].max()+offset
-    ymin,ymax = transformed[:,1].min()-offset,transformed[:,1].max()+offset
-    xx,yy = np.meshgrid(np.arange(xmin,xmax,h),np.arange(ymin,ymax,h))
-    Z = kmeans20.predict(np.c_[xx.ravel(),yy.ravel()])
-    Z = Z.reshape(xx.shape)
-    plt.imshow(Z,interpolation='nearest',extent=(xx.min(),xx.max(),yy.min(),yy.max()),cmap=plt.cm.Paired,origin='lower',alpha=0.25,zorder=9)
-
-    centroids = kmeans20.cluster_centers_
-    plt.scatter(centroids[:,0],centroids[:,1],marker='x',color='w',zorder=10)
-    plt.savefig('nested_kmeans_20.png')
-    
-    
-    #fig = plt.figure()
-    #ax = fig.add_subplot(111,projection='3d')
-    #ax.scatter(rsp['visual'],rsp['behavioral'],rsp['cognitive'],alpha=.1)
-    #ax.set_xlabel('visual')
-    #ax.set_ylabel('behavioral')
-    #ax.set_zlabel('cognitive')
-
     # 2d Histograms 
     fig, ax = plt.subplots(1,3,figsize=(12,4))
     ax[0].hist2d(rsp['visual'],rsp['behavioral'],bins=bins,density=True, cmax=cmax,cmap='inferno')
@@ -1929,6 +1911,23 @@ def plot_top_level_dropouts(results_pivoted, filter_cre=False, cre='Slc17a7-IRES
     ax[2].set_title(cre)
     plt.tight_layout()
     plt.savefig('nested_2dhist.png')
+    return rsp
+
+def plot_top_level_clustering(rsp,method,n):
+    fig, ax = plt.subplots(1,3, figsize=(12,4)) 
+    size = .6
+    radius = 1
+    cmap= plt.get_cmap("tab10")
+    outer_colors = cmap(np.arange(0,10))
+    cres = ['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre']
+    g = rsp.groupby(['cluster_num_'+method+'_'+str(n),'cre_line']).size().unstack()
+    for i, cre in enumerate(cres): 
+        props = g[cre]
+        props = props/np.sum(props) 
+        wedges, texts= ax[i].pie(props,radius=radius,colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
+        ax[i].legend(wedges,np.arange(0,n))
+        ax[i].set_title(cre)
+    plt.savefig('nested_clustering_'+method+'_'+str(n)+'.png')
 
 def plot_nested_dropouts(results_pivoted,run_params, num_levels=2,size=0.3,force_nesting=True,filter_cre=False, cre='Slc17a7-IRES2-Cre',invert=False,mixing=True,thresh=-.2,savefig=True,force_subsets=True):
 

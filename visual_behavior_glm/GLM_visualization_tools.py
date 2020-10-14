@@ -137,23 +137,21 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     plt.tight_layout()
     return
 
-def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None):
+def plot_glm_version_comparison(comparison_table, versions_to_compare):
     '''
     makes a scatterplot comparing cellwise performance on two GLM versions
-
-    if a comparison table is not passed, the versions to compare must be passed (as a list of strings)
-    comparison table will be built using GLM_analysis_tools.get_glm_version_comparison_table, which takes about 2 minutes
+    inputs:
+        comparison table from gat.get_glm_version_comparison_table
+        versions to compare - a list of strings
     '''
-    assert not (comparison_table is None and versions_to_compare is None), 'must pass either a comparison table or a list of two versions to compare'
-    if comparison_table is None:
-        comparison_table = gat.get_glm_version_comparison_table(versions_to_compare)
 
+    data_to_plot = comparison_table.dropna(subset=versions_to_compare)
     jointplot = sns.jointplot(
-        data = comparison_table,
-        x='6_L2_optimize_by_session',
-        y='7_L2_optimize_by_session',
+        data = data_to_plot,
+        x=versions_to_compare[0],
+        y=versions_to_compare[1],
         hue='cre_line',
-        hue_order=np.sort(comparison_table['cre_line'].unique()),
+        hue_order=np.sort(data_to_plot['cre_line'].unique()),
         alpha=0.15,
         marginal_kws={'common_norm':False},
     )

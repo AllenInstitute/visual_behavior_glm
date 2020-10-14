@@ -12,7 +12,7 @@ from pbstools import pbstools  # NOQA E402
 
 parser = argparse.ArgumentParser(description='find and log STDOUT values')
 parser.add_argument('--env', type=str, default='visual_behavior', metavar='name of conda environment to use')
-parser.add_argument('--glm-version', type=str, default='7_L2_optimize_by_session', metavar='glm version')
+parser.add_argument('--glm-version', type=str, default='8a_L2_optimize_by_session', metavar='glm version')
 
 job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_jobs/job_records"
 

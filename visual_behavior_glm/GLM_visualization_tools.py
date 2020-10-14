@@ -1810,7 +1810,7 @@ def plot_top_level_dropouts_gmm(results_pivoted, filter_cre=False, cre='Slc17a7-
     return rsp
     
 
-def fit_and_plot_gmm(data,n,cmax=10, bins=150,offset=0,h=0.01):
+def fit_and_plot_gmm(data,n,cmax=10, bins=150,offset=0,h=0.01,plot=True):
     estimator = GaussianMixture(n_components=n,covariance_type='full') 
     estimator.fit(data)
 
@@ -1831,7 +1831,8 @@ def fit_and_plot_gmm(data,n,cmax=10, bins=150,offset=0,h=0.01):
     for i in range(0,len(centroids)):
         plt.scatter(centroids[i,0],centroids[i,1],marker='o',s=35,color=outer_colors[np.mod(i,10)],zorder=10)
     plt.title(n)
-    plt.savefig('nested_gmm_'+str(n)+'.png')
+    if plot:
+        plt.savefig('nested_gmm_'+str(n)+'.png')
     return estimator
 
 
@@ -1928,6 +1929,44 @@ def plot_top_level_clustering(rsp,method,n):
         ax[i].legend(wedges,np.arange(0,n))
         ax[i].set_title(cre)
     plt.savefig('nested_clustering_'+method+'_'+str(n)+'.png')
+
+def plot_second_level(results_pivoted):
+    rsp = results_pivoted.query('variance_explained_full > 0.01').copy()
+    rsp.fillna(value=0,inplace=True)
+    pca = PCA()
+    data = rsp[['all-images','expectation','omissions','face_motion_energy','licking','pupil_and_running','beh_model','task']].values
+    pca.fit(data)
+    transformed = pca.transform(data)
+   
+    # PCA Results
+    plt.figure()
+    plt.plot(pca.explained_variance_ratio_,'ko-')
+    plt.plot(np.cumsum(pca.explained_variance_ratio_),'ro-')
+    plt.xticks(np.arange(0,len(pca.explained_variance_ratio_))+1)
+    plt.ylabel('Variance Explained')
+    plt.ylim(0,1)
+
+    # Determine best cluster size
+    bic = []
+    es = []
+    for i in np.arange(1,15,1):
+        e = fit_and_plot_gmm(transformed[:,0:2],i,plot=False) # make this more general to pass in number of dimensions
+        bic.append(e.bic(transformed[:,0:2]))
+        es.append(e)
+        #rsp['cluster_num_gmm_'+str(i)] = e.predict(transformed[:,0:2])
+        #plot_top_level_clustering(rsp, 'gmm',i)
+
+    plt.figure()
+    plt.plot(np.arange(1,15,1),bic,'ko-')
+    plt.ylabel('BIC')
+    plt.xlabel('# Clusters (k)')
+    n_clusters = np.argmin(bic)
+    #plt.savefig('nested_gmm_elbow.png') 
+    #return rsp
+    
+
+    return transformed 
+  
 
 def plot_nested_dropouts(results_pivoted,run_params, num_levels=2,size=0.3,force_nesting=True,filter_cre=False, cre='Slc17a7-IRES2-Cre',invert=False,mixing=True,thresh=-.2,savefig=True,force_subsets=True):
 

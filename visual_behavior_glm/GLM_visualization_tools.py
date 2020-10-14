@@ -1950,7 +1950,9 @@ def plot_second_level(results_pivoted):
     bic = []
     es = []
     for i in np.arange(1,15,1):
-        e = fit_and_plot_gmm(transformed[:,0:2],i,plot=False) # make this more general to pass in number of dimensions
+        #e = fit_and_plot_gmm(transformed[:,0:2],i,plot=False) # make this more general to pass in number of dimensions
+        e = GaussianMixture(n_components=i,covariance_type='full') 
+        e.fit(transformed[:,0:2])
         bic.append(e.bic(transformed[:,0:2]))
         es.append(e)
         #rsp['cluster_num_gmm_'+str(i)] = e.predict(transformed[:,0:2])

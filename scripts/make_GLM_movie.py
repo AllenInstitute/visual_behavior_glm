@@ -1,7 +1,7 @@
 import argparse
 import time
-from visual_behavior_glm.src.glm import GLM
-import visual_behavior_glm.src.GLM_visualization_tools as gvt
+from visual_behavior_glm.glm import GLM
+import visual_behavior_glm.GLM_visualization_tools as gvt
 
 parser = argparse.ArgumentParser(description='generate GLM movie')
 parser.add_argument(
@@ -11,6 +11,15 @@ parser.add_argument(
     metavar='oeid',
     help='ophys experiment ID'
 )
+
+parser.add_argument(
+    '--glm-version', 
+    type=str, 
+    default='',
+    metavar='glm_version',
+    help='glm version to use'
+)
+
 parser.add_argument(
     '--cell-id', 
     type=int, 
@@ -47,9 +56,9 @@ parser.add_argument(
     help='playback speed'
 )
 
-def make_movie(oeid, cell_specimen_id, start_frame, end_frame, frame_interval, fps):
+def make_movie(oeid, glm_version, cell_specimen_id, start_frame, end_frame, frame_interval, fps):
     t0=time.time()
-    glm = GLM(oeid, version=4)
+    glm = GLM(oeid, version=glm_version, use_previous_fit=True)
     print('fitting the model took {} seconds'.format(time.time()-t0))
     
     movie = gvt.GLM_Movie(
@@ -58,6 +67,7 @@ def make_movie(oeid, cell_specimen_id, start_frame, end_frame, frame_interval, f
         start_frame = start_frame,
         end_frame = end_frame,
         frame_interval = frame_interval,
+        destination_folder = '/home/dougo/OneDrive/glm_movies',
         fps = fps
     )
     t0=time.time()
@@ -66,10 +76,12 @@ def make_movie(oeid, cell_specimen_id, start_frame, end_frame, frame_interval, f
 
 
 if __name__ == '__main__':
+    print('parsing args...')
     args = parser.parse_args()
 
     make_movie(
         int(args.oeid), 
+        args.glm_version, 
         int(args.cell_id), 
         int(args.start_frame), 
         int(args.end_frame),

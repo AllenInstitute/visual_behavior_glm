@@ -1,4 +1,4 @@
-from visual_behavior_glm.src.GLM_fit_tools import make_run_json
+from visual_behavior_glm.GLM_params import make_run_json
 import shutil
 import os
 import argparse
@@ -14,14 +14,14 @@ if __name__ == '__main__':
     parser.add_argument(
         '--version', 
         type=str, 
-        default='4',
+        default='8a_L2_optimize_by_session',
         metavar='model_version',
         help='model version'
     )
     parser.add_argument(
         '--label', 
         type=str, 
-        default='updated model',
+        default='model as of 10/12/2020, including hit/miss, not change/reward',
         metavar='model_label',
         help='model label'
     )

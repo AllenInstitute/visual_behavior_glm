@@ -1963,10 +1963,27 @@ def plot_second_level(results_pivoted):
     n_clusters = np.argmin(bic)
     #plt.savefig('nested_gmm_elbow.png') 
     #return rsp
-    
-
     return transformed 
   
+def plot_clustering_by_session(rsp,n=3,method='gmm'):
+    fig, ax = plt.subplots(1,3,figsize=(10,4))
+    group = rsp.groupby(['cre_line','session_number','cluster_num_'+method+'_'+str(n)]).size().unstack() 
+    cmap= plt.get_cmap("tab10")
+    colors = cmap(np.arange(0,10))
+    cre_lines = ['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre']
+
+    for cre_dex, cre in enumerate(cre_lines):
+        for session in range(1,7):
+            props = group.loc[cre,session].values
+            props = props/np.sum(props)
+            for cluster in range(0,n):
+                ax[cre_dex].bar(session,[props[cluster]],width=.9,color=colors[cluster],bottom = np.sum(props[0:cluster]))
+        ax[cre_dex].set_title(cre)
+        ax[cre_dex].set_ylabel('Fraction cells in cluster')
+        ax[cre_dex].set_xlabel('Session #')
+        ax[cre_dex].set_xticks(np.arange(1,7))
+    plt.tight_layout()
+
 
 def plot_nested_dropouts(results_pivoted,run_params, num_levels=2,size=0.3,force_nesting=True,filter_cre=False, cre='Slc17a7-IRES2-Cre',invert=False,mixing=True,thresh=-.2,savefig=True,force_subsets=True):
 

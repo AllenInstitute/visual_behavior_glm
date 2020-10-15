@@ -990,8 +990,13 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'lick_bouts':
             licks = session.dataset.licks
             licks['pre_ILI'] = licks['timestamps'] - licks['timestamps'].shift(fill_value=-10)
+            licks['post_ILI'] = licks['timestamps'].shift(periods=-1,fill_value=5000) - licks['timestamps']
             licks['bout_start'] = licks['pre_ILI'] > run_params['lick_bout_ILI']
-            event_times = session.dataset.licks.query('bout_start')['timestamps'].values
+            licks['bout_end'] = licks['post_ILI'] > run_params['lick_bout_ILI']
+            # Assert num starts == num ends
+            # for just one lick, how long is the bout? maybe like 200ms?
+            # Need to make array of all the intermediate points. maybe make the events_vec/timestamps directly 
+            event_times = session.dataset.licks.query('bout_start')['timestamps'].values # Old version
         elif event == 'rewards':
             event_times = session.dataset.rewards['timestamps'].values
         elif event == 'change':

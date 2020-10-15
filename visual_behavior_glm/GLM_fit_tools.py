@@ -717,10 +717,11 @@ def load_data(oeid, dataframe_format='wide', smooth_running_data=True):
         )
     return session
 
-def process_behavior_predictions(session, ophys_timestamps=None):
+def process_behavior_predictions(session, ophys_timestamps=None, cutoff_threshold=0.01):
     '''
     Returns a dataframe of licking/grooming behavior derived from behavior videos
     All columns are interpolated onto ophys timestamps
+    cutoff_threshold = threshold below which probabilities will be set to 0
     '''
     behavior_predictions = pd.DataFrame({'timestamps':ophys_timestamps})
     for column in ['lick','groom']:
@@ -731,6 +732,8 @@ def process_behavior_predictions(session, ophys_timestamps=None):
         )
         behavior_predictions[column] = f(behavior_predictions['timestamps'])
         behavior_predictions[column].fillna(method='ffill',inplace=True)
+        # set values below cutoff threshold to 0
+        behavior_predictions[column][behavior_predictions[column]<cutoff_threshold] = 0
     return behavior_predictions
 
 def process_eye_data(session,run_params,ophys_timestamps=None):

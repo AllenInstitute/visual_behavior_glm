@@ -998,13 +998,9 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             # We are making an array of in-lick-bout-event-times by tiling timepoints every <min_interval> seconds. 
             # If a lick is the end of a bout, the bout-event-times continue <min_time_per_bout> after the lick
             # Otherwise, we tile the duration of the post_ILI
-            #run_params['min_time_per_bout'] = .2
-            #run_params['min_interval'] = .01
             event_times = np.concatenate([np.arange(x[0],x[0]+run_params['min_time_per_bout'],run_params['min_interval']) if x[2] else
                                         np.arange(x[0],x[0]+x[1],run_params['min_interval']) for x in 
                                         zip(licks['timestamps'], licks['post_ILI'], licks['bout_end'])]) 
-
-            #event_times = session.dataset.licks.query('bout_start')['timestamps'].values # Old version
         elif event == 'rewards':
             event_times = session.dataset.rewards['timestamps'].values
         elif event == 'change':
@@ -1051,9 +1047,11 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         return design       
     else:
         events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
+
         if event == 'lick_bouts': 
             # Force this to be 0 or 1, since we purposefully over-tiled the space. 
             events_vec[events_vec > 1] = 1
+
         design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
         return design
 

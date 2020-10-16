@@ -717,6 +717,25 @@ def load_data(oeid, dataframe_format='wide', smooth_running_data=True):
         )
     return session
 
+def process_behavior_predictions(session, ophys_timestamps=None, cutoff_threshold=0.01):
+    '''
+    Returns a dataframe of licking/grooming behavior derived from behavior videos
+    All columns are interpolated onto ophys timestamps
+    cutoff_threshold = threshold below which probabilities will be set to 0
+    '''
+    behavior_predictions = pd.DataFrame({'timestamps':ophys_timestamps})
+    for column in ['lick','groom']:
+        f = scipy.interpolate.interp1d(
+            session.dataset.behavior_movie_predictions['timestamps'], 
+            session.dataset.behavior_movie_predictions[column], 
+            bounds_error=False
+        )
+        behavior_predictions[column] = f(behavior_predictions['timestamps'])
+        behavior_predictions[column].fillna(method='ffill',inplace=True)
+        # set values below cutoff threshold to 0
+        behavior_predictions[column][behavior_predictions[column]<cutoff_threshold] = 0
+    return behavior_predictions
+
 def process_eye_data(session,run_params,ophys_timestamps=None):
     '''
         Returns a dataframe of eye tracking data with several processing steps
@@ -918,6 +937,10 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         elif event == 'pupil':
             session.ophys_eye = process_eye_data(session,run_params,ophys_timestamps =fit['dff_trace_timestamps'] )
             timeseries = session.ophys_eye['pupil_radius'].values
+        elif event == 'lick_model' or event == 'groom_model':
+            if not hasattr(session, 'lick_groom_model'):
+                session.lick_groom_model = process_behavior_predictions(session, ophys_timestamps = fit['dff_trace_timestamps'])
+            timeseries = session.lick_groom_model[event.split('_')[0]].values
         else:
             raise Exception('Could not resolve kernel label')
     except Exception as e:

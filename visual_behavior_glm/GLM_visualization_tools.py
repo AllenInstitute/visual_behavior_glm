@@ -1747,8 +1747,9 @@ def plot_over_fitting_summary(full_results, run_params):
     # Iterate over model dropouts, and get mean overfitting proportion
     for index,d in enumerate(run_params['dropouts']):
         if (d != "Full")&(not d.startswith('single-')):
-            p.append(np.mean(full_results[d+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1))))        
-            labels.append(d)
+            if d+'__dropout_overfit_proportion' in full_results:
+                p.append(np.mean(full_results[d+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1))))        
+                labels.append(d)
     
     # Sort by proportion, and save order for yticks
     sort_labels=[]

@@ -67,12 +67,13 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     all_k = discrete
 
     # Plot Rewards
-    reward_dex = stim_points['rewards'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['rewards']['offset'])*31)
-    if plot_bands:
-        reward_dex += -.4
-    if plot_ticks:
-        rewards =glm.session.dataset.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
-        plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'k|')
+    if 'rewards' in glm.run_params['kernels']:
+        reward_dex = stim_points['rewards'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['rewards']['offset'])*31)
+        if plot_bands:
+            reward_dex += -.4
+        if plot_ticks:
+            rewards =glm.session.dataset.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
+            plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'k|')
     
     # Stimulus Presentations
     stim = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & not omitted')
@@ -87,8 +88,9 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     # Stimulus Changes
     change = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & change')
     if plot_ticks:
-        change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*31)
-        plt.plot(change['start_time'], change_dex*np.ones(np.shape(change['start_time'])),'k|')
+        if 'change' in glm.run_params['kernels']:
+            change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*31)
+            plt.plot(change['start_time'], change_dex*np.ones(np.shape(change['start_time'])),'k|')
     for index, time in enumerate(change['start_time'].values):
         plt.axvspan(time, time+0.25, color='b',alpha=.2)
 
@@ -106,17 +108,27 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
 
     # Licks
     if plot_ticks:
-        pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
-        post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
         bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
-        plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
-        plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
-
-        pre_dex = stim_points['pre_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_licks']['offset'])*31)
-        post_dex = stim_points['post_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_licks']['offset'])*31)
         licks = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
-        plt.plot(licks, pre_dex*np.ones(np.shape(licks)),'k|')
-        plt.plot(licks, post_dex*np.ones(np.shape(licks)),'k|')
+        
+        if 'pre_lick_bouts' in glm.run_params['kernels']:
+            pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
+            post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
+            plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
+            plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
+        if 'lick_bouts' in glm.run_params['kernels']:
+            dex = stim_points['lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['lick_bouts']['offset'])*31)
+            plt.plot(bouts, dex*np.ones(np.shape(bouts)),'k|')
+
+        if 'pre_licks' in glm.run_params['kernels']:
+            pre_dex = stim_points['pre_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_licks']['offset'])*31)
+            post_dex = stim_points['post_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_licks']['offset'])*31)
+            plt.plot(licks, pre_dex*np.ones(np.shape(licks)),'k|')
+            plt.plot(licks, post_dex*np.ones(np.shape(licks)),'k|')
+        if 'licks' in glm.run_params['kernels']:
+            dex = stim_points['licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['licks']['offset'])*31)
+            plt.plot(licks, dex*np.ones(np.shape(licks)),'k|')
+
 
     # Trials
     if plot_ticks:

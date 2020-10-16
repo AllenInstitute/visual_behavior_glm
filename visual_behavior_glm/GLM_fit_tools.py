@@ -993,10 +993,18 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             licks['post_ILI'] = licks['timestamps'].shift(periods=-1,fill_value=5000) - licks['timestamps']
             licks['bout_start'] = licks['pre_ILI'] > run_params['lick_bout_ILI']
             licks['bout_end'] = licks['post_ILI'] > run_params['lick_bout_ILI']
-            # Assert num starts == num ends
-            # for just one lick, how long is the bout? maybe like 200ms?
-            # Need to make array of all the intermediate points. maybe make the events_vec/timestamps directly 
-            event_times = session.dataset.licks.query('bout_start')['timestamps'].values # Old version
+            assert np.sum(licks['bout_start']) == np.sum(licks['bout_end']), "Lick bout splitting failed"
+            
+            # We are making an array of in-lick-bout-event-times by tiling timepoints every <min_interval> seconds. 
+            # If a lick is the end of a bout, the bout-event-times continue <min_time_per_bout> after the lick
+            # Otherwise, we tile the duration of the post_ILI
+            #run_params['min_time_per_bout'] = .2
+            #run_params['min_interval'] = .01
+            event_times = np.concatenate([np.arange(x[0],x[0]+run_params['min_time_per_bout'],run_params['min_interval']) if x[2] else
+                                        np.arange(x[0],x[0]+x[1],run_params['min_interval']) for x in 
+                                        zip(licks['timestamps'], licks['post_ILI'], licks['bout_end'])]) 
+
+            #event_times = session.dataset.licks.query('bout_start')['timestamps'].values # Old version
         elif event == 'rewards':
             event_times = session.dataset.rewards['timestamps'].values
         elif event == 'change':
@@ -1043,6 +1051,9 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         return design       
     else:
         events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
+        if event == 'lick_bouts': 
+            # Force this to be 0 or 1, since we purposefully over-tiled the space. 
+            events_vec[events_vec > 1] = 1
         design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
         return design
 

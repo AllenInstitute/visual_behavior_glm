@@ -155,6 +155,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'kernels':kernels,
         'dropouts':dropouts,
         'lick_bout_ILI': 0.7,           # The minimum duration of time between two licks to segment them into separate lick bouts
+        'min_time_per_bout': 0.2,       # length of bout event that continues after last lick in bout
+        'min_interval':0.01,            # over-tiling value for making bout events. Must be << ophys-step-size
         'CV_splits':5,
         'CV_subsplits':10,
         'eye_blink_z': 5.0,             # Threshold for excluding likely blinks

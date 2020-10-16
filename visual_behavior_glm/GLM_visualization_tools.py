@@ -69,11 +69,15 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     # Plot Rewards
     if 'rewards' in glm.run_params['kernels']:
         reward_dex = stim_points['rewards'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['rewards']['offset'])*31)
-        if plot_bands:
-            reward_dex += -.4
-        if plot_ticks:
-            rewards =glm.session.dataset.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
-            plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'k|')
+    elif 'hits' in glm.run_params['kernels']:
+        reward_dex = stim_points['hits'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['hits']['offset'])*31)
+    else:
+        reward_dex = 0
+    if plot_bands:
+        reward_dex += -.4
+    if plot_ticks:
+        rewards =glm.session.dataset.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
+        plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'k|')
     
     # Stimulus Presentations
     stim = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & not omitted')

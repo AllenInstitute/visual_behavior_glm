@@ -1726,7 +1726,7 @@ def plot_over_fitting(full_results, dropout,save_file=""):
     if save_file !="":
         plt.savefig(save_file+dropout+'.png')
 
-def plot_over_fitting_summary(full_results, run_params):
+def plot_over_fitting_summary(full_results, run_params, plot_dropouts=True):
     '''
         Plots a summary figure that shows which kernels were the most responsible for overfitting.
         
@@ -1745,7 +1745,11 @@ def plot_over_fitting_summary(full_results, run_params):
     labels = [] 
 
     # Iterate over model dropouts, and get mean overfitting proportion
-    for index,d in enumerate(run_params['dropouts']):
+    if plot_dropouts:
+        plot_list = run_params['dropouts']
+    else:
+        plot_list = run_params['kernels']
+    for index,d in enumerate(plot_list):
         if (d != "Full")&(not d.startswith('single-')):
             if d+'__dropout_overfit_proportion' in full_results:
                 p.append(np.mean(full_results[d+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1))))        

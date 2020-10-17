@@ -16,8 +16,6 @@ def define_kernels():
         'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'linear ramp from 0 to 1'},
         'licks':        {'event':'licks',       'type':'discrete',      'length':3,     'offset':-2,     'dropout':True, 'text': 'mouse lick'},
         'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,     'dropout':True, 'text': 'lick bout'},
-        #'rewards':      {'event':'rewards',     'type':'discrete',      'length':5,     'offset':-0.5,  'dropout':True, 'text': 'water reward'},
-        #'change':       {'event':'change',      'type':'discrete',      'length':4.5,     'offset':0,     'dropout':True, 'text': 'image change'},
         'hits':         {'event':'hit',         'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick to image change'},
         'misses':       {'event':'miss',        'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick to image change'},
         'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick on catch trials'},

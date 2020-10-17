@@ -1746,9 +1746,9 @@ def plot_over_fitting_summary(full_results, run_params, plot_dropouts=True):
 
     # Iterate over model dropouts, and get mean overfitting proportion
     if plot_dropouts:
-        plot_list = run_params['dropouts']
+        plot_list = run_params['dropouts'].keys()
     else:
-        plot_list = run_params['kernels']
+        plot_list = run_params['kernels'].keys()
     for index,d in enumerate(plot_list):
         if (d != "Full")&(not d.startswith('single-')):
             if d+'__dropout_overfit_proportion' in full_results:

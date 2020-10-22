@@ -239,7 +239,7 @@ if __name__ == "__main__":
     oeids = et.sample(100).index
 
     for oeid in oeids:
-        for start_frame, end_frame in [(20000,21000), (12000, 121000)]:
+        for start_frame, end_frame in [(20000,21000), (120000, 121000)]:
 
             filename = 'oeid={}_frame_{}_to_{}.mp4'.format(oeid, start_frame, end_frame)
             make_movie(

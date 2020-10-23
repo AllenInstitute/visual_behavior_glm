@@ -14,8 +14,8 @@ def define_kernels():
     kernels = {
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'constant value'},
         'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'linear ramp from 0 to 1'},
-        'licks':        {'event':'licks',       'type':'discrete',      'length':3,     'offset':-2,     'dropout':True, 'text': 'mouse lick'},
-        'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,     'dropout':True, 'text': 'lick bout'},
+        'licks':        {'event':'licks',       'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'mouse lick'},
+        'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'lick bout'},
         'hits':         {'event':'hit',         'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick to image change'},
         'misses':       {'event':'miss',        'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick to image change'},
         'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'passive session image change'},
@@ -27,8 +27,8 @@ def define_kernels():
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'normalized running speed'},
         'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25,  'dropout':True, 'text': 'behavioral model weights'},
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'Z-scored pupil diameter'},
-        'lick_model':   {'event':'lick_model',  'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'lick probability from video'},
-        'groom_model':  {'event':'groom_model', 'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'groom probability from video'},
+        'lick_model':   {'event':'lick_model',  'type':'continuous',    'length':4,     'offset':-2,    'dropout':True, 'text': 'lick probability from video'},
+        'groom_model':  {'event':'groom_model', 'type':'continuous',    'length':4,     'offset':-2,    'dropout':True, 'text': 'groom probability from video'},
     }
     ## add face motion energy PCs
     for PC in range(5):

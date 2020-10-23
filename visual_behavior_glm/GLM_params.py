@@ -260,7 +260,7 @@ def define_dropouts(kernels,kernel_definitions):
             dropouts['visual']['dropped_kernels'].append('any-image')
 
     # Create behavioral dropout:
-    behavioral = ['running','pupil','pre_licks','post_licks','pre_lick_bouts','post_lick_bouts','model_bias','model_task0','model_timing1D','model_omission1']
+    behavioral = ['running','pupil','licks','lick_bouts','lick_model','groom_model','model_bias','model_task0','model_timing1D','model_omission1']
     if 'face_motion_energy' in dropouts:
         behavioral=behavioral+dropouts['face_motion_energy']['dropped_kernels']
     dropouts['behavioral'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
@@ -270,30 +270,13 @@ def define_dropouts(kernels,kernel_definitions):
             dropouts['behavioral']['dropped_kernels'].append(k)
 
     # Create licking dropout
-    licking = ['pre_licks','post_licks','pre_lick_bouts','post_lick_bouts']
+    licking = ['licks','lick_bouts','lick_model','groom_model']
     dropouts['licking'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
     for k in licking:
         if k in kernel_definitions:
             dropouts['licking']['kernels'].remove(k)
             dropouts['licking']['dropped_kernels'].append(k)
 
-    # Create licking bouts dropout
-    licking = ['pre_lick_bouts','post_lick_bouts']
-    dropouts['licking_bouts'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in licking:
-        if k in kernel_definitions:
-            dropouts['licking_bouts']['kernels'].remove(k)
-            dropouts['licking_bouts']['dropped_kernels'].append(k)
- 
-    # Create licking_each_lick dropout
-    licking = ['pre_licks','post_licks']
-    dropouts['licking_each_lick'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in licking:
-        if k in kernel_definitions:
-            dropouts['licking_each_lick']['kernels'].remove(k)
-            dropouts['licking_each_lick']['dropped_kernels'].append(k)
- 
- 
     # Create pupil/running 
     pupil_and_running = ['pupil','running']
     dropouts['pupil_and_running'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
@@ -319,7 +302,7 @@ def define_dropouts(kernels,kernel_definitions):
             dropouts['running_and_omissions']['dropped_kernels'].append(k)
 
     # Create task 
-    task = ['hits','misses','false_alarms','correct_rejects','change','rewards']
+    task = ['hits','misses','false_alarms','correct_rejects','passive-change','change','rewards']
     dropouts['task'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
     for k in task:
         if k in kernel_definitions:
@@ -334,21 +317,21 @@ def define_dropouts(kernels,kernel_definitions):
             dropouts['trial_type']['kernels'].remove(k)
             dropouts['trial_type']['dropped_kernels'].append(k)
 
-    # Create change_and_rewards
-    change_and_rewards = ['change','rewards']
-    dropouts['change_and_rewards'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in change_and_rewards:
-        if k in kernel_definitions:
-            dropouts['change_and_rewards']['kernels'].remove(k)
-            dropouts['change_and_rewards']['dropped_kernels'].append(k)
+    ## Create change_and_rewards
+    #change_and_rewards = ['change','rewards']
+    #dropouts['change_and_rewards'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    #for k in change_and_rewards:
+    #    if k in kernel_definitions:
+    #        dropouts['change_and_rewards']['kernels'].remove(k)
+    #        dropouts['change_and_rewards']['dropped_kernels'].append(k)
 
-    # Create hits_and_rewards
-    hits_and_rewards = ['hits','rewards']
-    dropouts['hits_and_rewards'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in hits_and_rewards:
-        if k in kernel_definitions:
-            dropouts['hits_and_rewards']['kernels'].remove(k)
-            dropouts['hits_and_rewards']['dropped_kernels'].append(k)
+    ## Create hits_and_rewards
+    #hits_and_rewards = ['hits','rewards']
+    #dropouts['hits_and_rewards'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    #for k in hits_and_rewards:
+    #    if k in kernel_definitions:
+    #        dropouts['hits_and_rewards']['kernels'].remove(k)
+    #        dropouts['hits_and_rewards']['dropped_kernels'].append(k)
 
     # Expectation Dropout 
     expectation = ['image_expectation','omissions']
@@ -359,7 +342,7 @@ def define_dropouts(kernels,kernel_definitions):
             dropouts['expectation']['dropped_kernels'].append(k)
  
     # Create cognitive 
-    cognitive = ['hits','misses','false_alarms','correct_rejects','change','rewards']
+    cognitive = ['hits','misses','false_alarms','correct_rejects','change','rewards','passive-change']
     dropouts['cognitive'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
     for k in cognitive:
         if k in kernel_definitions:

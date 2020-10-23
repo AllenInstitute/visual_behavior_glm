@@ -120,14 +120,16 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     fit = evaluate_models(fit, design, run_params)
 
     # Start Diagnostic analyses
-    print('Starting diagnostics')
-    print('Bootstrapping synthetic data')
-    fit = bootstrap_model(fit, design, run_params)
+    if not NO_DROPOUTS:
+        print('Starting diagnostics')
+        print('Bootstrapping synthetic data')
+        fit = bootstrap_model(fit, design, run_params)
 
     # Perform shuffle analysis, with two shuffle methods
-    print('Evaluating shuffle fits')
-    fit = evaluate_shuffle(fit, design, method='cells')
-    fit = evaluate_shuffle(fit, design, method='time')
+    if not NO_DROPOUTS:
+        print('Evaluating shuffle fits')
+        fit = evaluate_shuffle(fit, design, method='cells')
+        fit = evaluate_shuffle(fit, design, method='time')
 
     # Save fit dictionary 
     print('Saving results')

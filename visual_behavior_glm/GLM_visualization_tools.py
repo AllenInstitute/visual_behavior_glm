@@ -1101,13 +1101,19 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
             drops.remove(k)
     
     # Add each grouping of dropouts
-    levels={
+    if 'levels' in run_params:
+        levels = run_params['levels']
+        keys = list(levels.keys())
+        for dex, key in enumerate(keys):
+            levels[int(key)] = levels.pop(key)
+    else:
+        levels={
             num_levels:['Full'],
             num_levels-1:['visual','behavioral','cognitive'],
             num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
             num_levels-3:['licking_bouts','licking_each_lick','pupil_and_omissions','trial_type','change_and_rewards'],
             num_levels-4:['running_and_omissions','hits_and_rewards'],
-        }
+            }
     for level in np.arange(num_levels,1,-1):
         df,drops = make_level(df,drops, level,  levels[level],  run_params)
         

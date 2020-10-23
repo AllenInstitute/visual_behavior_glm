@@ -1036,6 +1036,13 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             else:
                 event_times = session.dataset.trials.query(event)['change_time'].values
             event_times = event_times[~np.isnan(event_times)]
+            if len(session.dataset.rewards) < 5: ## HARD CODING THIS VALUE
+                raise Exception('Trial type regressors arent defined for passive sessions (sessions with less than 5 rewards)')
+        elif event == 'passive_change':
+            if len(session.dataset.rewards) > 5: 
+                raise Exception('Passive Change kernel cant be added to active sessions')               
+            event_times = session.dataset.stimulus_presentations.query('change')['start_time'].values
+            event_times = event_times[~np.isnan(event_times)]           
         elif event == 'any-image':
             event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
         elif event == 'image_expectation':

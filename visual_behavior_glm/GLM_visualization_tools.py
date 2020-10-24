@@ -27,7 +27,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         plot_ticks, if True, plots a tick mark at the triggering event for each kernel
  
     '''  
-    discrete = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='discrete']
+    discrete = [x for x in glm.run_params['kernels'] if (glm.run_params['kernels'][x]['type']=='discrete') or (x == 'lick_model') or (x == 'groom_model')]
     continuous = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
 
     # Basic figure set up

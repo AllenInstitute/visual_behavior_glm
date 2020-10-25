@@ -24,8 +24,8 @@ def define_kernels():
     kernels = {
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'constant value'},
         'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'linear ramp from 0 to 1'},
-        'pre_licks':    {'event':'licks',       'type':'discrete',      'length':2,     'offset':-2,    'dropout':True, 'text': 'mouse lick'},
-        'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0,     'dropout':True, 'text': 'mouse lick'},
+        # 'pre_licks':    {'event':'licks',       'type':'discrete',      'length':2,     'offset':-2,    'dropout':True, 'text': 'mouse lick'},
+        # 'post_licks':   {'event':'licks',       'type':'discrete',      'length':1,     'offset':0,     'dropout':True, 'text': 'mouse lick'},
         # 'pre_lick_bouts':   {'event':'lick_bouts','type':'discrete',    'length':2,     'offset':-2,    'dropout':True, 'text': 'lick bout'},
         # 'post_lick_bouts':  {'event':'lick_bouts','type':'discrete',    'length':2,     'offset':0,     'dropout':True, 'text': 'lick bout'},
         #'rewards':      {'event':'rewards',     'type':'discrete',      'length':5,     'offset':-0.5,  'dropout':True, 'text': 'water reward'},
@@ -40,7 +40,7 @@ def define_kernels():
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'normalized running speed'},
         'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25,  'dropout':True, 'text': 'behavioral model weights'},
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'Z-scored pupil diameter'},
-        # 'lick_model':        {'event':'lick_model',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'lick probability from video'},
+        'lick_model':        {'event':'lick_model',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'lick probability from video'},
         # 'groom_model':        {'event':'groom_model',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'groom probability from video'},
     }
     ## add face motion energy PCs

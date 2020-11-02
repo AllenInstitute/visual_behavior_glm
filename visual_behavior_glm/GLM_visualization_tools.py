@@ -112,15 +112,16 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
 
     # Licks
     if plot_ticks:
-        bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
         licks = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
         
         if 'pre_lick_bouts' in glm.run_params['kernels']:
+            bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
             pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
             post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
             plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
             plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
         if 'lick_bouts' in glm.run_params['kernels']:
+            bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
             dex = stim_points['lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['lick_bouts']['offset'])*31)
             plt.plot(bouts, dex*np.ones(np.shape(bouts)),'k|')
 
@@ -1075,7 +1076,7 @@ def make_level(df, drops, this_level_num,this_level_drops,run_params):
         drops.remove(d)
     return df,drops
 
-def plot_dropouts(run_params,save_results=False,num_levels=6):
+def plot_dropouts(run_params,save_results=True,num_levels=6):
     '''
         Makes a visual and graphic representation of how the kernels are nested inside dropout models
     '''
@@ -1102,7 +1103,7 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
     
     # Add each grouping of dropouts
     if 'levels' in run_params:
-        levels = run_params['levels']
+        levels = run_params['levels'].copy()
         keys = list(levels.keys())
         for dex, key in enumerate(keys):
             levels[int(key)] = levels.pop(key)

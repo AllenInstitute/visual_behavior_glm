@@ -1993,6 +1993,76 @@ def plot_all_nested_dropouts(results_pivoted, run_params):
     plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Vip-IRES-Cre')
     plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Sst-IRES-Cre')
 
+def get_lick_triggered_motion_response(ophys_experiment_id, cell_specimen_id):
+    '''
+    gets lick triggered responses for:
+        x-motion correcion
+        y-motion correcion
+        dff
+    returns tidy dataframe
+    '''
+    dataset = loading.get_ophys_dataset(ophys_experiment_id)
 
+    motion_correction = dataset.motion_correction
+    motion_correction['timestamps'] = dataset.ophys_timestamps
+
+    licks = dataset.licks
+
+    cell_df = pd.DataFrame({
+        'timestamps':dataset.ophys_timestamps,
+        'dff':dataset.dff_traces.loc[cell_specimen_id]['dff']
+    })
+
+    etrs = {}
+    for val in ['x','y']:
+        etrs[val] = vbu.event_triggered_response(
+            motion_correction, 
+            val, 
+            licks['timestamps'], 
+            time_key='timestamps'
+        )
+    etrs['dff'] = vbu.event_triggered_response(
+        cell_df, 
+        'dff', 
+        licks['timestamps'], 
+        time_key='timestamps'
+    )
+
+    etr = etrs['x'].merge(
+        etrs['y'],
+        left_on=['time','event_number','event_time'],
+        right_on=['time','event_number','event_time'],
+    )
+    etr = etr.merge(
+        etrs['dff'],
+        left_on=['time','event_number','event_time'],
+        right_on=['time','event_number','event_time'],
+    )
+    return etr
+
+def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
+    '''
+    makes a 3x1 figure showing:
+        mean +/95% CI x-motion correction
+        mean +/95% CI y-motion correction
+        mean +/95% CI dF/F
+    surrounding every lick in the session, for a given cell ID
+    '''
+    event_triggered_response = get_lick_triggered_motion_response(ophys_experiment_id, cell_specimen_id)
+    fig,ax=plt.subplots(3,1,figsize=(12,5),sharex=True)
+    for row,key in enumerate(['x','y','dff']):
+        sns.lineplot(
+            data=event_triggered_response,
+            x='time',
+            y=key,
+            n_boot=100,
+            ax=ax[row],
+        )
+    ax[0].set_ylabel('x-correction')
+    ax[1].set_ylabel('y-correction')
+    ax[2].set_xlabel('time from lick (s)')
+    fig.suptitle(title)
+    fig.tight_layout()
+    return fig, ax
 
 

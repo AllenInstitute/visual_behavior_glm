@@ -16,7 +16,7 @@ savepath = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_gl
 glm_version='9a_L2_optimize_by_session'
 dropout_summary = gat.retrieve_results({'glm_version':glm_version}, results_type='summary')
 
-lick_cells = dropout_summary_9a.query('dropout=="single-licks" and adj_fraction_change_from_full < -0.2')
+lick_cells = dropout_summary.query('dropout=="single-licks" and adj_fraction_change_from_full < -0.2')
 
 for idx,lick_cell in lick_cells.sample(100).iterrows():
     dropout='single-licks'

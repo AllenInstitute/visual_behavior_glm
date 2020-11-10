@@ -52,7 +52,7 @@ def calculate_required_mem(roi_count):
 
 def calculate_required_walltime(roi_count):
     '''calculate required walltime in hours'''
-    return 1.5 + 0.075*roi_count
+    return 10 + 0.1*roi_count
 
 if __name__ == "__main__":
     args = parser.parse_args()

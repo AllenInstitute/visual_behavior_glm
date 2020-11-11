@@ -2066,3 +2066,23 @@ def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
     return fig, ax
 
 
+def make_cosyne_summary_figure(ophys_experiment_id, cell_specimen_id, time_to_plot, t_span):
+    '''
+    makes a summary figure for cosyne abstract
+    inputs:
+        ophys_experiment_id
+        cell_specimen_id
+        time_to_plot: time to show in center of plot for time-varying axes
+        t_span: time range to show around time_to_plot, in seconds
+    '''
+    fig = plt.figure(figsize=(18,10))
+
+    vbuffer = 0.05
+
+    ax = {
+        'visual_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.45], yspan=[0, 0.33 - vbuffer]),
+        'behavioral_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.45], yspan=[0.33 + vbuffer, 0.67 - vbuffer]),
+        'cognitive_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.45], yspan=[0.67 + vbuffer, 1]),
+        'dff': vbp.placeAxesOnGrid(fig, xspan=[0.55,1], yspan=[0, 0.25]),
+        'dropout_quant': vbp.placeAxesOnGrid(fig, xspan=[0.55, 1], yspan=[0.3, 1]),
+    }

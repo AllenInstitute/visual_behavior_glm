@@ -1,3 +1,6 @@
 #!/bin/bash
 source activate visual_behavior
-python deploy_glm_fits.py --version 9d_L2_optimize_by_session --env visual_behavior --src-path /home/dougo/code/visual_behavior_glm
+python deploy_glm_fits.py --version 9b_L2_optimize_by_session --env visual_behavior --src-path /home/dougo/code/visual_behavior_glm --force-overwrite
+python deploy_glm_fits.py --version 9c_L2_optimize_by_session --env visual_behavior --src-path /home/dougo/code/visual_behavior_glm --force-overwrite
+python deploy_glm_fits.py --version 9d_L2_optimize_by_session --env visual_behavior --src-path /home/dougo/code/visual_behavior_glm --force-overwrite
+

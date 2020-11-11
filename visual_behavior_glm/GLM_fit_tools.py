@@ -120,14 +120,16 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     fit = evaluate_models(fit, design, run_params)
 
     # Start Diagnostic analyses
-    print('Starting diagnostics')
-    print('Bootstrapping synthetic data')
-    fit = bootstrap_model(fit, design, run_params)
+    if not NO_DROPOUTS:
+        print('Starting diagnostics')
+        print('Bootstrapping synthetic data')
+        fit = bootstrap_model(fit, design, run_params)
 
     # Perform shuffle analysis, with two shuffle methods
-    print('Evaluating shuffle fits')
-    fit = evaluate_shuffle(fit, design, method='cells')
-    fit = evaluate_shuffle(fit, design, method='time')
+    if not NO_DROPOUTS:
+        print('Evaluating shuffle fits')
+        fit = evaluate_shuffle(fit, design, method='cells')
+        fit = evaluate_shuffle(fit, design, method='time')
 
     # Save fit dictionary 
     print('Saving results')
@@ -717,6 +719,25 @@ def load_data(oeid, dataframe_format='wide', smooth_running_data=True):
         )
     return session
 
+def process_behavior_predictions(session, ophys_timestamps=None, cutoff_threshold=0.01):
+    '''
+    Returns a dataframe of licking/grooming behavior derived from behavior videos
+    All columns are interpolated onto ophys timestamps
+    cutoff_threshold = threshold below which probabilities will be set to 0
+    '''
+    behavior_predictions = pd.DataFrame({'timestamps':ophys_timestamps})
+    for column in ['lick','groom']:
+        f = scipy.interpolate.interp1d(
+            session.dataset.behavior_movie_predictions['timestamps'], 
+            session.dataset.behavior_movie_predictions[column], 
+            bounds_error=False
+        )
+        behavior_predictions[column] = f(behavior_predictions['timestamps'])
+        behavior_predictions[column].fillna(method='ffill',inplace=True)
+        # set values below cutoff threshold to 0
+        behavior_predictions[column][behavior_predictions[column]<cutoff_threshold] = 0
+    return behavior_predictions
+
 def process_eye_data(session,run_params,ophys_timestamps=None):
     '''
         Returns a dataframe of eye tracking data with several processing steps
@@ -918,6 +939,10 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         elif event == 'pupil':
             session.ophys_eye = process_eye_data(session,run_params,ophys_timestamps =fit['dff_trace_timestamps'] )
             timeseries = session.ophys_eye['pupil_radius'].values
+        elif event == 'lick_model' or event == 'groom_model':
+            if not hasattr(session, 'lick_groom_model'):
+                session.lick_groom_model = process_behavior_predictions(session, ophys_timestamps = fit['dff_trace_timestamps'])
+            timeseries = session.lick_groom_model[event.split('_')[0]].values
         else:
             raise Exception('Could not resolve kernel label')
     except Exception as e:
@@ -990,8 +1015,17 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'lick_bouts':
             licks = session.dataset.licks
             licks['pre_ILI'] = licks['timestamps'] - licks['timestamps'].shift(fill_value=-10)
+            licks['post_ILI'] = licks['timestamps'].shift(periods=-1,fill_value=5000) - licks['timestamps']
             licks['bout_start'] = licks['pre_ILI'] > run_params['lick_bout_ILI']
-            event_times = session.dataset.licks.query('bout_start')['timestamps'].values
+            licks['bout_end'] = licks['post_ILI'] > run_params['lick_bout_ILI']
+            assert np.sum(licks['bout_start']) == np.sum(licks['bout_end']), "Lick bout splitting failed"
+            
+            # We are making an array of in-lick-bout-event-times by tiling timepoints every <min_interval> seconds. 
+            # If a lick is the end of a bout, the bout-event-times continue <min_time_per_bout> after the lick
+            # Otherwise, we tile the duration of the post_ILI
+            event_times = np.concatenate([np.arange(x[0],x[0]+run_params['min_time_per_bout'],run_params['min_interval']) if x[2] else
+                                        np.arange(x[0],x[0]+x[1],run_params['min_interval']) for x in 
+                                        zip(licks['timestamps'], licks['post_ILI'], licks['bout_end'])]) 
         elif event == 'rewards':
             event_times = session.dataset.rewards['timestamps'].values
         elif event == 'change':
@@ -1004,6 +1038,13 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             else:
                 event_times = session.dataset.trials.query(event)['change_time'].values
             event_times = event_times[~np.isnan(event_times)]
+            if len(session.dataset.rewards) < 5: ## HARD CODING THIS VALUE
+                raise Exception('Trial type regressors arent defined for passive sessions (sessions with less than 5 rewards)')
+        elif event == 'passive_change':
+            if len(session.dataset.rewards) > 5: 
+                raise Exception('Passive Change kernel cant be added to active sessions')               
+            event_times = session.dataset.stimulus_presentations.query('change')['start_time'].values
+            event_times = event_times[~np.isnan(event_times)]           
         elif event == 'any-image':
             event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
         elif event == 'image_expectation':
@@ -1038,6 +1079,11 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         return design       
     else:
         events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
+
+        if event == 'lick_bouts': 
+            # Force this to be 0 or 1, since we purposefully over-tiled the space. 
+            events_vec[events_vec > 1] = 1
+
         design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
         return design
 

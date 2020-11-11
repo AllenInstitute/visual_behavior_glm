@@ -27,7 +27,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         plot_ticks, if True, plots a tick mark at the triggering event for each kernel
  
     '''  
-    discrete = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='discrete']
+    discrete = [x for x in glm.run_params['kernels'] if (glm.run_params['kernels'][x]['type']=='discrete') or (x == 'lick_model') or (x == 'groom_model')]
     continuous = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
 
     # Basic figure set up
@@ -67,7 +67,12 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     all_k = discrete
 
     # Plot Rewards
-    reward_dex = stim_points['rewards'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['rewards']['offset'])*31)
+    if 'rewards' in glm.run_params['kernels']:
+        reward_dex = stim_points['rewards'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['rewards']['offset'])*31)
+    elif 'hits' in glm.run_params['kernels']:
+        reward_dex = stim_points['hits'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['hits']['offset'])*31)
+    else:
+        reward_dex = 0
     if plot_bands:
         reward_dex += -.4
     if plot_ticks:
@@ -87,8 +92,9 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     # Stimulus Changes
     change = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & change')
     if plot_ticks:
-        change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*31)
-        plt.plot(change['start_time'], change_dex*np.ones(np.shape(change['start_time'])),'k|')
+        if 'change' in glm.run_params['kernels']:
+            change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*31)
+            plt.plot(change['start_time'], change_dex*np.ones(np.shape(change['start_time'])),'k|')
     for index, time in enumerate(change['start_time'].values):
         plt.axvspan(time, time+0.25, color='b',alpha=.2)
 
@@ -106,17 +112,27 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
 
     # Licks
     if plot_ticks:
-        pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
-        post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
         bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
-        plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
-        plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
-
-        pre_dex = stim_points['pre_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_licks']['offset'])*31)
-        post_dex = stim_points['post_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_licks']['offset'])*31)
         licks = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
-        plt.plot(licks, pre_dex*np.ones(np.shape(licks)),'k|')
-        plt.plot(licks, post_dex*np.ones(np.shape(licks)),'k|')
+        
+        if 'pre_lick_bouts' in glm.run_params['kernels']:
+            pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
+            post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
+            plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
+            plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
+        if 'lick_bouts' in glm.run_params['kernels']:
+            dex = stim_points['lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['lick_bouts']['offset'])*31)
+            plt.plot(bouts, dex*np.ones(np.shape(bouts)),'k|')
+
+        if 'pre_licks' in glm.run_params['kernels']:
+            pre_dex = stim_points['pre_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_licks']['offset'])*31)
+            post_dex = stim_points['post_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_licks']['offset'])*31)
+            plt.plot(licks, pre_dex*np.ones(np.shape(licks)),'k|')
+            plt.plot(licks, post_dex*np.ones(np.shape(licks)),'k|')
+        if 'licks' in glm.run_params['kernels']:
+            dex = stim_points['licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['licks']['offset'])*31)
+            plt.plot(licks, dex*np.ones(np.shape(licks)),'k|')
+
 
     # Trials
     if plot_ticks:
@@ -1083,13 +1099,19 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
             drops.remove(k)
     
     # Add each grouping of dropouts
-    levels={
+    if 'levels' in run_params:
+        levels = run_params['levels']
+        keys = list(levels.keys())
+        for dex, key in enumerate(keys):
+            levels[int(key)] = levels.pop(key)
+    else:
+        levels={
             num_levels:['Full'],
             num_levels-1:['visual','behavioral','cognitive'],
             num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
             num_levels-3:['licking_bouts','licking_each_lick','pupil_and_omissions','trial_type','change_and_rewards'],
             num_levels-4:['running_and_omissions','hits_and_rewards'],
-        }
+            }
     for level in np.arange(num_levels,1,-1):
         df,drops = make_level(df,drops, level,  levels[level],  run_params)
         
@@ -1193,14 +1215,15 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
     filter_string = ''
+    problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
     if equipment_filter == "scientifica": 
-        weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676]) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')
+        weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')
         filter_string+='_scientifica'
     elif equipment_filter == "mesoscope":
-        weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676])& (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')   
+        weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions)& (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')   
         filter_string+='_mesoscope'
     else:
-        weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in [962045676]) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])')
+        weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])')
         if not interpolate:
             print('Forcing interpolate=True because we have mixed scientifica and mesoscope data')
             interpolate=True
@@ -1253,7 +1276,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         sst = [x for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0]
         vip = [x for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0]
         slc = [x for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0]
-    
+
     # Interpolate Mesoscope
     # Doing interpolation step here because we have removed the NaN results
     if interpolate:
@@ -1708,7 +1731,7 @@ def plot_over_fitting(full_results, dropout,save_file=""):
     if save_file !="":
         plt.savefig(save_file+dropout+'.png')
 
-def plot_over_fitting_summary(full_results, run_params):
+def plot_over_fitting_summary(full_results, run_params, plot_dropouts=True):
     '''
         Plots a summary figure that shows which kernels were the most responsible for overfitting.
         
@@ -1727,10 +1750,15 @@ def plot_over_fitting_summary(full_results, run_params):
     labels = [] 
 
     # Iterate over model dropouts, and get mean overfitting proportion
-    for index,d in enumerate(run_params['dropouts']):
+    if plot_dropouts:
+        plot_list = run_params['dropouts'].keys()
+    else:
+        plot_list = run_params['kernels'].keys()
+    for index,d in enumerate(plot_list):
         if (d != "Full")&(not d.startswith('single-')):
-            p.append(np.mean(full_results[d+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1))))        
-            labels.append(d)
+            if d+'__dropout_overfit_proportion' in full_results:
+                p.append(np.mean(full_results[d+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1))))        
+                labels.append(d)
     
     # Sort by proportion, and save order for yticks
     sort_labels=[]
@@ -1963,6 +1991,76 @@ def plot_all_nested_dropouts(results_pivoted, run_params):
     plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Vip-IRES-Cre')
     plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Sst-IRES-Cre')
 
+def get_lick_triggered_motion_response(ophys_experiment_id, cell_specimen_id):
+    '''
+    gets lick triggered responses for:
+        x-motion correcion
+        y-motion correcion
+        dff
+    returns tidy dataframe
+    '''
+    dataset = loading.get_ophys_dataset(ophys_experiment_id)
 
+    motion_correction = dataset.motion_correction
+    motion_correction['timestamps'] = dataset.ophys_timestamps
+
+    licks = dataset.licks
+
+    cell_df = pd.DataFrame({
+        'timestamps':dataset.ophys_timestamps,
+        'dff':dataset.dff_traces.loc[cell_specimen_id]['dff']
+    })
+
+    etrs = {}
+    for val in ['x','y']:
+        etrs[val] = vbu.event_triggered_response(
+            motion_correction, 
+            val, 
+            licks['timestamps'], 
+            time_key='timestamps'
+        )
+    etrs['dff'] = vbu.event_triggered_response(
+        cell_df, 
+        'dff', 
+        licks['timestamps'], 
+        time_key='timestamps'
+    )
+
+    etr = etrs['x'].merge(
+        etrs['y'],
+        left_on=['time','event_number','event_time'],
+        right_on=['time','event_number','event_time'],
+    )
+    etr = etr.merge(
+        etrs['dff'],
+        left_on=['time','event_number','event_time'],
+        right_on=['time','event_number','event_time'],
+    )
+    return etr
+
+def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
+    '''
+    makes a 3x1 figure showing:
+        mean +/95% CI x-motion correction
+        mean +/95% CI y-motion correction
+        mean +/95% CI dF/F
+    surrounding every lick in the session, for a given cell ID
+    '''
+    event_triggered_response = get_lick_triggered_motion_response(ophys_experiment_id, cell_specimen_id)
+    fig,ax=plt.subplots(3,1,figsize=(12,5),sharex=True)
+    for row,key in enumerate(['x','y','dff']):
+        sns.lineplot(
+            data=event_triggered_response,
+            x='time',
+            y=key,
+            n_boot=100,
+            ax=ax[row],
+        )
+    ax[0].set_ylabel('x-correction')
+    ax[1].set_ylabel('y-correction')
+    ax[2].set_xlabel('time from lick (s)')
+    fig.suptitle(title)
+    fig.tight_layout()
+    return fig, ax
 
 

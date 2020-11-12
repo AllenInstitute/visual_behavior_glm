@@ -2080,6 +2080,31 @@ def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
     return fig, ax
 
 
+def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show):
+    '''
+    makes bar plots of results summary
+    aesthetics specific to cosyne needs
+
+    '''
+
+    cre_lines = np.sort(dropout_summary['cre_line'].unique())
+    
+    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < -0.01').copy()
+    data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
+    sns.boxplot(
+        data = data_to_plot,
+        x='dropout',
+        y='adj_fraction_change_from_full',
+        hue='cre_line',
+        order=dropouts_to_show,
+        hue_order=cre_lines,
+        fliersize=0,
+        ax=ax
+    )
+
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    ax.set_ylabel('Fraction change\nin variance explained')
+
 def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     '''
     makes a summary figure for cosyne abstract

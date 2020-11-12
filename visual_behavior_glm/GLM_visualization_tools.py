@@ -1139,6 +1139,14 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
     color_dict = {x:y for (x,y) in  zip(labels,colors)}
     for level in range(1,num_levels+1):
         color_dict['level-'+str(level)+'--'] = (0.8,0.8,0.8)
+
+    # add color of level-1 value to df['color']
+    df['color'] = None
+    for key in color_dict.keys():
+        if key.startswith('level-1'):
+            dropout = key.split('level-1-')[1]
+            if dropout in df.index.values.tolist():
+                df.at[dropout,'color'] = color_dict[key]
     
     # Plot Squares
     uniques = set()
@@ -2100,20 +2108,12 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span):
 
     kernel_df = gat.build_kernel_df(glm, cell_specimen_id)
 
-    palette_df = pd.DataFrame({
-        'kernel_name':kernel_df['kernel_name'].unique(),
-        'kernel_color':vbp.generate_random_colors(
-            len(kernel_df['kernel_name'].unique()), 
-            lightness_range=(0.6,1), 
-            saturation_range=(0.75,1), 
-            random_seed=3, 
-            order_colors=False
-        )
-    })
 
     run_params = glm_params.load_run_json(glm.version)
     dropout_df = plot_dropouts(run_params)
+    palette_df = dropout_df[['color']].reset_index().rename(columns={'color':'kernel_color','index':'kernel_name'})
 
+    t0, t1 = t_span
     for regressor_category in regressors.keys():
         dropouts = np.sort(dropout_df[dropout_df['level-5'] == regressor_category].index.values).tolist()
         plot_kernels(
@@ -2123,6 +2123,11 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span):
             t_span
         )   
         plot_stimuli(glm.session, ax['{}_kernels'.format(regressor_category)], t_span=t_span)
+        ax['{}_kernels'.format(regressor_category)].set_title('{}'.format(regressor_category))
+        ax['{}_kernels'.format(regressor_category)].set_ylim(
+            kernel_df.query('timestamps >= @t0 and timestamps <= @t1')['kernel_outputs'].min()-0.2,
+            kernel_df.query('timestamps >= @t0 and timestamps <= @t1')['kernel_outputs'].max()+0.2
+        )
 
 
     # cell df/f plots:
@@ -2140,7 +2145,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span):
         local_df['dff_trace_timestamps'],
         local_df['dff'],
         alpha=0.9,
-        color='lightgreen',
+        color='darkgreen',
         linewidth=3,
     )
 

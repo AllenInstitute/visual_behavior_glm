@@ -2,6 +2,7 @@ import visual_behavior.plotting as vbp
 import visual_behavior.utilities as vbu
 import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior.database as db
 import matplotlib as mpl
 import seaborn as sns
@@ -2066,11 +2067,11 @@ def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
     return fig, ax
 
 
-def make_cosyne_summary_figure(ophys_experiment_id, cell_specimen_id, time_to_plot, t_span):
+def make_cosyne_summary_figure(glm, cell_specimen_id, t_span):
     '''
     makes a summary figure for cosyne abstract
     inputs:
-        ophys_experiment_id
+        glm: glm object
         cell_specimen_id
         time_to_plot: time to show in center of plot for time-varying axes
         t_span: time range to show around time_to_plot, in seconds
@@ -2080,9 +2081,92 @@ def make_cosyne_summary_figure(ophys_experiment_id, cell_specimen_id, time_to_pl
     vbuffer = 0.05
 
     ax = {
-        'visual_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.45], yspan=[0, 0.33 - vbuffer]),
-        'behavioral_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.45], yspan=[0.33 + vbuffer, 0.67 - vbuffer]),
-        'cognitive_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.45], yspan=[0.67 + vbuffer, 1]),
-        'dff': vbp.placeAxesOnGrid(fig, xspan=[0.55,1], yspan=[0, 0.25]),
-        'dropout_quant': vbp.placeAxesOnGrid(fig, xspan=[0.55, 1], yspan=[0.3, 1]),
+        'visual_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.4], yspan=[0, 0.33 - vbuffer]),
+        'behavioral_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.4], yspan=[0.33 + vbuffer, 0.67 - vbuffer]),
+        'cognitive_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.4], yspan=[0.67 + vbuffer, 1]),
+        'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0.6, 1], yspan=[0, 0.25]),
+        'dropout_quant': vbp.placeAxesOnGrid(fig, xspan=[0.6, 1], yspan=[0.4, 1]),
     }
+
+    # add dropout summary
+    results_summary = gat.generate_results_summary(glm)
+    plot_dropout_summary(results_summary, cell_specimen_id, ax['dropout_quant'])
+
+    regressors = {
+        'visual': ['image0','image1'],
+        'behavioral': ['pupil','running'],
+        'cognitive': ['hit','miss'],
+    }
+
+    kernel_df = gat.build_kernel_df(glm, cell_specimen_id)
+
+    palette_df = pd.DataFrame({
+        'kernel_name':kernel_df['kernel_name'].unique(),
+        'kernel_color':vbp.generate_random_colors(
+            len(kernel_df['kernel_name'].unique()), 
+            lightness_range=(0.6,1), 
+            saturation_range=(0.75,1), 
+            random_seed=3, 
+            order_colors=False
+        )
+    })
+
+    run_params = glm_params.load_run_json(glm.version)
+    dropout_df = plot_dropouts(run_params)
+
+    for regressor_category in regressors.keys():
+        dropouts = np.sort(dropout_df[dropout_df['level-5'] == regressor_category].index.values).tolist()
+        plot_kernels(
+            kernel_df.query('kernel_name in @dropouts'), 
+            ax['{}_kernels'.format(regressor_category)], 
+            palette_df, 
+            t_span
+        )   
+        plot_stimuli(glm.session, ax['{}_kernels'.format(regressor_category)], t_span=t_span)
+
+
+    # cell df/f plots:
+
+    this_cell = glm.df_full.query('cell_specimen_id == @cell_specimen_id')
+    cell_index = np.where(glm.W['cell_specimen_id'] == cell_specimen_id)[0][0]
+
+    query_string = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+        t_span[0],
+        t_span[1]
+    )
+    local_df = this_cell.query(query_string)
+
+    ax['cell_response'].plot(
+        local_df['dff_trace_timestamps'],
+        local_df['dff'],
+        alpha=0.9,
+        color='lightgreen',
+        linewidth=3,
+    )
+
+    ax['cell_response'].plot(
+        local_df['dff_trace_timestamps'],
+        local_df['dff_predicted'],
+        alpha=1,
+        color='black',
+        linewidth=3,
+    )
+    qs = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+        t_span[0],
+        t_span[1]
+    )
+    ax['cell_response'].set_ylim(
+        this_cell.query(qs)['dff'].min(),
+        this_cell.query(qs)['dff'].max(),
+    )
+
+    ax['cell_response'].legend(
+        ['Actual $\Delta$F/F','Model Predicted $\Delta$F/F'],
+        loc='upper left',
+        ncol=2, 
+        framealpha = 0.2,
+    )
+
+    plot_stimuli(glm.session, ax['cell_response'], t_span=t_span)
+
+    return fig, ax

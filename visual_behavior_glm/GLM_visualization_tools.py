@@ -508,7 +508,7 @@ def plot_omissions(session, ax, y_loc=0, t_span=None):
     )
 
 
-def plot_stimuli(session, ax, t_span=None):
+def plot_stimuli(session, ax, t_span=None,alpha=.35):
     buffer = 0.25
     images = session.dataset.stimulus_presentations['image_name'].unique()
     colors = {image: color for image, color in zip(
@@ -531,7 +531,7 @@ def plot_stimuli(session, ax, t_span=None):
             stimulus['start_time'],
             stimulus['stop_time'],
             color=stimulus['color'],
-            alpha=0.35,
+            alpha=alpha,
             edgecolor=None,
         )
 
@@ -2080,7 +2080,7 @@ def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
     return fig, ax
 
 
-def make_cosyne_summary_figure(glm, cell_specimen_id, t_span):
+def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     '''
     makes a summary figure for cosyne abstract
     inputs:
@@ -2177,6 +2177,6 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span):
         framealpha = 0.2,
     )
 
-    plot_stimuli(glm.session, ax['cell_response'], t_span=t_span)
+    plot_stimuli(glm.session, ax['cell_response'], t_span=t_span,alpha=alpha)
 
     return fig, ax

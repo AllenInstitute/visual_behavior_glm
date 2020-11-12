@@ -2,6 +2,7 @@ import visual_behavior.plotting as vbp
 import visual_behavior.utilities as vbu
 import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior.database as db
 import matplotlib as mpl
 import seaborn as sns
@@ -1139,6 +1140,14 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
     color_dict = {x:y for (x,y) in  zip(labels,colors)}
     for level in range(1,num_levels+1):
         color_dict['level-'+str(level)+'--'] = (0.8,0.8,0.8)
+
+    # add color of level-1 value to df['color']
+    df['color'] = None
+    for key in color_dict.keys():
+        if key.startswith('level-1'):
+            dropout = key.split('level-1-')[1]
+            if dropout in df.index.values.tolist():
+                df.at[dropout,'color'] = color_dict[key]
     
     # Plot Squares
     uniques = set()
@@ -1998,6 +2007,176 @@ def plot_all_nested_dropouts(results_pivoted, run_params):
     plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Vip-IRES-Cre')
     plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Sst-IRES-Cre')
 
+def get_lick_triggered_motion_response(ophys_experiment_id, cell_specimen_id):
+    '''
+    gets lick triggered responses for:
+        x-motion correcion
+        y-motion correcion
+        dff
+    returns tidy dataframe
+    '''
+    dataset = loading.get_ophys_dataset(ophys_experiment_id)
+
+    motion_correction = dataset.motion_correction
+    motion_correction['timestamps'] = dataset.ophys_timestamps
+
+    licks = dataset.licks
+
+    cell_df = pd.DataFrame({
+        'timestamps':dataset.ophys_timestamps,
+        'dff':dataset.dff_traces.loc[cell_specimen_id]['dff']
+    })
+
+    etrs = {}
+    for val in ['x','y']:
+        etrs[val] = vbu.event_triggered_response(
+            motion_correction, 
+            val, 
+            licks['timestamps'], 
+            time_key='timestamps'
+        )
+    etrs['dff'] = vbu.event_triggered_response(
+        cell_df, 
+        'dff', 
+        licks['timestamps'], 
+        time_key='timestamps'
+    )
+
+    etr = etrs['x'].merge(
+        etrs['y'],
+        left_on=['time','event_number','event_time'],
+        right_on=['time','event_number','event_time'],
+    )
+    etr = etr.merge(
+        etrs['dff'],
+        left_on=['time','event_number','event_time'],
+        right_on=['time','event_number','event_time'],
+    )
+    return etr
+
+def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
+    '''
+    makes a 3x1 figure showing:
+        mean +/95% CI x-motion correction
+        mean +/95% CI y-motion correction
+        mean +/95% CI dF/F
+    surrounding every lick in the session, for a given cell ID
+    '''
+    event_triggered_response = get_lick_triggered_motion_response(ophys_experiment_id, cell_specimen_id)
+    fig,ax=plt.subplots(3,1,figsize=(12,5),sharex=True)
+    for row,key in enumerate(['x','y','dff']):
+        sns.lineplot(
+            data=event_triggered_response,
+            x='time',
+            y=key,
+            n_boot=100,
+            ax=ax[row],
+        )
+    ax[0].set_ylabel('x-correction')
+    ax[1].set_ylabel('y-correction')
+    ax[2].set_xlabel('time from lick (s)')
+    fig.suptitle(title)
+    fig.tight_layout()
+    return fig, ax
 
 
+def make_cosyne_summary_figure(glm, cell_specimen_id, t_span):
+    '''
+    makes a summary figure for cosyne abstract
+    inputs:
+        glm: glm object
+        cell_specimen_id
+        time_to_plot: time to show in center of plot for time-varying axes
+        t_span: time range to show around time_to_plot, in seconds
+    '''
+    fig = plt.figure(figsize=(18,10))
 
+    vbuffer = 0.05
+
+    ax = {
+        'visual_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.4], yspan=[0, 0.33 - vbuffer]),
+        'behavioral_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.4], yspan=[0.33 + vbuffer, 0.67 - vbuffer]),
+        'cognitive_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.4], yspan=[0.67 + vbuffer, 1]),
+        'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0.6, 1], yspan=[0, 0.25]),
+        'dropout_quant': vbp.placeAxesOnGrid(fig, xspan=[0.6, 1], yspan=[0.4, 1]),
+    }
+
+    # add dropout summary
+    results_summary = gat.generate_results_summary(glm)
+    plot_dropout_summary(results_summary, cell_specimen_id, ax['dropout_quant'])
+
+    regressors = {
+        'visual': ['image0','image1'],
+        'behavioral': ['pupil','running'],
+        'cognitive': ['hit','miss'],
+    }
+
+    kernel_df = gat.build_kernel_df(glm, cell_specimen_id)
+
+
+    run_params = glm_params.load_run_json(glm.version)
+    dropout_df = plot_dropouts(run_params)
+    palette_df = dropout_df[['color']].reset_index().rename(columns={'color':'kernel_color','index':'kernel_name'})
+
+    t0, t1 = t_span
+    for regressor_category in regressors.keys():
+        dropouts = np.sort(dropout_df[dropout_df['level-5'] == regressor_category].index.values).tolist()
+        plot_kernels(
+            kernel_df.query('kernel_name in @dropouts'), 
+            ax['{}_kernels'.format(regressor_category)], 
+            palette_df, 
+            t_span
+        )   
+        plot_stimuli(glm.session, ax['{}_kernels'.format(regressor_category)], t_span=t_span)
+        ax['{}_kernels'.format(regressor_category)].set_title('{}'.format(regressor_category))
+        ax['{}_kernels'.format(regressor_category)].set_ylim(
+            kernel_df.query('timestamps >= @t0 and timestamps <= @t1')['kernel_outputs'].min()-0.2,
+            kernel_df.query('timestamps >= @t0 and timestamps <= @t1')['kernel_outputs'].max()+0.2
+        )
+
+
+    # cell df/f plots:
+
+    this_cell = glm.df_full.query('cell_specimen_id == @cell_specimen_id')
+    cell_index = np.where(glm.W['cell_specimen_id'] == cell_specimen_id)[0][0]
+
+    query_string = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+        t_span[0],
+        t_span[1]
+    )
+    local_df = this_cell.query(query_string)
+
+    ax['cell_response'].plot(
+        local_df['dff_trace_timestamps'],
+        local_df['dff'],
+        alpha=0.9,
+        color='darkgreen',
+        linewidth=3,
+    )
+
+    ax['cell_response'].plot(
+        local_df['dff_trace_timestamps'],
+        local_df['dff_predicted'],
+        alpha=1,
+        color='black',
+        linewidth=3,
+    )
+    qs = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+        t_span[0],
+        t_span[1]
+    )
+    ax['cell_response'].set_ylim(
+        this_cell.query(qs)['dff'].min(),
+        this_cell.query(qs)['dff'].max(),
+    )
+
+    ax['cell_response'].legend(
+        ['Actual $\Delta$F/F','Model Predicted $\Delta$F/F'],
+        loc='upper left',
+        ncol=2, 
+        framealpha = 0.2,
+    )
+
+    plot_stimuli(glm.session, ax['cell_response'], t_span=t_span)
+
+    return fig, ax

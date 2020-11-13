@@ -17,7 +17,7 @@ import gc
 from scipy import ndimage
 from scipy import stats
 
-def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True):
+def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True,start=10000,end=11000):
     '''
         Plots the time points where each kernel has support 
         INPUTS:
@@ -27,7 +27,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         plot_ticks, if True, plots a tick mark at the triggering event for each kernel
  
     '''  
-    discrete = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='discrete']
+    discrete = [x for x in glm.run_params['kernels'] if (glm.run_params['kernels'][x]['type']=='discrete') or (x == 'lick_model') or (x == 'groom_model')]
     continuous = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
 
     # Basic figure set up
@@ -35,8 +35,6 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         plt.figure(figsize=(12,10))
     else:
         plt.figure(figsize=(12,6))
-    start = 10000
-    end = 11000 
     time_vec = glm.fit['dff_trace_timestamps'][start:end]
     start_t = time_vec[0]
     end_t = time_vec[-1]
@@ -69,7 +67,12 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     all_k = discrete
 
     # Plot Rewards
-    reward_dex = stim_points['rewards'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['rewards']['offset'])*31)
+    if 'rewards' in glm.run_params['kernels']:
+        reward_dex = stim_points['rewards'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['rewards']['offset'])*31)
+    elif 'hits' in glm.run_params['kernels']:
+        reward_dex = stim_points['hits'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['hits']['offset'])*31)
+    else:
+        reward_dex = 0
     if plot_bands:
         reward_dex += -.4
     if plot_ticks:
@@ -89,8 +92,9 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     # Stimulus Changes
     change = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & change')
     if plot_ticks:
-        change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*31)
-        plt.plot(change['start_time'], change_dex*np.ones(np.shape(change['start_time'])),'k|')
+        if 'change' in glm.run_params['kernels']:
+            change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*31)
+            plt.plot(change['start_time'], change_dex*np.ones(np.shape(change['start_time'])),'k|')
     for index, time in enumerate(change['start_time'].values):
         plt.axvspan(time, time+0.25, color='b',alpha=.2)
 
@@ -108,17 +112,27 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
 
     # Licks
     if plot_ticks:
-        pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
-        post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
         bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
-        plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
-        plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
-
-        pre_dex = stim_points['pre_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_licks']['offset'])*31)
-        post_dex = stim_points['post_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_licks']['offset'])*31)
         licks = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
-        plt.plot(licks, pre_dex*np.ones(np.shape(licks)),'k|')
-        plt.plot(licks, post_dex*np.ones(np.shape(licks)),'k|')
+        
+        if 'pre_lick_bouts' in glm.run_params['kernels']:
+            pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
+            post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
+            plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
+            plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
+        if 'lick_bouts' in glm.run_params['kernels']:
+            dex = stim_points['lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['lick_bouts']['offset'])*31)
+            plt.plot(bouts, dex*np.ones(np.shape(bouts)),'k|')
+
+        if 'pre_licks' in glm.run_params['kernels']:
+            pre_dex = stim_points['pre_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_licks']['offset'])*31)
+            post_dex = stim_points['post_licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_licks']['offset'])*31)
+            plt.plot(licks, pre_dex*np.ones(np.shape(licks)),'k|')
+            plt.plot(licks, post_dex*np.ones(np.shape(licks)),'k|')
+        if 'licks' in glm.run_params['kernels']:
+            dex = stim_points['licks'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['licks']['offset'])*31)
+            plt.plot(licks, dex*np.ones(np.shape(licks)),'k|')
+
 
     # Trials
     if plot_ticks:
@@ -126,9 +140,12 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         ks = ['hits','misses','false_alarms','correct_rejects']
         trials = glm.session.dataset.trials.query('change_time < @end_t & change_time > @start_t')
         for index, t in enumerate(types):
-            change_time = trials[trials[t]]['change_time'] 
-            trial_dex = stim_points[ks[index]][0] + dt*np.ceil(np.abs(glm.run_params['kernels'][ks[index]]['offset'])*31)
-            plt.plot(change_time, trial_dex*np.ones(np.shape(change_time)),'k|')
+            try:
+                change_time = trials[trials[t]]['change_time'] 
+                trial_dex = stim_points[ks[index]][0] + dt*np.ceil(np.abs(glm.run_params['kernels'][ks[index]]['offset'])*31)
+                plt.plot(change_time, trial_dex*np.ones(np.shape(change_time)),'k|')
+            except:
+                print('error plotting - '+t)
 
     plt.xlabel('Time (s)')
     plt.yticks(ticks,all_k)
@@ -1085,13 +1102,19 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
             drops.remove(k)
     
     # Add each grouping of dropouts
-    levels={
+    if 'levels' in run_params:
+        levels = run_params['levels']
+        keys = list(levels.keys())
+        for dex, key in enumerate(keys):
+            levels[int(key)] = levels.pop(key)
+    else:
+        levels={
             num_levels:['Full'],
             num_levels-1:['visual','behavioral','cognitive'],
             num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
             num_levels-3:['licking_bouts','licking_each_lick','pupil_and_omissions','trial_type','change_and_rewards'],
             num_levels-4:['running_and_omissions','hits_and_rewards'],
-        }
+            }
     for level in np.arange(num_levels,1,-1):
         df,drops = make_level(df,drops, level,  levels[level],  run_params)
         
@@ -1195,14 +1218,15 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
     filter_string = ''
+    problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
     if equipment_filter == "scientifica": 
-        weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676]) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')
+        weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')
         filter_string+='_scientifica'
     elif equipment_filter == "mesoscope":
-        weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in [962045676])& (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')   
+        weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions)& (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')   
         filter_string+='_mesoscope'
     else:
-        weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in [962045676]) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])')
+        weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])')
         if not interpolate:
             print('Forcing interpolate=True because we have mixed scientifica and mesoscope data')
             interpolate=True
@@ -1255,7 +1279,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         sst = [x for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0]
         vip = [x for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0]
         slc = [x for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0]
-    
+
     # Interpolate Mesoscope
     # Doing interpolation step here because we have removed the NaN results
     if interpolate:
@@ -1532,7 +1556,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
     ax[0,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
     ax[0,2].set_xticks(np.arange(0,len(drop_list)))
-    ax[0,2].set_xticklabels(drop_list,rotation=60,fontsize=8)
+    ax[0,2].set_xticklabels(drop_list,rotation=60,fontsize=8,ha='right')
     ax[0,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
     ax[0,2].set_ylim(-1.05,.05)
     ax[0,2].set_title('Dropout Scores')
@@ -1560,7 +1584,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
     ax[1,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
     ax[1,2].set_xticks(np.arange(0,len(drop_list)))
-    ax[1,2].set_xticklabels(drop_list,rotation=60,fontsize=8)
+    ax[1,2].set_xticklabels(drop_list,rotation=60,fontsize=8,ha='right')
     ax[1,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
     ax[1,2].set_ylim(-1.05,.05)
     ax[1,2].set_title('Filter on Full Model')
@@ -1593,7 +1617,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     num_cells = len(drop_sst)+len(drop_slc)+len(drop_vip)
     ax[2,2].set_ylabel('Adj. Fraction from Full \n'+str(num_cells)+' cells')
     ax[2,2].set_xticks(np.arange(0,len(drop_list)))
-    ax[2,2].set_xticklabels(drop_list,rotation=60,fontsize=8)
+    ax[2,2].set_xticklabels(drop_list,rotation=60,fontsize=8,ha='right')
     ax[2,2].axhline(0,color='k',linestyle='--',alpha=line_alpha)
     ax[2,2].set_ylim(-1.05,.05)
     ax[2,2].set_title('Filter on Dropout Score')
@@ -1710,7 +1734,7 @@ def plot_over_fitting(full_results, dropout,save_file=""):
     if save_file !="":
         plt.savefig(save_file+dropout+'.png')
 
-def plot_over_fitting_summary(full_results, run_params):
+def plot_over_fitting_summary(full_results, run_params, plot_dropouts=True):
     '''
         Plots a summary figure that shows which kernels were the most responsible for overfitting.
         
@@ -1729,10 +1753,15 @@ def plot_over_fitting_summary(full_results, run_params):
     labels = [] 
 
     # Iterate over model dropouts, and get mean overfitting proportion
-    for index,d in enumerate(run_params['dropouts']):
+    if plot_dropouts:
+        plot_list = run_params['dropouts'].keys()
+    else:
+        plot_list = run_params['kernels'].keys()
+    for index,d in enumerate(plot_list):
         if (d != "Full")&(not d.startswith('single-')):
-            p.append(np.mean(full_results[d+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1))))        
-            labels.append(d)
+            if d+'__dropout_overfit_proportion' in full_results:
+                p.append(np.mean(full_results[d+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1))))        
+                labels.append(d)
     
     # Sort by proportion, and save order for yticks
     sort_labels=[]
@@ -1864,3 +1893,272 @@ def plot_all_dropout_scores(glm_version=None, dropout_scores=None, show_dots = F
     fig.tight_layout()
 
     return fig, ax
+def plot_top_level_dropouts(results_pivoted, filter_cre=False, cre='Slc17a7-IRES2-Cre',bins=150, cmax=10):
+    '''
+         IN DEVELOPMENT
+    '''
+    if filter_cre:
+        rsp = results_pivoted.query('(variance_explained_full > 0.01) & (cre_line == @cre)').copy()
+    else:
+        rsp = results_pivoted.query('variance_explained_full > 0.01').copy()
+        cre='All'
+    rsp.fillna(value=0,inplace=True)
+
+    #fig, ax = plt.subplots(1,3,figsize=(12,4))
+    #ax[0].plot(rsp['visual'],rsp['behavioral'],'ko',alpha=.1)
+    #ax[0].set_ylabel('behavioral')
+    #ax[0].set_xlabel('visual')
+    #ax[1].plot(rsp['visual'],rsp['cognitive'],'ko',alpha=.1)
+    #ax[1].set_ylabel('cognitive')
+    #ax[1].set_xlabel('visual')
+    #ax[2].plot(rsp['cognitive'],rsp['behavioral'],'ko',alpha=.1)
+    #ax[2].set_ylabel('behavioral')
+    #ax[2].set_xlabel('cognitive')
+    #ax[0].plot([-1,0],[-1,0],'r--')
+    #ax[1].plot([-1,0],[-1,0],'r--')
+    #ax[2].plot([-1,0],[-1,0],'r--')
+
+    fig, ax = plt.subplots(1,3,figsize=(12,4))
+    ax[0].hist2d(rsp['visual'],rsp['behavioral'],bins=bins,density=True, cmax=cmax,cmap='inferno')
+    ax[1].hist2d(rsp['visual'],rsp['cognitive'],bins=bins,density=True, cmax=cmax,cmap='inferno')
+    ax[2].hist2d(rsp['cognitive'],rsp['behavioral'],bins=bins,density=True, cmax=cmax,cmap='inferno')
+    ax[0].set_ylabel('behavioral')
+    ax[0].set_xlabel('visual')
+    ax[1].set_ylabel('cognitive')
+    ax[1].set_xlabel('visual')
+    ax[2].set_ylabel('behavioral')
+    ax[2].set_xlabel('cognitive')
+    ax[2].set_title(cre)
+    plt.tight_layout()
+
+def plot_nested_dropouts(results_pivoted,run_params, num_levels=2,size=0.3,force_nesting=True,filter_cre=False, cre='Slc17a7-IRES2-Cre',invert=False,mixing=True,thresh=-.2,savefig=True,force_subsets=True):
+
+    if filter_cre:
+        rsp = results_pivoted.query('(variance_explained_full > 0.01) & (cre_line == @cre)').copy()
+    else:
+        rsp = results_pivoted.query('variance_explained_full > 0.01').copy()
+
+    fig, ax = plt.subplots(1,num_levels+1,figsize=((num_levels+1)*3+1,4))
+    cmap= plt.get_cmap("tab20c")
+    outer_colors = cmap(np.array([0,4,8,12]))
+    inner_colors = cmap(np.array([1,2,3,5,6,7,9,10,11]))
+    
+    if num_levels==1:
+        size=size*2
+
+    if invert:
+        r = [1-size,1]
+    else:
+        r = [1,1-size]   
+ 
+    # Compute Level 1 clusters
+    if mixing:
+        rsp['level1'] = [np.argmin(x) for x in zip(rsp['visual'],rsp['behavioral'],rsp['cognitive'])]
+        rsp['level1'] = [3 if (x[0]<thresh)&(x[1]<thresh) else x[2] for x in zip(rsp['visual'],rsp['behavioral'],rsp['level1'])]
+    else:
+        rsp['level1'] = [np.argmin(x) for x in zip(rsp['visual'],rsp['behavioral'],rsp['cognitive'])]
+    level_1_props = rsp.groupby('level1')['level1'].count()
+    if 0 not in level_1_props.index:
+        level_1_props.loc[0] = 0
+    if 1 not in level_1_props.index:
+        level_1_props.loc[1] = 0
+    if 2 not in level_1_props.index:
+        level_1_props.loc[2] = 0
+    level_1_props = level_1_props.sort_index(inplace=False)
+    level_1_props = level_1_props/np.sum(level_1_props)
+
+    # Compute Level 2 clusters
+    if force_nesting:
+        rsp['level2_0'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'])]
+        rsp['level2_1'] = [np.argmin(x) for x in zip(rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'])]
+        rsp['level2_2'] = [np.argmin(x) for x in zip(rsp['beh_model'],rsp['task'])]
+        if mixing:
+            rsp['level2_3'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'])]
+            rsp['level2'] = [x[x[0]+1]+3*x[0] for x in zip(rsp['level1'], rsp['level2_0'],rsp['level2_1'],rsp['level2_2'],rsp['level2_3'])]
+        else:
+            rsp['level2'] = [x[x[0]+1]+3*x[0] for x in zip(rsp['level1'], rsp['level2_0'],rsp['level2_1'],rsp['level2_2'])]
+        level_2_props = rsp.groupby('level2')['level2'].count()
+        for i in range(0,9):    
+            if i not in level_2_props.index:
+                level_2_props.loc[i] = 0
+        if mixing:
+            for i in range(9,15):    
+                if i not in level_2_props.index:
+                    level_2_props.loc[i] = 0
+        level_2_props = level_2_props.sort_index(inplace=False)       
+        level_2_props = level_2_props/np.sum(level_2_props)
+
+    elif force_subsets:
+        rsp['level2_0'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+        rsp['level2_1'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+        rsp['level2_2'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+        if mixing:
+            rsp['level2_3'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+            rsp['level2'] = [x[x[0]+1]+100*x[0] for x in zip(rsp['level1'], rsp['level2_0'],rsp['level2_1'],rsp['level2_2'],rsp['level2_3'])] 
+        else:
+            rsp['level2'] = [x[x[0]+1]+100*x[0] for x in zip(rsp['level1'], rsp['level2_0'],rsp['level2_1'],rsp['level2_2'])] 
+        level_2_props = rsp.groupby('level2')['level2'].count()
+        for i in range(0,9):
+            if i not in level_2_props.index:
+                level_2_props.loc[i] = 0
+        for i in range(100,109):
+            if i not in level_2_props.index:
+                level_2_props.loc[i] = 0
+        for i in range(200,209):
+            if i not in level_2_props.index:
+                level_2_props.loc[i] = 0
+        if mixing:
+            for i in range(300,309):
+                if i not in level_2_props.index:
+                    level_2_props.loc[i] = 0       
+        level_2_props = level_2_props.sort_index(inplace=False)       
+        level_2_props = level_2_props/np.sum(level_2_props)
+
+    else:
+        rsp['level2'] = [np.argmin(x) for x in zip(rsp['all-images'],rsp['expectation'],rsp['omissions'],rsp['face_motion_energy'],rsp['licking'],rsp['pupil_and_running'],rsp['beh_model'],rsp['task'])]
+        level_2_props = rsp.groupby('level2')['level2'].count()
+        level_2_props.loc[8] = 0 # Add third category for cognitive
+        level_2_props = level_2_props.sort_index(inplace=False)       
+        level_2_props = level_2_props/np.sum(level_2_props)
+
+    # Plot Layer 1 for legend
+    wedges, texts= ax[0].pie(level_1_props,radius=0,colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    ax[0].legend(wedges, ['Visual','Behavioral','Cognitive','Mixed'],loc='center')#,bbox_to_anchor=(0,-.25,1,2))
+    ax[0].set_title('Level 1')
+
+    # Plot Layer 2 for legend
+    if num_levels ==2:
+        wedges, texts = ax[1].pie(level_2_props,radius=0,colors=inner_colors,wedgeprops=dict(width=size,edgecolor='w'))
+        ax[1].legend(wedges,['all-images','expectation','omissions','face_motion_energy','licking','pupil_and_running','beh_model','task'],loc='center')#,bbox_to_anchor=(0,-.4,1,2))
+        if force_nesting:
+            ax[1].set_title('Level 2\nForced Hierarchy')   
+        else:
+            ax[1].set_title('Level 2')
+        final_ax = 2
+    else:
+        final_ax = 1
+
+    # Plot Full chart
+    wedges, texts = ax[final_ax].pie(level_1_props,radius=r[0],colors=outer_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    if num_levels ==2:
+        wedges, texts = ax[final_ax].pie(level_2_props,radius=r[1],colors=inner_colors,wedgeprops=dict(width=size,edgecolor='w'))
+    if filter_cre:
+        ax[final_ax].set_title(cre)
+    else:
+        ax[final_ax].set_title('All cells')
+
+    plt.tight_layout()
+    if savefig:
+        filename = run_params['output_dir']+'/figures/nested_dropouts/pie'+str(num_levels)
+        if filter_cre:
+            filename+='_'+cre[0:3]
+        if num_levels ==2:
+            if force_nesting:
+                filename+='_forced'
+        if mixing:
+            filename+='_mixing'
+        plt.savefig(filename+'.png')
+    return level_1_props, level_2_props, rsp
+
+def plot_all_nested_dropouts(results_pivoted, run_params):
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=False, force_nesting=False, num_levels=1)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=1,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=1,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=1,cre='Sst-IRES-Cre')
+
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=True, force_nesting=False, num_levels=1)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=1,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=1,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=1,cre='Sst-IRES-Cre')
+
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=False, force_nesting=False, num_levels=2)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=2,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=2,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=False, num_levels=2,cre='Sst-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=True, force_nesting=False, num_levels=2)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=2,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=2,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=False, num_levels=2,cre='Sst-IRES-Cre')
+
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=False, force_nesting=True, num_levels=2)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=True, num_levels=2,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=True, num_levels=2,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=False, force_nesting=True, num_levels=2,cre='Sst-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=False, mixing=True, force_nesting=True, num_levels=2)
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Slc17a7-IRES2-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Vip-IRES-Cre')
+    plot_nested_dropouts(results_pivoted, run_params,filter_cre=True,  mixing=True, force_nesting=True, num_levels=2,cre='Sst-IRES-Cre')
+
+def get_lick_triggered_motion_response(ophys_experiment_id, cell_specimen_id):
+    '''
+    gets lick triggered responses for:
+        x-motion correcion
+        y-motion correcion
+        dff
+    returns tidy dataframe
+    '''
+    dataset = loading.get_ophys_dataset(ophys_experiment_id)
+
+    motion_correction = dataset.motion_correction
+    motion_correction['timestamps'] = dataset.ophys_timestamps
+
+    licks = dataset.licks
+
+    cell_df = pd.DataFrame({
+        'timestamps':dataset.ophys_timestamps,
+        'dff':dataset.dff_traces.loc[cell_specimen_id]['dff']
+    })
+
+    etrs = {}
+    for val in ['x','y']:
+        etrs[val] = vbu.event_triggered_response(
+            motion_correction, 
+            val, 
+            licks['timestamps'], 
+            time_key='timestamps'
+        )
+    etrs['dff'] = vbu.event_triggered_response(
+        cell_df, 
+        'dff', 
+        licks['timestamps'], 
+        time_key='timestamps'
+    )
+
+    etr = etrs['x'].merge(
+        etrs['y'],
+        left_on=['time','event_number','event_time'],
+        right_on=['time','event_number','event_time'],
+    )
+    etr = etr.merge(
+        etrs['dff'],
+        left_on=['time','event_number','event_time'],
+        right_on=['time','event_number','event_time'],
+    )
+    return etr
+
+def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
+    '''
+    makes a 3x1 figure showing:
+        mean +/95% CI x-motion correction
+        mean +/95% CI y-motion correction
+        mean +/95% CI dF/F
+    surrounding every lick in the session, for a given cell ID
+    '''
+    event_triggered_response = get_lick_triggered_motion_response(ophys_experiment_id, cell_specimen_id)
+    fig,ax=plt.subplots(3,1,figsize=(12,5),sharex=True)
+    for row,key in enumerate(['x','y','dff']):
+        sns.lineplot(
+            data=event_triggered_response,
+            x='time',
+            y=key,
+            n_boot=100,
+            ax=ax[row],
+        )
+    ax[0].set_ylabel('x-correction')
+    ax[1].set_ylabel('y-correction')
+    ax[2].set_xlabel('time from lick (s)')
+    fig.suptitle(title)
+    fig.tight_layout()
+    return fig, ax
+
+

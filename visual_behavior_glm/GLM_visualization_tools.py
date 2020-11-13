@@ -2,6 +2,7 @@ import visual_behavior.plotting as vbp
 import visual_behavior.utilities as vbu
 import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior.database as db
 import matplotlib as mpl
 import seaborn as sns
@@ -112,15 +113,16 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
 
     # Licks
     if plot_ticks:
-        bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
         licks = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
         
         if 'pre_lick_bouts' in glm.run_params['kernels']:
+            bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
             pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
             post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
             plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
             plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
         if 'lick_bouts' in glm.run_params['kernels']:
+            bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
             dex = stim_points['lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['lick_bouts']['offset'])*31)
             plt.plot(bouts, dex*np.ones(np.shape(bouts)),'k|')
 
@@ -506,7 +508,7 @@ def plot_omissions(session, ax, y_loc=0, t_span=None):
     )
 
 
-def plot_stimuli(session, ax, t_span=None):
+def plot_stimuli(session, ax, t_span=None,alpha=.35):
     buffer = 0.25
     images = session.dataset.stimulus_presentations['image_name'].unique()
     colors = {image: color for image, color in zip(
@@ -529,7 +531,7 @@ def plot_stimuli(session, ax, t_span=None):
             stimulus['start_time'],
             stimulus['stop_time'],
             color=stimulus['color'],
-            alpha=0.35,
+            alpha=alpha,
             edgecolor=None,
         )
 
@@ -1075,7 +1077,7 @@ def make_level(df, drops, this_level_num,this_level_drops,run_params):
         drops.remove(d)
     return df,drops
 
-def plot_dropouts(run_params,save_results=False,num_levels=6):
+def plot_dropouts(run_params,save_results=True,num_levels=6):
     '''
         Makes a visual and graphic representation of how the kernels are nested inside dropout models
     '''
@@ -1102,7 +1104,7 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
     
     # Add each grouping of dropouts
     if 'levels' in run_params:
-        levels = run_params['levels']
+        levels = run_params['levels'].copy()
         keys = list(levels.keys())
         for dex, key in enumerate(keys):
             levels[int(key)] = levels.pop(key)
@@ -1138,6 +1140,14 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
     color_dict = {x:y for (x,y) in  zip(labels,colors)}
     for level in range(1,num_levels+1):
         color_dict['level-'+str(level)+'--'] = (0.8,0.8,0.8)
+
+    # add color of level-1 value to df['color']
+    df['color'] = None
+    for key in color_dict.keys():
+        if key.startswith('level-1'):
+            dropout = key.split('level-1-')[1]
+            if dropout in df.index.values.tolist():
+                df.at[dropout,'color'] = color_dict[key]
     
     # Plot Squares
     uniques = set()
@@ -1189,7 +1199,7 @@ def plot_dropouts(run_params,save_results=False,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000]):
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):
     '''
         Plots the average kernel for each cell line. 
         Plots the heatmap of the kernels sorted by time. 
@@ -1218,6 +1228,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     version = run_params['version']
     filter_string = ''
     problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
+    if problem_9c:
+        problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675, 822734832,843871375]
+    if problem_9d:
+        problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675, 873653940, 878436988,883509540,822734832]
     if equipment_filter == "scientifica": 
         weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')
         filter_string+='_scientifica'
@@ -2066,3 +2080,128 @@ def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
     return fig, ax
 
 
+def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show):
+    '''
+    makes bar plots of results summary
+    aesthetics specific to cosyne needs
+
+    '''
+
+    cre_lines = np.sort(dropout_summary['cre_line'].unique())
+    
+    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < -0.01').copy()
+    data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
+    sns.boxplot(
+        data = data_to_plot,
+        x='dropout',
+        y='adj_fraction_change_from_full',
+        hue='cre_line',
+        order=dropouts_to_show,
+        hue_order=cre_lines,
+        fliersize=0,
+        ax=ax
+    )
+
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    ax.set_ylabel('Fraction change\nin variance explained')
+
+def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
+    '''
+    makes a summary figure for cosyne abstract
+    inputs:
+        glm: glm object
+        cell_specimen_id
+        time_to_plot: time to show in center of plot for time-varying axes
+        t_span: time range to show around time_to_plot, in seconds
+    '''
+    fig = plt.figure(figsize=(18,10))
+
+    vbuffer = 0.05
+
+    ax = {
+        'visual_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.4], yspan=[0, 0.33 - vbuffer]),
+        'behavioral_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.4], yspan=[0.33 + vbuffer, 0.67 - vbuffer]),
+        'cognitive_kernels': vbp.placeAxesOnGrid(fig, xspan=[0, 0.4], yspan=[0.67 + vbuffer, 1]),
+        'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0.6, 1], yspan=[0, 0.25]),
+        'dropout_quant': vbp.placeAxesOnGrid(fig, xspan=[0.6, 1], yspan=[0.4, 1]),
+    }
+
+    # add dropout summary
+    results_summary = gat.generate_results_summary(glm)
+    plot_dropout_summary(results_summary, cell_specimen_id, ax['dropout_quant'])
+
+    regressors = {
+        'visual': ['image0','image1'],
+        'behavioral': ['pupil','running'],
+        'cognitive': ['hit','miss'],
+    }
+
+    kernel_df = gat.build_kernel_df(glm, cell_specimen_id)
+
+
+    run_params = glm_params.load_run_json(glm.version)
+    dropout_df = plot_dropouts(run_params)
+    palette_df = dropout_df[['color']].reset_index().rename(columns={'color':'kernel_color','index':'kernel_name'})
+
+    t0, t1 = t_span
+    for regressor_category in regressors.keys():
+        dropouts = np.sort(dropout_df[dropout_df['level-5'] == regressor_category].index.values).tolist()
+        plot_kernels(
+            kernel_df.query('kernel_name in @dropouts'), 
+            ax['{}_kernels'.format(regressor_category)], 
+            palette_df, 
+            t_span
+        )   
+        plot_stimuli(glm.session, ax['{}_kernels'.format(regressor_category)], t_span=t_span)
+        ax['{}_kernels'.format(regressor_category)].set_title('{}'.format(regressor_category))
+        ax['{}_kernels'.format(regressor_category)].set_ylim(
+            kernel_df.query('timestamps >= @t0 and timestamps <= @t1')['kernel_outputs'].min()-0.2,
+            kernel_df.query('timestamps >= @t0 and timestamps <= @t1')['kernel_outputs'].max()+0.2
+        )
+
+
+    # cell df/f plots:
+
+    this_cell = glm.df_full.query('cell_specimen_id == @cell_specimen_id')
+    cell_index = np.where(glm.W['cell_specimen_id'] == cell_specimen_id)[0][0]
+
+    query_string = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+        t_span[0],
+        t_span[1]
+    )
+    local_df = this_cell.query(query_string)
+
+    ax['cell_response'].plot(
+        local_df['dff_trace_timestamps'],
+        local_df['dff'],
+        alpha=0.9,
+        color='darkgreen',
+        linewidth=3,
+    )
+
+    ax['cell_response'].plot(
+        local_df['dff_trace_timestamps'],
+        local_df['dff_predicted'],
+        alpha=1,
+        color='black',
+        linewidth=3,
+    )
+    qs = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+        t_span[0],
+        t_span[1]
+    )
+    ax['cell_response'].set_ylim(
+        this_cell.query(qs)['dff'].min(),
+        this_cell.query(qs)['dff'].max(),
+    )
+
+    ax['cell_response'].legend(
+        ['Actual $\Delta$F/F','Model Predicted $\Delta$F/F'],
+        loc='upper left',
+        ncol=2, 
+        framealpha = 0.2,
+    )
+
+    plot_stimuli(glm.session, ax['cell_response'], t_span=t_span,alpha=alpha)
+
+    return fig, ax

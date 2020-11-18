@@ -2080,6 +2080,25 @@ def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
     return fig, ax
 
 
+def cosyne_make_dropout_summary_plot(dropout_summary):
+    '''
+        Top level function for cosyne summary plot 
+        Plots the distribution of dropout scores by cre-line for the visual, behavioral, and cognitive nested models
+    '''
+    fig, ax = plt.subplots(figsize=(10,8))
+    dropouts_to_show = ['visual','behavioral','cognitive']
+    plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show)
+    ax.tick_params(axis='both',labelsize=20)
+    ax.set_ylabel('% decrease in variance explained \n when removing sets of kernels',fontsize=24)
+    ax.set_xlabel('Sets of Kernels',fontsize=24)
+    ax.set_xticks([0,1,2])
+    ax.set_xticklabels(['Visual','Behavioral','Cognitive'])
+    ax.axhline(0, color='k',linestyle='--',alpha=.25)
+    y = ax.get_yticks()
+    ax.set_yticklabels(np.round(y*100).astype(int))
+    plt.tight_layout()
+    return fig, ax
+
 def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show):
     '''
     makes bar plots of results summary
@@ -2102,8 +2121,40 @@ def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show):
         ax=ax
     )
 
-    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     ax.set_ylabel('Fraction change\nin variance explained')
+
+def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
+    '''
+        Plots the summary figure for the cosyne abstract with visual, behavioral, and cognitive kernels separated.
+        Additionally plots the cell response and model prediction. Hard-wired here for a specific cell, on oeid:830700781
+    '''
+    t_span = (time_to_plot-t_range, time_to_plot+t_range)
+    fig, ax = make_cosyne_summary_figure(glm, cell, t_span,alpha=alpha)
+    ax['visual_kernels'].set_ylabel('Kernel Output',fontsize=14)
+    ax['visual_kernels'].set_xlabel('Time (s)',fontsize=14)
+    ax['behavioral_kernels'].set_ylabel('Kernel Output',fontsize=14)
+    ax['behavioral_kernels'].set_xlabel('Time (s)',fontsize=14)
+    ax['cognitive_kernels'].set_ylabel('Kernel Output',fontsize=14)
+    ax['cognitive_kernels'].set_xlabel('Time (s)',fontsize=14)
+    ax['visual_kernels'].set_xlim(t_span) 
+    ax['behavioral_kernels'].set_xlim(t_span) 
+    ax['cognitive_kernels'].set_xlim(t_span)
+    ax['cell_response'].set_xlim(t_span)
+    ax['cell_response'].set_ylabel('$\Delta$ F/F',fontsize=14)
+    ax['cell_response'].set_xlabel('Time (s)',fontsize=14)
+    ax['cell_response'].tick_params(axis='both',labelsize=12)
+    ax['visual_kernels'].tick_params(axis='both',labelsize=12) 
+    ax['behavioral_kernels'].tick_params(axis='both',labelsize=12) 
+    ax['cognitive_kernels'].tick_params(axis='both',labelsize=12)
+    ax['visual_kernels'].axhline(0,color='k',alpha=.25) 
+    ax['behavioral_kernels'].axhline(0,color='k',alpha=.25) 
+    ax['cognitive_kernels'].axhline(0,color='k',alpha=.25)
+    ax['cell_response'].axhline(0,color='k',alpha=.25)
+    ax['cell_response'].set_ylim(list(np.array(ax['cell_response'].get_ylim())*1.1))
+    return fig, ax
+
+
 
 def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     '''
@@ -2205,3 +2256,44 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     plot_stimuli(glm.session, ax['cell_response'], t_span=t_span,alpha=alpha)
 
     return fig, ax
+
+
+def cosyne_plot_coding_comparison(w=.45):
+    '''
+        This function made the cosyne figure of the coding fraction over sessions
+        Leaving it here so I can turn it into something robust and general
+    '''
+    num_vip = [1495,1726,1745,1130]
+    num_vip_sig = [970,1265,923,763]
+    num_slc = [12825, 11811, 12668, 11001]
+    num_slc_sig = [6177,5226,9080,6592]
+    num_sst = [492,674,534,259]
+    num_sst_sig = [384,522,389,198]
+
+    plt.figure(figsize=(6,4))
+    plot_coding_comparison_helper(plt.gca(), num_vip_sig, num_vip,w,'C1')
+    plot_coding_comparison_helper(plt.gca(), num_slc_sig, num_slc,w,'C2')
+    plot_coding_comparison_helper(plt.gca(), num_sst_sig, num_sst,w,'C0')
+
+    plt.ylabel('% of cells with \n omission coding',fontsize=24)
+    plt.xlabel('Session',fontsize=24)
+    plt.tick_params(axis='both',labelsize=16)
+    plt.xticks([0,1,2,3],['F1','F3','N1','N3'],fontsize=24)
+    plt.ylim(30,90)
+    plt.tight_layout()
+
+def cosyne_plot_coding_comparison_helper(ax, sig,num,w,color):
+     '''
+        This function made the cosyne figure of the coding fraction over sessions
+        Leaving it here so I can turn it into something robust and general
+    '''   
+    frac = np.array(sig)/np.array(num)
+    se = 1.98*np.sqrt(frac*(1-frac)/num)
+    frac = frac*100
+    se = se*100
+    plt.plot([0,1,2,3], frac,'o-',color=color,linewidth=4)
+    for dex, val in enumerate(zip(frac,se)):
+        plt.plot([dex,dex],[val[0]+val[1],val[0]-val[1]], 'k',linewidth=1)
+
+
+

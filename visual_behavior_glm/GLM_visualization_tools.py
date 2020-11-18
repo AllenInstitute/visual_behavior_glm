@@ -1642,10 +1642,6 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     if save_results:
         print('Figure Saved to: '+filename)
         plt.savefig(filename)
-    ax[2,0].set_ylabel('Kernel (Norm. $\Delta$ F/F)',fontsize=16)
-    ax[2,0].set_xlabel('Time from omissions (s)',fontsize=16)
-    ax[2,0].tick_params(axis='both', labelsize=12)
-    ax[2,0].set_ylim(-1,1)
 
 def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',depth_filter=[0,1000]):
     '''

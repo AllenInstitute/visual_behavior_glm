@@ -11,6 +11,8 @@ import visual_behavior.database as db
 
 from sklearn.decomposition import PCA
 
+from allensdk.brain_observatory.behavior.behavior_ophys_session import BehaviorOphysSession
+
 def load_fit_pkl(run_params, ophys_experiment_id):
     '''
         Loads the fit dictionary from the pkl file dumped by fit_experiment
@@ -719,6 +721,34 @@ def compute_over_fitting_proportion(results_full,run_params):
             results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
  
 
+def get_cell_count(oeid):
+    session = BehaviorOphysSession.from_lims(oeid)
+    return len(session.cell_specimen_table)
+
+def get_glm_inventory(glm_version):
+    '''
+    merges GLM results with experiment table
+    allows us to identify experiments that failed to fit
+    '''
+    cell_summary = gat.retrieve_results(search_dict = {'glm_version': glm_version}, results_type='full')
+    
+    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+
+    cell_count = pd.DataFrame(cell_summary.groupby('ophys_experiment_id')['cell_specimen_id'].count()).reset_index().rename(columns={'cell_specimen_id':'GLM_cell_count'})
+    cell_count
+
+    experiment_table = experiment_table.merge(
+        cell_count,
+        left_on='ophys_experiment_id',
+        right_on='ophys_experiment_id',
+        how='left'
+    )
+
+    experiment_table['cell_count'] = experiment_table['GLM_cell_count']
+    for idx,row in experiment_table[pd.isnull(experiment_table['cell_count'])].iterrows():
+        experiment_table.at[idx, 'cell_count'] = get_cell_count(row['ophys_experiment_id'])
+        
+    return experiment_table
 
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.

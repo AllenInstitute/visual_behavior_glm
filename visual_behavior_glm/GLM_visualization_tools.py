@@ -738,7 +738,7 @@ def get_title(ophys_experiment_id, cell_specimen_id, glm_version):
     experiments_table = loading.get_filtered_ophys_experiment_table().reset_index()
 
     row = experiments_table.query('ophys_experiment_id == @ophys_experiment_id').iloc[0].to_dict()
-    title = '{}__specimen_id={}__exp_id={}__{}__{}__depth={}__cell_id={}__glm_version={}'.format(
+    title = '{}_specimen={}_exp_id={}_{}_{}_depth={}_cell={}_v{}'.format(
         row['cre_line'],
         row['specimen_id'],
         row['ophys_experiment_id'],
@@ -807,6 +807,8 @@ class GLM_Movie(object):
         self.frames = np.arange(self.start_frame, self.end_frame, self.frame_interval)
         self.fps = fps
 
+        print('here')
+
         if destination_folder is None:
             # if destination_folder is not specified, set it to {run_params['output_dir']}/output_files
             base_path = self.glm.run_params['output_dir'].split('/v_')[0]
@@ -854,14 +856,16 @@ class GLM_Movie(object):
         self.fig, self.ax = self.set_up_axes()
         self.writer = self.set_up_writer()
 
-    def make_cell_movie_frame(self, ax, glm, F_index, cell_specimen_id, t_before=10, t_after=10):
-        # ti = time.time()
+    def make_cell_movie_frame(self, ax, glm, F_index, cell_specimen_id, t_before=10, t_after=10, verbose=False):
+        if verbose:
+            ti = time.time()
         this_cell = glm.df_full.query('cell_specimen_id == @cell_specimen_id')
         cell_index = np.where(glm.W['cell_specimen_id'] == cell_specimen_id)[0][0]
 
         t_now = self.model_timestamps[F_index]
         t_span = [t_now - t_before, t_now + t_after]
-        # print('setup done at {} seconds'.format(time.time() - ti))
+        if verbose:
+            print('setup done at {} seconds'.format(time.time() - ti))
         if not self.dropout_summary_plotted:
             plot_dropout_summary(self.results_summary, self.cell_specimen_id, ax['dropout_summary'])
             self.dropout_summary_plotted = True
@@ -869,6 +873,8 @@ class GLM_Movie(object):
         for axis_name in ax.keys():
             if axis_name != 'dropout_summary' and axis_name != 'cell_roi':
                 ax[axis_name].cla()
+        if verbose:
+            print('axis clearing done at {} seconds'.format(time.time() - ti))
 
         F_this_frame = glm.df_full.query('frame_index == @F_index').set_index('cell_specimen_id')
 
@@ -879,6 +885,8 @@ class GLM_Movie(object):
             self.com = ndimage.measurements.center_of_mass(glm.session.dataset.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values)
             self.cell_roi_plotted = True
 
+        if verbose:
+            print('cell plotting done at {} seconds'.format(time.time() - ti))
 
         for movie_name in ['behavior','eye']:
             # what follows is an attempt at adjusting the contrast, but keeping it somewhat constant in a local window
@@ -906,6 +914,9 @@ class GLM_Movie(object):
             ax['{}_movie'.format(movie_name)].axis('off')
             ax['{}_movie'.format(movie_name)].set_title('{} tracking movie'.format(movie_name))
 
+        if verbose:
+            print('behavior movie plotting done at {} seconds'.format(time.time() - ti))
+
         real_fov = self.real_2p_movie[F_index]
         cmax = np.percentile(real_fov, 95) #set cmax to 95th percentile of this image
         ax['real_fov'].imshow(real_fov, cmap='gray', clim=[0, cmax])
@@ -917,6 +928,9 @@ class GLM_Movie(object):
             ax[axis_name].set_yticks([])
             ax[axis_name].axvline(self.com[1],color='MediumAquamarine',alpha=0.5)
             ax[axis_name].axhline(self.com[0],color='MediumAquamarine',alpha=0.5)
+
+        if verbose:
+            print('FOV plot done at {} seconds'.format(time.time() - ti))
 
         # time series plots:
         query_string = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
@@ -956,12 +970,18 @@ class GLM_Movie(object):
             framealpha = 0.2,
         )
 
+        if verbose:
+            print('dff plots done at {} seconds'.format(time.time() - ti))
+
         plot_rewards(glm.session, ax['licks'], t_span=t_span)
         plot_licks(glm.session, ax['licks'], t_span=t_span)
         
         plot_running(glm.session, ax['running'], t_span=t_span)
         plot_pupil(glm.session, ax['pupil'], t_span=t_span)
         plot_kernels(self.kernel_df, ax['kernel_contributions'], self.palette_df, t_span)
+
+        if verbose:
+            print('kernel plot done at {} seconds'.format(time.time() - ti))
 
         # some axis formatting: 
         for axis_name in ['licks', 'cell_response', 'running','kernel_contributions']:
@@ -984,6 +1004,8 @@ class GLM_Movie(object):
         ax['pupil'].set_ylabel('Pupil\nDiameter\n(pix^2)', rotation=0, ha='left', va='center')
         ax['kernel_contributions'].set_ylabel('kernel\ncontributions\nto predicted\nsignal\n($\Delta$F/F)', rotation=0, ha='right', va='center')
 
+        if verbose:
+            print('axis formatting done at {} seconds'.format(time.time() - ti))
 
     def update(self, frame_number):
         '''

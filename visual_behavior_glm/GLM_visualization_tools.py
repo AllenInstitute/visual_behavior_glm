@@ -2083,6 +2083,7 @@ def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
 def cosyne_make_dropout_summary_plot(dropout_summary):
     '''
         Top level function for cosyne summary plot 
+        Plots the distribution of dropout scores by cre-line for the visual, behavioral, and cognitive nested models
     '''
     fig, ax = plt.subplots(figsize=(10,8))
     dropouts_to_show = ['visual','behavioral','cognitive']
@@ -2096,7 +2097,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary):
     y = ax.get_yticks()
     ax.set_yticklabels(np.round(y*100).astype(int))
     plt.tight_layout()
-    return ax
+    return fig, ax
 
 def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show):
     '''
@@ -2124,6 +2125,10 @@ def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show):
     ax.set_ylabel('Fraction change\nin variance explained')
 
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
+    '''
+        Plots the summary figure for the cosyne abstract with visual, behavioral, and cognitive kernels separated.
+        Additionally plots the cell response and model prediction. Hard-wired here for a specific cell, on oeid:830700781
+    '''
     t_span = (time_to_plot-t_range, time_to_plot+t_range)
     fig, ax = make_cosyne_summary_figure(glm, cell, t_span,alpha=alpha)
     ax['visual_kernels'].set_ylabel('Kernel Output',fontsize=14)

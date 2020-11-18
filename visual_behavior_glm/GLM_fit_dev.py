@@ -103,3 +103,19 @@ def make_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     ax['cell_response'].axhline(0,color='k',alpha=.25)
     ax['cell_response'].set_ylim(list(np.array(ax['cell_response'].get_ylim())*1.1))
     return fig, ax
+
+
+def make_dropout_summary_plot(dropout_summary):
+    fig, ax = plt.subplots(figsize=(10,8))
+    dropouts_to_show = ['visual','behavioral','cognitive']
+    gvt.plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show)
+    ax.tick_params(axis='both',labelsize=20)
+    ax.set_ylabel('% decrease in variance explained \n when removing sets of kernels',fontsize=24)
+    ax.set_xlabel('Sets of Kernels',fontsize=24)
+    ax.set_xticks([0,1,2])
+    ax.set_xticklabels(['Visual','Behavioral','Cognitive'])
+    ax.axhline(0, color='k',linestyle='--',alpha=.25)
+    y = ax.get_yticks()
+    ax.set_yticklabels(np.round(y*100).astype(int))
+    plt.tight_layout()
+    return ax

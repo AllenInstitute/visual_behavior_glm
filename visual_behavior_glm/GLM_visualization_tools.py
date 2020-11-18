@@ -2102,7 +2102,7 @@ def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show):
         ax=ax
     )
 
-    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     ax.set_ylabel('Fraction change\nin variance explained')
 
 def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):

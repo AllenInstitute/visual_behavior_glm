@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import visual_behavior_glm.GLM_params as glm_params
+import visual_behavior_glm.GLM_visualization_tools as gvt
+from visual_behavior_glm.glm import GLM
 plt.ion()
 
 
@@ -69,6 +71,5 @@ if False: # Code snippets for doing basic analyses.
     gat.compute_over_fitting_proportion(full_results, run_params) 
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
-
 
 

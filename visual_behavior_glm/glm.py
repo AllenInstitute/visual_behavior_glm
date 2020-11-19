@@ -29,7 +29,8 @@ class GLM(object):
         inputs (List): if use_inputs, this must be a list of session, fit, and design objects
     '''
 
-    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, recompute=True, use_inputs=False, inputs=None):
+    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, 
+                recompute=True, use_inputs=False, inputs=None, NO_DROPOUTS=False, TESTING=False):
         
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
@@ -38,6 +39,8 @@ class GLM(object):
         self.run_params = glm_params.load_run_json(self.version)
         self.kernels = self.run_params['kernels']
         self.current_model = 'Full'  #TODO, what does this do?
+        self.NO_DROPOUTS=NO_DROPOUTS
+        self.TESTING=TESTING
 
         # Import the version's codebase
         self._import_glm_fit_tools()
@@ -98,7 +101,7 @@ class GLM(object):
         Fits the model
         '''
         self.session, self.fit, self.design = self.gft.fit_experiment(
-            self.oeid, self.run_params)
+            self.oeid, self.run_params, self.NO_DROPOUTS, self.TESTING)
 
     def load_fit_model(self):
         '''
@@ -120,6 +123,19 @@ class GLM(object):
         # self.dropout_summary = pd.merge(dropout_summary, adj_dropout_summary,on=['dropout', 'cell_specimen_id']).reset_index()
         # self.dropout_summary.columns.name = None
         self.dropout_summary = gat.generate_results_summary(self)
+
+        # add roi_ids
+        self.dropout_summary = self.dropout_summary.merge(
+            self.session.cell_specimen_table[['cell_roi_id']],
+            left_on='cell_specimen_id',
+            right_index=True
+        )
+
+        self.results = self.results.merge(
+            self.session.cell_specimen_table[['cell_roi_id']],
+            left_index=True,
+            right_index=True,
+        )
  
     def get_cells_above_threshold(self, threshold=0.01):
         '''

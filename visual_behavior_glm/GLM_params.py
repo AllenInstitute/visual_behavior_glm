@@ -136,10 +136,10 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
                     'ppn':4,
                     }
 
-    # Define Kernels
-    kernels_orig = define_kernels()
-    kernels = process_kernels(copy(kernels_orig))
-    dropouts = define_dropouts(kernels,kernels_orig)
+    # Define Kernels and dropouts
+    kernels = define_kernels()
+    kernels = process_kernels(kernels)
+    dropouts = define_dropouts(kernels)
 
     # Make JSON file with parameters
     run_params = {
@@ -226,13 +226,12 @@ def process_kernels(kernels):
             kernels['model_'+str(val)]['event'] = 'model_'+str(val)
     return kernels
 
-
-def define_dropouts(kernels,kernel_definitions):
+def define_dropouts(kernels):
     '''
         Creates a dropout dictionary. Each key is the label for the dropout, and the value is a list of kernels to include
         Creates a dropout for each kernel by removing just that kernel.
-        In addition creates a 'visual' dropout by removing 'any-image' and 'each-image' and 'omissions'
-        If 'each-image' is in the kernel_definitions, then creates a dropout 'each-image' with all 8 images removed
+        Creates a single-dropout for each kernel by removing all but that kernel
+        Also defines nested models
     '''
     # Remove each kernel one-by-one
     dropouts = {'Full': {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}}
@@ -241,120 +240,31 @@ def define_dropouts(kernels,kernel_definitions):
         dropouts[kernel]['kernels'].remove(kernel)
         dropouts[kernel]['dropped_kernels'].append(kernel)
 
-    # Removes all individual image kernels
-    if 'each-image' in kernel_definitions:
-        dropouts['all-images'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-        for i in range(0,8):
-            dropouts['all-images']['kernels'].remove('image'+str(i))
-            dropouts['all-images']['dropped_kernels'].append('image'+str(i))
+    # Define the nested_models
+    dropout_definitions={
+        'visual':               ['image0','image1','image2','image3','image4','image5','image6','image7','omissions','image_expectation'],
+        'all-images':           ['image0','image1','image2','image3','image4','image5','image6','image7'],
+        'expectation':          ['image_expectation','omissions'],
+        'cognitive':            ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
+        'task':                 ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards'],
+        'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
+        'behavioral':           ['running','pupil','licks','lick_bouts','lick_model','groom_model'],
+        'licking':              ['licks','lick_bouts','lick_model','groom_model'],
+        'pupil_and_running':    ['pupil','running'],
+        'pupil_and_omissions':  ['pupil','omissions'],
+        'running_and_omissions':['running','omissions']
+        }
 
-    # Removes all face motion PC kernels as a group
-    if 'face_motion_PC_0' in kernel_definitions:
-        dropouts['face_motion_energy'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-        kernels_to_drop = [kernel for kernel in dropouts['face_motion_energy']['kernels'] if kernel.startswith('face_motion')] 
-        for kernel in kernels_to_drop:
-            dropouts['face_motion_energy']['kernels'].remove(kernel)
-            dropouts['face_motion_energy']['dropped_kernels'].append(kernel)
-
-    # Removes all Stimulus Kernels, creating the visual dropout
-    if ('each-image' in kernel_definitions) or ('any-image' in kernel_definitions) or ('omissions' in kernel_definitions):
-        dropouts['visual'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-        if 'each-image' in kernel_definitions:
-            for i in range(0,8):
-                dropouts['visual']['kernels'].remove('image'+str(i))
-                dropouts['visual']['dropped_kernels'].append('image'+str(i))
-        if 'omissions' in kernel_definitions:
-            dropouts['visual']['kernels'].remove('omissions')
-            dropouts['visual']['dropped_kernels'].append('omissions')
-        if 'image_expectation' in kernel_definitions:
-            dropouts['visual']['kernels'].remove('image_expectation')
-            dropouts['visual']['dropped_kernels'].append('image_expectation')
-        if 'any-image' in kernel_definitions:
-            dropouts['visual']['kernels'].remove('any-image')
-            dropouts['visual']['dropped_kernels'].append('any-image')
-
-    # Expectation Dropout 
-    expectation = ['image_expectation','omissions']
-    dropouts['expectation'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in expectation:
-        if k in kernel_definitions:
-            dropouts['expectation']['kernels'].remove(k)
-            dropouts['expectation']['dropped_kernels'].append(k)
-
-
-
-    # Create behavioral dropout:
-    behavioral = ['running','pupil','licks','lick_bouts','lick_model','groom_model']
-    if 'face_motion_energy' in dropouts:
-        behavioral=behavioral+dropouts['face_motion_energy']['dropped_kernels']
-    dropouts['behavioral'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in behavioral:
-        if k in kernel_definitions:
-            dropouts['behavioral']['kernels'].remove(k)
-            dropouts['behavioral']['dropped_kernels'].append(k)
-
-    # Create licking dropout
-    licking = ['licks','lick_bouts','lick_model','groom_model']
-    dropouts['licking'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in licking:
-        if k in kernel_definitions:
-            dropouts['licking']['kernels'].remove(k)
-            dropouts['licking']['dropped_kernels'].append(k)
-
-    # Create pupil/running 
-    pupil_and_running = ['pupil','running']
-    dropouts['pupil_and_running'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in pupil_and_running:
-        if k in kernel_definitions:
-            dropouts['pupil_and_running']['kernels'].remove(k)
-            dropouts['pupil_and_running']['dropped_kernels'].append(k)
-
-    # Omissions vs pupil
-    pupil_and_omissions = ['pupil','omissions']
-    dropouts['pupil_and_omissions'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in pupil_and_omissions:
-        if k in kernel_definitions:
-            dropouts['pupil_and_omissions']['kernels'].remove(k)
-            dropouts['pupil_and_omissions']['dropped_kernels'].append(k)
-
-    # Omissions vs running
-    running_and_omissions = ['running','omissions']
-    dropouts['running_and_omissions'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in running_and_omissions:
-        if k in kernel_definitions:
-            dropouts['running_and_omissions']['kernels'].remove(k)
-            dropouts['running_and_omissions']['dropped_kernels'].append(k)
-
-
-
-    # Create cognitive 
-    cognitive = ['hits','misses','false_alarms','correct_rejects','change','rewards','passive_change']
-    dropouts['cognitive'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in cognitive:
-        if k in kernel_definitions:
-            dropouts['cognitive']['kernels'].remove(k)
-            dropouts['cognitive']['dropped_kernels'].append(k)
-
-    # Create task 
-    task = ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards']
-    dropouts['task'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-    for k in task:
-        if k in kernel_definitions:
-            dropouts['task']['kernels'].remove(k)
-            dropouts['task']['dropped_kernels'].append(k)
-
-    # Remove all behavior model kernels
-    if 'beh_model' in kernel_definitions:
-        dropouts['beh_model'] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-        model_kernels = ['model_bias','model_task0','model_timing1D','model_omissions1']
-        for k in model_kernels:
-            dropouts['beh_model']['kernels'].remove(k)
-            dropouts['beh_model']['dropped_kernels'].append(k)
-            dropouts['cognitive']['kernels'].remove(k)
-            dropouts['cognitive']['dropped_kernels'].append(k)
-   
-
- 
+    # Add all face_motion_energy individual kernels to behavioral, and as a group model
+    # Number of PCs is variable, so we have to treat it differently
+    if 'face_motion_PC_0' in kernels:
+        dropout_definitions['face_motion_energy'] = [kernel for kernel in list(kernels.keys()) if kernel.startswith('face_motion')] 
+        dropout_definitions['behavioral']=dropout_definitions['behavioral']+dropout_definitions['face_motion_energy']   
+    
+    # For each nested model, move the appropriate kernels to the dropped_kernel list
+    for dropout_name in dropout_definitions:
+        dropouts = set_up_dropouts(dropouts, kernels, dropout_name, dropout_definitions[dropout_name])
+    
     # Adds single kernel dropouts:
     for drop in [drop for drop in dropouts.keys()]:
         if (drop != 'Full') & (drop != 'intercept'):
@@ -373,6 +283,21 @@ def define_dropouts(kernels,kernel_definitions):
 
     return dropouts
     
+def set_up_dropouts(dropouts,kernels,dropout_name, kernel_list):
+    '''
+        Helper function to define dropouts. 
+        dropouts,       dictionary of dropout models
+        kernels,        dictionary of expanded kernel names
+        dropout_name,   name of dropout to be defined
+        kernel_list,    list of kernels to be dropped from this nested model
+    '''
+    dropouts[dropout_name] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    for k in kernel_list:
+        if k in kernels:
+            dropouts[dropout_name]['kernels'].remove(k)
+            dropouts[dropout_name]['dropped_kernels'].append(k)
+    return dropouts
+
 
 def load_run_json(version):
     '''

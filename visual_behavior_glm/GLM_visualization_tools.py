@@ -2295,6 +2295,16 @@ def cosyne_plot_coding_comparison_helper(ax, sig,num,w,color):
     for dex, val in enumerate(zip(frac,se)):
         plt.plot([dex,dex],[val[0]+val[1],val[0]-val[1]], 'k',linewidth=1)
 
+def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1):
+    fail = []
+    for dropout in run_params['dropouts']:
+        try:
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/')
+        except:
+            fail.append(dropout)
+        plt.close(plt.gcf().number)
+    print(fail)
+
 def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile=''):
     
     # Dumb stability thing because pandas doesnt like '-' in column names
@@ -2334,7 +2344,6 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         'Vip-IRES-Cre':(197/255,176/255,213/255)
         }
     for dex, cre in enumerate(cre_lines):
-        print(cre)
         plot_coding_fraction_inner(plt.gca(), df.loc[cre], colors[cre],cre)
     plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
     plt.tight_layout()

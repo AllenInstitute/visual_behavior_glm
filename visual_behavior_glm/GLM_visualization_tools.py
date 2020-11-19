@@ -2295,5 +2295,69 @@ def cosyne_plot_coding_comparison_helper(ax, sig,num,w,color):
     for dex, val in enumerate(zip(frac,se)):
         plt.plot([dex,dex],[val[0]+val[1],val[0]-val[1]], 'k',linewidth=1)
 
+def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile=''):
+    
+    # Dumb stability thing because pandas doesnt like '-' in column names
+    if 'all-images' in results_pivoted:
+        results_pivoted = results_pivoted.rename({'all-images':'all_images'},axis=1)
+
+    # Set up indexing
+    conditions  =['cre_line','session_number']
+
+    # Get Total number of cells
+    num_cells   = results_pivoted.groupby(conditions)['Full'].count()
+
+    # Get number of cells with significant coding
+    filter_str  = dropout +' < @threshold'
+    sig_cells   = results_pivoted.query(filter_str).groupby(conditions)['Full'].count()
+
+    # Get fraction significant
+    fraction    = sig_cells/num_cells
+    
+    # Build dataframe
+    fraction    = fraction.rename('fraction')
+    sig_cells   = sig_cells.rename('num_sig')
+    num_cells   = num_cells.rename('num_cells')
+    df = pd.concat([num_cells, sig_cells, fraction],axis=1)
+
+    # plot
+    plt.figure(figsize=(8,4))
+    plt.ylabel('% of cells with \n '+dropout+' coding',fontsize=24)
+    plt.xlabel('Session',fontsize=24)
+    plt.tick_params(axis='both',labelsize=16)
+    plt.xticks([0,1,2,3,4,5],['F1','F2','F3','N1','N2','N3'],fontsize=24)
+
+    cre_lines = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre'] 
+    colors = {
+        'Sst-IRES-Cre':(158/255,218/255,229/255),
+        'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
+        'Vip-IRES-Cre':(197/255,176/255,213/255)
+        }
+    for dex, cre in enumerate(cre_lines):
+        print(cre)
+        plot_coding_fraction_inner(plt.gca(), df.loc[cre], colors[cre],cre)
+    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
+    plt.tight_layout()
+    if savefig:
+        savefile = savefile+'coding_fraction_'+dropout+'.png'
+        plt.savefig(savefile)
+    return df 
+
+def plot_coding_fraction_inner(ax,df,color,label):
+    '''
+        plots the fraction of significant cells with 95% binomial error bars    
+    '''   
+    # unpack fraction and get confidence interval
+    frac = df['fraction'].values 
+    num  = df['num_cells'].values
+    se   = 1.98*np.sqrt(frac*(1-frac)/num)
+    
+    # convert to percentages
+    frac = frac*100
+    se   = se*100
+    plt.plot([0,1,2,3,4,5], frac,'o-',color=color,linewidth=4,label=label)
+    for dex, val in enumerate(zip(frac,se)):
+        plt.plot([dex,dex],[val[0]+val[1],val[0]-val[1]], 'k',linewidth=1)
+
 
 

@@ -72,4 +72,5 @@ if False: # Code snippets for doing basic analyses.
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
 
-
+    # Make Coding Fraction plots
+    gvt.plot_coding_fraction(results_pivoted, 'omissions')

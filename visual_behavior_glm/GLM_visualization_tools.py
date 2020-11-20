@@ -2302,7 +2302,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1):
     if len(fail) > 0:
         print(fail)
 
-def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all'):
+def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all',metric='fraction'):
     '''
         Plots coding fraction across session for each cre-line
         
@@ -2336,18 +2336,29 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     filter_str  = dropout +' < @threshold'
     sig_cells   = results_pivoted.query(filter_str).groupby(conditions)['Full'].count()
 
+    # Get Magnitude
+    magnitude = results_pivoted.groupby(conditions)[dropout].mean()
+    filtered_magnitude = results_pivoted.query(filter_str).groupby(conditions)[dropout].mean()
+
     # Get fraction significant
     fraction    = sig_cells/num_cells
     
-    # Build dataframe
+    # Build datafram
     fraction    = fraction.rename('fraction')
     sig_cells   = sig_cells.rename('num_sig')
     num_cells   = num_cells.rename('num_cells')
-    df = pd.concat([num_cells, sig_cells, fraction],axis=1)
+    magnitude   = magnitude.rename('magnitude')
+    filtered_magnitude = filtered_magnitude.rename('filtered_magnitude')
+    df = pd.concat([num_cells, sig_cells, fraction,magnitude, filtered_magnitude],axis=1)
 
     # plot
     plt.figure(figsize=(8,4))
-    plt.ylabel('% of cells with \n '+dropout+' coding',fontsize=18)
+    if metric=='fraction':
+        plt.ylabel('% of cells with \n '+dropout+' coding',fontsize=18)
+    elif metric=='magnitude':
+        plt.ylabel('Avg '+dropout,fontsize=18)
+    elif metric=='filtered_magnitude':
+        plt.ylabel('Avg '+dropout+'\n for significant cells',fontsize=18)
     plt.xlabel('Session',fontsize=18)
     plt.tick_params(axis='both',labelsize=16)
 
@@ -2374,32 +2385,39 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     
     # Iterate over cre-lines
     for dex, cre in enumerate(cre_lines):
-        plot_coding_fraction_inner(plt.gca(), df.loc[cre], colors[cre],cre)
-    
+        plot_coding_fraction_inner(plt.gca(), df.loc[cre], colors[cre],cre,metric=metric)
+
     # Clean up plot
     plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
     plt.tight_layout()
     
     # Save figure
     if savefig:
-        savefile = savefile+'coding_fraction_'+dropout+'.png'
+        savefile = savefile+'coding_'+metric+'_'+dropout+'.png'
         plt.savefig(savefile)
     
     # return coding dataframe
     return df 
 
-def plot_coding_fraction_inner(ax,df,color,label):
+def plot_coding_fraction_inner(ax,df,color,label,metric='fraction'):
     '''
         plots the fraction of significant cells with 95% binomial error bars    
     '''   
     # unpack fraction and get confidence interval
-    frac = df['fraction'].values 
-    num  = df['num_cells'].values
-    se   = 1.98*np.sqrt(frac*(1-frac)/num)
+    if metric=='fraction':
+        frac = df[metric].values 
+        num  = df['num_cells'].values
+        se   = 1.98*np.sqrt(frac*(1-frac)/num)
+        # convert to percentages
+        frac = frac*100
+        se   = se*100
+    else:
+        frac = -df[metric].values 
+        num  = df['num_cells'].values
+        se   = 1.98*np.sqrt(frac*(1-frac)/num)   
+        frac = -frac
+        se   = -se
     
-    # convert to percentages
-    frac = frac*100
-    se   = se*100
     plt.plot(range(0,len(frac)), frac,'o-',color=color,linewidth=4,label=label)
     
     # Iterate over lines and plot confidence intervals

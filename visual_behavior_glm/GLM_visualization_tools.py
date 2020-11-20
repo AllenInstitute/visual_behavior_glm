@@ -2258,7 +2258,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     return fig, ax
 
 
-def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction'):
+def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',additional_condition=[]):
     '''
         Generated coding fraction plots for all dropouts
         results_pivoted, dataframe of dropout scores
@@ -2289,7 +2289,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
                 session = 'passive'
 
             # plot the coding fraction
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session,metric=metric)
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session,metric=metric,additional_condition=additional_condition)
         except:
             
             # Track failures
@@ -2302,7 +2302,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
     if len(fail) > 0:
         print(fail)
 
-def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all',metric='fraction'):
+def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all',metric='fraction',additional_condition=[]):
     '''
         Plots coding fraction across session for each cre-line
         
@@ -2313,6 +2313,7 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         savefile (str), pathroot to save
         session (str), 'all', 'passive', or 'active'
         metric (str), 'fraction', 'magnitude', or 'filtered_magnitude'   
+        additional_condition ([str]), one additional categorical condition to split the data by
  
         returns summary dataframe about coding fraction for this dropout
     '''   
@@ -2328,7 +2329,7 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
             results_pivoted = results_pivoted.rename({old_dropout:dropout},axis=1)
 
     # Set up indexing
-    conditions  =['cre_line','session_number']
+    conditions  =additional_condition+['cre_line','session_number']
 
     # Get Total number of cells
     num_cells   = results_pivoted.groupby(conditions)['Full'].count()
@@ -2384,9 +2385,18 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         'Vip-IRES-Cre':(197/255,176/255,213/255)
         }
     
-    # Iterate over cre-lines
-    for dex, cre in enumerate(cre_lines):
-        plot_coding_fraction_inner(plt.gca(), df.loc[cre], colors[cre],cre,metric=metric)
+    if df.index.nlevels > 2:
+        # Iterate over additional condition and cre_line
+        style= ['-','--',':','-.']
+        levels = df.index.values
+        levels = [(x[0],x[1]) for x in levels if x[2] == 1.0]
+        for dex, level in enumerate(levels):
+            plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level[1]],level,metric=metric,linestyle=style[int(np.floor(dex/3))])
+    else:
+        # Iterate over cre lines
+        levels = df.index.get_level_values(0).unique()
+        for dex, level in enumerate(levels):
+            plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level],level,metric=metric)
 
     # Clean up plot
     plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
@@ -2394,13 +2404,16 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     
     # Save figure
     if savefig:
-        savefile = savefile+'coding_'+metric+'_'+dropout+'.png'
+        if len(additional_condition) > 0:
+             savefile = savefile+'coding_'+metric+'_'+additional_condition[0]+'_'+dropout+'.png'       
+        else:
+            savefile = savefile+'coding_'+metric+'_'+dropout+'.png'
         plt.savefig(savefile)
     
     # return coding dataframe
     return df 
 
-def plot_coding_fraction_inner(ax,df,color,label,metric='fraction'):
+def plot_coding_fraction_inner(ax,df,color,label,metric='fraction',linestyle='-'):
     '''
         plots the fraction of significant cells with 95% binomial error bars    
         ax, axis to plot on
@@ -2424,7 +2437,7 @@ def plot_coding_fraction_inner(ax,df,color,label,metric='fraction'):
         se   = -se
    
     # Plot the mean values 
-    plt.plot(range(0,len(frac)), frac,'o-',color=color,linewidth=4,label=label)
+    plt.plot(range(0,len(frac)), frac,'o',linestyle=linestyle,color=color,linewidth=4,label=label)
     
     # Iterate over lines and plot confidence intervals
     for dex, val in enumerate(zip(frac,se)):

@@ -2335,8 +2335,6 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         dropout = dropout.replace('-','_')
         if old_dropout in results_pivoted:
             results_pivoted = results_pivoted.rename({old_dropout:dropout},axis=1)
-    #if 'all-images' in results_pivoted:
-    #    results_pivoted = results_pivoted.rename({'all-images':'all_images'},axis=1)
 
     # Set up indexing
     conditions  =['cre_line','session_number']
@@ -2359,22 +2357,22 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
 
     # plot
     plt.figure(figsize=(8,4))
-    plt.ylabel('% of cells with \n '+dropout+' coding',fontsize=24)
-    plt.xlabel('Session',fontsize=24)
+    plt.ylabel('% of cells with \n '+dropout+' coding',fontsize=18)
+    plt.xlabel('Session',fontsize=18)
     plt.tick_params(axis='both',labelsize=16)
 
     # Determine what sessions to plot
     if sessions == 'active':
         # Active only
-        plt.xticks([0,1,2,3],['F1','F3','N1','N3'],fontsize=24)
+        plt.xticks([0,1,2,3],['F1','F3','N1','N3'],fontsize=18)
         df = df.drop(index=[2.0,5.0], level=1)
     elif sessions == 'passive':
         # Passive only
-        plt.xticks([0,1],['F2','N2'],fontsize=24)
+        plt.xticks([0,1],['F2','N2'],fontsize=18)
         df = df.drop(index=[1.0,3.0,4.0,6.0], level=1)
     else:
         # All sessions
-        plt.xticks([0,1,2,3,4,5],['F1','F2','F3','N1','N2','N3'],fontsize=24)
+        plt.xticks([0,1,2,3,4,5],['F1','F2','F3','N1','N2','N3'],fontsize=18)
 
     # Set up color scheme for each cre line
     cre_lines = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre'] 

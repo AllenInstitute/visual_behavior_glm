@@ -2295,17 +2295,37 @@ def cosyne_plot_coding_comparison_helper(ax, sig,num,w,color):
     for dex, val in enumerate(zip(frac,se)):
         plt.plot([dex,dex],[val[0]+val[1],val[0]-val[1]], 'k',linewidth=1)
 
+
+
 def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1):
+    
     fail = []
+    
+    # Set up which sessions to plot
+    active_only  = ['licks','hits','misses','false_alarms','correct_rejects', 'model_bias','model_task0','model_omission1','model_timing1D']
+    passive_only = ['passive_change']
+    active_only  = active_only+['single-'+x for x in active_only]
+    passive_only = passive_only+['single-'+x for x in passive_only]
+
+    # Iterate over list of dropouts
     for dropout in run_params['dropouts']:
         try:
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/')
+            if dropout == 'Full':
+                continue
+
+            session ='all'
+            if dropout in active_only:
+                session = 'active'
+            elif dropout in passive_only:
+                session = 'passive'
+
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session)
         except:
             fail.append(dropout)
         plt.close(plt.gcf().number)
     print(fail)
 
-def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile=''):
+def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all'):
     
     # Dumb stability thing because pandas doesnt like '-' in column names
     if 'all-images' in results_pivoted:
@@ -2335,21 +2355,42 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     plt.ylabel('% of cells with \n '+dropout+' coding',fontsize=24)
     plt.xlabel('Session',fontsize=24)
     plt.tick_params(axis='both',labelsize=16)
-    plt.xticks([0,1,2,3,4,5],['F1','F2','F3','N1','N2','N3'],fontsize=24)
 
+    # Determine what sessions to plot
+    if sessions == 'active':
+        # Active only
+        plt.xticks([0,1,2,3],['F1','F3','N1','N3'],fontsize=24)
+        df = df.drop(index=[2.0,5.0], level=1)
+    elif sessions == 'passive':
+        # Passive only
+        plt.xticks([0,1],['F2','N2'],fontsize=24)
+        df = df.drop(index=[1.0,3.0,4.0,6.0], level=1)
+    else:
+        # All sessions
+        plt.xticks([0,1,2,3,4,5],['F1','F2','F3','N1','N2','N3'],fontsize=24)
+
+    # Set up color scheme for each cre line
     cre_lines = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre'] 
     colors = {
         'Sst-IRES-Cre':(158/255,218/255,229/255),
         'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
         'Vip-IRES-Cre':(197/255,176/255,213/255)
         }
+    
+    # Iterate over cre-lines
     for dex, cre in enumerate(cre_lines):
         plot_coding_fraction_inner(plt.gca(), df.loc[cre], colors[cre],cre)
+    
+    # Clean up plot
     plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
     plt.tight_layout()
+    
+    # Save figure
     if savefig:
         savefile = savefile+'coding_fraction_'+dropout+'.png'
         plt.savefig(savefile)
+    
+    # return coding dataframe
     return df 
 
 def plot_coding_fraction_inner(ax,df,color,label):
@@ -2364,7 +2405,7 @@ def plot_coding_fraction_inner(ax,df,color,label):
     # convert to percentages
     frac = frac*100
     se   = se*100
-    plt.plot([0,1,2,3,4,5], frac,'o-',color=color,linewidth=4,label=label)
+    plt.plot(range(0,len(frac)), frac,'o-',color=color,linewidth=4,label=label)
     for dex, val in enumerate(zip(frac,se)):
         plt.plot([dex,dex],[val[0]+val[1],val[0]-val[1]], 'k',linewidth=1)
 

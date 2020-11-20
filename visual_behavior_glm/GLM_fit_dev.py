@@ -73,4 +73,6 @@ if False: # Code snippets for doing basic analyses.
     gvt.plot_all_over_fitting(full_results, run_params)
 
     # Make Coding Fraction plots
-    gvt.plot_coding_fraction(results_pivoted, 'omissions')
+    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction')
+    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
+    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='filtered_magnitude')

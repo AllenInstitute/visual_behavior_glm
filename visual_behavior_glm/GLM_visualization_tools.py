@@ -2258,7 +2258,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     return fig, ax
 
 
-def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1):
+def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction'):
     '''
         Generated coding fraction plots for all dropouts
         results_pivoted, dataframe of dropout scores
@@ -2289,7 +2289,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1):
                 session = 'passive'
 
             # plot the coding fraction
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session)
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session,metric=metric)
         except:
             
             # Track failures

@@ -2302,7 +2302,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1):
     fail = []
     
     # Set up which sessions to plot
-    active_only  = ['licks','hits','misses','false_alarms','correct_rejects', 'model_bias','model_task0','model_omission1','model_timing1D']
+    active_only  = ['licks','hits','misses','false_alarms','correct_rejects', 'model_bias','model_task0','model_omissions1','model_timing1D','beh_model','licking']
     passive_only = ['passive_change']
     active_only  = active_only+['single-'+x for x in active_only]
     passive_only = passive_only+['single-'+x for x in passive_only]
@@ -2323,13 +2323,20 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1):
         except:
             fail.append(dropout)
         plt.close(plt.gcf().number)
-    print(fail)
+    
+    if len(fail) > 0:
+        print(fail)
 
 def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all'):
     
     # Dumb stability thing because pandas doesnt like '-' in column names
-    if 'all-images' in results_pivoted:
-        results_pivoted = results_pivoted.rename({'all-images':'all_images'},axis=1)
+    if '-' in dropout:
+        old_dropout = dropout
+        dropout = dropout.replace('-','_')
+        if old_dropout in results_pivoted:
+            results_pivoted = results_pivoted.rename({old_dropout:dropout},axis=1)
+    #if 'all-images' in results_pivoted:
+    #    results_pivoted = results_pivoted.rename({'all-images':'all_images'},axis=1)
 
     # Set up indexing
     conditions  =['cre_line','session_number']

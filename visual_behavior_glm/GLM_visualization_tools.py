@@ -2259,7 +2259,13 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
 
 
 def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1):
+    '''
+        Generated coding fraction plots for all dropouts
+        results_pivoted, dataframe of dropout scores
+        run_params, run json of model version
+    '''
     
+    # Keep track of what is failing 
     fail = []
     
     # Set up which sessions to plot
@@ -2271,29 +2277,52 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1):
     # Iterate over list of dropouts
     for dropout in run_params['dropouts']:
         try:
+            # Dont plot full model
             if dropout == 'Full':
                 continue
 
+            # Determine which sessions to plot
             session ='all'
             if dropout in active_only:
                 session = 'active'
             elif dropout in passive_only:
                 session = 'passive'
 
+            # plot the coding fraction
             plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session)
         except:
+            
+            # Track failures
             fail.append(dropout)
+    
+        # Close figure
         plt.close(plt.gcf().number)
     
+    # Report failures
     if len(fail) > 0:
         print(fail)
 
 def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all'):
+    '''
+        Plots coding fraction across session for each cre-line
+        
+        results_pivoted, dataframe of dropout scores
+        dropout (str) name of nested model to plot
+        threshold, level of significance for coding fraction
+        savefig (bool), if True, saves figures
+        savefile (str), pathroot to save
+        session (str), 'all', 'passive', or 'active'
     
+        returns summary dataframe about coding fraction for this dropout
+    '''   
+ 
     # Dumb stability thing because pandas doesnt like '-' in column names
     if '-' in dropout:
+        # Make cleaned up dropout name
         old_dropout = dropout
         dropout = dropout.replace('-','_')
+        
+        # Rename dropout in results table
         if old_dropout in results_pivoted:
             results_pivoted = results_pivoted.rename({old_dropout:dropout},axis=1)
 
@@ -2372,6 +2401,8 @@ def plot_coding_fraction_inner(ax,df,color,label):
     frac = frac*100
     se   = se*100
     plt.plot(range(0,len(frac)), frac,'o-',color=color,linewidth=4,label=label)
+    
+    # Iterate over lines and plot confidence intervals
     for dex, val in enumerate(zip(frac,se)):
         plt.plot([dex,dex],[val[0]+val[1],val[0]-val[1]], 'k',linewidth=1)
 

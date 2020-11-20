@@ -2312,7 +2312,8 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         savefig (bool), if True, saves figures
         savefile (str), pathroot to save
         session (str), 'all', 'passive', or 'active'
-    
+        metric (str), 'fraction', 'magnitude', or 'filtered_magnitude'   
+ 
         returns summary dataframe about coding fraction for this dropout
     '''   
  
@@ -2351,7 +2352,7 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     filtered_magnitude = filtered_magnitude.rename('filtered_magnitude')
     df = pd.concat([num_cells, sig_cells, fraction,magnitude, filtered_magnitude],axis=1)
 
-    # plot
+    # Make Figure and set up axis labels
     plt.figure(figsize=(8,4))
     if metric=='fraction':
         plt.ylabel('% of cells with \n '+dropout+' coding',fontsize=18)
@@ -2402,6 +2403,10 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
 def plot_coding_fraction_inner(ax,df,color,label,metric='fraction'):
     '''
         plots the fraction of significant cells with 95% binomial error bars    
+        ax, axis to plot on
+        df, dataframe with group to plot
+        label, what to label this group
+        metric, what information to pull from dataframe (fraction, magnitude, or filtered_magnitude)
     '''   
     # unpack fraction and get confidence interval
     if metric=='fraction':
@@ -2417,7 +2422,8 @@ def plot_coding_fraction_inner(ax,df,color,label,metric='fraction'):
         se   = 1.98*np.sqrt(frac*(1-frac)/num)   
         frac = -frac
         se   = -se
-    
+   
+    # Plot the mean values 
     plt.plot(range(0,len(frac)), frac,'o-',color=color,linewidth=4,label=label)
     
     # Iterate over lines and plot confidence intervals

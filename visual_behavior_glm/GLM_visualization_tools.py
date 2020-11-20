@@ -2409,7 +2409,7 @@ def cosyne_plot_coding_comparison(w=.45):
     plt.tight_layout()
 
 def cosyne_plot_coding_comparison_helper(ax, sig,num,w,color):
-     '''
+    '''
         This function made the cosyne figure of the coding fraction over sessions
         Leaving it here so I can turn it into something robust and general
     '''   

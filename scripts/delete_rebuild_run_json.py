@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--label', 
         type=str, 
-        default='model as of 10/22/2020, include model predicted licks and grooming',
+        default='model as of 10/22/2020, include licks only',
         metavar='model_label',
         help='model label'
     )

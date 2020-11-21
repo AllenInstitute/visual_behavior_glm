@@ -2258,7 +2258,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     return fig, ax
 
 
-def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',additional_condition=[]):
+def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',additional_conditions=[]):
     '''
         Generated coding fraction plots for all dropouts
         results_pivoted, dataframe of dropout scores
@@ -2289,7 +2289,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
                 session = 'passive'
 
             # plot the coding fraction
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session,metric=metric,additional_condition=additional_condition)
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session,metric=metric,additional_conditions=additional_conditions)
         except:
             
             # Track failures
@@ -2302,7 +2302,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
     if len(fail) > 0:
         print(fail)
 
-def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all',metric='fraction',additional_condition=[]):
+def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all',metric='fraction',additional_conditions=[]):
     '''
         Plots coding fraction across session for each cre-line
         
@@ -2313,7 +2313,7 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         savefile (str), pathroot to save
         session (str), 'all', 'passive', or 'active'
         metric (str), 'fraction', 'magnitude', or 'filtered_magnitude'   
-        additional_condition ([str]), one additional categorical condition to split the data by
+        additional_conditions ([str]), one additional categorical condition to split the data by
  
         returns summary dataframe about coding fraction for this dropout
     '''   
@@ -2329,7 +2329,7 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
             results_pivoted = results_pivoted.rename({old_dropout:dropout},axis=1)
 
     # Set up indexing
-    conditions  =additional_condition+['cre_line','session_number']
+    conditions  =additional_conditions+['cre_line','session_number']
 
     # Get Total number of cells
     num_cells   = results_pivoted.groupby(conditions)['Full'].count()
@@ -2386,12 +2386,12 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         }
     
     if df.index.nlevels > 2:
-        # Iterate over additional condition and cre_line
+        # Iterate over additional conditions and cre_line
         style= ['-','--',':','-.']
         levels = df.index.values
-        levels = [(x[0],x[1]) for x in levels if x[2] == 1.0]
+        levels = [(x[0:-1]) for x in levels if x[-1] == 1.0]
         for dex, level in enumerate(levels):
-            plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level[1]],level,metric=metric,linestyle=style[int(np.floor(dex/3))])
+            plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level[-1]],level,metric=metric,linestyle=style[int(np.floor(dex/3))])
     else:
         # Iterate over cre lines
         levels = df.index.get_level_values(0).unique()
@@ -2404,8 +2404,8 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     
     # Save figure
     if savefig:
-        if len(additional_condition) > 0:
-             savefile = savefile+'coding_'+metric+'_'+additional_condition[0]+'_'+dropout+'.png'       
+        if len(additional_conditions) > 0:
+             savefile = savefile+'coding_'+metric+'_'+'_'.join(additional_conditions)+'_'+dropout+'.png'       
         else:
             savefile = savefile+'coding_'+metric+'_'+dropout+'.png'
         plt.savefig(savefile)

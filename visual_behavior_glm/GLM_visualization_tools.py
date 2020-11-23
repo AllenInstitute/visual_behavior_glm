@@ -2258,40 +2258,188 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     return fig, ax
 
 
-def cosyne_plot_coding_comparison(w=.45):
+def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',additional_conditions=[]):
     '''
-        This function made the cosyne figure of the coding fraction over sessions
-        Leaving it here so I can turn it into something robust and general
+        Generated coding fraction plots for all dropouts
+        results_pivoted, dataframe of dropout scores
+        run_params, run json of model version
     '''
-    num_vip = [1495,1726,1745,1130]
-    num_vip_sig = [970,1265,923,763]
-    num_slc = [12825, 11811, 12668, 11001]
-    num_slc_sig = [6177,5226,9080,6592]
-    num_sst = [492,674,534,259]
-    num_sst_sig = [384,522,389,198]
+    
+    # Keep track of what is failing 
+    fail = []
+    
+    # Set up which sessions to plot
+    active_only  = ['licks','hits','misses','false_alarms','correct_rejects', 'model_bias','model_task0','model_omissions1','model_timing1D','beh_model','licking']
+    passive_only = ['passive_change']
+    active_only  = active_only+['single-'+x for x in active_only]
+    passive_only = passive_only+['single-'+x for x in passive_only]
 
-    plt.figure(figsize=(6,4))
-    plot_coding_comparison_helper(plt.gca(), num_vip_sig, num_vip,w,'C1')
-    plot_coding_comparison_helper(plt.gca(), num_slc_sig, num_slc,w,'C2')
-    plot_coding_comparison_helper(plt.gca(), num_sst_sig, num_sst,w,'C0')
+    # Iterate over list of dropouts
+    for dropout in run_params['dropouts']:
+        try:
+            # Dont plot full model
+            if dropout == 'Full':
+                continue
 
-    plt.ylabel('% of cells with \n omission coding',fontsize=24)
-    plt.xlabel('Session',fontsize=24)
-    plt.tick_params(axis='both',labelsize=16)
-    plt.xticks([0,1,2,3],['F1','F3','N1','N3'],fontsize=24)
-    plt.ylim(30,90)
-    plt.tight_layout()
+            # Determine which sessions to plot
+            session ='all'
+            if dropout in active_only:
+                session = 'active'
+            elif dropout in passive_only:
+                session = 'passive'
 
-def cosyne_plot_coding_comparison_helper(ax, sig,num,w,color):
+            # plot the coding fraction
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session,metric=metric,additional_conditions=additional_conditions)
+        except:
+            
+            # Track failures
+            fail.append(dropout)
+    
+        # Close figure
+        plt.close(plt.gcf().number)
+    
+    # Report failures
+    if len(fail) > 0:
+        print(fail)
+
+def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all',metric='fraction',additional_conditions=[]):
     '''
-        This function made the cosyne figure of the coding fraction over sessions
-        Leaving it here so I can turn it into something robust and general
+        Plots coding fraction across session for each cre-line
+        
+        results_pivoted, dataframe of dropout scores
+        dropout (str) name of nested model to plot
+        threshold, level of significance for coding fraction
+        savefig (bool), if True, saves figures
+        savefile (str), pathroot to save
+        session (str), 'all', 'passive', or 'active'
+        metric (str), 'fraction', 'magnitude', or 'filtered_magnitude'   
+        additional_conditions ([str]), one additional categorical condition to split the data by
+ 
+        returns summary dataframe about coding fraction for this dropout
     '''   
-    frac = np.array(sig)/np.array(num)
-    se = 1.98*np.sqrt(frac*(1-frac)/num)
-    frac = frac*100
-    se = se*100
-    plt.plot([0,1,2,3], frac,'o-',color=color,linewidth=4)
+ 
+    # Dumb stability thing because pandas doesnt like '-' in column names
+    if '-' in dropout:
+        # Make cleaned up dropout name
+        old_dropout = dropout
+        dropout = dropout.replace('-','_')
+        
+        # Rename dropout in results table
+        if old_dropout in results_pivoted:
+            results_pivoted = results_pivoted.rename({old_dropout:dropout},axis=1)
+
+    # Set up indexing
+    conditions  =additional_conditions+['cre_line','session_number']
+
+    # Get Total number of cells
+    num_cells   = results_pivoted.groupby(conditions)['Full'].count()
+
+    # Get number of cells with significant coding
+    filter_str  = dropout +' < @threshold'
+    sig_cells   = results_pivoted.query(filter_str).groupby(conditions)['Full'].count()
+
+    # Get Magnitude
+    magnitude = results_pivoted.groupby(conditions)[dropout].mean()
+    filtered_magnitude = results_pivoted.query(filter_str).groupby(conditions)[dropout].mean()
+
+    # Get fraction significant
+    fraction    = sig_cells/num_cells
+    
+    # Build datafram
+    fraction    = fraction.rename('fraction')
+    sig_cells   = sig_cells.rename('num_sig')
+    num_cells   = num_cells.rename('num_cells')
+    magnitude   = magnitude.rename('magnitude')
+    filtered_magnitude = filtered_magnitude.rename('filtered_magnitude')
+    df = pd.concat([num_cells, sig_cells, fraction,magnitude, filtered_magnitude],axis=1)
+
+    # Make Figure and set up axis labels
+    plt.figure(figsize=(8,4))
+    if metric=='fraction':
+        plt.ylabel('% of cells with \n '+dropout+' coding',fontsize=18)
+    elif metric=='magnitude':
+        plt.ylabel('Avg '+dropout,fontsize=18)
+    elif metric=='filtered_magnitude':
+        plt.ylabel('Avg '+dropout+'\n for significant cells',fontsize=18)
+    plt.xlabel('Session',fontsize=18)
+    plt.tick_params(axis='both',labelsize=16)
+
+    # Determine what sessions to plot
+    if sessions == 'active':
+        # Active only
+        plt.xticks([0,1,2,3],['F1','F3','N1','N3'],fontsize=18)
+        df = df.drop(index=[2.0,5.0], level=1)
+    elif sessions == 'passive':
+        # Passive only
+        plt.xticks([0,1],['F2','N2'],fontsize=18)
+        df = df.drop(index=[1.0,3.0,4.0,6.0], level=1)
+    else:
+        # All sessions
+        plt.xticks([0,1,2,3,4,5],['F1','F2','F3','N1','N2','N3'],fontsize=18)
+
+    # Set up color scheme for each cre line
+    cre_lines = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre'] 
+    colors = {
+        'Sst-IRES-Cre':(158/255,218/255,229/255),
+        'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
+        'Vip-IRES-Cre':(197/255,176/255,213/255)
+        }
+    
+    if df.index.nlevels > 2:
+        # Iterate over additional conditions and cre_line
+        style= ['-','--',':','-.']
+        levels = df.index.values
+        levels = [(x[0:-1]) for x in levels if x[-1] == 1.0]
+        for dex, level in enumerate(levels):
+            plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level[-1]],level,metric=metric,linestyle=style[int(np.floor(dex/3))])
+    else:
+        # Iterate over cre lines
+        levels = df.index.get_level_values(0).unique()
+        for dex, level in enumerate(levels):
+            plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level],level,metric=metric)
+
+    # Clean up plot
+    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
+    plt.tight_layout()
+    
+    # Save figure
+    if savefig:
+        if len(additional_conditions) > 0:
+             savefile = savefile+'coding_'+metric+'_'+'_'.join(additional_conditions)+'_'+dropout+'.png'       
+        else:
+            savefile = savefile+'coding_'+metric+'_'+dropout+'.png'
+        plt.savefig(savefile)
+    
+    # return coding dataframe
+    return df 
+
+def plot_coding_fraction_inner(ax,df,color,label,metric='fraction',linestyle='-'):
+    '''
+        plots the fraction of significant cells with 95% binomial error bars    
+        ax, axis to plot on
+        df, dataframe with group to plot
+        label, what to label this group
+        metric, what information to pull from dataframe (fraction, magnitude, or filtered_magnitude)
+    '''   
+    # unpack fraction and get confidence interval
+    if metric=='fraction':
+        frac = df[metric].values 
+        num  = df['num_cells'].values
+        se   = 1.98*np.sqrt(frac*(1-frac)/num)
+        # convert to percentages
+        frac = frac*100
+        se   = se*100
+    else:
+        frac = -df[metric].values 
+        num  = df['num_cells'].values
+        se   = 1.98*np.sqrt(frac*(1-frac)/num)   
+        frac = -frac
+        se   = -se
+   
+    # Plot the mean values 
+    plt.plot(range(0,len(frac)), frac,'o',linestyle=linestyle,color=color,linewidth=4,label=label)
+    
+    # Iterate over lines and plot confidence intervals
     for dex, val in enumerate(zip(frac,se)):
         plt.plot([dex,dex],[val[0]+val[1],val[0]-val[1]], 'k',linewidth=1)
 

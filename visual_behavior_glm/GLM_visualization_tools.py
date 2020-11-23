@@ -251,7 +251,7 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     plt.yticks(ticks=locs, labels=ticks)
     plt.tight_layout()
     if save_plot:
-        filename = os.oath.join(glm.run_params['figure_dir'], 'discrete_regressor_correlation.png')
+        filename = os.path.join(glm.run_params['figure_dir'], 'discrete_regressor_correlation.png')
         plt.savefig(filename)
 
     # Look at the continuous kernels
@@ -285,7 +285,7 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     plt.yticks(ticks=locs, labels=ticks)
     plt.tight_layout() 
     if save_plot:
-        filename = os.oath.join(glm.run_params['figure_dir'], 'continuous_regressor_correlation.png')
+        filename = os.path.join(glm.run_params['figure_dir'], 'continuous_regressor_correlation.png')
         plt.savefig(filename)
 
     # Plot the correlations between the timeseries with no delay for the continuous kernels
@@ -309,7 +309,7 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     plt.yticks(ticks=range(0,len(cont)), labels=cont)
     plt.tight_layout()  
     if save_plot:
-        filename = os.oath.join(glm.run_params['figure_dir'], 'continuous_events_correlation.png')
+        filename = os.path.join(glm.run_params['figure_dir'], 'continuous_events_correlation.png')
         plt.savefig(filename)
 
 def plot_PCA_var_explained(pca, figsize=(10,8)):

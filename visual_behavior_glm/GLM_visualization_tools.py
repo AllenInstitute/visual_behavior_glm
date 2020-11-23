@@ -106,7 +106,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         plt.plot(omitted, omitted_dex*np.ones(np.shape(omitted)),'k|')
 
     # Image Expectation
-    if plot_ticks:
+    if plot_ticks & ('image_expectation' in glm.run_params['kernels']):
         expectation = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & not omitted')['start_time']
         expectation_dex = stim_points['image_expectation'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['image_expectation']['offset'])*31)
         plt.plot(expectation, expectation_dex*np.ones(np.shape(expectation)),'k|')

@@ -106,7 +106,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         plt.plot(omitted, omitted_dex*np.ones(np.shape(omitted)),'k|')
 
     # Image Expectation
-    if plot_ticks:
+    if plot_ticks & ('image_expectation' in glm.run_params['kernels']):
         expectation = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & not omitted')['start_time']
         expectation_dex = stim_points['image_expectation'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['image_expectation']['offset'])*31)
         plt.plot(expectation, expectation_dex*np.ones(np.shape(expectation)),'k|')
@@ -201,7 +201,8 @@ def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save
     plt.title(dropout + ', threshold: '+str(dropout_threshold))
     plt.tight_layout()
     if save_fig:
-        plt.savefig(filename+dropout+".png")
+        filename = os.path.join(filename, dropout+'.png')
+        plt.savefig(filename)
 
 def plot_all_significant_cells(results_pivoted,run_params):
     dropouts = set(run_params['dropouts'].keys())
@@ -250,7 +251,8 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     plt.yticks(ticks=locs, labels=ticks)
     plt.tight_layout()
     if save_plot:
-        plt.savefig('discrete.png')
+        filename = os.path.join(glm.run_params['figure_dir'], 'discrete_regressor_correlation.png')
+        plt.savefig(filename)
 
     # Look at the continuous kernels
     cont = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
@@ -282,8 +284,9 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     plt.xticks(ticks=locs, labels=ticks,rotation=90)
     plt.yticks(ticks=locs, labels=ticks)
     plt.tight_layout() 
-    if save_plot: 
-        plt.savefig('continuous.png') 
+    if save_plot:
+        filename = os.path.join(glm.run_params['figure_dir'], 'continuous_regressor_correlation.png')
+        plt.savefig(filename)
 
     # Plot the correlations between the timeseries with no delay for the continuous kernels
     cont_events = np.vstack([glm.design.events[x] for x in cont])
@@ -306,7 +309,8 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     plt.yticks(ticks=range(0,len(cont)), labels=cont)
     plt.tight_layout()  
     if save_plot:
-        plt.savefig('continuous_events.png') 
+        filename = os.path.join(glm.run_params['figure_dir'], 'continuous_events_correlation.png')
+        plt.savefig(filename)
 
 def plot_PCA_var_explained(pca, figsize=(10,8)):
     fig,ax=plt.subplots(2,1,figsize=figsize, sharex=True)
@@ -1195,7 +1199,8 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
         
     # Save results
     if save_results:
-        plt.savefig(run_params['output_dir']+'/nested_models_'+str(num_levels)+'.png')
+        fig_filename = os.path.join(run_params['figure_dir'],'nested_models_'+str(num_levels)+'.png')
+        plt.savefig(fig_filename)
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
@@ -1277,7 +1282,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         filter_string+='_suggestions' 
     if depth_filter !=[0,1000]:
         filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
-    filename = run_params['output_dir']+'/figures/'+kernel+'_analysis'+filter_string+'.png'
+    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_analysis'+filter_string+'.png')
 
     # Get all cells data and plot Average Trajectories
     fig,ax=plt.subplots(3,3,figsize=(12,9))
@@ -1641,7 +1646,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     plt.tight_layout()
     if save_results:
         print('Figure Saved to: '+filename)
-        plt.savefig(filename)
+        plt.savefig(filename) 
 
 def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',depth_filter=[0,1000]):
     '''
@@ -1745,7 +1750,8 @@ def plot_over_fitting(full_results, dropout,save_file=""):
     # Clean up and save
     plt.tight_layout()
     if save_file !="":
-        plt.savefig(save_file+dropout+'.png')
+        save_file = os.path.join(save_file, dropout+'.png')
+        plt.savefig(save_file)
 
 def plot_over_fitting_summary(full_results, run_params, plot_dropouts=True):
     '''
@@ -1787,7 +1793,8 @@ def plot_over_fitting_summary(full_results, run_params, plot_dropouts=True):
     plt.xlabel('Avg. Overfitting fraction from kernel')
     plt.axvline(0,color='k',alpha=.25)
     plt.tight_layout()
-    plt.savefig(run_params['output_dir']+'/figures/over_fitting_figures/over_fitting_summary.png')
+    filename = os.path.join(run_params['fig_overfitting_dir'],'over_fitting_summary.png')
+    plt.savefig(filename)
 
 def plot_all_over_fitting(full_results, run_params):
     '''
@@ -1806,7 +1813,7 @@ def plot_all_over_fitting(full_results, run_params):
     for d in run_params['dropouts']:
         try:
             # Plot each dropout
-            plot_over_fitting(full_results, d,save_file=run_params['output_dir']+'/figures/over_fitting_figures/')
+            plot_over_fitting(full_results, d,save_file=run_params['fig_overfitting_dir'])
         except:
             # Plot crashed for some reason, print error and move on
             print('crashed - '+d)
@@ -1967,7 +1974,7 @@ def plot_nested_dropouts(results_pivoted,run_params, num_levels=2,size=0.3,force
 
     plt.tight_layout()
     if savefig:
-        filename = run_params['output_dir']+'/figures/nested_dropouts/pie'+str(num_levels)
+        filename = os.path.join(run_params['fig_clustering_dir'], 'pie_'+str(num_levels))
         if filter_cre:
             filename+='_'+cre[0:3]
         if num_levels ==2:
@@ -2289,7 +2296,8 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
                 session = 'passive'
 
             # plot the coding fraction
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session,metric=metric,additional_conditions=additional_conditions)
+            filepath = run_params['fig_coding_dir']
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,sessions=session,metric=metric,additional_conditions=additional_conditions)
         except:
             
             # Track failures
@@ -2405,9 +2413,9 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     # Save figure
     if savefig:
         if len(additional_conditions) > 0:
-             savefile = savefile+'coding_'+metric+'_'+'_'.join(additional_conditions)+'_'+dropout+'.png'       
+            savefile = os.path.join(savefile,'coding_'+metric+'_'+'_'.join(additional_conditions)+'_'+dropout+'.png')
         else:
-            savefile = savefile+'coding_'+metric+'_'+dropout+'.png'
+            savefile = os.path.join(savefile,'coding_'+metric+'_'+dropout+'.png')
         plt.savefig(savefile)
     
     # return coding dataframe

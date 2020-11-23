@@ -82,6 +82,10 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     # Make directory, will throw an error if already exists
     output_dir              = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(VERSION))
     figure_dir              = os.path.join(output_dir, 'figures')
+    fig_coding_dir          = os.path.join(figure_dir, 'coding')
+    fig_kernels_dir         = os.path.join(figure_dir, 'kernels')
+    fig_overfitting_dir     = os.path.join(figure_dir, 'over_fitting_figures')
+    fig_clustering_dir      = os.path.join(figure_dir, 'clustering')
     model_freeze_dir        = os.path.join(output_dir, 'frozen_model_files')
     experiment_output_dir   = os.path.join(output_dir, 'experiment_model_files')
     manifest_dir            = os.path.join(output_dir, 'manifest')
@@ -92,6 +96,10 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     beh_model_dir           = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/model_output/'
     os.mkdir(output_dir)
     os.mkdir(figure_dir)
+    os.mkdir(fig_coding_dir)
+    os.mkdir(fig_kernels_dir)
+    os.mkdir(fig_overfitting_dir)
+    os.mkdir(fig_clustering_dir)
     os.mkdir(model_freeze_dir)
     os.mkdir(experiment_output_dir)
     os.mkdir(job_dir)
@@ -140,7 +148,12 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
 
     # Make JSON file with parameters
     run_params = {
-        'output_dir':output_dir,                        
+        'output_dir':output_dir,                
+        'figure_dir':figure_dir,
+        'fig_coding_dir':fig_coding_dir,
+        'fig_kernels_dir':fig_kernels_dir,    
+        'fig_overfitting_dir':fig_overfitting_dir,
+        'fig_clustering_dir':fig_clustering_dir,
         'model_freeze_dir':model_freeze_dir,            
         'experiment_output_dir':experiment_output_dir,
         'job_dir':job_dir,
@@ -305,6 +318,16 @@ def load_run_json(version):
     json_path = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(version), 'run_params.json')
     with open(json_path,'r') as json_file:
         run_params = json.load(json_file)
+
+    # Backwards compatability
+    # Check for figure directory, and append if not included
+    if 'figure_dir' not in run_params:
+        run_params['figure_dir'] = os.path.join(run_params['output_dir'], 'figures')
+    if 'fig_coding_dir' not in run_params:
+        run_params['fig_coding_dir']     = os.path.join(run_params['figure_dir'], 'coding')
+        run_params['fig_kernels_dir']    = os.path.join(run_params['figure_dir'], 'kernels')               
+        run_params['fig_overfitting_dir']= os.path.join(run_params['figure_dir'], 'over_fitting_figures')
+        run_params['fig_clustering_dir'] = os.path.join(run_params['figure_dir'], 'clustering')
     return run_params
 
 def describe_model_version(version):

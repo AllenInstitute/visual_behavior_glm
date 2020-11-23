@@ -1974,7 +1974,7 @@ def plot_nested_dropouts(results_pivoted,run_params, num_levels=2,size=0.3,force
 
     plt.tight_layout()
     if savefig:
-        filename = run_params['output_dir']+'/figures/nested_dropouts/pie'+str(num_levels) ## TODO
+        filename = os.path.join(run_params['fig_clustering_dir'], 'pie_'+str(num_levels))
         if filter_cre:
             filename+='_'+cre[0:3]
         if num_levels ==2:

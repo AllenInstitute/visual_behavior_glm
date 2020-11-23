@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
+import visual_behavior_glm.GLM_analysis_tools as gat
 from visual_behavior_glm.glm import GLM
 plt.ion()
 
@@ -109,3 +110,47 @@ if False: # Code snippets for doing basic analyses.
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction')
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='filtered_magnitude')
+
+
+def make_baseline_figures(VERSION):
+    
+    # Analysis Dataframes 
+    #####################
+    run_params = glm_params.load_run_json(VERSION)
+    results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='summary')
+    results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+    full_results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='full')
+    weights_df = gat.build_weights_df(run_params, results_pivoted)
+
+    # Analysis Figures
+    #####################
+    # Make Nested Model plot (rainbow plot)
+    gvt.plot_dropouts(run_params)
+    
+    # Make Kernel figures
+    # You may need to `mkdir kernels` 
+    gvt.all_kernels_evaluation(weights_df,run_params)
+    gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="mesoscope")
+    gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="scientifica")
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[1])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[2])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[3])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[4])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[5])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[6])
+    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[0,299])
+    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[299,1000])
+
+    # Make over-fitting figures
+    # You may need to `mkdir over_fitting_figures` 
+    gat.compute_over_fitting_proportion(full_results, run_params) 
+    gvt.plot_over_fitting_summary(full_results, run_params)
+    gvt.plot_all_over_fitting(full_results, run_params)
+
+    # Make Coding Fraction plots
+    # You may need to `mkdir coding` 
+    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction')
+    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
+    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='filtered_magnitude')
+
+

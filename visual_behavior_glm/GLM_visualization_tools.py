@@ -2289,7 +2289,8 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
                 session = 'passive'
 
             # plot the coding fraction
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=run_params['output_dir']+'/figures/',sessions=session,metric=metric,additional_conditions=additional_conditions)
+            filepath = os.path.join(run_params['fig_coding_dir'],'')
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,sessions=session,metric=metric,additional_conditions=additional_conditions)
         except:
             
             # Track failures

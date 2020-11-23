@@ -2296,7 +2296,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
                 session = 'passive'
 
             # plot the coding fraction
-            filepath = os.path.join(run_params['fig_coding_dir'],'')
+            filepath = run_params['fig_coding_dir']
             plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,sessions=session,metric=metric,additional_conditions=additional_conditions)
         except:
             
@@ -2413,9 +2413,9 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     # Save figure
     if savefig:
         if len(additional_conditions) > 0:
-             savefile = savefile+'coding_'+metric+'_'+'_'.join(additional_conditions)+'_'+dropout+'.png'       
+            savefile = os.path.join(savefile,'coding_'+metric+'_'+'_'.join(additional_conditions)+'_'+dropout+'.png')
         else:
-            savefile = savefile+'coding_'+metric+'_'+dropout+'.png'
+            savefile = os.path.join(savefile,'coding_'+metric+'_'+dropout+'.png')
         plt.savefig(savefile)
     
     # return coding dataframe

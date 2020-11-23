@@ -84,7 +84,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     figure_dir              = os.path.join(output_dir, 'figures')
     fig_coding_dir          = os.path.join(figure_dir, 'coding')
     fig_kernels_dir         = os.path.join(figure_dir, 'kernels')
-    fig_overfitting_dir     = os.path.join(figure_dir, 'overfitting')
+    fig_overfitting_dir     = os.path.join(figure_dir, 'over_fitting_figures')
     model_freeze_dir        = os.path.join(output_dir, 'frozen_model_files')
     experiment_output_dir   = os.path.join(output_dir, 'experiment_model_files')
     manifest_dir            = os.path.join(output_dir, 'manifest')

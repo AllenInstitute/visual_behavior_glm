@@ -201,7 +201,7 @@ def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save
     plt.title(dropout + ', threshold: '+str(dropout_threshold))
     plt.tight_layout()
     if save_fig:
-        plt.savefig(filename+dropout+".png")
+        plt.savefig(filename+dropout+".png") #TODO
 
 def plot_all_significant_cells(results_pivoted,run_params):
     dropouts = set(run_params['dropouts'].keys())
@@ -250,7 +250,7 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     plt.yticks(ticks=locs, labels=ticks)
     plt.tight_layout()
     if save_plot:
-        plt.savefig('discrete.png')
+        plt.savefig('discrete.png') ##TODO
 
     # Look at the continuous kernels
     cont = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
@@ -283,7 +283,7 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     plt.yticks(ticks=locs, labels=ticks)
     plt.tight_layout() 
     if save_plot: 
-        plt.savefig('continuous.png') 
+        plt.savefig('continuous.png')  ##TODO
 
     # Plot the correlations between the timeseries with no delay for the continuous kernels
     cont_events = np.vstack([glm.design.events[x] for x in cont])
@@ -306,7 +306,7 @@ def plot_regressor_correlation(glm, add_lines=True,save_plot=False):
     plt.yticks(ticks=range(0,len(cont)), labels=cont)
     plt.tight_layout()  
     if save_plot:
-        plt.savefig('continuous_events.png') 
+        plt.savefig('continuous_events.png') ## TODO
 
 def plot_PCA_var_explained(pca, figsize=(10,8)):
     fig,ax=plt.subplots(2,1,figsize=figsize, sharex=True)
@@ -1195,7 +1195,7 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
         
     # Save results
     if save_results:
-        plt.savefig(run_params['output_dir']+'/nested_models_'+str(num_levels)+'.png')
+        plt.savefig(run_params['output_dir']+'/nested_models_'+str(num_levels)+'.png') #TODO
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
@@ -1641,7 +1641,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     plt.tight_layout()
     if save_results:
         print('Figure Saved to: '+filename)
-        plt.savefig(filename)
+        plt.savefig(filename) ## TODO
 
 def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',depth_filter=[0,1000]):
     '''
@@ -1745,7 +1745,7 @@ def plot_over_fitting(full_results, dropout,save_file=""):
     # Clean up and save
     plt.tight_layout()
     if save_file !="":
-        plt.savefig(save_file+dropout+'.png')
+        plt.savefig(save_file+dropout+'.png') ## TODO
 
 def plot_over_fitting_summary(full_results, run_params, plot_dropouts=True):
     '''
@@ -1787,7 +1787,7 @@ def plot_over_fitting_summary(full_results, run_params, plot_dropouts=True):
     plt.xlabel('Avg. Overfitting fraction from kernel')
     plt.axvline(0,color='k',alpha=.25)
     plt.tight_layout()
-    plt.savefig(run_params['output_dir']+'/figures/over_fitting_figures/over_fitting_summary.png')
+    plt.savefig(run_params['output_dir']+'/figures/over_fitting_figures/over_fitting_summary.png') ## TODO
 
 def plot_all_over_fitting(full_results, run_params):
     '''
@@ -1806,7 +1806,7 @@ def plot_all_over_fitting(full_results, run_params):
     for d in run_params['dropouts']:
         try:
             # Plot each dropout
-            plot_over_fitting(full_results, d,save_file=run_params['output_dir']+'/figures/over_fitting_figures/')
+            plot_over_fitting(full_results, d,save_file=run_params['output_dir']+'/figures/over_fitting_figures/') ## TODO
         except:
             # Plot crashed for some reason, print error and move on
             print('crashed - '+d)
@@ -1967,7 +1967,7 @@ def plot_nested_dropouts(results_pivoted,run_params, num_levels=2,size=0.3,force
 
     plt.tight_layout()
     if savefig:
-        filename = run_params['output_dir']+'/figures/nested_dropouts/pie'+str(num_levels)
+        filename = run_params['output_dir']+'/figures/nested_dropouts/pie'+str(num_levels) ## TODO
         if filter_cre:
             filename+='_'+cre[0:3]
         if num_levels ==2:

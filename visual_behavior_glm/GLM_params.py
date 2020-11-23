@@ -318,6 +318,16 @@ def load_run_json(version):
     json_path = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(version), 'run_params.json')
     with open(json_path,'r') as json_file:
         run_params = json.load(json_file)
+
+    # Backwards compatability
+    # Check for figure directory, and append if not included
+    if 'figure_dir' not in run_params:
+        run_params['figure_dir'] = os.path.join(run_params['output_dir'], 'figures')
+    if 'fig_coding_dir' not in run_params:
+        run_params['fig_coding_dir']     = os.path.join(run_params['figure_dir'], 'coding')
+        run_params['fig_kernels_dir']    = os.path.join(run_params['figure_dir'], 'kernels')               
+        run_params['fig_overfitting_dir']= os.path.join(run_params['figure_dir'], 'over_fitting_figures')
+        run_params['fig_clustering_dir'] = os.path.join(run_params['figure_dir'], 'clustering')
     return run_params
 
 def describe_model_version(version):

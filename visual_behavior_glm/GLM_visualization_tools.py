@@ -1331,17 +1331,37 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
 
-def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True):
+def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=2,alpha=.1):
+    '''
+        Plots the average kernel for the cells in df
+        
+        ax, the axis to plot on
+        df, series of cells with column that is the kernel to plot
+        label, what to label this group of cells
+        color, the line color for this group of cells
+        linestyle, the line style for this group of cells
+        time_vec, the time basis to plot on
+        meso_time_vec, the time basis for mesoscope kernels (will be interpolated to time_vec)
+        plot_errors (bool), if True, plots a shaded error bar
+        linewidth, the width of the mean line
+        alpha, the alpha for the shaded error bar
+    '''
+
+    # Normalize kernels, and interpolate to time_vec
     df_norm = [x/np.max(np.abs(x)) for x in df[~df.isnull()].values]
     df_norm = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df_norm]
+    
+    # Needed for stability
     if len(df_norm)>0:
         df_norm = np.vstack(df_norm)
     else:
         df_norm = np.empty((2,len(time_vec)))
         df_norm[:] = np.nan
+    
+    # Plot mean and error bar
     if plot_errors:
-        ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0), df_norm.mean(axis=0)+df_norm.std(axis=0),facecolor=color, alpha=0.15)   
-    ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=2)
+        ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0), df_norm.mean(axis=0)+df_norm.std(axis=0),facecolor=color, alpha=alpha)   
+    ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
 
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):
     '''

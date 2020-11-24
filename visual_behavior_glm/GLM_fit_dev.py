@@ -119,6 +119,9 @@ def get_analysis_dfs(VERSION):
     return run_params, results, results_pivoted, weights_df
 
 def add_categorical(df):
+    '''
+        Adds categorical string labels, useful for plotting
+    '''
     df['session'] = [str(x) for x in df['session_number']]
     df['active'] = ['active' if x in [1,3,4,6] else 'passive' for x in df['session_number']]
     df['familiar'] = ['familiar' if x in [1,2,3] else 'novel' for x in df['session_number']]

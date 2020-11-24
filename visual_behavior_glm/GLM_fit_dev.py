@@ -111,6 +111,12 @@ if False: # Code snippets for doing basic analyses.
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='filtered_magnitude')
 
+def get_analysis_dfs(VERSION):
+    run_params = glm_params.load_run_json(VERSION)
+    results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='summary')
+    results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+    weights_df = gat.build_weights_df(run_params, results_pivoted)   
+    return run_params, results, results_pivoted, weights_df
 
 def make_baseline_figures(VERSION):
     

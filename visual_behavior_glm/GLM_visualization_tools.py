@@ -1204,6 +1204,150 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
         df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
+
+
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):
+    '''
+        Plots the average kernel for each cell line. 
+        Plots the heatmap of the kernels sorted by time. 
+        Plots the distribution of dropout scores for this kernel.   
+        Does that analysis for all cells, just cells with a significant variance_explained, and just cells with a significant dropout score. 
+
+        INPUTS:
+        run_params              = glm_params.load_run_params(<version>) 
+        results_pivoted         = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+        weights_df              = gat.build_weights_df(run_params, results_pivoted)
+        kernel                  The name of the kernel to be plotted
+        save_results            if True, saves a figure to the directory in run_params['output_dir']
+        threshold,              the minimum variance explained by the full model
+        drop_threshold,         the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
+        normalize,              if True, normalizes each cell to np.max(np.abs(x))
+        drop_threshold_single,  if True, applies drop_threshold to single-<kernel> instead of <kernel> dropout model
+        session_filter,         The list of session numbers to include
+        equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both
+        mode,                   if "diagnostic" then it plots marina's suggestions for kernel length in red. Otherwise does nothing
+        interpolate,            if True, then interpolates mesoscope data onto scientifica timebase. This value is forced to True if plotting a mix of the two datasets. 
+        
+    '''
+
+    # Filter out Mesoscope and make time basis 
+    # Filtering out that one session because something is wrong with it, need to follow up TODO
+    version = run_params['version']
+    filter_string = ''
+    problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
+    if problem_9c:
+        problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675, 822734832,843871375]
+    if problem_9d:
+        problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675, 873653940, 878436988,883509540,822734832]
+    if equipment_filter == "scientifica": 
+        weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')
+        filter_string+='_scientifica'
+    elif equipment_filter == "mesoscope":
+        weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions)& (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')   
+        filter_string+='_mesoscope'
+    else:
+        weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])')
+        if not interpolate:
+            print('Forcing interpolate=True because we have mixed scientifica and mesoscope data')
+            interpolate=True
+
+    # Set up time vectors.
+    # Mesoscope sessions have not been interpolated onto the right time basis yet
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
+    if (equipment_filter == "mesoscope") & (not interpolate):
+        time_vec = meso_time_vec
+
+    # Plotting settings
+    colors=['C0','C1','C2']
+    line_alpha = 0.25
+    width=0.25
+
+    # Determine filename
+    if not normalize:
+        filter_string+='_unnormalized'
+    if session_filter != [1,2,3,4,5,6]:
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
+    if mode == "diagnostic":
+        filter_string+='_suggestions' 
+    if depth_filter !=[0,1000]:
+        filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
+    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison'+filter_string+'.png')
+
+    # Get all cells data and plot Average Trajectories
+    fig,ax=plt.subplots(figsize=(8,4))
+    # MARK
+
+    # Get Dropout filtered data, and plot average kernels
+    if drop_threshold_single:
+        sst_weights_dfiltered = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold)')
+        vip_weights_dfiltered = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold)')
+        slc_weights_dfiltered = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold)')
+        sst_weights_dfiltered = sst_weights_dfiltered[sst_weights_dfiltered['single-'+kernel] < drop_threshold][kernel+'_weights']
+        vip_weights_dfiltered = vip_weights_dfiltered[vip_weights_dfiltered['single-'+kernel] < drop_threshold][kernel+'_weights']
+        slc_weights_dfiltered = slc_weights_dfiltered[slc_weights_dfiltered['single-'+kernel] < drop_threshold][kernel+'_weights']
+    else:
+        sst_weights_dfiltered = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
+        vip_weights_dfiltered = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
+        slc_weights_dfiltered = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
+
+    if normalize:
+        sst_df = [x/np.max(np.abs(x)) for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values]
+
+        vip_df = [x/np.max(np.abs(x)) for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values]
+        slc_df = [x/np.max(np.abs(x)) for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values]
+    else:
+        sst_df = [x for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values]
+        vip_df = [x for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values]
+        slc_df = [x for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values] 
+
+    # Interpolate Mesoscope
+    if interpolate:
+        sst_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst_df]
+        vip_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip_df]
+        slc_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc_df] 
+ 
+    if len(sst_df)>0:
+        sst_df = np.vstack(sst_df)
+    else:
+        sst_df = np.empty((2,len(time_vec)))
+        sst_df[:] = np.nan
+    if len(vip_df)>0:
+        vip_df = np.vstack(vip_df)
+    else:
+        vip_df = np.empty((2,len(time_vec)))
+        vip_df[:] = np.nan
+    if len(slc_df)>0:
+        slc_df = np.vstack(slc_df)
+    else:
+        slc_df = np.empty((2,len(time_vec)))
+        slc_df[:] = np.nan
+
+    ax.fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors[0], alpha=0.1)   
+    ax.fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors[1], alpha=0.1)    
+    ax.fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors[2], alpha=0.1)    
+    ax.plot(time_vec, sst_df.mean(axis=0),label='SST',color=colors[0])
+    ax.plot(time_vec, vip_df.mean(axis=0),label='VIP',color=colors[1])
+    ax.plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors[2])
+    ax.axhline(0, color='k',linestyle='--',alpha=line_alpha)
+    ax.axvline(0, color='k',linestyle='--',alpha=line_alpha)
+    if normalize:
+        ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=18)   
+    else:
+        ax.set_ylabel('Kernel Weights ($\Delta$f/f)',fontsize=18)
+    ax.set_xlabel('Time (s)',fontsize=18)
+    ax.set_xlim(time_vec[0],time_vec[-1])   
+    add_stimulus_bars(ax,kernel)
+    plt.tick_params(axis='both',labelsize=16)
+    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
+ 
+    ## Final Clean up and Save
+    plt.tight_layout()
+    if save_results:
+        print('Figure Saved to: '+filename)
+        plt.savefig(filename) 
+
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):
     '''
         Plots the average kernel for each cell line. 
@@ -2373,7 +2517,8 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         plt.ylabel('Avg '+dropout+'\n for significant cells',fontsize=18)
     plt.xlabel('Session',fontsize=18)
     plt.tick_params(axis='both',labelsize=16)
-
+    # MARK
+    
     # Determine what sessions to plot
     if sessions == 'active':
         # Active only

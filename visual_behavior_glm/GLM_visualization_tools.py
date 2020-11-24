@@ -1229,19 +1229,29 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     version = run_params['version']
     filter_string = ''
     problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
+
+    # Filter by Equipment
+    equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
     if equipment_filter == "scientifica": 
-        weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])')
-        filter_string+='_scientifica'
+        equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5"]
+        filter_string += '_scientifica'
     elif equipment_filter == "mesoscope":
-        weights = weights_df.query('(equipment_name in ["MESO.1"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])')   
-        filter_string+='_mesoscope'
-    else:
-        weights = weights_df.query('(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])')
+        equipment_list = ["MESO.1"]
+        filter_string += '_mesoscope'
+
+    # Determine filename
+    if session_filter != [1,2,3,4,5,6]:
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
+    if depth_filter !=[0,1000]:
+        filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
+    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison'+filter_string+'.png')
+
+    # Applying hard thresholds to dataset
+    weights = weights_df.query('(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
 
     # Set up time vectors.
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
-    # Mesoscope sessions have not been interpolated onto the right time basis yet
     meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
 
     # Plotting settings
@@ -1252,61 +1262,26 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         'Vip-IRES-Cre':(197/255,176/255,213/255)
         }
 
-    # Determine filename
-    if session_filter != [1,2,3,4,5,6]:
-        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
-    if depth_filter !=[0,1000]:
-        filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
-    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison'+filter_string+'.png')
-
     # Get all cells data and plot Average Trajectories
     fig,ax=plt.subplots(figsize=(8,4))
     # MARK
     # Need a system to split the data, then call a helper function that does the query, and plots. 
 
     # Get Dropout filtered data, and plot average kernels
-    sst_weights_dfiltered = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
-    vip_weights_dfiltered = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
-    slc_weights_dfiltered = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']
+    sst_weights_dfiltered = weights.query('(cre_line == "Sst-IRES-Cre")')[kernel+'_weights']
+    vip_weights_dfiltered = weights.query('(cre_line == "Vip-IRES-Cre")')[kernel+'_weights']
+    slc_weights_dfiltered = weights.query('(cre_line == "Slc17a7-IRES2-Cre")')[kernel+'_weights']
+    plot_kernel_comparison_inner(ax,sst_weights_dfiltered,'SST', colors['Sst-IRES-Cre'], time_vec, meso_time_vec) 
+    plot_kernel_comparison_inner(ax,vip_weights_dfiltered,'VIP', colors['Vip-IRES-Cre'], time_vec, meso_time_vec) 
+    plot_kernel_comparison_inner(ax,slc_weights_dfiltered,'SLC', colors['Slc17a7-IRES2-Cre'], time_vec, meso_time_vec) 
 
-    # Normalize
-    sst_df = [x/np.max(np.abs(x)) for x in sst_weights_dfiltered[~sst_weights_dfiltered.isnull()].values]
-    vip_df = [x/np.max(np.abs(x)) for x in vip_weights_dfiltered[~vip_weights_dfiltered.isnull()].values]
-    slc_df = [x/np.max(np.abs(x)) for x in slc_weights_dfiltered[~slc_weights_dfiltered.isnull()].values]
-
-    # Interpolate Mesoscope
-    sst_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in sst_df]
-    vip_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in vip_df]
-    slc_df = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in slc_df] 
- 
-    if len(sst_df)>0:
-        sst_df = np.vstack(sst_df)
-    else:
-        sst_df = np.empty((2,len(time_vec)))
-        sst_df[:] = np.nan
-    if len(vip_df)>0:
-        vip_df = np.vstack(vip_df)
-    else:
-        vip_df = np.empty((2,len(time_vec)))
-        vip_df[:] = np.nan
-    if len(slc_df)>0:
-        slc_df = np.vstack(slc_df)
-    else:
-        slc_df = np.empty((2,len(time_vec)))
-        slc_df[:] = np.nan
-
-    ax.fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors['Sst-IRES-Cre'], alpha=0.25)   
-    ax.fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors['Vip-IRES-Cre'], alpha=0.25)    
-    ax.fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors['Slc17a7-IRES2-Cre'], alpha=0.25)    
-    ax.plot(time_vec, sst_df.mean(axis=0),label='SST',color=colors['Sst-IRES-Cre'],linewidth=4)
-    ax.plot(time_vec, vip_df.mean(axis=0),label='VIP',color=colors['Vip-IRES-Cre'],linewidth=4)
-    ax.plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors['Slc17a7-IRES2-Cre'],linewidth=4)
+    # Clean up Plot
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     ax.axvline(0, color='k',linestyle='--',alpha=0.25)
     ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=18)   
     ax.set_xlabel('Time (s)',fontsize=18)
     ax.set_xlim(time_vec[0],time_vec[-1])   
-    add_stimulus_bars(ax,kernel)
+    add_stimulus_bars(ax,kernel,alpha=.1)
     plt.tick_params(axis='both',labelsize=16)
     plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
  
@@ -1315,6 +1290,17 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     if save_results:
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
+
+def plot_kernel_comparison_inner(ax, df,label,color,time_vec, meso_time_vec):
+    df_norm = [x/np.max(np.abs(x)) for x in df[~df.isnull()].values]
+    df_norm = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df_norm]
+    if len(df_norm)>0:
+        df_norm = np.vstack(df_norm)
+    else:
+        df_norm = np.empty((2,len(time_vec)))
+        df_norm[:] = np.nan
+    ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0), df_norm.mean(axis=0)+df_norm.std(axis=0),facecolor=color, alpha=0.25)   
+    ax.plot(time_vec, df_norm.mean(axis=0),label=label,color=color,linewidth=4)
 
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):
     '''
@@ -1789,7 +1775,7 @@ def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold
     for k in crashed:
         print('Crashed - '+k) 
 
-def add_stimulus_bars(ax, kernel):
+def add_stimulus_bars(ax, kernel,alpha=0.25):
     '''
         Adds stimulus bars to the given axis, but only for certain kernels 
     '''
@@ -1805,13 +1791,13 @@ def add_stimulus_bars(ax, kernel):
             # For change aligned kernels, plot the two stimuli different colors
             for flash_start in times:
                 if flash_start < 0:
-                    ax.axvspan(flash_start,flash_start+0.25,color='green',alpha=0.25,zorder=-np.inf)                   
+                    ax.axvspan(flash_start,flash_start+0.25,color='green',alpha=alpha,zorder=-np.inf)                   
                 else:
-                    ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)                   
+                    ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=alpha,zorder=-np.inf)                   
         else:
             # Normal case, just plot all the same color
             for flash_start in times:
-                ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=0.25,zorder=-np.inf)
+                ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=alpha,zorder=-np.inf)
          
 def plot_over_fitting(full_results, dropout,save_file=""):
     ''' 

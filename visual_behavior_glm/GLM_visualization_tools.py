@@ -1814,9 +1814,11 @@ def plot_all_over_fitting(full_results, run_params):
         try:
             # Plot each dropout
             plot_over_fitting(full_results, d,save_file=run_params['fig_overfitting_dir'])
+            plt.close(plt.gcf().number)
         except:
             # Plot crashed for some reason, print error and move on
             print('crashed - '+d)
+            plt.close(plt.gcf().number)
 
 def plot_top_level_dropouts(results_pivoted, filter_cre=False, cre='Slc17a7-IRES2-Cre',bins=150, cmax=10):
     '''

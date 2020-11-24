@@ -1245,7 +1245,12 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
 
     # Plotting settings
-    colors=['C0','C1','C2']
+    cre_lines = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre'] 
+    colors = {
+        'Sst-IRES-Cre':(158/255,218/255,229/255),
+        'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
+        'Vip-IRES-Cre':(197/255,176/255,213/255)
+        }
 
     # Determine filename
     if session_filter != [1,2,3,4,5,6]:
@@ -1289,12 +1294,12 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         slc_df = np.empty((2,len(time_vec)))
         slc_df[:] = np.nan
 
-    ax.fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors[0], alpha=0.1)   
-    ax.fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors[1], alpha=0.1)    
-    ax.fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors[2], alpha=0.1)    
-    ax.plot(time_vec, sst_df.mean(axis=0),label='SST',color=colors[0],linewidth=2)
-    ax.plot(time_vec, vip_df.mean(axis=0),label='VIP',color=colors[1],linewidth=2)
-    ax.plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors[2],linewidth=2)
+    ax.fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors['Sst-IRES-Cre'], alpha=0.25)   
+    ax.fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors['Vip-IRES-Cre'], alpha=0.25)    
+    ax.fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors['Slc17a7-IRES2-Cre'], alpha=0.25)    
+    ax.plot(time_vec, sst_df.mean(axis=0),label='SST',color=colors['Sst-IRES-Cre'],linewidth=4)
+    ax.plot(time_vec, vip_df.mean(axis=0),label='VIP',color=colors['Vip-IRES-Cre'],linewidth=4)
+    ax.plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors['Slc17a7-IRES2-Cre'],linewidth=4)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     ax.axvline(0, color='k',linestyle='--',alpha=0.25)
     ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=18)   

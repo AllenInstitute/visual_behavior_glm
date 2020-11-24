@@ -1306,17 +1306,19 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     if len(compare) >1:
         # Determine number of 2nd level attributes for linestyle definitions 
         num_2nd = len(list(weights[compare[1]].unique()))
-    
+   
     # Iterate over groups of cells
     for dex,group in enumerate(groups):
+
         # Build color, linestyle, and query string for this group
-        color = colors.setdefault(group[0],(100/255,100/255,100/255)) 
         if len(compare) ==1:
             query_str = '({0} == @group)'.format(compare[0])
             linestyle = '-'
+            color = colors.setdefault(group,(100/255,100/255,100/255)) 
         else:
             query_str = '&'.join(['('+x[0]+'==\"'+x[1]+'\")' for x in zip(compare,group)])
             linestyle = lines.setdefault(np.mod(dex,num_2nd),'-')
+            color = colors.setdefault(group[0],(100/255,100/255,100/255)) 
     
         # Filter for this group, and plot
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
@@ -1338,7 +1340,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
 
-def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=2,alpha=.1):
+def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.1):
     '''
         Plots the average kernel for the cells in df
         

@@ -1262,6 +1262,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     # Get all cells data and plot Average Trajectories
     fig,ax=plt.subplots(figsize=(8,4))
     # MARK
+    # Need a system to split the data, then call a helper function that does the query, and plots. 
 
     # Get Dropout filtered data, and plot average kernels
     sst_weights_dfiltered = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel+'_weights']

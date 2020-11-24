@@ -1282,27 +1282,35 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         'active':(.8,.8,.8),
         'passive':(.4,.4,.4),
         'familiar':(222/255,73/255,70/255),
-        'novel':(100/255,152/255,193/255)
+        'novel':(100/255,152/255,193/255),
+        'deep':'r',
+        'shallow':'b'
         }
     lines = {
         0:'-',
         1:'--',
         2:':',
-        3:'-.'
+        3:'-.',
+        4:(0,(1,10)),
+        5:(0,(5,10))
         }
 
     # MARK
     # Get Dropout filtered data, and plot average kernels
     groups = list(weights.groupby(compare).groups.keys())
+    if len(compare) >1:
+        num_top = len(list(weights[compare[1]].unique()))
     for dex,group in enumerate(groups):
         if len(compare) ==1:
             query_str = '({0} == @group)'.format(compare[0])
-        else:
-            query_str = '&'.join(['('+x[0]+'==\"'+x[1]+'\")' for x in zip(compare,group)])
-        if fixed_lines:
             linestyle='-'
         else:
-            linestyle = lines[np.mod(dex,4)]
+            query_str = '&'.join(['('+x[0]+'==\"'+x[1]+'\")' for x in zip(compare,group)])
+            linestyle = lines.setdefault(np.mod(dex,num_top),'-')
+        #if fixed_lines:
+        #    linestyle='-'
+        #else:
+        #    linestyle = lines[np.mod(dex,4)]
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
         color = colors.setdefault(group[0],(100/255,100/255,100/255)) # Color Defaults to gray
         plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, meso_time_vec,plot_errors=plot_errors) 
@@ -1332,8 +1340,8 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_tim
         df_norm = np.empty((2,len(time_vec)))
         df_norm[:] = np.nan
     if plot_errors:
-        ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0), df_norm.mean(axis=0)+df_norm.std(axis=0),facecolor=color, alpha=0.25)   
-    ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=4)
+        ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0), df_norm.mean(axis=0)+df_norm.std(axis=0),facecolor=color, alpha=0.15)   
+    ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=2)
 
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):
     '''

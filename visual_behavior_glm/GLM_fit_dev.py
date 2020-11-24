@@ -118,6 +118,13 @@ def get_analysis_dfs(VERSION):
     weights_df = gat.build_weights_df(run_params, results_pivoted)   
     return run_params, results, results_pivoted, weights_df
 
+def add_categorical(df):
+    df['session'] = [str(x) for x in df['session_number']]
+    df['active'] = ['active' if x in [1,3,4,6] else 'passive' for x in df['session_number']]
+    df['familiar'] = ['familiar' if x in [1,2,3] else 'novel' for x in df['session_number']]
+    df['equipment'] =['scientifica' if x in ['CAM2P.3','CAM2P.4','CAM2P.5'] else 'mesoscope' for x in df['equipment_name']]
+    df['layer'] = ['deep' if x > 250 else 'shallow' for x in df['imaging_depth']] # NEED TO UPDATE
+
 def make_baseline_figures(VERSION):
     
     # Analysis Dataframes 

@@ -1313,7 +1313,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         color = colors.setdefault(group[0],(100/255,100/255,100/255)) 
         if len(compare) ==1:
             query_str = '({0} == @group)'.format(compare[0])
-            linestyle='-'
+            linestyle = '-'
         else:
             query_str = '&'.join(['('+x[0]+'==\"'+x[1]+'\")' for x in zip(compare,group)])
             linestyle = lines.setdefault(np.mod(dex,num_2nd),'-')

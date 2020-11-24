@@ -1206,7 +1206,7 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
 
 
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000]):
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",compare=['cre_line'],plot_errors=True,fixed_lines=True):
     '''
         Plots the average kernel for each cell line. 
         Plots the heatmap of the kernels sorted by time. 
@@ -1223,6 +1223,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         drop_threshold,         the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
         session_filter,         The list of session numbers to include
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both 
+        cell_filter,            "sst","vip","slc", anything else plots all types
     '''
 
     # Filtering out that one session because something is wrong with it, need to follow up TODO
@@ -1238,16 +1239,28 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     elif equipment_filter == "mesoscope":
         equipment_list = ["MESO.1"]
         filter_string += '_mesoscope'
+    
+    # Filter by Cell Type    
+    cell_list = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre']     
+    if cell_filter == "sst":
+        cell_list = ['Sst-IRES-Cre']
+        filter_string += '_sst'
+    elif cell_filter == "vip":
+        cell_list = ['Vip-IRES-Cre']
+        filter_string += '_vip'
+    elif cell_filter == "slc":
+        cell_list = ['Slc17a7-IRES2-Cre']
+        filter_string += '_slc'
 
     # Determine filename
     if session_filter != [1,2,3,4,5,6]:
         filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
     if depth_filter !=[0,1000]:
         filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
-    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison'+filter_string+'.png')
+    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.png')
 
     # Applying hard thresholds to dataset
-    weights = weights_df.query('(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
+    weights = weights_df.query('(cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
 
     # Set up time vectors.
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
@@ -1255,25 +1268,44 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
 
     # Plotting settings
-    cre_lines = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre'] 
+    fig,ax=plt.subplots(figsize=(8,4))
     colors = {
         'Sst-IRES-Cre':(158/255,218/255,229/255),
         'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
-        'Vip-IRES-Cre':(197/255,176/255,213/255)
+        'Vip-IRES-Cre':(197/255,176/255,213/255),
+        '1':(148/255,29/255,39/255),
+        '2':(222/255,73/255,70/255),
+        '3':(239/255,169/255,150/255),
+        '4':(43/255,80/255,144/255),
+        '5':(100/255,152/255,193/255),
+        '6':(195/255,216/255,232/255),
+        'active':(.8,.8,.8),
+        'passive':(.4,.4,.4),
+        'familiar':(222/255,73/255,70/255),
+        'novel':(100/255,152/255,193/255)
+        }
+    lines = {
+        0:'-',
+        1:'--',
+        2:':',
+        3:'-.'
         }
 
-    # Get all cells data and plot Average Trajectories
-    fig,ax=plt.subplots(figsize=(8,4))
     # MARK
-    # Need a system to split the data, then call a helper function that does the query, and plots. 
-
     # Get Dropout filtered data, and plot average kernels
-    sst_weights_dfiltered = weights.query('(cre_line == "Sst-IRES-Cre")')[kernel+'_weights']
-    vip_weights_dfiltered = weights.query('(cre_line == "Vip-IRES-Cre")')[kernel+'_weights']
-    slc_weights_dfiltered = weights.query('(cre_line == "Slc17a7-IRES2-Cre")')[kernel+'_weights']
-    plot_kernel_comparison_inner(ax,sst_weights_dfiltered,'SST', colors['Sst-IRES-Cre'], time_vec, meso_time_vec) 
-    plot_kernel_comparison_inner(ax,vip_weights_dfiltered,'VIP', colors['Vip-IRES-Cre'], time_vec, meso_time_vec) 
-    plot_kernel_comparison_inner(ax,slc_weights_dfiltered,'SLC', colors['Slc17a7-IRES2-Cre'], time_vec, meso_time_vec) 
+    groups = list(weights.groupby(compare).groups.keys())
+    for dex,group in enumerate(groups):
+        if len(compare) ==1:
+            query_str = '({0} == @group)'.format(compare[0])
+        else:
+            query_str = '&'.join(['('+x[0]+'==\"'+x[1]+'\")' for x in zip(compare,group)])
+        if fixed_lines:
+            linestyle='-'
+        else:
+            linestyle = lines[np.mod(dex,4)]
+        weights_dfiltered = weights.query(query_str)[kernel+'_weights']
+        color = colors.setdefault(group[0],(100/255,100/255,100/255)) # Color Defaults to gray
+        plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, meso_time_vec,plot_errors=plot_errors) 
 
     # Clean up Plot
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
@@ -1283,7 +1315,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     ax.set_xlim(time_vec[0],time_vec[-1])   
     add_stimulus_bars(ax,kernel,alpha=.1)
     plt.tick_params(axis='both',labelsize=16)
-    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
+    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare))
  
     ## Final Clean up and Save
     plt.tight_layout()
@@ -1291,7 +1323,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
 
-def plot_kernel_comparison_inner(ax, df,label,color,time_vec, meso_time_vec):
+def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True):
     df_norm = [x/np.max(np.abs(x)) for x in df[~df.isnull()].values]
     df_norm = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df_norm]
     if len(df_norm)>0:
@@ -1299,8 +1331,9 @@ def plot_kernel_comparison_inner(ax, df,label,color,time_vec, meso_time_vec):
     else:
         df_norm = np.empty((2,len(time_vec)))
         df_norm[:] = np.nan
-    ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0), df_norm.mean(axis=0)+df_norm.std(axis=0),facecolor=color, alpha=0.25)   
-    ax.plot(time_vec, df_norm.mean(axis=0),label=label,color=color,linewidth=4)
+    if plot_errors:
+        ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0), df_norm.mean(axis=0)+df_norm.std(axis=0),facecolor=color, alpha=0.25)   
+    ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=4)
 
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):
     '''

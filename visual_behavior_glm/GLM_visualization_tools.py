@@ -1206,12 +1206,10 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
 
 
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",compare=['cre_line'],plot_errors=True,fixed_lines=True):
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",compare=['cre_line'],plot_errors=True):
     '''
-        Plots the average kernel for each cell line. 
-        Plots the heatmap of the kernels sorted by time. 
-        Plots the distribution of dropout scores for this kernel.   
-        Does that analysis for all cells, just cells with a significant variance_explained, and just cells with a significant dropout score. 
+        Plots the average kernel across different comparisons groups of cells
+        First applies hard filters, then compares across remaining cells
 
         INPUTS:
         run_params              = glm_params.load_run_params(<version>) 
@@ -1224,6 +1222,10 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         session_filter,         The list of session numbers to include
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both 
         cell_filter,            "sst","vip","slc", anything else plots all types
+        compare (list of str)   list of categorical labels in weights_df to split on and compare
+                                First entry of compare determines color of the line, second entry determines linestyle
+        plot_errors (bool)      if True, plots a shaded error bar for each group of cells
+    
     '''
 
     # Filtering out that one session because something is wrong with it, need to follow up TODO
@@ -1269,6 +1271,8 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
 
     # Plotting settings
     fig,ax=plt.subplots(figsize=(8,4))
+    
+    # Define color scheme for project
     colors = {
         'Sst-IRES-Cre':(158/255,218/255,229/255),
         'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
@@ -1286,6 +1290,8 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         'deep':'r',
         'shallow':'b'
         }
+
+    # Define linestyles
     lines = {
         0:'-',
         1:'--',
@@ -1295,27 +1301,28 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         5:(0,(5,10))
         }
 
-    # MARK
-    # Get Dropout filtered data, and plot average kernels
+    # Determine unique groups of cells by the categorical attributes in compare
     groups = list(weights.groupby(compare).groups.keys())
     if len(compare) >1:
-        num_top = len(list(weights[compare[1]].unique()))
+        # Determine number of 2nd level attributes for linestyle definitions 
+        num_2nd = len(list(weights[compare[1]].unique()))
+    
+    # Iterate over groups of cells
     for dex,group in enumerate(groups):
+        # Build color, linestyle, and query string for this group
+        color = colors.setdefault(group[0],(100/255,100/255,100/255)) 
         if len(compare) ==1:
             query_str = '({0} == @group)'.format(compare[0])
             linestyle='-'
         else:
             query_str = '&'.join(['('+x[0]+'==\"'+x[1]+'\")' for x in zip(compare,group)])
-            linestyle = lines.setdefault(np.mod(dex,num_top),'-')
-        #if fixed_lines:
-        #    linestyle='-'
-        #else:
-        #    linestyle = lines[np.mod(dex,4)]
+            linestyle = lines.setdefault(np.mod(dex,num_2nd),'-')
+    
+        # Filter for this group, and plot
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
-        color = colors.setdefault(group[0],(100/255,100/255,100/255)) # Color Defaults to gray
         plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, meso_time_vec,plot_errors=plot_errors) 
 
-    # Clean up Plot
+    # Clean Plot, and add details
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     ax.axvline(0, color='k',linestyle='--',alpha=0.25)
     ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=18)   
@@ -2532,7 +2539,6 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         plt.ylabel('Avg '+dropout+'\n for significant cells',fontsize=18)
     plt.xlabel('Session',fontsize=18)
     plt.tick_params(axis='both',labelsize=16)
-    # MARK
     
     # Determine what sessions to plot
     if sessions == 'active':

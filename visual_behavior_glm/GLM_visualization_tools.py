@@ -1332,7 +1332,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     ax.set_xlim(time_vec[0],time_vec[-1])   
     add_stimulus_bars(ax,kernel,alpha=.1)
     plt.tick_params(axis='both',labelsize=16)
-    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare))
+    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
  
     ## Final Clean up and Save
     plt.tight_layout()

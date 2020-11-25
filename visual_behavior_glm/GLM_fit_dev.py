@@ -115,7 +115,8 @@ def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)
     results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='summary')
     results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
-    weights_df = gat.build_weights_df(run_params, results_pivoted)   
+    weights_df = gat.build_weights_df(run_params, results_pivoted)  
+    add_categorical(weights_df) 
     return run_params, results, results_pivoted, weights_df
 
 def add_categorical(df):

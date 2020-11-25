@@ -111,6 +111,23 @@ if False: # Code snippets for doing basic analyses.
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='filtered_magnitude')
 
+def get_analysis_dfs(VERSION):
+    run_params = glm_params.load_run_json(VERSION)
+    results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='summary')
+    results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+    weights_df = gat.build_weights_df(run_params, results_pivoted)  
+    add_categorical(weights_df) 
+    return run_params, results, results_pivoted, weights_df
+
+def add_categorical(df):
+    '''
+        Adds categorical string labels, useful for plotting
+    '''
+    df['session'] = [str(x) for x in df['session_number']]
+    df['active'] = ['active' if x in [1,3,4,6] else 'passive' for x in df['session_number']]
+    df['familiar'] = ['familiar' if x in [1,2,3] else 'novel' for x in df['session_number']]
+    df['equipment'] =['scientifica' if x in ['CAM2P.3','CAM2P.4','CAM2P.5'] else 'mesoscope' for x in df['equipment_name']]
+    df['layer'] = ['deep' if x > 250 else 'shallow' for x in df['imaging_depth']] # NEED TO UPDATE
 
 def make_baseline_figures(VERSION):
     

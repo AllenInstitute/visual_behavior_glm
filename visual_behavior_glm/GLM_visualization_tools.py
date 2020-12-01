@@ -24,8 +24,11 @@ def project_colors():
     '''
     colors = {
         'Sst-IRES-Cre':(158/255,218/255,229/255),
+        'sst':(158/255,218/255,229/255),
         'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
+        'slc':(255/255,152/255,150/255),
         'Vip-IRES-Cre':(197/255,176/255,213/255),
+        'vip':(197/255,176/255,213/255),
         '1':(148/255,29/255,39/255),
         '2':(222/255,73/255,70/255),
         '3':(239/255,169/255,150/255),
@@ -1297,23 +1300,6 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     
     # Define color scheme for project
     colors = project_colors()
-    #colors = {
-    #    'Sst-IRES-Cre':(158/255,218/255,229/255),
-    #    'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
-    #    'Vip-IRES-Cre':(197/255,176/255,213/255),
-    #    '1':(148/255,29/255,39/255),
-    #    '2':(222/255,73/255,70/255),
-    #    '3':(239/255,169/255,150/255),
-    #    '4':(43/255,80/255,144/255),
-    #    '5':(100/255,152/255,193/255),
-    #    '6':(195/255,216/255,232/255),
-    #    'active':(.8,.8,.8),
-    #    'passive':(.4,.4,.4),
-    #    'familiar':(222/255,73/255,70/255),
-    #    'novel':(100/255,152/255,193/255),
-    #    'deep':'r',
-    #    'shallow':'b'
-    #    }
 
     # Define linestyles
     lines = {
@@ -1461,7 +1447,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
             end = time_vec[-1]
  
     # Plotting settings
-    colors=['C0','C1','C2']
+    colors = project_colors()
     line_alpha = 0.25
     width=0.25
 
@@ -1516,12 +1502,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         slc[:] = np.nan
 
     # Plot
-    ax[0,0].fill_between(time_vec, sst.mean(axis=0)-sst.std(axis=0), sst.mean(axis=0)+sst.std(axis=0),facecolor=colors[0], alpha=0.1)   
-    ax[0,0].fill_between(time_vec, vip.mean(axis=0)-vip.std(axis=0), vip.mean(axis=0)+vip.std(axis=0),facecolor=colors[1], alpha=0.1)    
-    ax[0,0].fill_between(time_vec, slc.mean(axis=0)-slc.std(axis=0), slc.mean(axis=0)+slc.std(axis=0),facecolor=colors[2], alpha=0.1)    
-    ax[0,0].plot(time_vec, sst.mean(axis=0),label='SST',color=colors[0])
-    ax[0,0].plot(time_vec, vip.mean(axis=0),label='VIP',color=colors[1])
-    ax[0,0].plot(time_vec, slc.mean(axis=0),label='SLC',color=colors[2])
+    ax[0,0].fill_between(time_vec, sst.mean(axis=0)-sst.std(axis=0), sst.mean(axis=0)+sst.std(axis=0),facecolor=colors['sst'], alpha=0.1)   
+    ax[0,0].fill_between(time_vec, vip.mean(axis=0)-vip.std(axis=0), vip.mean(axis=0)+vip.std(axis=0),facecolor=colors['vip'], alpha=0.1)    
+    ax[0,0].fill_between(time_vec, slc.mean(axis=0)-slc.std(axis=0), slc.mean(axis=0)+slc.std(axis=0),facecolor=colors['slc'], alpha=0.1)    
+    ax[0,0].plot(time_vec, sst.mean(axis=0),label='SST',color=colors['sst'])
+    ax[0,0].plot(time_vec, vip.mean(axis=0),label='VIP',color=colors['vip'])
+    ax[0,0].plot(time_vec, slc.mean(axis=0),label='SLC',color=colors['slc'])
     ax[0,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[0,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
     if mode == 'diagnostic':
@@ -1577,12 +1563,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     else:
         slc_f = np.empty((2,len(time_vec)))
         slc_f[:] = np.nan
-    ax[1,0].fill_between(time_vec, sst_f.mean(axis=0)-sst_f.std(axis=0), sst_f.mean(axis=0)+sst_f.std(axis=0),facecolor=colors[0], alpha=0.1)   
-    ax[1,0].fill_between(time_vec, vip_f.mean(axis=0)-vip_f.std(axis=0), vip_f.mean(axis=0)+vip_f.std(axis=0),facecolor=colors[1], alpha=0.1)    
-    ax[1,0].fill_between(time_vec, slc_f.mean(axis=0)-slc_f.std(axis=0), slc_f.mean(axis=0)+slc_f.std(axis=0),facecolor=colors[2], alpha=0.1)    
-    ax[1,0].plot(time_vec, sst_f.mean(axis=0),label='SST',color=colors[0])
-    ax[1,0].plot(time_vec, vip_f.mean(axis=0),label='VIP',color=colors[1])
-    ax[1,0].plot(time_vec, slc_f.mean(axis=0),label='SLC',color=colors[2])
+    ax[1,0].fill_between(time_vec, sst_f.mean(axis=0)-sst_f.std(axis=0), sst_f.mean(axis=0)+sst_f.std(axis=0),facecolor=colors['sst'], alpha=0.1)   
+    ax[1,0].fill_between(time_vec, vip_f.mean(axis=0)-vip_f.std(axis=0), vip_f.mean(axis=0)+vip_f.std(axis=0),facecolor=colors['vip'], alpha=0.1)    
+    ax[1,0].fill_between(time_vec, slc_f.mean(axis=0)-slc_f.std(axis=0), slc_f.mean(axis=0)+slc_f.std(axis=0),facecolor=colors['slc'], alpha=0.1)    
+    ax[1,0].plot(time_vec, sst_f.mean(axis=0),label='SST',color=colors['sst'])
+    ax[1,0].plot(time_vec, vip_f.mean(axis=0),label='VIP',color=colors['vip'])
+    ax[1,0].plot(time_vec, slc_f.mean(axis=0),label='SLC',color=colors['slc'])
     ax[1,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[1,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
     if mode == 'diagnostic':
@@ -1649,12 +1635,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         slc_df = np.empty((2,len(time_vec)))
         slc_df[:] = np.nan
 
-    ax[2,0].fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors[0], alpha=0.1)   
-    ax[2,0].fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors[1], alpha=0.1)    
-    ax[2,0].fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors[2], alpha=0.1)    
-    ax[2,0].plot(time_vec, sst_df.mean(axis=0),label='SST',color=colors[0])
-    ax[2,0].plot(time_vec, vip_df.mean(axis=0),label='VIP',color=colors[1])
-    ax[2,0].plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors[2])
+    ax[2,0].fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors['sst'], alpha=0.1)   
+    ax[2,0].fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors['vip'], alpha=0.1)    
+    ax[2,0].fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors['slc'], alpha=0.1)    
+    ax[2,0].plot(time_vec, sst_df.mean(axis=0),label='SST',color=colors['sst'])
+    ax[2,0].plot(time_vec, vip_df.mean(axis=0),label='VIP',color=colors['vip'])
+    ax[2,0].plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors['slc'])
     ax[2,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[2,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
     if mode == 'diagnostic':
@@ -1759,7 +1745,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
                                 patch_artist=True,
                                 medianprops=medianprops,
                                 widths=.2)
-        for patch, color in zip(drops['boxes'],colors):
+        for patch, color in zip(drops['boxes'],[colors['sst'],colors['vip'],colors['slc']]):
             patch.set_facecolor(color)
 
     # Clean up plot
@@ -1787,7 +1773,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
                                 patch_artist=True,
                                 medianprops=medianprops,
                                 widths=.2)
-        for patch, color in zip(drops['boxes'],colors):
+        for patch, color in zip(drops['boxes'],[colors['sst'],colors['vip'],colors['slc']]):
             patch.set_facecolor(color)
 
     # Clean up plot
@@ -1820,7 +1806,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
                                 patch_artist=True,
                                 medianprops=medianprops,
                                 widths=.2)
-        for patch, color in zip(drops['boxes'],colors):
+        for patch, color in zip(drops['boxes'],[colors['sst'],colors['vip'],colors['slc']]):
             patch.set_facecolor(color)
 
     # Clean Up Plot

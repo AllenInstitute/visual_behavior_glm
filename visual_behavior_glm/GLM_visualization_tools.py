@@ -2638,7 +2638,7 @@ def plot_dendrogram(glm,regressors='all', method = 'ward', metric = 'euclidean',
     '''
 
     if regressors == 'all':
-         regressors = glm.columns
+         regressors = glm.columns.to_numpy()
             
     X = glm[regressors].fillna(0).to_numpy()
     Z = sch.linkage(X.T, method = method, metric = metric)

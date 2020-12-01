@@ -1240,7 +1240,7 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
 
 
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",compare=['cre_line'],plot_errors=True):
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True):
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1256,6 +1256,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         session_filter,         The list of session numbers to include
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both 
         cell_filter,            "sst","vip","slc", anything else plots all types
+        area_filter,            the list of targeted_structures to include
         compare (list of str)   list of categorical labels in weights_df to split on and compare
                                 First entry of compare determines color of the line, second entry determines linestyle
         plot_errors (bool)      if True, plots a shaded error bar for each group of cells
@@ -1293,10 +1294,12 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
     if depth_filter !=[0,1000]:
         filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
+    if area_filter != ['VISp','VISl']:
+        filter_string+='_area_'+'_'.join(area_filter)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.png')
 
     # Applying hard thresholds to dataset
-    weights = weights_df.query('(cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
+    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
 
     # Set up time vectors.
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)

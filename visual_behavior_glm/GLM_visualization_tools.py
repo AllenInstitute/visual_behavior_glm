@@ -2522,6 +2522,11 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
  
         returns summary dataframe about coding fraction for this dropout
     '''   
+    #TODO
+    # additional_condtions to compare
+    # dont make it automatically filter by cre_line
+    # session_filter xaxis labels has bug
+    # filename updates
  
     # Dumb stability thing because pandas doesnt like '-' in column names
     if '-' in dropout:
@@ -2555,7 +2560,7 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
 
     ## Set up comparisons
     # Set up indexing
-    conditions  =additional_conditions+['cre_line','session_number']
+    conditions  = additional_conditions+['cre_line','session_number']
 
     # Get Total number of cells
     num_cells   = results_pivoted.groupby(conditions)['Full'].count()

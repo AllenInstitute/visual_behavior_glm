@@ -18,6 +18,29 @@ import gc
 from scipy import ndimage
 from scipy import stats
 
+def project_colors():
+    '''
+        Defines a color scheme for various conditions
+    '''
+    colors = {
+        'Sst-IRES-Cre':(158/255,218/255,229/255),
+        'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
+        'Vip-IRES-Cre':(197/255,176/255,213/255),
+        '1':(148/255,29/255,39/255),
+        '2':(222/255,73/255,70/255),
+        '3':(239/255,169/255,150/255),
+        '4':(43/255,80/255,144/255),
+        '5':(100/255,152/255,193/255),
+        '6':(195/255,216/255,232/255),
+        'active':(.8,.8,.8),
+        'passive':(.4,.4,.4),
+        'familiar':(222/255,73/255,70/255),
+        'novel':(100/255,152/255,193/255),
+        'deep':'r',
+        'shallow':'b'
+        } 
+    return colors
+
 def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True,start=10000,end=11000):
     '''
         Plots the time points where each kernel has support 
@@ -1273,23 +1296,24 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     fig,ax=plt.subplots(figsize=(8,4))
     
     # Define color scheme for project
-    colors = {
-        'Sst-IRES-Cre':(158/255,218/255,229/255),
-        'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
-        'Vip-IRES-Cre':(197/255,176/255,213/255),
-        '1':(148/255,29/255,39/255),
-        '2':(222/255,73/255,70/255),
-        '3':(239/255,169/255,150/255),
-        '4':(43/255,80/255,144/255),
-        '5':(100/255,152/255,193/255),
-        '6':(195/255,216/255,232/255),
-        'active':(.8,.8,.8),
-        'passive':(.4,.4,.4),
-        'familiar':(222/255,73/255,70/255),
-        'novel':(100/255,152/255,193/255),
-        'deep':'r',
-        'shallow':'b'
-        }
+    colors = project_colors()
+    #colors = {
+    #    'Sst-IRES-Cre':(158/255,218/255,229/255),
+    #    'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
+    #    'Vip-IRES-Cre':(197/255,176/255,213/255),
+    #    '1':(148/255,29/255,39/255),
+    #    '2':(222/255,73/255,70/255),
+    #    '3':(239/255,169/255,150/255),
+    #    '4':(43/255,80/255,144/255),
+    #    '5':(100/255,152/255,193/255),
+    #    '6':(195/255,216/255,232/255),
+    #    'active':(.8,.8,.8),
+    #    'passive':(.4,.4,.4),
+    #    'familiar':(222/255,73/255,70/255),
+    #    'novel':(100/255,152/255,193/255),
+    #    'deep':'r',
+    #    'shallow':'b'
+    #    }
 
     # Define linestyles
     lines = {

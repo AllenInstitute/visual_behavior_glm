@@ -2577,7 +2577,7 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
             plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level],level,metric=metric)
 
     # Clean up plot
-    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
+    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line',handlelength=4)
     plt.tight_layout()
     
     # Save figure

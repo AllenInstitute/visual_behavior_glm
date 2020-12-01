@@ -2622,28 +2622,28 @@ def plot_coding_fraction_inner(ax,df,color,label,metric='fraction',linestyle='-'
     for dex, val in enumerate(zip(frac,se)):
         plt.plot([dex,dex],[val[0]+val[1],val[0]-val[1]], 'k',linewidth=1)
 
-def plot_dendrogram(glm,regressors='all', method = 'ward', metric = 'euclidean', ax = 'none'):
+def plot_dendrogram(results_pivoted,regressors='all', method = 'ward', metric = 'euclidean', ax = 'none'):
     '''
     Clusters and plots dendrogram of glm regressors using the dropout scores from glm output. 
     More info: https://docs.scipy.org/doc/scipy/reference/cluster.hierarchy.html
     Note: filling NaNs with 0 might affect the result
     
     INPUTS:
-    glm - pandas dataframe of dropout scores from GLM_analysis_tools.build_pivoted_results_summary
+    results_pivoted - pandas dataframe of dropout scores from GLM_analysis_tools.build_pivoted_results_summary
     regressors - list of regressors to cluster; default is all
-    method - string, linckage method ('centroid, 'single', etc); default = 'ward', which minimizes within cluster variance
+    method - string, linckage method ('centroid', 'single', etc); default = 'ward', which minimizes within cluster variance
     metric - string, metric of space in which the data is clustered; default = 'euclidean'
     ax - where to plot
     
-    
     '''
     if regressors == 'all':
-         regressors = glm.columns.to_numpy()
-            
-    X = glm[regressors].fillna(0).to_numpy()
-    Z = sch.linkage(X.T, method = method, metric = metric)
+         regressors = results_pivoted.columns.to_numpy()
+
     if ax =='none':
         fig, ax = plt.subplots(1,1,figsize=(10,10))
+            
+    X = results_pivoted[regressors].fillna(0).to_numpy()
+    Z = sch.linkage(X.T, method = method, metric = metric)
     dend = sch.dendrogram(Z, orientation = 'right',labels = regressors,\
                           color_threshold=None, leaf_font_size = 15, leaf_rotation=0, ax = ax)
     plt.tight_layout()

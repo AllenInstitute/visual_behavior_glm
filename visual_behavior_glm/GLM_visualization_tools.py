@@ -2567,11 +2567,7 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
 
     # Set up color scheme for each cre line
     cre_lines = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre'] 
-    colors = {
-        'Sst-IRES-Cre':(158/255,218/255,229/255),
-        'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
-        'Vip-IRES-Cre':(197/255,176/255,213/255)
-        }
+    colors = project_colors()
     
     if df.index.nlevels > 2:
         # Iterate over additional conditions and cre_line

@@ -40,7 +40,15 @@ def project_colors():
         'familiar':(222/255,73/255,70/255),
         'novel':(100/255,152/255,193/255),
         'deep':'r',
-        'shallow':'b'
+        'shallow':'b',
+        'VISp':'C0',
+        'V1':'C0',
+        'VISl':'C1',
+        'LM':'C1',
+        'VISal':'C2',
+        'AL':'C2',
+        'VISam':'C3',
+        'AM':'C3'
         } 
     return colors
 
@@ -2593,6 +2601,7 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         else:
             savefile = os.path.join(savefile,'coding_'+metric+'_'+dropout+'.png')
         plt.savefig(savefile)
+        print('Figure Saved to: '+ savefile)
     
     # return coding dataframe
     return df 

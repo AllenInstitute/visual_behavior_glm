@@ -2501,7 +2501,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
     if len(fail) > 0:
         print(fail)
 
-def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all',metric='fraction',additional_conditions=[]):
+def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',sessions='all',metric='fraction',additional_conditions=[],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):
     '''
         Plots coding fraction across session for each cre-line
         
@@ -2513,6 +2513,12 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         session (str), 'all', 'passive', or 'active'
         metric (str), 'fraction', 'magnitude', or 'filtered_magnitude'   
         additional_conditions ([str]), one additional categorical condition to split the data by
+        area_filter([str]),         list of targeted structures to include
+        cell_filter(str)            "sst","slc", or "vip" anything else plots all cell types
+        equipment_filter (str)      "mesoscope", or "scientifica" anything else plots all equipment 
+        depth_filter ([min, max])   min and max depth to include
+        session_filter(list)        list of sessions to include # Not fully implemented
+        threshold(float),           minimum full model variance explain
  
         returns summary dataframe about coding fraction for this dropout
     '''   
@@ -2524,9 +2530,30 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         dropout = dropout.replace('-','_')
         
         # Rename dropout in results table
-        if old_dropout in results_pivoted:
-            results_pivoted = results_pivoted.rename({old_dropout:dropout},axis=1)
+        if old_dropout in results_pivoted_in:
+            results_pivoted_in = results_pivoted_in.rename({old_dropout:dropout},axis=1)
+   
+    ## Apply Hard Filters
+    # Filter by equipment 
+    equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
+    if equipment_filter == "scientifica": 
+        equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5"]
+    elif equipment_filter == "mesoscope":
+        equipment_list = ["MESO.1"]
+    
+    # Filter by Cell Type    
+    cell_list = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre']     
+    if cell_filter == "sst":
+        cell_list = ['Sst-IRES-Cre']
+    elif cell_filter == "vip":
+        cell_list = ['Vip-IRES-Cre']
+    elif cell_filter == "slc":
+        cell_list = ['Slc17a7-IRES2-Cre']
 
+    # Apply hard filters
+    results_pivoted = results_pivoted_in.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold)').copy()
+
+    ## Set up comparisons
     # Set up indexing
     conditions  =additional_conditions+['cre_line','session_number']
 
@@ -2534,7 +2561,7 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     num_cells   = results_pivoted.groupby(conditions)['Full'].count()
 
     # Get number of cells with significant coding
-    filter_str  = dropout +' < @threshold'
+    filter_str  = dropout +' < @drop_threshold'
     sig_cells   = results_pivoted.query(filter_str).groupby(conditions)['Full'].count()
 
     # Get Magnitude

@@ -2723,3 +2723,100 @@ def plot_dendrogram(results_pivoted,regressors='all', method = 'ward', metric = 
     
     return
 
+def view_cell_across_sessions(cell_specimen_id, glm_version):
+    '''
+    For a given cell_specimen_id, visualize the cell and mask across sessions for which there is a GLM fit
+    Shows GLM fit var explained in the title
+    inputs:
+        cell_specimen_id
+        glm_version
+    returns tuple:
+        fig - figure handle
+        ax - dictionary of axis handles
+    '''
+    search_dict = {'glm_version':glm_version, 'cell_specimen_id':cell_specimen_id, 'dropout':'Full'}
+
+
+    fig = plt.figure(figsize = (1.5*11,1.5*8.5))
+    axes = {
+        'exp0_full': vbp.placeAxesOnGrid(fig, xspan=(0,0.33), yspan=(0,0.25)),
+        'exp0_zoom': vbp.placeAxesOnGrid(fig, xspan=(0,0.33/2), yspan=(0.275,0.45)),
+        'exp0_roi': vbp.placeAxesOnGrid(fig, xspan=(0.33/2,0.33), yspan=(0.275,0.45)),
+
+        'exp1_full': vbp.placeAxesOnGrid(fig, xspan=(0.33,0.67), yspan=(0,0.25)),
+        'exp1_zoom': vbp.placeAxesOnGrid(fig, xspan=(0.33,0.33+0.33/2), yspan=(0.275,0.45)),
+        'exp1_roi': vbp.placeAxesOnGrid(fig, xspan=(0.33+0.33/2,0.67), yspan=(0.275,0.45)),
+
+        'exp2_full': vbp.placeAxesOnGrid(fig, xspan=(0.67,1), yspan=(0,0.25)),
+        'exp2_zoom': vbp.placeAxesOnGrid(fig, xspan=(0.67,0.67+0.33/2), yspan=(0.275,0.45)),
+        'exp2_roi': vbp.placeAxesOnGrid(fig, xspan=(0.67+0.33/2,1), yspan=(0.275,0.45)),
+
+        'exp3_full': vbp.placeAxesOnGrid(fig, xspan=(0,0.33), yspan=(0.55,0.8)),
+        'exp3_zoom': vbp.placeAxesOnGrid(fig, xspan=(0,0.33/2), yspan=(0.825,1)),
+        'exp3_roi': vbp.placeAxesOnGrid(fig, xspan=(0.33/2,0.33), yspan=(0.825,1)),
+
+        'exp4_full': vbp.placeAxesOnGrid(fig, xspan=(0.33,0.67), yspan=(0.55,0.8)),
+        'exp4_zoom': vbp.placeAxesOnGrid(fig, xspan=(0.33,0.33+0.33/2), yspan=(0.825,1)),
+        'exp4_roi': vbp.placeAxesOnGrid(fig, xspan=(0.33+0.33/2,0.67), yspan=(0.825,1)),
+
+        'exp5_full': vbp.placeAxesOnGrid(fig, xspan=(0.67,1), yspan=(0.55,0.8)),
+        'exp5_zoom': vbp.placeAxesOnGrid(fig, xspan=(0.67,0.67+0.33/2), yspan=(0.825,1)),
+        'exp5_roi': vbp.placeAxesOnGrid(fig, xspan=(0.67+0.33/2,1), yspan=(0.825,1)),
+    }
+
+
+    dropouts_for_cell = gat.retrieve_results(search_dict = search_dict, results_type = 'summary')
+    for idx, row in dropouts_for_cell.sort_values(by='date_of_acquisition').reset_index().iterrows():
+        # get the dataset
+        dataset = loading.get_ophys_dataset(row['ophys_experiment_id'])
+
+        # get the cell mask info from the cell specimen table
+        cell_roi_id = row['cell_roi_id']
+        mask = dataset.cell_specimen_table.query('cell_roi_id == @cell_roi_id')['roi_mask'].iloc[0].astype(float)
+        mask[mask==0]=np.nan
+        xmin, xmax, ymin, ymax = np.where(mask == 1)[1].min(), np.where(mask == 1)[1].max(), np.where(mask == 1)[0].min(), np.where(mask == 1)[0].max()
+
+        # plot the max projection
+        axes['exp{}_full'.format(idx)].imshow(dataset.max_projection, cmap='gray')
+        axes['exp{}_full'.format(idx)].axis('off')
+
+        # add a rectangle around the cell
+        rect = patches.Rectangle(
+            (xmin-20,ymin-20),
+            xmax-xmin + 2*20,
+            ymax-ymin + 2*20,
+            linewidth=1,
+            edgecolor='red',
+            facecolor='none'
+        )
+        axes['exp{}_full'.format(idx)].add_patch(rect)
+
+        # zoom in on the cell
+        axes['exp{}_zoom'.format(idx)].imshow(dataset.max_projection, cmap='gray')
+        axes['exp{}_zoom'.format(idx)].set_xlim(xmin-20, xmax+20)
+        axes['exp{}_zoom'.format(idx)].set_ylim(ymax+20, ymin-20)
+        axes['exp{}_zoom'.format(idx)].axis('off')
+        axes['exp{}_zoom'.format(idx)].set_title('zoom in on cell', fontsize=10)
+
+        # zoom in on the cell and overlay the mask
+        axes['exp{}_roi'.format(idx)].imshow(dataset.max_projection, cmap='gray')
+        axes['exp{}_roi'.format(idx)].imshow(mask, alpha=0.5, cmap='Reds_r')
+        axes['exp{}_roi'.format(idx)].set_xlim(xmin-20, xmax+20)
+        axes['exp{}_roi'.format(idx)].set_ylim(ymax+20, ymin-20)
+        axes['exp{}_roi'.format(idx)].axis('off')
+        axes['exp{}_roi'.format(idx)].set_title('zoom with mask overlaid', fontsize=10)
+
+        # add a title
+        title = '{}\nacquired_on {}\nroi_id {}\nfull model var explained = {:0.1f}%'.format(row['session_type'], row['date_of_acquisition'].split(' ')[0], row['cell_roi_id'], 100*row['variance_explained'])
+        axes['exp{}_full'.format(idx)].set_title(title)
+        
+    for ii in range(idx+1,6):
+        axes['exp{}_full'.format(ii)].axis('off')
+        axes['exp{}_full'.format(ii)].set_title('no model fit')
+        axes['exp{}_zoom'.format(ii)].axis('off')
+        axes['exp{}_roi'.format(ii)].axis('off')
+
+    # add a full figure title
+    fig.suptitle('Cell Specimen ID = {}, Cre line = {}, rig = {}, GLM Version = {}'.format(cell_specimen_id, row['cre_line'], row['equipment_name'], glm_version))
+    
+    return fig, axes

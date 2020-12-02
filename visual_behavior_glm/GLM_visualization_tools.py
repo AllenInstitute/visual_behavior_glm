@@ -2623,28 +2623,32 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
 
     # Set up color scheme for each cre line
     colors = project_colors()
-   
-    # Iterate over groups 
-    if df.index.nlevels > 2:
-        # Iterate over additional conditions and cre_line
-        style= ['-','--',':','-.']
-        levels = df.index.values
-        levels = [(x[0:-1]) for x in levels if x[-1] == 1.0]
-        for dex, level in enumerate(levels):
-            color = colors.setdefault(level[-1],(100/255,100/255,100/255)) 
-            plot_coding_fraction_inner(plt.gca(), df.loc[level], color,level,metric=metric,linestyle=style[int(np.floor(dex/3))])
-    else:
-        # Iterate over cre lines
-        levels = df.index.get_level_values(0).unique()
-        for dex, level in enumerate(levels):
-            color = colors.setdefault(level,(100/255,100/255,100/255)) 
-            plot_coding_fraction_inner(plt.gca(), df.loc[level], color,level,metric=metric)
-    
-    # Iterate over comparison groups
-        # determine color, linestyle
+    lines = ['-','--',':','-.']
+    markers=['o','x','^','v','s']
+  
+    # Make a list of comparison groups to plot, but we group all the session numbers together
+    groups = [(x[0:-1]) for x in df.index.values if x[-1] == session_filter[0]]
+ 
+    # Iterate over groups, and plot
+    for dex, group in enumerate(groups):
+        # Determine color, line, and markerstyle
+        color = colors.setdefault(group[0], (100/255,100/255,100/255))
+        if df.index.nlevels > 2:
+            linedex = np.where(group[1] == np.array(df.index.get_level_values(1).unique()))[0][0]
+            linestyle = lines[np.mod(linedex,len(lines))]
+        else:
+            linestyle = '-'
+        if df.index.nlevels > 3:
+            markerdex = np.where(group[2] == np.array(df.index.get_level_values(2).unique()))[0][0]
+            markerstyle = markers[np.mod(markerdex,len(markers))]
+        else:
+            markerstyle='o'
+
+        # Plot
+        plot_coding_fraction_inner(plt.gca(), df.loc[group], color, group, metric=metric, linestyle=linestyle,markerstyle=markerstyle)
 
     # Clean up plot
-    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line',handlelength=4)
+    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),handlelength=4)
     plt.tight_layout()
     
     # Save figure
@@ -2659,7 +2663,7 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
     # return coding dataframe
     return df 
 
-def plot_coding_fraction_inner(ax,df,color,label,metric='fraction',linestyle='-'):
+def plot_coding_fraction_inner(ax,df,color,label,metric='fraction',linestyle='-',markerstyle='o'):
     '''
         plots the fraction of significant cells with 95% binomial error bars    
         ax, axis to plot on
@@ -2683,11 +2687,11 @@ def plot_coding_fraction_inner(ax,df,color,label,metric='fraction',linestyle='-'
         se   = -se
    
     # Plot the mean values 
-    plt.plot(range(0,len(frac)), frac,'o',linestyle=linestyle,color=color,linewidth=4,label=label)
+    plt.plot(np.array(range(0,len(frac))), frac,marker=markerstyle,linestyle=linestyle,color=color,linewidth=4,label=label)
     
     # Iterate over lines and plot confidence intervals
     for dex, val in enumerate(zip(frac,se)):
         plt.plot([dex,dex],[val[0]+val[1],val[0]-val[1]], 'k',linewidth=1)
-
+        
 
 

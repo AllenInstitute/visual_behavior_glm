@@ -2456,7 +2456,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     return fig, ax
 
 
-def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',additional_conditions=[]):
+def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',compare=[]):
     '''
         Generated coding fraction plots for all dropouts
         results_pivoted, dataframe of dropout scores
@@ -2488,7 +2488,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
 
             # plot the coding fraction
             filepath = run_params['fig_coding_dir']
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,sessions=session,metric=metric,additional_conditions=additional_conditions)
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,sessions=session,metric=metric,compare=compare)
         except:
             
             # Track failures
@@ -2501,17 +2501,17 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
     if len(fail) > 0:
         print(fail)
 
-def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',metric='fraction',additional_conditions=[],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):
+def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',metric='fraction',compare=[],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):
     '''
         Plots coding fraction across session for each cre-line
         
-        results_pivoted, dataframe of dropout scores
-        dropout (str) name of nested model to plot
-        threshold, level of significance for coding fraction
-        savefig (bool), if True, saves figures
-        savefile (str), pathroot to save
-        metric (str), 'fraction', 'magnitude', or 'filtered_magnitude'   
-        additional_conditions ([str]), one additional categorical condition to split the data by
+        results_pivoted,            dataframe of dropout scores
+        dropout (str)               name of nested model to plot
+        threshold,                  level of significance for coding fraction
+        savefig (bool),             if True, saves figures
+        savefile (str),             pathroot to save
+        metric (str),               'fraction', 'magnitude', or 'filtered_magnitude'   
+        compare ([str]),            categorical condition to split the data by
         area_filter([str]),         list of targeted structures to include
         cell_filter(str)            "sst","slc", or "vip" anything else plots all cell types
         equipment_filter (str)      "mesoscope", or "scientifica" anything else plots all equipment 
@@ -2522,9 +2522,7 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
         returns summary dataframe about coding fraction for this dropout
     '''   
     #TODO
-    # additional_condtions to compare
     # dont make it automatically filter by cre_line
-    # session_filter xaxis labels has bug
  
     # Dumb stability thing because pandas doesnt like '-' in column names
     if '-' in dropout:
@@ -2538,6 +2536,7 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
    
     ## Apply Hard Filters
     filter_string = ''
+
     # Filter by equipment 
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
     if equipment_filter == "scientifica": 
@@ -2584,7 +2583,7 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
 
     ## Set up comparisons
     # Set up indexing
-    conditions  = additional_conditions+['cre_line','session_number']
+    conditions  = compare+['cre_line','session_number']
 
     # Get Total number of cells
     num_cells   = results_pivoted.groupby(conditions)['Full'].count()
@@ -2625,9 +2624,9 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
     plt.xticks(range(0,len(xticklabels)),xticklabels, fontsize=18)
 
     # Set up color scheme for each cre line
-    cre_lines = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre'] 
     colors = project_colors()
-    
+   
+    # Iterate over groups 
     if df.index.nlevels > 2:
         # Iterate over additional conditions and cre_line
         style= ['-','--',':','-.']
@@ -2647,8 +2646,8 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
     
     # Save figure
     if savefig:
-        if len(additional_conditions) > 0:
-            savefile = os.path.join(savefile,'coding_'+metric+'_by_'+'_'.join(additional_conditions)+'_'+dropout+filter_string+'.png')
+        if len(compare) > 0:
+            savefile = os.path.join(savefile,'coding_'+metric+'_by_'+'_'.join(compare)+'_'+dropout+filter_string+'.png')
         else:
             savefile = os.path.join(savefile,'coding_'+metric+'_'+dropout+filter_string+'.png')
         plt.savefig(savefile)

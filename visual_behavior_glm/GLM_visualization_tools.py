@@ -2504,6 +2504,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
 def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',metric='fraction',compare=['cre_line'],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):
     '''
         Plots coding fraction across session for each cre-line
+        Applies hard filters, then uses "compare" to split data categorically and plot
         
         results_pivoted,            dataframe of dropout scores
         dropout (str)               name of nested model to plot

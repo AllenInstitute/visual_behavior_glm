@@ -2501,7 +2501,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
     if len(fail) > 0:
         print(fail)
 
-def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',sessions='all',metric='fraction',additional_conditions=[],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):
+def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',metric='fraction',additional_conditions=[],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):
     '''
         Plots coding fraction across session for each cre-line
         
@@ -2510,14 +2510,13 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
         threshold, level of significance for coding fraction
         savefig (bool), if True, saves figures
         savefile (str), pathroot to save
-        session (str), 'all', 'passive', or 'active'
         metric (str), 'fraction', 'magnitude', or 'filtered_magnitude'   
         additional_conditions ([str]), one additional categorical condition to split the data by
         area_filter([str]),         list of targeted structures to include
         cell_filter(str)            "sst","slc", or "vip" anything else plots all cell types
         equipment_filter (str)      "mesoscope", or "scientifica" anything else plots all equipment 
         depth_filter ([min, max])   min and max depth to include
-        session_filter(list)        list of sessions to include # Not fully implemented
+        session_filter(list)        list of sessions to include, or 'all','active','passive','familiar','novel'
         threshold(float),           minimum full model variance explain
  
         returns summary dataframe about coding fraction for this dropout
@@ -2560,7 +2559,20 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
         cell_list = ['Slc17a7-IRES2-Cre']
         filter_string += '_slc'
 
-    if session_filter != [1,2,3,4,5,6]:
+    # Unpack session filter codenames into list of sessions
+    if session_filter == 'all':
+        session_filter = [1,2,3,4,5,6]
+    elif session_filter == 'active':
+        session_filter = [1,3,4,6]
+    elif session_filter == 'passive':
+        session_filter = [2,5]
+    elif session_filter == 'familiar':
+        session_filter = [1,2,3]
+    elif session_filter == 'novel':
+        session_filter = [4,5,6]
+
+    # compile filter info for filename
+    if (session_filter != [1,2,3,4,5,6]):
         filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
     if depth_filter !=[0,1000]:
         filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
@@ -2588,7 +2600,7 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
     # Get fraction significant
     fraction    = sig_cells/num_cells
     
-    # Build datafram
+    # Build dataframe
     fraction    = fraction.rename('fraction')
     sig_cells   = sig_cells.rename('num_sig')
     num_cells   = num_cells.rename('num_cells')
@@ -2607,18 +2619,10 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
     plt.xlabel('Session',fontsize=18)
     plt.tick_params(axis='both',labelsize=16)
     
-    # Determine what sessions to plot
-    if sessions == 'active':
-        # Active only
-        plt.xticks([0,1,2,3],['F1','F3','N1','N3'],fontsize=18)
-        df = df.drop(index=[2.0,5.0], level=1)
-    elif sessions == 'passive':
-        # Passive only
-        plt.xticks([0,1],['F2','N2'],fontsize=18)
-        df = df.drop(index=[1.0,3.0,4.0,6.0], level=1)
-    else:
-        # All sessions
-        plt.xticks([0,1,2,3,4,5],['F1','F2','F3','N1','N2','N3'],fontsize=18)
+    # Determine xtick labels based on what sessions were filtered out 
+    names = ['F1','F2','F3','N1','N2','N3']
+    xticklabels = [names[x-1] for x in session_filter]
+    plt.xticks(range(0,len(xticklabels)),xticklabels, fontsize=18)
 
     # Set up color scheme for each cre line
     cre_lines = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre'] 

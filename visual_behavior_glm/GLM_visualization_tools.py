@@ -2501,7 +2501,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
     if len(fail) > 0:
         print(fail)
 
-def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',metric='fraction',compare=[],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):
+def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',metric='fraction',compare=['cre_line'],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):
     '''
         Plots coding fraction across session for each cre-line
         
@@ -2521,8 +2521,6 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
  
         returns summary dataframe about coding fraction for this dropout
     '''   
-    #TODO
-    # dont make it automatically filter by cre_line
  
     # Dumb stability thing because pandas doesnt like '-' in column names
     if '-' in dropout:
@@ -2583,7 +2581,7 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
 
     ## Set up comparisons
     # Set up indexing
-    conditions  = compare+['cre_line','session_number']
+    conditions  = compare+['session_number']
 
     # Get Total number of cells
     num_cells   = results_pivoted.groupby(conditions)['Full'].count()
@@ -2633,12 +2631,17 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
         levels = df.index.values
         levels = [(x[0:-1]) for x in levels if x[-1] == 1.0]
         for dex, level in enumerate(levels):
-            plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level[-1]],level,metric=metric,linestyle=style[int(np.floor(dex/3))])
+            color = colors.setdefault(level[-1],(100/255,100/255,100/255)) 
+            plot_coding_fraction_inner(plt.gca(), df.loc[level], color,level,metric=metric,linestyle=style[int(np.floor(dex/3))])
     else:
         # Iterate over cre lines
         levels = df.index.get_level_values(0).unique()
         for dex, level in enumerate(levels):
-            plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level],level,metric=metric)
+            color = colors.setdefault(level,(100/255,100/255,100/255)) 
+            plot_coding_fraction_inner(plt.gca(), df.loc[level], color,level,metric=metric)
+    
+    # Iterate over comparison groups
+        # determine color, linestyle
 
     # Clean up plot
     plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line',handlelength=4)

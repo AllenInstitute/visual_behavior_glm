@@ -14,6 +14,7 @@ import time
 from tqdm import tqdm
 from matplotlib import animation, rc
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import gc
 from scipy import ndimage
 from scipy import stats

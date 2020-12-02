@@ -19,6 +19,40 @@ from scipy import ndimage
 from scipy import stats
 import scipy.cluster.hierarchy as sch
 
+def project_colors():
+    '''
+        Defines a color scheme for various conditions
+    '''
+    colors = {
+        'Sst-IRES-Cre':(158/255,218/255,229/255),
+        'sst':(158/255,218/255,229/255),
+        'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
+        'slc':(255/255,152/255,150/255),
+        'Vip-IRES-Cre':(197/255,176/255,213/255),
+        'vip':(197/255,176/255,213/255),
+        '1':(148/255,29/255,39/255),
+        '2':(222/255,73/255,70/255),
+        '3':(239/255,169/255,150/255),
+        '4':(43/255,80/255,144/255),
+        '5':(100/255,152/255,193/255),
+        '6':(195/255,216/255,232/255),
+        'active':(.8,.8,.8),
+        'passive':(.4,.4,.4),
+        'familiar':(222/255,73/255,70/255),
+        'novel':(100/255,152/255,193/255),
+        'deep':'r',
+        'shallow':'b',
+        'VISp':'C0',
+        'V1':'C0',
+        'VISl':'C1',
+        'LM':'C1',
+        'VISal':'C2',
+        'AL':'C2',
+        'VISam':'C3',
+        'AM':'C3'
+        } 
+    return colors
+
 def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True,start=10000,end=11000):
     '''
         Plots the time points where each kernel has support 
@@ -1207,7 +1241,7 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
 
 
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",compare=['cre_line'],plot_errors=True):
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True):
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1223,6 +1257,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         session_filter,         The list of session numbers to include
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both 
         cell_filter,            "sst","vip","slc", anything else plots all types
+        area_filter,            the list of targeted_structures to include
         compare (list of str)   list of categorical labels in weights_df to split on and compare
                                 First entry of compare determines color of the line, second entry determines linestyle
         plot_errors (bool)      if True, plots a shaded error bar for each group of cells
@@ -1260,10 +1295,12 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
     if depth_filter !=[0,1000]:
         filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
+    if area_filter != ['VISp','VISl']:
+        filter_string+='_area_'+'_'.join(area_filter)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.png')
 
     # Applying hard thresholds to dataset
-    weights = weights_df.query('(cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
+    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
 
     # Set up time vectors.
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
@@ -1274,23 +1311,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     fig,ax=plt.subplots(figsize=(8,4))
     
     # Define color scheme for project
-    colors = {
-        'Sst-IRES-Cre':(158/255,218/255,229/255),
-        'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
-        'Vip-IRES-Cre':(197/255,176/255,213/255),
-        '1':(148/255,29/255,39/255),
-        '2':(222/255,73/255,70/255),
-        '3':(239/255,169/255,150/255),
-        '4':(43/255,80/255,144/255),
-        '5':(100/255,152/255,193/255),
-        '6':(195/255,216/255,232/255),
-        'active':(.8,.8,.8),
-        'passive':(.4,.4,.4),
-        'familiar':(222/255,73/255,70/255),
-        'novel':(100/255,152/255,193/255),
-        'deep':'r',
-        'shallow':'b'
-        }
+    colors = project_colors()
 
     # Define linestyles
     lines = {
@@ -1438,7 +1459,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
             end = time_vec[-1]
  
     # Plotting settings
-    colors=['C0','C1','C2']
+    colors = project_colors()
     line_alpha = 0.25
     width=0.25
 
@@ -1493,12 +1514,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         slc[:] = np.nan
 
     # Plot
-    ax[0,0].fill_between(time_vec, sst.mean(axis=0)-sst.std(axis=0), sst.mean(axis=0)+sst.std(axis=0),facecolor=colors[0], alpha=0.1)   
-    ax[0,0].fill_between(time_vec, vip.mean(axis=0)-vip.std(axis=0), vip.mean(axis=0)+vip.std(axis=0),facecolor=colors[1], alpha=0.1)    
-    ax[0,0].fill_between(time_vec, slc.mean(axis=0)-slc.std(axis=0), slc.mean(axis=0)+slc.std(axis=0),facecolor=colors[2], alpha=0.1)    
-    ax[0,0].plot(time_vec, sst.mean(axis=0),label='SST',color=colors[0])
-    ax[0,0].plot(time_vec, vip.mean(axis=0),label='VIP',color=colors[1])
-    ax[0,0].plot(time_vec, slc.mean(axis=0),label='SLC',color=colors[2])
+    ax[0,0].fill_between(time_vec, sst.mean(axis=0)-sst.std(axis=0), sst.mean(axis=0)+sst.std(axis=0),facecolor=colors['sst'], alpha=0.1)   
+    ax[0,0].fill_between(time_vec, vip.mean(axis=0)-vip.std(axis=0), vip.mean(axis=0)+vip.std(axis=0),facecolor=colors['vip'], alpha=0.1)    
+    ax[0,0].fill_between(time_vec, slc.mean(axis=0)-slc.std(axis=0), slc.mean(axis=0)+slc.std(axis=0),facecolor=colors['slc'], alpha=0.1)    
+    ax[0,0].plot(time_vec, sst.mean(axis=0),label='SST',color=colors['sst'])
+    ax[0,0].plot(time_vec, vip.mean(axis=0),label='VIP',color=colors['vip'])
+    ax[0,0].plot(time_vec, slc.mean(axis=0),label='SLC',color=colors['slc'])
     ax[0,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[0,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
     if mode == 'diagnostic':
@@ -1554,12 +1575,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     else:
         slc_f = np.empty((2,len(time_vec)))
         slc_f[:] = np.nan
-    ax[1,0].fill_between(time_vec, sst_f.mean(axis=0)-sst_f.std(axis=0), sst_f.mean(axis=0)+sst_f.std(axis=0),facecolor=colors[0], alpha=0.1)   
-    ax[1,0].fill_between(time_vec, vip_f.mean(axis=0)-vip_f.std(axis=0), vip_f.mean(axis=0)+vip_f.std(axis=0),facecolor=colors[1], alpha=0.1)    
-    ax[1,0].fill_between(time_vec, slc_f.mean(axis=0)-slc_f.std(axis=0), slc_f.mean(axis=0)+slc_f.std(axis=0),facecolor=colors[2], alpha=0.1)    
-    ax[1,0].plot(time_vec, sst_f.mean(axis=0),label='SST',color=colors[0])
-    ax[1,0].plot(time_vec, vip_f.mean(axis=0),label='VIP',color=colors[1])
-    ax[1,0].plot(time_vec, slc_f.mean(axis=0),label='SLC',color=colors[2])
+    ax[1,0].fill_between(time_vec, sst_f.mean(axis=0)-sst_f.std(axis=0), sst_f.mean(axis=0)+sst_f.std(axis=0),facecolor=colors['sst'], alpha=0.1)   
+    ax[1,0].fill_between(time_vec, vip_f.mean(axis=0)-vip_f.std(axis=0), vip_f.mean(axis=0)+vip_f.std(axis=0),facecolor=colors['vip'], alpha=0.1)    
+    ax[1,0].fill_between(time_vec, slc_f.mean(axis=0)-slc_f.std(axis=0), slc_f.mean(axis=0)+slc_f.std(axis=0),facecolor=colors['slc'], alpha=0.1)    
+    ax[1,0].plot(time_vec, sst_f.mean(axis=0),label='SST',color=colors['sst'])
+    ax[1,0].plot(time_vec, vip_f.mean(axis=0),label='VIP',color=colors['vip'])
+    ax[1,0].plot(time_vec, slc_f.mean(axis=0),label='SLC',color=colors['slc'])
     ax[1,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[1,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
     if mode == 'diagnostic':
@@ -1626,12 +1647,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         slc_df = np.empty((2,len(time_vec)))
         slc_df[:] = np.nan
 
-    ax[2,0].fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors[0], alpha=0.1)   
-    ax[2,0].fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors[1], alpha=0.1)    
-    ax[2,0].fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors[2], alpha=0.1)    
-    ax[2,0].plot(time_vec, sst_df.mean(axis=0),label='SST',color=colors[0])
-    ax[2,0].plot(time_vec, vip_df.mean(axis=0),label='VIP',color=colors[1])
-    ax[2,0].plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors[2])
+    ax[2,0].fill_between(time_vec, sst_df.mean(axis=0)-sst_df.std(axis=0), sst_df.mean(axis=0)+sst_df.std(axis=0),facecolor=colors['sst'], alpha=0.1)   
+    ax[2,0].fill_between(time_vec, vip_df.mean(axis=0)-vip_df.std(axis=0), vip_df.mean(axis=0)+vip_df.std(axis=0),facecolor=colors['vip'], alpha=0.1)    
+    ax[2,0].fill_between(time_vec, slc_df.mean(axis=0)-slc_df.std(axis=0), slc_df.mean(axis=0)+slc_df.std(axis=0),facecolor=colors['slc'], alpha=0.1)    
+    ax[2,0].plot(time_vec, sst_df.mean(axis=0),label='SST',color=colors['sst'])
+    ax[2,0].plot(time_vec, vip_df.mean(axis=0),label='VIP',color=colors['vip'])
+    ax[2,0].plot(time_vec, slc_df.mean(axis=0),label='SLC',color=colors['slc'])
     ax[2,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[2,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
     if mode == 'diagnostic':
@@ -1736,7 +1757,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
                                 patch_artist=True,
                                 medianprops=medianprops,
                                 widths=.2)
-        for patch, color in zip(drops['boxes'],colors):
+        for patch, color in zip(drops['boxes'],[colors['sst'],colors['vip'],colors['slc']]):
             patch.set_facecolor(color)
 
     # Clean up plot
@@ -1764,7 +1785,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
                                 patch_artist=True,
                                 medianprops=medianprops,
                                 widths=.2)
-        for patch, color in zip(drops['boxes'],colors):
+        for patch, color in zip(drops['boxes'],[colors['sst'],colors['vip'],colors['slc']]):
             patch.set_facecolor(color)
 
     # Clean up plot
@@ -1797,7 +1818,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
                                 patch_artist=True,
                                 medianprops=medianprops,
                                 widths=.2)
-        for patch, color in zip(drops['boxes'],colors):
+        for patch, color in zip(drops['boxes'],[colors['sst'],colors['vip'],colors['slc']]):
             patch.set_facecolor(color)
 
     # Clean Up Plot
@@ -2436,7 +2457,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     return fig, ax
 
 
-def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',additional_conditions=[]):
+def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',compare=[]):
     '''
         Generated coding fraction plots for all dropouts
         results_pivoted, dataframe of dropout scores
@@ -2468,7 +2489,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
 
             # plot the coding fraction
             filepath = run_params['fig_coding_dir']
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,sessions=session,metric=metric,additional_conditions=additional_conditions)
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,sessions=session,metric=metric,compare=compare)
         except:
             
             # Track failures
@@ -2481,18 +2502,24 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
     if len(fail) > 0:
         print(fail)
 
-def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,savefile='',sessions='all',metric='fraction',additional_conditions=[]):
+def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',metric='fraction',compare=['cre_line'],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):
     '''
         Plots coding fraction across session for each cre-line
+        Applies hard filters, then uses "compare" to split data categorically and plot each group
         
-        results_pivoted, dataframe of dropout scores
-        dropout (str) name of nested model to plot
-        threshold, level of significance for coding fraction
-        savefig (bool), if True, saves figures
-        savefile (str), pathroot to save
-        session (str), 'all', 'passive', or 'active'
-        metric (str), 'fraction', 'magnitude', or 'filtered_magnitude'   
-        additional_conditions ([str]), one additional categorical condition to split the data by
+        results_pivoted,            dataframe of dropout scores
+        dropout (str)               name of nested model to plot
+        threshold,                  level of significance for coding fraction
+        savefig (bool),             if True, saves figures
+        savefile (str),             pathroot to save
+        metric (str),               'fraction', 'magnitude', or 'filtered_magnitude'   
+        compare ([str]),            categorical condition to split the data by
+        area_filter([str]),         list of targeted structures to include
+        cell_filter(str)            "sst","slc", or "vip" anything else plots all cell types
+        equipment_filter (str)      "mesoscope", or "scientifica" anything else plots all equipment 
+        depth_filter ([min, max])   min and max depth to include
+        session_filter(list)        list of sessions to include, or 'all','active','passive','familiar','novel'
+        threshold(float),           minimum full model variance explain
  
         returns summary dataframe about coding fraction for this dropout
     '''   
@@ -2504,17 +2531,65 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
         dropout = dropout.replace('-','_')
         
         # Rename dropout in results table
-        if old_dropout in results_pivoted:
-            results_pivoted = results_pivoted.rename({old_dropout:dropout},axis=1)
+        if old_dropout in results_pivoted_in:
+            results_pivoted_in = results_pivoted_in.rename({old_dropout:dropout},axis=1)
+   
+    ## Apply Hard Filters
+    filter_string = ''
 
+    # Filter by equipment 
+    equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
+    if equipment_filter == "scientifica": 
+        equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5"]
+        filter_string += '_scientifica'
+    elif equipment_filter == "mesoscope":
+        equipment_list = ["MESO.1"]
+        filter_string += '_mesoscope'   
+
+    # Filter by Cell Type    
+    cell_list = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre']     
+    if cell_filter == "sst":
+        cell_list = ['Sst-IRES-Cre']
+        filter_string += '_sst'
+    elif cell_filter == "vip":
+        cell_list = ['Vip-IRES-Cre']
+        filter_string += '_vip'
+    elif cell_filter == "slc":
+        cell_list = ['Slc17a7-IRES2-Cre']
+        filter_string += '_slc'
+
+    # Unpack session filter codenames into list of sessions
+    if session_filter == 'all':
+        session_filter = [1,2,3,4,5,6]
+    elif session_filter == 'active':
+        session_filter = [1,3,4,6]
+    elif session_filter == 'passive':
+        session_filter = [2,5]
+    elif session_filter == 'familiar':
+        session_filter = [1,2,3]
+    elif session_filter == 'novel':
+        session_filter = [4,5,6]
+
+    # compile filter info for filename
+    if (session_filter != [1,2,3,4,5,6]):
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
+    if depth_filter !=[0,1000]:
+        filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
+    if area_filter != ['VISp','VISl']:
+        filter_string+='_area_'+'_'.join(area_filter)
+
+    # Apply hard filters
+    results_pivoted = results_pivoted_in.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold)').copy()
+
+    ## Set up comparisons
     # Set up indexing
-    conditions  =additional_conditions+['cre_line','session_number']
+    conditions  = compare+['session_number']
 
     # Get Total number of cells
     num_cells   = results_pivoted.groupby(conditions)['Full'].count()
 
     # Get number of cells with significant coding
-    filter_str  = dropout +' < @threshold'
+    filter_str  = dropout +' < @drop_threshold'
     sig_cells   = results_pivoted.query(filter_str).groupby(conditions)['Full'].count()
 
     # Get Magnitude
@@ -2524,7 +2599,7 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     # Get fraction significant
     fraction    = sig_cells/num_cells
     
-    # Build datafram
+    # Build dataframe
     fraction    = fraction.rename('fraction')
     sig_cells   = sig_cells.rename('num_sig')
     num_cells   = num_cells.rename('num_cells')
@@ -2543,56 +2618,54 @@ def plot_coding_fraction(results_pivoted, dropout,threshold=-.1,savefig=True,sav
     plt.xlabel('Session',fontsize=18)
     plt.tick_params(axis='both',labelsize=16)
     
-    # Determine what sessions to plot
-    if sessions == 'active':
-        # Active only
-        plt.xticks([0,1,2,3],['F1','F3','N1','N3'],fontsize=18)
-        df = df.drop(index=[2.0,5.0], level=1)
-    elif sessions == 'passive':
-        # Passive only
-        plt.xticks([0,1],['F2','N2'],fontsize=18)
-        df = df.drop(index=[1.0,3.0,4.0,6.0], level=1)
-    else:
-        # All sessions
-        plt.xticks([0,1,2,3,4,5],['F1','F2','F3','N1','N2','N3'],fontsize=18)
+    # Determine xtick labels based on what sessions were filtered out 
+    names = ['F1','F2','F3','N1','N2','N3']
+    xticklabels = [names[x-1] for x in session_filter]
+    plt.xticks(range(0,len(xticklabels)),xticklabels, fontsize=18)
 
     # Set up color scheme for each cre line
-    cre_lines = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre'] 
-    colors = {
-        'Sst-IRES-Cre':(158/255,218/255,229/255),
-        'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
-        'Vip-IRES-Cre':(197/255,176/255,213/255)
-        }
-    
-    if df.index.nlevels > 2:
-        # Iterate over additional conditions and cre_line
-        style= ['-','--',':','-.']
-        levels = df.index.values
-        levels = [(x[0:-1]) for x in levels if x[-1] == 1.0]
-        for dex, level in enumerate(levels):
-            plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level[-1]],level,metric=metric,linestyle=style[int(np.floor(dex/3))])
-    else:
-        # Iterate over cre lines
-        levels = df.index.get_level_values(0).unique()
-        for dex, level in enumerate(levels):
-            plot_coding_fraction_inner(plt.gca(), df.loc[level], colors[level],level,metric=metric)
+    colors = project_colors()
+    lines = ['-','--',':','-.']
+    markers=['o','x','^','v','s']
+  
+    # Make a list of comparison groups to plot, but we group all the session numbers together
+    groups = [(x[0:-1]) for x in df.index.values if x[-1] == session_filter[0]]
+ 
+    # Iterate over groups, and plot
+    for dex, group in enumerate(groups):
+        # Determine color, line, and markerstyle
+        color = colors.setdefault(group[0], (100/255,100/255,100/255))
+        if df.index.nlevels > 2:
+            linedex = np.where(group[1] == np.array(df.index.get_level_values(1).unique()))[0][0]
+            linestyle = lines[np.mod(linedex,len(lines))]
+        else:
+            linestyle = '-'
+        if df.index.nlevels > 3:
+            markerdex = np.where(group[2] == np.array(df.index.get_level_values(2).unique()))[0][0]
+            markerstyle = markers[np.mod(markerdex,len(markers))]
+        else:
+            markerstyle='o'
+
+        # Plot
+        plot_coding_fraction_inner(plt.gca(), df.loc[group], color, group, metric=metric, linestyle=linestyle,markerstyle=markerstyle)
 
     # Clean up plot
-    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title='Cre Line')
+    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),handlelength=4)
     plt.tight_layout()
     
     # Save figure
     if savefig:
-        if len(additional_conditions) > 0:
-            savefile = os.path.join(savefile,'coding_'+metric+'_'+'_'.join(additional_conditions)+'_'+dropout+'.png')
+        if len(compare) > 0:
+            savefile = os.path.join(savefile,'coding_'+metric+'_by_'+'_'.join(compare)+'_'+dropout+filter_string+'.png')
         else:
-            savefile = os.path.join(savefile,'coding_'+metric+'_'+dropout+'.png')
+            savefile = os.path.join(savefile,'coding_'+metric+'_'+dropout+filter_string+'.png')
         plt.savefig(savefile)
+        print('Figure Saved to: '+ savefile)
     
     # return coding dataframe
     return df 
 
-def plot_coding_fraction_inner(ax,df,color,label,metric='fraction',linestyle='-'):
+def plot_coding_fraction_inner(ax,df,color,label,metric='fraction',linestyle='-',markerstyle='o'):
     '''
         plots the fraction of significant cells with 95% binomial error bars    
         ax, axis to plot on
@@ -2616,7 +2689,7 @@ def plot_coding_fraction_inner(ax,df,color,label,metric='fraction',linestyle='-'
         se   = -se
    
     # Plot the mean values 
-    plt.plot(range(0,len(frac)), frac,'o',linestyle=linestyle,color=color,linewidth=4,label=label)
+    plt.plot(np.array(range(0,len(frac))), frac,marker=markerstyle,linestyle=linestyle,color=color,linewidth=4,label=label)
     
     # Iterate over lines and plot confidence intervals
     for dex, val in enumerate(zip(frac,se)):

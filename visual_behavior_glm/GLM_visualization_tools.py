@@ -2526,7 +2526,6 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
     # additional_condtions to compare
     # dont make it automatically filter by cre_line
     # session_filter xaxis labels has bug
-    # filename updates
  
     # Dumb stability thing because pandas doesnt like '-' in column names
     if '-' in dropout:
@@ -2539,21 +2538,34 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
             results_pivoted_in = results_pivoted_in.rename({old_dropout:dropout},axis=1)
    
     ## Apply Hard Filters
+    filter_string = ''
     # Filter by equipment 
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
     if equipment_filter == "scientifica": 
         equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5"]
+        filter_string += '_scientifica'
     elif equipment_filter == "mesoscope":
         equipment_list = ["MESO.1"]
-    
+        filter_string += '_mesoscope'   
+
     # Filter by Cell Type    
     cell_list = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre']     
     if cell_filter == "sst":
         cell_list = ['Sst-IRES-Cre']
+        filter_string += '_sst'
     elif cell_filter == "vip":
         cell_list = ['Vip-IRES-Cre']
+        filter_string += '_vip'
     elif cell_filter == "slc":
         cell_list = ['Slc17a7-IRES2-Cre']
+        filter_string += '_slc'
+
+    if session_filter != [1,2,3,4,5,6]:
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
+    if depth_filter !=[0,1000]:
+        filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
+    if area_filter != ['VISp','VISl']:
+        filter_string+='_area_'+'_'.join(area_filter)
 
     # Apply hard filters
     results_pivoted = results_pivoted_in.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold)').copy()
@@ -2632,9 +2644,9 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
     # Save figure
     if savefig:
         if len(additional_conditions) > 0:
-            savefile = os.path.join(savefile,'coding_'+metric+'_'+'_'.join(additional_conditions)+'_'+dropout+'.png')
+            savefile = os.path.join(savefile,'coding_'+metric+'_by_'+'_'.join(additional_conditions)+'_'+dropout+filter_string+'.png')
         else:
-            savefile = os.path.join(savefile,'coding_'+metric+'_'+dropout+'.png')
+            savefile = os.path.join(savefile,'coding_'+metric+'_'+dropout+filter_string+'.png')
         plt.savefig(savefile)
         print('Figure Saved to: '+ savefile)
     

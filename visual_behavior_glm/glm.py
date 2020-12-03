@@ -128,13 +128,15 @@ class GLM(object):
         self.dropout_summary = self.dropout_summary.merge(
             self.session.cell_specimen_table[['cell_roi_id']],
             left_on='cell_specimen_id',
-            right_index=True
+            right_index=True,
+            how='left'
         )
 
         self.results = self.results.merge(
             self.session.cell_specimen_table[['cell_roi_id']],
             left_index=True,
             right_index=True,
+            how='left'
         )
  
     def get_cells_above_threshold(self, threshold=0.01):

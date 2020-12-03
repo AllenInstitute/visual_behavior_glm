@@ -103,7 +103,7 @@ if False: # Code snippets for doing basic analyses.
     
     # Make Kernel Comparison Figures
     gvt.plot_kernel_comparison(weights_df, run_params, 'omissions',cell_filter='vip',compare=['session'],plot_errors=False) # Example
-    # Then a "make all"
+    gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='vip',compare=['session'],plot_errors=False) # Make them all
 
 
 def get_analysis_dfs(VERSION):
@@ -165,5 +165,7 @@ def make_baseline_figures(VERSION,run_params=None, results=None, results_pivoted
     gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[299,1000])
 
     # Make Kernel Comparison Figures
-
+    gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='vip',compare=['session'],plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='sst',compare=['session'],plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='slc',compare=['session'],plot_errors=False)
 

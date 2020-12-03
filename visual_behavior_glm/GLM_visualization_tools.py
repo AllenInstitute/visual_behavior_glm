@@ -1246,6 +1246,49 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
     return df
 
 
+def plot_all_kernel_comparison(weights_df, run_params, threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False):
+    '''
+        Generated kernel comparison plots for all dropouts
+        weights_df, dataframe of kernels
+        run_params, run json of model version
+    '''
+    
+    # Keep track of what is failing 
+    fail = []
+
+    # Set up which sessions to plot
+    active_only  = ['licks','hits','misses','false_alarms','correct_rejects', 'model_bias','model_task0','model_omissions1','model_timing1D','beh_model','licking']
+    passive_only = ['passive_change']
+    
+    # Iterate over list of dropouts
+    for kernel in run_params['kernels']:
+        if kernel in ['intercept','time']:
+            continue
+
+        # Determine which sessions to plot
+        if kernel in active_only:
+            session_filter = [1,3,4,6]
+        elif kernel in passive_only:
+            session_filter = [2,5]
+        else:
+            session_filter = [1,2,3,4,5,6]
+
+        try:
+            # plot the coding fraction
+            filepath = run_params['fig_kernels_dir']
+            plot_kernel_comparison(weights_df, run_params, kernel, threshold=threshold, drop_threshold=drop_threshold, session_filter=session_filter, equipment_filter=equipment_filter, depth_filter=depth_filter, cell_filter=cell_filter, area_filter=area_filter, compare=compare, plot_errors=plot_errors)
+        except Exception as e:
+            print(e)
+            # Track failures
+            fail.append(kernel)
+    
+        # Close figure
+        plt.close(plt.gcf().number)
+    
+    # Report failures
+    if len(fail) > 0:
+        print('The following kernels failed')
+        print(fail) 
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True):
     '''

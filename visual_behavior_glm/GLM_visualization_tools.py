@@ -36,6 +36,12 @@ def project_colors():
         '4':(43/255,80/255,144/255),
         '5':(100/255,152/255,193/255),
         '6':(195/255,216/255,232/255),
+        '1.0':(148/255,29/255,39/255),
+        '2.0':(222/255,73/255,70/255),
+        '3.0':(239/255,169/255,150/255),
+        '4.0':(43/255,80/255,144/255),
+        '5.0':(100/255,152/255,193/255),
+        '6.0':(195/255,216/255,232/255),
         'active':(.8,.8,.8),
         'passive':(.4,.4,.4),
         'familiar':(222/255,73/255,70/255),
@@ -2457,7 +2463,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     return fig, ax
 
 
-def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',compare=[]):
+def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',compare=['cre_line']):
     '''
         Generated coding fraction plots for all dropouts
         results_pivoted, dataframe of dropout scores
@@ -2489,9 +2495,9 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
 
             # plot the coding fraction
             filepath = run_params['fig_coding_dir']
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,sessions=session,metric=metric,compare=compare)
-        except:
-            
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,session_filter=session,metric=metric,compare=compare)
+        except Exception as e:
+            print(e)
             # Track failures
             fail.append(dropout)
     
@@ -2500,6 +2506,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
     
     # Report failures
     if len(fail) > 0:
+        print('The following kernels failed')
         print(fail)
 
 def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',metric='fraction',compare=['cre_line'],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):

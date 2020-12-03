@@ -85,20 +85,6 @@ if False: # Code snippets for doing basic analyses.
     # Make plot of kernel support
     gvt.plot_kernel_support(g)
 
-    # Make Kernel figures
-    # You may need to `mkdir kernels` 
-    gvt.all_kernels_evaluation(weights_df,run_params)
-    gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="mesoscope")
-    gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="scientifica")
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[1])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[2])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[3])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[4])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[5])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[6])
-    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[0,299])
-    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[299,1000])
-
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 
     gat.compute_over_fitting_proportion(full_results, run_params) 
@@ -107,18 +93,28 @@ if False: # Code snippets for doing basic analyses.
 
     # Make Coding Fraction plots
     # You may need to `mkdir coding` 
-    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction')
-    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
-    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='filtered_magnitude')
+    gvt.plot_coding_fraction(results_pivoted, 'omissions') # Example
+    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction') # Make them all
+
+    # Make Kernel figures
+    # You may need to `mkdir kernels` 
+    gvt.kernel_evaluation(weights_df, run_params, 'omissions') # Example
+    gvt.all_kernels_evaluation(weights_df,run_params) # Make them all
+    
+    # Make Kernel Comparison Figures
+    gvt.plot_kernel_comparison(weights_df, run_params, 'omissions',cell_filter='vip',compare=['session'],plot_errors=False) # Example
+    # Then a "make all"
+
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)
     results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='summary')
     results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+    full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
     weights_df = gat.build_weights_df(run_params, results_pivoted)  
     add_categorical(weights_df) 
     add_categorical(results_pivoted) 
-    return run_params, results, results_pivoted, weights_df
+    return run_params, results, results_pivoted, weights_df, full_results
 
 def add_categorical(df):
     '''
@@ -130,23 +126,28 @@ def add_categorical(df):
     df['equipment'] =['scientifica' if x in ['CAM2P.3','CAM2P.4','CAM2P.5'] else 'mesoscope' for x in df['equipment_name']]
     df['layer'] = ['deep' if x > 250 else 'shallow' for x in df['imaging_depth']] # NEED TO UPDATE
 
-def make_baseline_figures(VERSION):
+def make_baseline_figures(VERSION,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):
     
     # Analysis Dataframes 
     #####################
-    run_params = glm_params.load_run_json(VERSION)
-    results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='summary')
-    results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
-    full_results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='full')
-    weights_df = gat.build_weights_df(run_params, results_pivoted)
+    if run_params is None:
+        run_params, results, results_pivoted, weights_df, full_results = get_analysis_dfs(VERSION)
 
     # Analysis Figures
     #####################
     # Make Nested Model plot (rainbow plot)
     gvt.plot_dropouts(run_params)
+
+    # Make over-fitting figures
+    gat.compute_over_fitting_proportion(full_results, run_params) 
+    gvt.plot_over_fitting_summary(full_results, run_params)
+    gvt.plot_all_over_fitting(full_results, run_params)
+
+    # Make Coding Fraction plots
+    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction')
+    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
     
     # Make Kernel figures
-    # You may need to `mkdir kernels` 
     gvt.all_kernels_evaluation(weights_df,run_params)
     gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="mesoscope")
     gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="scientifica")
@@ -156,19 +157,13 @@ def make_baseline_figures(VERSION):
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[4])
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[5])
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[6])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[1,2,3])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[4,5,6])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[1,3,4,6])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[2,5])
     gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[0,299])
     gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[299,1000])
 
-    # Make over-fitting figures
-    # You may need to `mkdir over_fitting_figures` 
-    gat.compute_over_fitting_proportion(full_results, run_params) 
-    gvt.plot_over_fitting_summary(full_results, run_params)
-    gvt.plot_all_over_fitting(full_results, run_params)
-
-    # Make Coding Fraction plots
-    # You may need to `mkdir coding` 
-    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction')
-    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
-    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='filtered_magnitude')
+    # Make Kernel Comparison Figures
 
 

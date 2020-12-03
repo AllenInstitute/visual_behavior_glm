@@ -5,8 +5,6 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
 from visual_behavior_glm.glm import GLM
-plt.ion()
-
 
 if False: # Code snippets for doing basic analyses. 
 
@@ -110,7 +108,7 @@ def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)
     results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='summary')
     results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
-    full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
+    full_results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='full')
     weights_df = gat.build_weights_df(run_params, results_pivoted)  
     add_categorical(weights_df) 
     add_categorical(results_pivoted) 
@@ -131,8 +129,10 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     # Analysis Dataframes 
     #####################
     if run_params is None:
+        print('loading data')
         run_params, results, results_pivoted, weights_df, full_results = get_analysis_dfs(VERSION)
-    
+        print('making figues')
+
     # Analysis Figures
     #####################
     # Make Nested Model plot (rainbow plot)
@@ -157,15 +157,10 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[4])
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[5])
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[6])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[1,2,3])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[4,5,6])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[1,3,4,6])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[2,5])
-    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[0,250])
-    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[250,1000])
 
     # Make Kernel Comparison Figures across sessions
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='vip',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='sst',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='slc',compare=['session'],plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_df, run_params, compare=['cre_line','layer'],plot_errors=False)
 

@@ -126,13 +126,13 @@ def add_categorical(df):
     df['equipment'] =['scientifica' if x in ['CAM2P.3','CAM2P.4','CAM2P.5'] else 'mesoscope' for x in df['equipment_name']]
     df['layer'] = ['deep' if x > 250 else 'shallow' for x in df['imaging_depth']] # NEED TO UPDATE
 
-def make_baseline_figures(VERSION,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):
+def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):
     
     # Analysis Dataframes 
     #####################
     if run_params is None:
         run_params, results, results_pivoted, weights_df, full_results = get_analysis_dfs(VERSION)
-
+    
     # Analysis Figures
     #####################
     # Make Nested Model plot (rainbow plot)
@@ -161,10 +161,10 @@ def make_baseline_figures(VERSION,run_params=None, results=None, results_pivoted
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[4,5,6])
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[1,3,4,6])
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[2,5])
-    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[0,299])
-    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[299,1000])
+    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[0,250])
+    gvt.all_kernels_evaluation(weights_df,run_params,depth_filter=[250,1000])
 
-    # Make Kernel Comparison Figures
+    # Make Kernel Comparison Figures across sessions
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='vip',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='sst',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='slc',compare=['session'],plot_errors=False)

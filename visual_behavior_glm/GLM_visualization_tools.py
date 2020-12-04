@@ -59,14 +59,14 @@ def project_colors():
         'VISam':'C3',
         'AM':'C3',
         'Full': (.7,.7,.7),
-        'visual':tab20(0),
+        'visual':tab20(0), 
         'all-images':tab20(1),
         'expectation':tab20(2),
-        'behavioral':tab20(8),
+        'behavioral':tab20(8), 
         'face_motion_energy':tab20(9),
         'licking':tab20(10),
         'pupil_and_running':tab20(11),
-        'cognitive':tab20(5),
+        'cognitive':tab20(5), 
         'beh_model':tab20(6),
         'task':tab20(7),
         'face_motion_PC_0':color_interpolate(tab20(9),tab20(11),6,0),
@@ -1224,7 +1224,9 @@ def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
         
     # re-organized dataframe
     df=df[['level-'+str(x) for x in range(1,num_levels+1)]]
+    df['level-3'] = ['avisual' if x == 'visual' else x for x in df['level-3']]
     df = df.sort_values(by=['level-'+str(x) for x in np.arange(num_levels,0,-1)])
+    df['level-3'] = ['visual' if x == 'avisual' else x for x in df['level-3']]
     df['text'] = [run_params['kernels'][k]['text'] for k in df.index.values]
     df['support'] = [(np.round(run_params['kernels'][k]['offset'],2), np.round(run_params['kernels'][k]['length'] +  run_params['kernels'][k]['offset'],2)) for k in df.index.values]
 

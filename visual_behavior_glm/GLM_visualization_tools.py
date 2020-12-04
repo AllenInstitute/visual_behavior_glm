@@ -69,6 +69,7 @@ def project_colors():
         'cognitive':tab20(5), 
         'task':tab20(6),
         'beh_model':tab20(7),
+        'behavioral_model':tab20(7),
         'licks':color_interpolate(tab20(9),tab20(11),6,1),
         'pupil':color_interpolate(tab20(10),tab20(11),5,0),
         'running':color_interpolate(tab20(10),tab20(11),5,2),
@@ -1239,6 +1240,7 @@ def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
     df['level-1'] = ['passive_change' if x == 'bnpassive_change' else x for x in df['level-1']]
     df['text'] = [run_params['kernels'][k]['text'] for k in df.index.values]
     df['support'] = [(np.round(run_params['kernels'][k]['offset'],2), np.round(run_params['kernels'][k]['length'] +  run_params['kernels'][k]['offset'],2)) for k in df.index.values]
+    df['level-2'] = ['behavioral_model' if x == 'beh_model' else x for x in df['level-2']]  
 
     # Make sure all dropouts were used
     if len(drops) > 0:
@@ -1270,7 +1272,7 @@ def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
             dropout = key.split('level-1-')[1]
             if dropout in df.index.values.tolist():
                 df.at[dropout,'color'] = color_dict[key]
-   
+ 
     # Plot Squares
     uniques = set()
     maxn = len(df)

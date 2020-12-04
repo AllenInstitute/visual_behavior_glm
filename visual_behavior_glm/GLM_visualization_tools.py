@@ -23,6 +23,8 @@ def project_colors():
     '''
         Defines a color scheme for various conditions
     '''
+    tab10= plt.get_cmap("tab10")
+    tab20= plt.get_cmap("tab20c")
     colors = {
         'Sst-IRES-Cre':(158/255,218/255,229/255),
         'sst':(158/255,218/255,229/255),
@@ -55,9 +57,50 @@ def project_colors():
         'VISal':'C2',
         'AL':'C2',
         'VISam':'C3',
-        'AM':'C3'
+        'AM':'C3',
+        'Full': (.7,.7,.7),
+        'visual':tab20(0),
+        'all-images':tab20(1),
+        'expectation':tab20(2),
+        'behavioral':tab20(8),
+        'face_motion_energy':tab20(9),
+        'licking':tab20(10),
+        'pupil_and_running':tab20(11),
+        'cognitive':tab20(5),
+        'beh_model':tab20(6),
+        'task':tab20(7),
+        'face_motion_PC_0':color_interpolate(tab20(9),tab20(11),6,0),
+        'face_motion_PC_1':color_interpolate(tab20(9),tab20(11),6,1),
+        'face_motion_PC_2':color_interpolate(tab20(9),tab20(11),6,2),
+        'face_motion_PC_3':color_interpolate(tab20(9),tab20(11),6,3),
+        'face_motion_PC_4':color_interpolate(tab20(9),tab20(11),6,4),
+        'licks':color_interpolate(tab20(9),tab20(11),6,5),
+        'pupil':color_interpolate(tab20(9),tab20(11),6,6),
+        'running':color_interpolate(tab20(9),tab20(11),6,7),
+        'model_bias':color_interpolate(tab20(6),tab20(7),5,0),
+        'model_omissions1':color_interpolate(tab20(6),tab20(7),5,1),
+        'model_task0':color_interpolate(tab20(6),tab20(7),5,2),
+        'model_timing1D':color_interpolate(tab20(6),tab20(7),5,3),
+        'correct_rejects':color_interpolate(tab20(6),tab20(7),5,4),
+        'false_alarms':color_interpolate(tab20(6),tab20(7),5,5),
+        'hits':color_interpolate(tab20(6),tab20(7),5,6),
+        'misses':color_interpolate(tab20(6),tab20(7),5,7),
+        'passive_change':color_interpolate(tab20(6),tab20(7),5,8), 
+        'image0':color_interpolate(tab20(1), tab20(3),8,0),
+        'image1':color_interpolate(tab20(1), tab20(3),8,1),
+        'image2':color_interpolate(tab20(1), tab20(3),8,2),
+        'image3':color_interpolate(tab20(1), tab20(3),8,3),
+        'image4':color_interpolate(tab20(1), tab20(3),8,4),
+        'image5':color_interpolate(tab20(1), tab20(3),8,5),
+        'image6':color_interpolate(tab20(1), tab20(3),8,6),
+        'image7':color_interpolate(tab20(1), tab20(3),8,7),
+        'omissions':color_interpolate(tab20(1), tab20(3),8,8)
         } 
     return colors
+
+def color_interpolate(start, end, num,position):
+    diff = (np.array(start) - np.array(end))/num
+    return tuple(start-diff*position)
 
 def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True,start=10000,end=11000):
     '''
@@ -1122,18 +1165,33 @@ def make_level(df, drops, this_level_num,this_level_drops,run_params):
         drops.remove(d)
     return df,drops
 
-def plot_dropouts(run_params,save_results=True,num_levels=6):
+def plot_high_level_dropouts(VERSION):
+    run_params = glm_params.load_run_json(VERSION)
+    run_params['kernels'].pop('time')
+    run_params['kernels'].pop('intercept')
+    run_params['levels'].pop('2')
+    run_params['levels'].pop('3')
+    run_params['levels']['2'] = run_params['levels'].pop('4')
+    run_params['levels']['3'] = run_params['levels'].pop('5')
+    run_params['levels']['4'] = run_params['levels'].pop('6')
+    cd = plot_dropouts(run_params,num_levels=4,add_text=False)
+    return cd
+
+def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
     '''
         Makes a visual and graphic representation of how the kernels are nested inside dropout models
     '''
     if num_levels==4:
-        plt.figure(figsize=(16,8))
+        if add_text:
+            plt.figure(figsize=(16,8))
+        else:
+            plt.figure(figsize=(12,8))
     elif num_levels==6:
         plt.figure(figsize=(19,8))
     else:
         plt.figure(figsize=(16,8))
-    w = 1/num_levels
-    
+    w = 1/num_levels  
+ 
     # Get list of dropouts and kernels
     drops = set([x for x in run_params['dropouts'] if not run_params['dropouts'][x]['is_single'] ])
     kernels = run_params['kernels'].copy()
@@ -1188,12 +1246,19 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
 
     # add color of level-1 value to df['color']
     df['color'] = None
+    # Get Project Colors
+    proj_colors = project_colors() 
     for key in color_dict.keys():
+        dropout = key.split('-')[2]
+        if dropout == 'all':
+            dropout = 'all-images'
+        if dropout in proj_colors:
+            color_dict[key] = proj_colors[dropout]
         if key.startswith('level-1'):
             dropout = key.split('level-1-')[1]
             if dropout in df.index.values.tolist():
                 df.at[dropout,'color'] = color_dict[key]
-    
+   
     # Plot Squares
     uniques = set()
     maxn = len(df)
@@ -1229,14 +1294,18 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
     plt.ylim(0,len(kernels))
     plt.xlim(0,1)
     labels = ['Individual Model']+['Minor Component']*(num_levels-3)+['Major Component','Full Model']
-    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],labels,fontsize=12)
-    plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
-    plt.gca().get_yaxis().set_tick_params(pad=400)
-    plt.title('Nested Models')
+    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],labels,fontsize=16)
+    if add_text:
+        plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
+        plt.gca().get_yaxis().set_tick_params(pad=400)
+    else:
+        plt.yticks([])
+    plt.title('Nested Models',fontsize=20)
     plt.tight_layout()
-    plt.text(-.255,len(kernels)+.35,'Alignment',fontsize=12)
-    plt.text(-.385,len(kernels)+.35,'Support',fontsize=12)
-    plt.text(-.555,len(kernels)+.35,'Kernel',fontsize=12)
+    if add_text:
+        plt.text(-.255,len(kernels)+.35,'Alignment',fontsize=12)
+        plt.text(-.385,len(kernels)+.35,'Support',fontsize=12)
+        plt.text(-.555,len(kernels)+.35,'Kernel',fontsize=12)
         
     # Save results
     if save_results:

@@ -63,29 +63,29 @@ def project_colors():
         'all-images':tab20(1),
         'expectation':tab20(2),
         'behavioral':tab20(8), 
-        'face_motion_energy':tab20(9),
-        'licking':tab20(10),
-        'pupil_and_running':tab20(11),
+        'licking':tab20(9),
+        'pupil_and_running':tab20(10),
+        'face_motion_energy':tab20(11),
         'cognitive':tab20(5), 
-        'beh_model':tab20(6),
-        'task':tab20(7),
-        'face_motion_PC_0':color_interpolate(tab20(9),tab20(11),6,0),
-        'face_motion_PC_1':color_interpolate(tab20(9),tab20(11),6,1),
-        'face_motion_PC_2':color_interpolate(tab20(9),tab20(11),6,2),
-        'face_motion_PC_3':color_interpolate(tab20(9),tab20(11),6,3),
-        'face_motion_PC_4':color_interpolate(tab20(9),tab20(11),6,4),
-        'licks':color_interpolate(tab20(9),tab20(11),6,5),
-        'pupil':color_interpolate(tab20(9),tab20(11),6,6),
-        'running':color_interpolate(tab20(9),tab20(11),6,7),
-        'model_bias':color_interpolate(tab20(6),tab20(7),5,0),
-        'model_omissions1':color_interpolate(tab20(6),tab20(7),5,1),
-        'model_task0':color_interpolate(tab20(6),tab20(7),5,2),
-        'model_timing1D':color_interpolate(tab20(6),tab20(7),5,3),
-        'correct_rejects':color_interpolate(tab20(6),tab20(7),5,4),
-        'false_alarms':color_interpolate(tab20(6),tab20(7),5,5),
-        'hits':color_interpolate(tab20(6),tab20(7),5,6),
-        'misses':color_interpolate(tab20(6),tab20(7),5,7),
-        'passive_change':color_interpolate(tab20(6),tab20(7),5,8), 
+        'task':tab20(6),
+        'beh_model':tab20(7),
+        'licks':color_interpolate(tab20(9),tab20(11),6,1),
+        'pupil':color_interpolate(tab20(10),tab20(11),5,0),
+        'running':color_interpolate(tab20(10),tab20(11),5,2),
+        'face_motion_PC_0':color_interpolate(tab20(10),tab20(11),5,5),
+        'face_motion_PC_1':color_interpolate(tab20(10),tab20(11),5,6),
+        'face_motion_PC_2':color_interpolate(tab20(10),tab20(11),5,7),
+        'face_motion_PC_3':color_interpolate(tab20(10),tab20(11),5,8),
+        'face_motion_PC_4':color_interpolate(tab20(10),tab20(11),5,9),
+        'hits':color_interpolate(tab20(6),tab20(7),5,0),
+        'misses':color_interpolate(tab20(6),tab20(7),5,1),
+        'passive_change':color_interpolate(tab20(6),tab20(7),5,2), 
+        'correct_rejects':color_interpolate(tab20(6),tab20(7),5,3),
+        'false_alarms':color_interpolate(tab20(6),tab20(7),5,4),
+        'model_bias':color_interpolate(tab20(6),tab20(7),5,5),
+        'model_omissions1':color_interpolate(tab20(6),tab20(7),5,6),
+        'model_task0':color_interpolate(tab20(6),tab20(7),5,7),
+        'model_timing1D':color_interpolate(tab20(6),tab20(7),5,8),
         'image0':color_interpolate(tab20(1), tab20(3),8,0),
         'image1':color_interpolate(tab20(1), tab20(3),8,1),
         'image2':color_interpolate(tab20(1), tab20(3),8,2),
@@ -1225,8 +1225,18 @@ def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
     # re-organized dataframe
     df=df[['level-'+str(x) for x in range(1,num_levels+1)]]
     df['level-3'] = ['avisual' if x == 'visual' else x for x in df['level-3']]
+    df['level-2'] = ['atask' if x == 'task' else x for x in df['level-2']]
+    df['level-2'] = ['zface' if x == 'face_motion_energy' else x for x in df['level-2']]
+    df['level-1'] = ['ahits' if x == 'hits' else x for x in df['level-1']]
+    df['level-1'] = ['bmisses' if x == 'misses' else x for x in df['level-1']]
+    df['level-1'] = ['bnpassive_change' if x == 'passive_change' else x for x in df['level-1']]
     df = df.sort_values(by=['level-'+str(x) for x in np.arange(num_levels,0,-1)])
     df['level-3'] = ['visual' if x == 'avisual' else x for x in df['level-3']]
+    df['level-2'] = ['task' if x == 'atask' else x for x in df['level-2']]
+    df['level-2'] = ['face_motion_energy' if x == 'zface' else x for x in df['level-2']]
+    df['level-1'] = ['hits' if x == 'ahits' else x for x in df['level-1']]
+    df['level-1'] = ['misses' if x == 'bmisses' else x for x in df['level-1']]
+    df['level-1'] = ['passive_change' if x == 'bnpassive_change' else x for x in df['level-1']]
     df['text'] = [run_params['kernels'][k]['text'] for k in df.index.values]
     df['support'] = [(np.round(run_params['kernels'][k]['offset'],2), np.round(run_params['kernels'][k]['length'] +  run_params['kernels'][k]['offset'],2)) for k in df.index.values]
 
@@ -1295,7 +1305,7 @@ def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
     # clean up axes
     plt.ylim(0,len(kernels))
     plt.xlim(0,1)
-    labels = ['Individual Model']+['Minor Component']*(num_levels-3)+['Major Component','Full Model']
+    labels = ['Features']+['Minor Component']*(num_levels-3)+['Major Component','Full Model']
     plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],labels,fontsize=16)
     if add_text:
         plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')

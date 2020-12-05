@@ -87,6 +87,10 @@ def project_colors():
         'model_omissions1':color_interpolate(tab20(6),tab20(7),5,6),
         'model_task0':color_interpolate(tab20(6),tab20(7),5,7),
         'model_timing1D':color_interpolate(tab20(6),tab20(7),5,8),
+        'bias strategy':color_interpolate(tab20(6),tab20(7),5,5),
+        'post omission strategy':color_interpolate(tab20(6),tab20(7),5,6),
+        'task strategy':color_interpolate(tab20(6),tab20(7),5,7),
+        'timing strategy':color_interpolate(tab20(6),tab20(7),5,8),
         'image0':color_interpolate(tab20(1), tab20(3),8,0),
         'image1':color_interpolate(tab20(1), tab20(3),8,1),
         'image2':color_interpolate(tab20(1), tab20(3),8,2),
@@ -1240,8 +1244,15 @@ def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
     df['level-1'] = ['passive_change' if x == 'bnpassive_change' else x for x in df['level-1']]
     df['text'] = [run_params['kernels'][k]['text'] for k in df.index.values]
     df['support'] = [(np.round(run_params['kernels'][k]['offset'],2), np.round(run_params['kernels'][k]['length'] +  run_params['kernels'][k]['offset'],2)) for k in df.index.values]
-    df['level-2'] = ['behavioral_model' if x == 'beh_model' else x for x in df['level-2']]  
 
+    # Rename stuff
+    df['level-2'] = ['behavioral_model' if x == 'beh_model' else x for x in df['level-2']]  
+    df['level-2'] = ['licks' if x == 'licks' else x for x in df['level-2']]
+    df['level-2'] = ['omissions' if x == 'expectation' else x for x in df['level-2']]
+    df['level-1'] = ['bias strategy' if x == 'model_bias' else x for x in df['level-1']]
+    df['level-1'] = ['task strategy' if x == 'model_task0' else x for x in df['level-1']]
+    df['level-1'] = ['post omission strategy' if x == 'model_omissions1' else x for x in df['level-1']]
+    df['level-1'] = ['timing strategy' if x == 'model_timing1D' else x for x in df['level-1']]
     # Make sure all dropouts were used
     if len(drops) > 0:
         print('Warning, dropouts not used')

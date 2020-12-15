@@ -257,15 +257,23 @@ def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None)
 
     jointplot = sns.jointplot(
         data = comparison_table,
-        x='6_L2_optimize_by_session',
-        y='7_L2_optimize_by_session',
-        hue='cre_line',
-        hue_order=np.sort(comparison_table['cre_line'].unique()),
-        alpha=0.15,
-        marginal_kws={'common_norm':False},
+        x = versions_to_compare[0],
+        y = versions_to_compare[1],
+        hue = 'cre_line',
+        hue_order = np.sort(comparison_table['cre_line'].dropna().unique()),
+        alpha = 0.15,
+        marginal_kws = {'common_norm':False},
     )
 
-    jointplot.ax_joint.plot([0,1],[0,1],color='k',linewidth=2,alpha=0.5,zorder=np.inf)
+    # add a diagonal black line
+    jointplot.ax_joint.plot(
+        [0,1],
+        [0,1], 
+        color='k',
+        linewidth=2,
+        alpha=0.5,
+        zorder=np.inf
+    )
     return jointplot
 
 def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save_fig=False,filename=None):

@@ -3,6 +3,9 @@ import time
 from visual_behavior_glm.glm import GLM
 import visual_behavior_glm.GLM_visualization_tools as gvt
 
+import warnings
+warnings.filterwarnings("ignore")
+
 parser = argparse.ArgumentParser(description='generate GLM movie')
 parser.add_argument(
     '--oeid', 

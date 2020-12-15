@@ -24,6 +24,7 @@ def project_colors():
     '''
         Defines a color scheme for various conditions
     '''
+    tab20= plt.get_cmap("tab20c")
     colors = {
         'Sst-IRES-Cre':(158/255,218/255,229/255),
         'sst':(158/255,218/255,229/255),
@@ -37,6 +38,12 @@ def project_colors():
         '4':(43/255,80/255,144/255),
         '5':(100/255,152/255,193/255),
         '6':(195/255,216/255,232/255),
+        '1.0':(148/255,29/255,39/255),
+        '2.0':(222/255,73/255,70/255),
+        '3.0':(239/255,169/255,150/255),
+        '4.0':(43/255,80/255,144/255),
+        '5.0':(100/255,152/255,193/255),
+        '6.0':(195/255,216/255,232/255),
         'active':(.8,.8,.8),
         'passive':(.4,.4,.4),
         'familiar':(222/255,73/255,70/255),
@@ -50,9 +57,55 @@ def project_colors():
         'VISal':'C2',
         'AL':'C2',
         'VISam':'C3',
-        'AM':'C3'
+        'AM':'C3',
+        'Full': (.7,.7,.7),
+        'visual':tab20(0), 
+        'all-images':tab20(1),
+        'expectation':tab20(2),
+        'behavioral':tab20(8), 
+        'licking':tab20(9),
+        'pupil_and_running':tab20(10),
+        'face_motion_energy':tab20(11),
+        'cognitive':tab20(5), 
+        'task':tab20(6),
+        'beh_model':tab20(7),
+        'behavioral_model':tab20(7),
+        'licks':color_interpolate(tab20(9),tab20(11),6,1),
+        'pupil':color_interpolate(tab20(10),tab20(11),5,0),
+        'running':color_interpolate(tab20(10),tab20(11),5,2),
+        'face_motion_PC_0':color_interpolate(tab20(10),tab20(11),5,5),
+        'face_motion_PC_1':color_interpolate(tab20(10),tab20(11),5,6),
+        'face_motion_PC_2':color_interpolate(tab20(10),tab20(11),5,7),
+        'face_motion_PC_3':color_interpolate(tab20(10),tab20(11),5,8),
+        'face_motion_PC_4':color_interpolate(tab20(10),tab20(11),5,9),
+        'hits':color_interpolate(tab20(6),tab20(7),5,0),
+        'misses':color_interpolate(tab20(6),tab20(7),5,1),
+        'passive_change':color_interpolate(tab20(6),tab20(7),5,2), 
+        'correct_rejects':color_interpolate(tab20(6),tab20(7),5,3),
+        'false_alarms':color_interpolate(tab20(6),tab20(7),5,4),
+        'model_bias':color_interpolate(tab20(6),tab20(7),5,5),
+        'model_omissions1':color_interpolate(tab20(6),tab20(7),5,6),
+        'model_task0':color_interpolate(tab20(6),tab20(7),5,7),
+        'model_timing1D':color_interpolate(tab20(6),tab20(7),5,8),
+        'bias strategy':color_interpolate(tab20(6),tab20(7),5,5),
+        'post omission strategy':color_interpolate(tab20(6),tab20(7),5,6),
+        'task strategy':color_interpolate(tab20(6),tab20(7),5,7),
+        'timing strategy':color_interpolate(tab20(6),tab20(7),5,8),
+        'image0':color_interpolate(tab20(1), tab20(3),8,0),
+        'image1':color_interpolate(tab20(1), tab20(3),8,1),
+        'image2':color_interpolate(tab20(1), tab20(3),8,2),
+        'image3':color_interpolate(tab20(1), tab20(3),8,3),
+        'image4':color_interpolate(tab20(1), tab20(3),8,4),
+        'image5':color_interpolate(tab20(1), tab20(3),8,5),
+        'image6':color_interpolate(tab20(1), tab20(3),8,6),
+        'image7':color_interpolate(tab20(1), tab20(3),8,7),
+        'omissions':color_interpolate(tab20(1), tab20(3),8,8)
         } 
     return colors
+
+def color_interpolate(start, end, num,position):
+    diff = (np.array(start) - np.array(end))/num
+    return tuple(start-diff*position)
 
 def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True,start=10000,end=11000):
     '''
@@ -1117,18 +1170,40 @@ def make_level(df, drops, this_level_num,this_level_drops,run_params):
         drops.remove(d)
     return df,drops
 
-def plot_dropouts(run_params,save_results=True,num_levels=6):
+def plot_high_level_dropouts(VERSION):
+    '''
+        Plots the full model, major and minor components, and the features.
+        Ignores time and intercept. 
+    '''
+    run_params = glm_params.load_run_json(VERSION)
+    run_params['kernels'].pop('time')
+    run_params['kernels'].pop('intercept')
+    run_params['levels'].pop('2')
+    run_params['levels'].pop('3')
+    run_params['levels']['2'] = run_params['levels'].pop('4')
+    run_params['levels']['3'] = run_params['levels'].pop('5')
+    run_params['levels']['4'] = run_params['levels'].pop('6')
+    cd = plot_dropouts(run_params,num_levels=4,add_text=False)
+    return cd
+
+def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
     '''
         Makes a visual and graphic representation of how the kernels are nested inside dropout models
+        save_results (bool) if True, saves the figure
+        num_levels (int) number of levels in nested model to plot
+        add_text (bool) if True, adds descriptive text to left hand side of plot for each kernel
     '''
     if num_levels==4:
-        plt.figure(figsize=(16,8))
+        if add_text:
+            plt.figure(figsize=(16,8))
+        else:
+            plt.figure(figsize=(12,8))
     elif num_levels==6:
         plt.figure(figsize=(19,8))
     else:
         plt.figure(figsize=(16,8))
-    w = 1/num_levels
-    
+    w = 1/num_levels  
+ 
     # Get list of dropouts and kernels
     drops = set([x for x in run_params['dropouts'] if not run_params['dropouts'][x]['is_single'] ])
     kernels = run_params['kernels'].copy()
@@ -1160,10 +1235,32 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
         df,drops = make_level(df,drops, level,  levels[level],  run_params)
         
     # re-organized dataframe
+    # All the renaming is for sorting the features
     df=df[['level-'+str(x) for x in range(1,num_levels+1)]]
+    df['level-3'] = ['avisual' if x == 'visual' else x for x in df['level-3']]
+    df['level-2'] = ['atask' if x == 'task' else x for x in df['level-2']]
+    df['level-2'] = ['zface' if x == 'face_motion_energy' else x for x in df['level-2']]
+    df['level-1'] = ['ahits' if x == 'hits' else x for x in df['level-1']]
+    df['level-1'] = ['bmisses' if x == 'misses' else x for x in df['level-1']]
+    df['level-1'] = ['bnpassive_change' if x == 'passive_change' else x for x in df['level-1']]
     df = df.sort_values(by=['level-'+str(x) for x in np.arange(num_levels,0,-1)])
+    df['level-3'] = ['visual' if x == 'avisual' else x for x in df['level-3']]
+    df['level-2'] = ['task' if x == 'atask' else x for x in df['level-2']]
+    df['level-2'] = ['face_motion_energy' if x == 'zface' else x for x in df['level-2']]
+    df['level-1'] = ['hits' if x == 'ahits' else x for x in df['level-1']]
+    df['level-1'] = ['misses' if x == 'bmisses' else x for x in df['level-1']]
+    df['level-1'] = ['passive_change' if x == 'bnpassive_change' else x for x in df['level-1']]
     df['text'] = [run_params['kernels'][k]['text'] for k in df.index.values]
     df['support'] = [(np.round(run_params['kernels'][k]['offset'],2), np.round(run_params['kernels'][k]['length'] +  run_params['kernels'][k]['offset'],2)) for k in df.index.values]
+
+    # Rename stuff, purely for explanatory purposes
+    df['level-2'] = ['behavioral_model' if x == 'beh_model' else x for x in df['level-2']]  
+    df['level-2'] = ['licks' if x == 'licks' else x for x in df['level-2']]
+    df['level-2'] = ['omissions' if x == 'expectation' else x for x in df['level-2']]
+    df['level-1'] = ['bias strategy' if x == 'model_bias' else x for x in df['level-1']]
+    df['level-1'] = ['task strategy' if x == 'model_task0' else x for x in df['level-1']]
+    df['level-1'] = ['post omission strategy' if x == 'model_omissions1' else x for x in df['level-1']]
+    df['level-1'] = ['timing strategy' if x == 'model_timing1D' else x for x in df['level-1']]
 
     # Make sure all dropouts were used
     if len(drops) > 0:
@@ -1183,12 +1280,19 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
 
     # add color of level-1 value to df['color']
     df['color'] = None
+    # Get Project Colors
+    proj_colors = project_colors() 
     for key in color_dict.keys():
+        dropout = key.split('-')[2]
+        if dropout == 'all':
+            dropout = 'all-images'
+        if dropout in proj_colors:
+            color_dict[key] = proj_colors[dropout]
         if key.startswith('level-1'):
             dropout = key.split('level-1-')[1]
             if dropout in df.index.values.tolist():
                 df.at[dropout,'color'] = color_dict[key]
-    
+ 
     # Plot Squares
     uniques = set()
     maxn = len(df)
@@ -1223,15 +1327,19 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
     # clean up axes
     plt.ylim(0,len(kernels))
     plt.xlim(0,1)
-    labels = ['Individual Model']+['Minor Component']*(num_levels-3)+['Major Component','Full Model']
-    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],labels,fontsize=12)
-    plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
-    plt.gca().get_yaxis().set_tick_params(pad=400)
-    plt.title('Nested Models')
+    labels = ['Features']+['Minor Component']*(num_levels-3)+['Major Component','Full Model']
+    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],labels,fontsize=16)
+    if add_text:
+        plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
+        plt.gca().get_yaxis().set_tick_params(pad=400)
+    else:
+        plt.yticks([])
+    plt.title('Nested Models',fontsize=20)
     plt.tight_layout()
-    plt.text(-.255,len(kernels)+.35,'Alignment',fontsize=12)
-    plt.text(-.385,len(kernels)+.35,'Support',fontsize=12)
-    plt.text(-.555,len(kernels)+.35,'Kernel',fontsize=12)
+    if add_text:
+        plt.text(-.255,len(kernels)+.35,'Alignment',fontsize=12)
+        plt.text(-.385,len(kernels)+.35,'Support',fontsize=12)
+        plt.text(-.555,len(kernels)+.35,'Kernel',fontsize=12)
         
     # Save results
     if save_results:
@@ -1241,6 +1349,49 @@ def plot_dropouts(run_params,save_results=True,num_levels=6):
     return df
 
 
+def plot_all_kernel_comparison(weights_df, run_params, threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False):
+    '''
+        Generated kernel comparison plots for all dropouts
+        weights_df, dataframe of kernels
+        run_params, run json of model version
+    '''
+    
+    # Keep track of what is failing 
+    fail = []
+
+    # Set up which sessions to plot
+    active_only  = ['licks','hits','misses','false_alarms','correct_rejects', 'model_bias','model_task0','model_omissions1','model_timing1D','beh_model','licking']
+    passive_only = ['passive_change']
+    
+    # Iterate over list of dropouts
+    for kernel in run_params['kernels']:
+        if kernel in ['intercept','time']:
+            continue
+
+        # Determine which sessions to plot
+        if kernel in active_only:
+            session_filter = [1,3,4,6]
+        elif kernel in passive_only:
+            session_filter = [2,5]
+        else:
+            session_filter = [1,2,3,4,5,6]
+
+        try:
+            # plot the coding fraction
+            filepath = run_params['fig_kernels_dir']
+            plot_kernel_comparison(weights_df, run_params, kernel, threshold=threshold, drop_threshold=drop_threshold, session_filter=session_filter, equipment_filter=equipment_filter, depth_filter=depth_filter, cell_filter=cell_filter, area_filter=area_filter, compare=compare, plot_errors=plot_errors)
+        except Exception as e:
+            print(e)
+            # Track failures
+            fail.append(kernel)
+    
+        # Close figure
+        plt.close(plt.gcf().number)
+    
+    # Report failures
+    if len(fail) > 0:
+        print('The following kernels failed')
+        print(fail) 
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True):
     '''
@@ -2458,7 +2609,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     return fig, ax
 
 
-def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',compare=[]):
+def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',compare=['cre_line']):
     '''
         Generated coding fraction plots for all dropouts
         results_pivoted, dataframe of dropout scores
@@ -2490,9 +2641,9 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
 
             # plot the coding fraction
             filepath = run_params['fig_coding_dir']
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,sessions=session,metric=metric,compare=compare)
-        except:
-            
+            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,session_filter=session,metric=metric,compare=compare)
+        except Exception as e:
+            print(e)
             # Track failures
             fail.append(dropout)
     
@@ -2501,6 +2652,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
     
     # Report failures
     if len(fail) > 0:
+        print('The following kernels failed')
         print(fail)
 
 def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',metric='fraction',compare=['cre_line'],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):

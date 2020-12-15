@@ -23,7 +23,6 @@ def project_colors():
     '''
         Defines a color scheme for various conditions
     '''
-    tab10= plt.get_cmap("tab10")
     tab20= plt.get_cmap("tab20c")
     colors = {
         'Sst-IRES-Cre':(158/255,218/255,229/255),

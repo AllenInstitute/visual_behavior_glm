@@ -1170,6 +1170,10 @@ def make_level(df, drops, this_level_num,this_level_drops,run_params):
     return df,drops
 
 def plot_high_level_dropouts(VERSION):
+    '''
+        Plots the full model, major and minor components, and the features.
+        Ignores time and intercept. 
+    '''
     run_params = glm_params.load_run_json(VERSION)
     run_params['kernels'].pop('time')
     run_params['kernels'].pop('intercept')
@@ -1184,6 +1188,9 @@ def plot_high_level_dropouts(VERSION):
 def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
     '''
         Makes a visual and graphic representation of how the kernels are nested inside dropout models
+        save_results (bool) if True, saves the figure
+        num_levels (int) number of levels in nested model to plot
+        add_text (bool) if True, adds descriptive text to left hand side of plot for each kernel
     '''
     if num_levels==4:
         if add_text:
@@ -1227,6 +1234,7 @@ def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
         df,drops = make_level(df,drops, level,  levels[level],  run_params)
         
     # re-organized dataframe
+    # All the renaming is for sorting the features
     df=df[['level-'+str(x) for x in range(1,num_levels+1)]]
     df['level-3'] = ['avisual' if x == 'visual' else x for x in df['level-3']]
     df['level-2'] = ['atask' if x == 'task' else x for x in df['level-2']]
@@ -1244,7 +1252,7 @@ def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
     df['text'] = [run_params['kernels'][k]['text'] for k in df.index.values]
     df['support'] = [(np.round(run_params['kernels'][k]['offset'],2), np.round(run_params['kernels'][k]['length'] +  run_params['kernels'][k]['offset'],2)) for k in df.index.values]
 
-    # Rename stuff
+    # Rename stuff, purely for explanatory purposes
     df['level-2'] = ['behavioral_model' if x == 'beh_model' else x for x in df['level-2']]  
     df['level-2'] = ['licks' if x == 'licks' else x for x in df['level-2']]
     df['level-2'] = ['omissions' if x == 'expectation' else x for x in df['level-2']]
@@ -1252,6 +1260,7 @@ def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True):
     df['level-1'] = ['task strategy' if x == 'model_task0' else x for x in df['level-1']]
     df['level-1'] = ['post omission strategy' if x == 'model_omissions1' else x for x in df['level-1']]
     df['level-1'] = ['timing strategy' if x == 'model_timing1D' else x for x in df['level-1']]
+
     # Make sure all dropouts were used
     if len(drops) > 0:
         print('Warning, dropouts not used')

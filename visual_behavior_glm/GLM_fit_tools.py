@@ -87,10 +87,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Processing df/f data
     print('Processing df/f data')
-    fit= dict()
-    fit['dff_trace_arr'] = process_data(session,run_params, TESTING=TESTING)
-    fit = annotate_dff(fit)
-    fit['ophys_frame_rate'] = session.dataset.metadata['ophys_frame_rate'] 
+    fit = extract_and_annotate_dff(session,run_params, TESTING=TESTING)
 
     # Make Design Matrix
     print('Build Design Matrix')
@@ -803,9 +800,9 @@ def process_data(session,run_params, TESTING=False):
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
     
     if ('use_events' in run_params) & (run_params['use_events']):
-        events_trace_arr = get_events_arr(session, timestamps_to_use)
-        
+        events_trace_arr = get_events_arr(session, timestamps_to_use) 
         assert np.size(dff_trace_arr) == np.size(events_trace_arr), 'Events array doesnt match size of df/f array'
+        dff_trace_arr = events_trace_arr
 
     # some assert statements to ensure that dimensions are correct
     assert np.sum(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
@@ -818,9 +815,18 @@ def process_data(session,run_params, TESTING=False):
 
     return dff_trace_arr
 
-def annotate_dff(fit):
+def extract_and_annotate_dff(session, run_params,TESTING=False):
+    '''
+        Creates fit dictionary
+        extracts dff_trace or events_trace from session object
+        sets up the timestamps to be used
+        sets up bins for binning times onto the ophys timestamps
+    '''
+    fit= dict()
+    fit['dff_trace_arr'] = process_data(session,run_params, TESTING=TESTING)
     fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
     fit['dff_trace_bins'] = np.concatenate([fit['dff_trace_timestamps'],[fit['dff_trace_timestamps'][-1]+np.mean(np.diff(fit['dff_trace_timestamps']))]])  
+    fit['ophys_frame_rate'] = session.dataset.metadata['ophys_frame_rate'] 
     return fit
 
 def add_kernels(design, run_params,session, fit):

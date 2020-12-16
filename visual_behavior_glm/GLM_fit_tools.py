@@ -88,7 +88,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     # Processing df/f data
     print('Processing df/f data')
     fit= dict()
-    fit['dff_trace_arr'] = process_data(session,TESTING=TESTING)
+    fit['dff_trace_arr'] = process_data(session,run_params, TESTING=TESTING)
     fit = annotate_dff(fit)
     fit['ophys_frame_rate'] = session.dataset.metadata['ophys_frame_rate'] 
 
@@ -781,7 +781,7 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     return ophys_eye 
 
 
-def process_data(session,TESTING=False):
+def process_data(session,run_params, TESTING=False):
     '''
     Processes dff traces by trimming off portions of recording session outside of the task period. These include:
         * a ~5 minute gray screen period before the task begins
@@ -789,6 +789,7 @@ def process_data(session,TESTING=False):
         * a 5-10 minute movie following the second gray screen period
     
     input -- session object 
+    run_params, run json dictionary
     TESTING,        if True, only includes the first 6 cells of the experiment
 
     returns -- an xarray of of deltaF/F traces with dimensions [timestamps, cell_specimen_ids]
@@ -800,6 +801,11 @@ def process_data(session,TESTING=False):
 
     # Get the matrix of dff traces
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
+    
+    if ('use_events' in run_params) & (run_params['use_events']):
+        events_trace_arr = get_events_arr(session, timestamps_to_use)
+        
+        assert np.size(dff_trace_arr) == np.size(events_trace_arr), 'Events array doesnt match size of df/f array'
 
     # some assert statements to ensure that dimensions are correct
     assert np.sum(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
@@ -1274,6 +1280,34 @@ def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
         & (session.ophys_timestamps < filtered_stimulus_presentations.iloc[-1]['start_time'] +stim_dur+ end_buffer)
     )
     return ophys_frames_to_use
+
+def get_events_arr(session, timestamps_to_use):
+    '''
+    Get the events traces from a session in xarray format (preserves cell ids and timestamps)
+
+    timestamps_to_use is a boolean vector that contains which timestamps to use in the analysis
+    '''
+    # Get events and trim off ends
+    all_events = np.stack(session.dataset.events['filtered_events'].values)
+    all_events_to_use = all_events[:, timestamps_to_use]
+
+    # Get the timestamps
+    events_trace_timestamps = session.ophys_timestamps
+    events_trace_timestamps_to_use = events_trace_timestamps[timestamps_to_use]
+
+    # Note: it may be more efficient to get the xarrays directly, rather than extracting/building them from session.events_traces
+    #       The dataframes are built from xarrays to start with, so we are effectively converting them twice by doing this
+    #       But if there's no big time penalty to doing it this way, then maybe just leave it be.
+    # Intentionally setting the name of the time axis to dff_trace_timestamps so it matches the dff_trace_arr
+    events_trace_xr = xr.DataArray(
+            data = all_events_to_use.T,
+            dims = ("dff_trace_timestamps", "cell_specimen_id"),
+            coords = {
+                "dff_trace_timestamps": events_trace_timestamps_to_use,
+                "cell_specimen_id": session.cell_specimen_table.index.values
+            }
+        )
+    return events_trace_xr
 
 def get_dff_arr(session, timestamps_to_use):
     '''

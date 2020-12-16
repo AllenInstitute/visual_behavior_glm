@@ -244,12 +244,14 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     plt.tight_layout()
     return
 
-def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None):
+def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None,savefig=True):
     '''
     makes a scatterplot comparing cellwise performance on two GLM versions
 
     if a comparison table is not passed, the versions to compare must be passed (as a list of strings)
     comparison table will be built using GLM_analysis_tools.get_glm_version_comparison_table, which takes about 2 minutes
+    
+    savefig (bool) if True, saves a figure for each version in versions_to_compare
     '''
     assert not (comparison_table is None and versions_to_compare is None), 'must pass either a comparison table or a list of two versions to compare'
     if comparison_table is None:
@@ -274,6 +276,15 @@ def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None)
         alpha=0.5,
         zorder=np.inf
     )
+   
+    # Save a figure for each version 
+    if savefig and (versions_to_compare is not None):
+        version_strings = '_'.join([x.split('_')[0] for x in versions_to_compare])
+        for version in versions_to_compare:
+            run_params = glm_params.load_run_json(version)
+            filepath = os.path.join(run_params['figure_dir'], 'version_comparison_'+version_strings+'.png')
+            plt.savefig(filepath)
+
     return jointplot
 
 def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save_fig=False,filename=None):

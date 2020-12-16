@@ -102,6 +102,12 @@ if False: # Code snippets for doing basic analyses.
     # Make Kernel Comparison Figures
     gvt.plot_kernel_comparison(weights_df, run_params, 'omissions',cell_filter='vip',compare=['session'],plot_errors=False) # Example
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='vip',compare=['session'],plot_errors=False) # Make them all
+    
+    ## Comparing Versions
+    #####################
+    versions = ['9a_L2_optimize_by_session','10a_L2_optimize_by_session']
+    comparison_table = gat.get_glm_version_comparison_table(versions)
+    jointplot = gvt.plot_glm_version_comparison(comparison_table, versions_to_compare=versions)
 
 
 def get_analysis_dfs(VERSION):

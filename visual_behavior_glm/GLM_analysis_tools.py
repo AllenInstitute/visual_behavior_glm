@@ -510,7 +510,7 @@ def get_glm_version_comparison_table(versions_to_compare, metric='Full__avg_cv_v
     cols= [col for col in results.columns if col not in pivoted_results.columns and 'test' not in col and 'train' not in col and '__' not in col and 'dropout' not in col]
 
     pivoted_results = pivoted_results.merge(
-        results[cols],
+        results[cols].drop_duplicates(subset=['identifier']),
         left_on='identifier',
         right_on='identifier',
         how='left'

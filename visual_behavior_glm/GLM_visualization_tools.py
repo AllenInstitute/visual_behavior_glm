@@ -244,7 +244,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     plt.tight_layout()
     return
 
-def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None,savefig=False):
+def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None,savefig=True):
     '''
     makes a scatterplot comparing cellwise performance on two GLM versions
 

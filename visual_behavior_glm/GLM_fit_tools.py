@@ -778,7 +778,7 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     return ophys_eye 
 
 
-def process_data(session,run_params, TESTING=False):
+def process_data(session, run_params, TESTING=False):
     '''
     Processes dff traces by trimming off portions of recording session outside of the task period. These include:
         * a ~5 minute gray screen period before the task begins
@@ -800,6 +800,7 @@ def process_data(session,run_params, TESTING=False):
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
     
     if ('use_events' in run_params) & (run_params['use_events']):
+        print('Using detected events instead of df/f')
         events_trace_arr = get_events_arr(session, timestamps_to_use) 
         assert np.size(dff_trace_arr) == np.size(events_trace_arr), 'Events array doesnt match size of df/f array'
         dff_trace_arr = events_trace_arr
@@ -815,7 +816,7 @@ def process_data(session,run_params, TESTING=False):
 
     return dff_trace_arr
 
-def extract_and_annotate_dff(session, run_params,TESTING=False):
+def extract_and_annotate_dff(session, run_params, TESTING=False):
     '''
         Creates fit dictionary
         extracts dff_trace or events_trace from session object

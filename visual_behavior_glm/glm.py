@@ -13,6 +13,7 @@ import sys
 import os
 import pandas as pd
 import visual_behavior.database as db
+import numpy as np
 
 class GLM(object):
     '''
@@ -128,13 +129,15 @@ class GLM(object):
         self.dropout_summary = self.dropout_summary.merge(
             self.session.cell_specimen_table[['cell_roi_id']],
             left_on='cell_specimen_id',
-            right_index=True
+            right_index=True,
+            how='left'
         )
 
         self.results = self.results.merge(
             self.session.cell_specimen_table[['cell_roi_id']],
             left_index=True,
             right_index=True,
+            how='left'
         )
  
     def get_cells_above_threshold(self, threshold=0.01):
@@ -189,6 +192,10 @@ class GLM(object):
             left_on = 'dff_trace_timestamps',
             right_on = 'dff_trace_timestamps',
         )
+
+        # adjust frame indices to account for frames that may have been trimmed from start of movie
+        first_frame = np.where(self.session.dataset.ophys_timestamps > df.dff_trace_timestamps.min())[0][0]
+        df['frame_index'] += first_frame
 
         return df
 

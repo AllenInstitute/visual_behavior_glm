@@ -3,6 +3,9 @@ import time
 from visual_behavior_glm.glm import GLM
 import visual_behavior_glm.GLM_visualization_tools as gvt
 
+import warnings
+warnings.filterwarnings("ignore")
+
 parser = argparse.ArgumentParser(description='generate GLM movie')
 parser.add_argument(
     '--oeid', 
@@ -58,7 +61,7 @@ parser.add_argument(
 
 def make_movie(oeid, glm_version, cell_specimen_id, start_frame, end_frame, frame_interval, fps):
     t0=time.time()
-    glm = GLM(oeid, version=glm_version, use_previous_fit=True)
+    glm = GLM(oeid, version=glm_version, use_previous_fit=True, log_results=False, log_weights=False)
     print('fitting the model took {} seconds'.format(time.time()-t0))
     
     movie = gvt.GLM_Movie(

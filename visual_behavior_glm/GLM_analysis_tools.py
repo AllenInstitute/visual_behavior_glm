@@ -143,7 +143,7 @@ def generate_results_summary_nonadj(glm):
         Returns a dataframe with summary information from the glm object
     '''
     # Get list of columns to look at, removing the non-adjusted dropouts, and training scores
-    test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' not in col)&('session' not in col))]  
+    test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' not in col)&('session' not in col)&('cell' not in col))]  
  
     # Set up space
     results_summary_list = []

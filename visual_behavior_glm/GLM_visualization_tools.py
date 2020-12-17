@@ -596,10 +596,6 @@ def plot_pupil(session, ax, t_span=None):
         color='LemonChiffon',
         linewidth=3
     )
-    ax.set_ylim(
-        0,
-        np.percentile(session.dataset.eye_tracking['pupil_area'].fillna(0), 95)
-    )
 
     ax.legend(
         ['running','pupil'],
@@ -620,24 +616,27 @@ def plot_omissions(session, ax, y_loc=0, t_span=None):
     )
 
 
-def plot_stimuli(session, ax, t_span=None,alpha=.35):
+def plot_stimuli(stimulus_presentations, ax, t_span=None, alpha=.35):
+
     buffer = 0.25
-    images = session.dataset.stimulus_presentations['image_name'].unique()
+    images = stimulus_presentations['image_name'].unique()
+
     colors = {image: color for image, color in zip(
         np.sort(images), sns.color_palette("Set2", 8))}
 
     if t_span:
         query_string = 'start_time >= {0} - {2} and stop_time <= {1} + {2}'.format(
             t_span[0], t_span[1], buffer)
-        visual_stimuli = session.dataset.stimulus_presentations.query(
+        visual_stimuli = stimulus_presentations.query(
             'omitted == False').query(query_string).copy()
     else:
-        visual_stimuli = session.dataset.stimulus_presentations.query(
+        visual_stimuli = stimulus_presentations.query(
             'omitted == False').copy()
 
     visual_stimuli['color'] = visual_stimuli['image_name'].map(
         lambda i: colors[i])
     visual_stimuli['change'] = visual_stimuli['image_name'] != visual_stimuli['image_name'].shift()
+
     for idx, stimulus in visual_stimuli.iterrows():
         ax.axvspan(
             stimulus['start_time'],
@@ -646,7 +645,7 @@ def plot_stimuli(session, ax, t_span=None,alpha=.35):
             alpha=alpha,
             edgecolor=None,
         )
-
+    
 def get_movie_filepath(session_id, session_type='OphysSession', movie_type='RawBehaviorTrackingVideo'):
     well_known_files = db.get_well_known_files(session_id, session_type)
     behavior_video_path = ''.join(well_known_files.loc[movie_type][[
@@ -748,13 +747,15 @@ def plot_session_summary(glm):
     plt.ylabel('Full Model CV Variance Explained')
     plt.xlabel('Cells')
 
-def plot_dropout_summary(results_summary, cell_specimen_id, ax):
+def plot_dropout_summary(results_summary, cell_specimen_id, ax, 
+        dropouts_to_show=None, dropouts_to_plot='both', dropouts_to_exclude=[]):
     '''
     makes bar plots of results summary
     inputs:
         glm -- glm object
         cell_specimen_id -- cell to plot
         ax -- axis on which to plot
+        dropouts_to_plot -- 'single', 'standard' or 'both'. 'both' will show both in two hues.
     '''
     data_to_plot = (
         results_summary
@@ -763,36 +764,53 @@ def plot_dropout_summary(results_summary, cell_specimen_id, ax):
     ).copy().reset_index(drop=True)
 
     dropouts = data_to_plot.dropout.unique()
+
+    all_identified_dropouts_to_exclude = []
+    for dropout in dropouts_to_exclude:
+        identified_dropouts_to_exclude = [d for d in dropouts if dropout in d]
+        all_identified_dropouts_to_exclude += identified_dropouts_to_exclude
+    
+    data_to_plot = data_to_plot.query('dropout not in @all_identified_dropouts_to_exclude')
+
+    
     single_dropouts = [d for d in dropouts if d.startswith('single-')]
-    combined_dropouts = [d.split('single-')[1] for d in single_dropouts]
+    standard_dropouts = [d.split('single-')[1] for d in single_dropouts]
 
     for idx,row in data_to_plot.iterrows():
         if row['dropout'] in single_dropouts:
             data_to_plot.at[idx,'dropout_type']='single'
             data_to_plot.at[idx,'dropout_simple']=row['dropout'].split('single-')[1]
-        elif row['dropout'] in combined_dropouts:
-            data_to_plot.at[idx,'dropout_type']='combined'
+        elif row['dropout'] in standard_dropouts:
+            data_to_plot.at[idx,'dropout_type']='standard'
             data_to_plot.at[idx,'dropout_simple']=row['dropout']
+
+    if dropouts_to_plot == 'both':
+        sort_by = 'single'
+    else:
+        sort_by = dropouts_to_plot
+        data_to_plot = data_to_plot.query('dropout_type == @dropouts_to_plot')
 
     yorder = (
         data_to_plot
-        .query('dropout_type == "single"')
+        .query('dropout_type == @sort_by')
         .sort_values(by='adj_fraction_change_from_full',ascending=False)['dropout_simple']
         .values
     )
     
-    sns.barplot(
+    bp = sns.barplot(
         data = data_to_plot.sort_values(by='adj_fraction_change_from_full', ascending=False),
         x = 'adj_fraction_change_from_full',
         y = 'dropout_simple',
         ax=ax,
-        hue='dropout_type',
-        hue_order=['combined','single'],
+        hue='dropout_type' if dropouts_to_plot == 'both' else None,
+        hue_order=['standard','single'] if dropouts_to_plot == 'both' else None,
         order=yorder,
-        palette=['magenta','cyan']
+        palette=['magenta','cyan'] if dropouts_to_plot == 'both' else ['cyan']
     )
-    ax.set_ylabel('Dropout')
-    ax.set_title('Fraction Change\nin Variance Explained')
+    ax.set_ylabel('', fontsize=22)
+    # ax.set_xlabel('Fraction Change in Var Explained', fontsize=22)
+    bp.tick_params(labelsize=21)
+    ax.set_title('Fraction Change\nin Variance Explained', fontsize=22)
 
 
 def plot_filters(glm, cell_specimen_id, n_cols=5):
@@ -878,8 +896,11 @@ def get_max_locs_df(df_in):
 
 class GLM_Movie(object):
 
-    def __init__(self, glm, cell_specimen_id, start_frame, end_frame, frame_interval=1, fps=10, destination_folder=None):
+    def __init__(self, glm, cell_specimen_id, start_frame, end_frame, frame_interval=1, fps=10, destination_folder=None, verbose=False):
 
+        self.verbose = verbose
+        if self.verbose:
+            print('initializing')
         # note that ffmpeg must be installed on your system
         # this is tested on linux (not sure if it works on windows)
         mpl.rcParams['animation.ffmpeg_path'] = '/usr/local/bin/ffmpeg'
@@ -952,83 +973,142 @@ class GLM_Movie(object):
                 os.mkdir(self.destination_folder)
 
 
-        self.results_summary = gat.generate_results_summary(self.glm).reset_index()
+        self.results_summary = glm.dropout_summary #gat.generate_results_summary(self.glm).reset_index()
         self.dropout_summary_plotted = False
         self.cell_roi_plotted = False
+
+        self.this_cell = self.glm.df_full.query('cell_specimen_id == @cell_specimen_id')
+        self.stimulus_presentations = self.glm.session.stimulus_presentations
 
         self.fig, self.ax = self.set_up_axes()
         self.writer = self.set_up_writer()
 
+        if self.verbose:
+            print('done initializing')
+
     def make_cell_movie_frame(self, ax, glm, F_index, cell_specimen_id, t_before=10, t_after=10):
-        # ti = time.time()
-        this_cell = glm.df_full.query('cell_specimen_id == @cell_specimen_id')
+        
+        if self.verbose:
+            ti = time.time()
+            print('starting frame plotting process')
+        
+
+        if self.verbose:
+            print('done getting cell info at {:0.2f} seconds'.format(time.time() - ti))
+
         cell_index = np.where(glm.W['cell_specimen_id'] == cell_specimen_id)[0][0]
+
+        if self.verbose:
+            print('done getting cell index at {:0.2f} seconds'.format(time.time() - ti))
 
         t_now = self.model_timestamps[F_index]
         t_span = [t_now - t_before, t_now + t_after]
-        # print('setup done at {} seconds'.format(time.time() - ti))
+
+        if self.verbose:
+            print('done setting up tspan at {:0.2f} seconds'.format(time.time() - ti))
+
+        dropouts_to_exclude=[
+            'visual',
+            'cognitive',
+            'behavioral',
+            'licking',
+            'running_and_omissions',
+            'pupil_and_omissions',
+            'pupil_and_running',
+            'expectation',
+            'face_motion_PC_1',
+            'face_motion_PC_2',
+            'face_motion_PC_3',
+            'face_motion_PC_4',
+            'face_motion_PC_0',
+        ]
+
         if not self.dropout_summary_plotted:
-            plot_dropout_summary(self.results_summary, self.cell_specimen_id, ax['dropout_summary'])
+            plot_dropout_summary(
+                self.results_summary, 
+                self.cell_specimen_id, 
+                ax['dropout_summary'], 
+                dropouts_to_plot='standard',
+                dropouts_to_exclude = dropouts_to_exclude
+            )
             self.dropout_summary_plotted = True
+
+        if self.verbose:
+            print('done plotting dropout summary at {:0.2f} seconds'.format(time.time() - ti))
 
         for axis_name in ax.keys():
             if axis_name != 'dropout_summary' and axis_name != 'cell_roi':
                 ax[axis_name].cla()
 
-        F_this_frame = glm.df_full.query('frame_index == @F_index').set_index('cell_specimen_id')
-
+        if self.verbose:
+            print('done clearing axes at {:0.2f} seconds'.format(time.time() - ti))
         
         # 2P ROI images:
         if not self.cell_roi_plotted:
-            # ax['cell_roi'].imshow(glm.session.dataset.cell_specimen_table.loc[cell_specimen_id]['image_mask'],cmap='gray')
-            self.com = ndimage.measurements.center_of_mass(glm.session.dataset.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values)
+            cell_roi_id = gat.retrieve_results(
+                {
+                    'ophys_experiment_id':self.glm.ophys_experiment_id, 
+                    'cell_specimen_id':self.cell_specimen_id, 
+                    'glm_version':self.glm.version
+                }, 
+                results_type='full'
+            )['cell_roi_id'][0]
+            if cell_specimen_id in glm.session.dataset.cell_specimen_table.index.tolist():
+                print('FOUND CELL SPECIMEN ID')
+                self.com = ndimage.measurements.center_of_mass(glm.session.dataset.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values)
+            elif cell_roi_id in glm.session.dataset.cell_specimen_table['cell_roi_id'].tolist():
+                print('FOUND CELL ROI ID')
+                correct_csid= self.glm.session.dataset.cell_specimen_table.query('cell_roi_id == @cell_roi_id').index[0]
+                # self.com = ndimage.measurements.center_of_mass(glm.session.dataset.cell_specimen_table.query('cell_roi_id == @cell_roi_id')['roi_mask'].values[0])
+                self.com = ndimage.measurements.center_of_mass(glm.session.dataset.get_roi_masks().loc[{'cell_specimen_id':correct_csid}].values)
+                print(self.com)
+            else:
+                print('COULD NOT FIND CELL')
+                self.com = None
             self.cell_roi_plotted = True
 
+        if self.verbose:
+            print('done getting roi info at {:0.2f} seconds'.format(time.time() - ti))
 
         for movie_name in ['behavior','eye']:
-            # what follows is an attempt at adjusting the contrast, but keeping it somewhat constant in a local window
-            # if I adjust contrast as the 99th percentile for every frame, it looks flickery
             frame = self.tracking_movies[movie_name].get_frame(time=t_now)[:,:,0]
-            frame_n1 = self.tracking_movies[movie_name].get_frame(time=1710-0.035)[:,:,0]
-            frame_p1 = self.tracking_movies[movie_name].get_frame(time=1710+0.035)[:,:,0]
-            frame_n2 = self.tracking_movies[movie_name].get_frame(time=1710-0.070)[:,:,0]
-            frame_p2 = self.tracking_movies[movie_name].get_frame(time=1710+0.070)[:,:,0]
-            p99 = np.percentile(
-                np.hstack((
-                    frame.flatten(),
-                    frame_n1.flatten(),
-                    frame_p1.flatten(),
-                    frame_n2.flatten(),
-                    frame_p2.flatten()
-                    )),
-                99
-            )
             ax['{}_movie'.format(movie_name)].imshow(
                 frame ,
-                # clim=[0,p99], 
                 cmap='gray'
             )
             ax['{}_movie'.format(movie_name)].axis('off')
-            ax['{}_movie'.format(movie_name)].set_title('{} tracking movie'.format(movie_name))
+            ax['{}_movie'.format(movie_name)].set_title('{} tracking movie'.format(movie_name), fontsize=22)
 
-        real_fov = self.real_2p_movie[F_index]
-        cmax = np.percentile(real_fov, 95) #set cmax to 95th percentile of this image
-        ax['real_fov'].imshow(real_fov, cmap='gray', clim=[0, cmax])
+        if self.verbose:
+            print('done plotting behavior videos at {:0.2f} seconds'.format(time.time() - ti))
 
-        ax['real_fov'].set_title('Real FOV')
+        # make a crude approximation of pixelwise df/f 
+        frame_2p = self.this_cell.query('dff_trace_timestamps >= @t_now')['frame_index'].iloc[0]
+        f0 = self.real_2p_movie[frame_2p - 100:frame_2p + 100, :, :].mean(axis=0)
+        f = self.real_2p_movie[frame_2p - 3:frame_2p + 3, :, :].mean(axis=0)
+        dff = (f-f0)/f0
+        dff[pd.isnull(dff)]=0
+        cmax = np.percentile(dff, 95) #set cmax to 95th percentile of this image
+        ax['real_fov'].imshow(dff[10:-10,10:-10], cmap='gray', clim=[0, cmax])
+
+        ax['real_fov'].set_title('2P Field of View', fontsize=22)
 
         for axis_name in ['real_fov']: #,'reconstructed_fov','simulated_fov']:
             ax[axis_name].set_xticks([])
             ax[axis_name].set_yticks([])
-            ax[axis_name].axvline(self.com[1],color='MediumAquamarine',alpha=0.5)
-            ax[axis_name].axhline(self.com[0],color='MediumAquamarine',alpha=0.5)
+            # if self.com:
+            #     ax[axis_name].axvline(self.com[1],color='MediumAquamarine',alpha=0.5)
+            #     ax[axis_name].axhline(self.com[0],color='MediumAquamarine',alpha=0.5)
+
+        if self.verbose:
+            print('done plotting 2P FOV at {:0.2f} seconds'.format(time.time() - ti))
 
         # time series plots:
         query_string = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
             t_span[0],
             t_span[1]
         )
-        local_df = this_cell.query(query_string)
+        local_df = self.this_cell.query(query_string)
 
         ax['cell_response'].plot(
             local_df['dff_trace_timestamps'],
@@ -1046,12 +1126,12 @@ class GLM_Movie(object):
             linewidth=3,
         )
         qs = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
-            self.initial_time,
-            self.final_time
+            self.initial_time - t_before,
+            self.final_time + t_after
         )
         ax['cell_response'].set_ylim(
-            this_cell.query(qs)['dff'].min(),
-            this_cell.query(qs)['dff'].max(),
+            self.this_cell.query(qs)['dff'].min() - 0.01,
+            self.this_cell.query(qs)['dff'].max() + 0.01,
         )
 
         ax['cell_response'].legend(
@@ -1061,21 +1141,59 @@ class GLM_Movie(object):
             framealpha = 0.2,
         )
 
+        if self.verbose:
+            print('done plotting Fluorscence timeseries at {:0.2f} seconds'.format(time.time() - ti))
+
         plot_rewards(glm.session, ax['licks'], t_span=t_span)
         plot_licks(glm.session, ax['licks'], t_span=t_span)
+
+        if self.verbose:
+            print('done plotting rewards and licks at {:0.2f} seconds'.format(time.time() - ti))
         
+        query_string = 'timestamps >= {} and timestamps <= {}'.format(
+            self.initial_time - t_before,
+            self.final_time + t_after
+        )
         plot_running(glm.session, ax['running'], t_span=t_span)
+        # set running y lims
+        ax['running'].set_ylim(
+            self.glm.session.dataset.running_data_df.query(query_string)['speed'].min() - 5,
+            self.glm.session.dataset.running_data_df.query(query_string)['speed'].max() + 5
+        )
         plot_pupil(glm.session, ax['pupil'], t_span=t_span)
+        # set pupil ylims (query string needs to change from 'timestamps' to 'time')
+        pupil_query = self.glm.session.dataset.eye_tracking.query(query_string.replace('timestamps','time'))
+        ax['pupil'].set_ylim(
+            pupil_query['pupil_area'].min() - 100,
+            pupil_query['pupil_area'].max() + 100,
+        )
+
+        if self.verbose:
+            print('done plotting pupil and running at {:0.2f} seconds'.format(time.time() - ti))
+
         plot_kernels(self.kernel_df, ax['kernel_contributions'], self.palette_df, t_span)
+
+        # set limits on kernel plot
+
+        ax['kernel_contributions'].set_ylim(
+            self.kernel_df.query(query_string)['kernel_outputs'].min() - 0.05,
+            self.kernel_df.query(query_string)['kernel_outputs'].max() + 0.05
+        )
+
+        if self.verbose:
+            print('done plotting kernels at {:0.2f} seconds'.format(time.time() - ti))
 
         # some axis formatting: 
         for axis_name in ['licks', 'cell_response', 'running','kernel_contributions']:
             ax[axis_name].axvline(t_now, color='white', linewidth=3, alpha=0.5)
-            plot_stimuli(glm.session, ax[axis_name], t_span=t_span)
+            plot_stimuli(self.stimulus_presentations, ax[axis_name], t_span=t_span)
             if axis_name != 'kernel_contributions':
                 ax[axis_name].set_xticklabels([])
 
-        ax['cell_response'].set_title('Time series plots for cell {}'.format(cell_specimen_id))
+        if self.verbose:
+            print('done plotting stimulus spans at {:0.2f} seconds'.format(time.time() - ti))
+
+        ax['cell_response'].set_title('Time series plots for cell {}'.format(cell_specimen_id), fontsize=22)
         ax['licks'].set_xlim(t_span[0], t_span[1])
         ax['licks'].set_yticks([])
 
@@ -1086,9 +1204,12 @@ class GLM_Movie(object):
         ax['licks'].set_ylabel('licks/rewards       ', rotation=0,ha='right', va='center')
         ax['cell_response'].set_ylabel('$\Delta$F/F', rotation=0, ha='right', va='center')
         ax['running'].set_ylabel('Running\nSpeed\n(cm/s)', rotation=0, ha='right', va='center')
-        ax['pupil'].set_ylabel('Pupil\nDiameter\n(pix^2)', rotation=0, ha='left', va='center')
+        ax['pupil'].set_ylabel('Pupil\nArea\n(pix^2)', rotation=0, ha='left', va='center')
         ax['kernel_contributions'].set_ylabel('kernel\ncontributions\nto predicted\nsignal\n($\Delta$F/F)', rotation=0, ha='right', va='center')
+        ax['kernel_contributions'].set_xlabel('time (s)', fontsize=20)
 
+        if self.verbose:
+            print('done axis formatting at {:0.2f} seconds'.format(time.time() - ti))
 
     def update(self, frame_number):
         '''
@@ -1109,7 +1230,7 @@ class GLM_Movie(object):
             'real_fov': vbp.placeAxesOnGrid(fig, xspan=(0.3, 0.49), yspan=(0, 0.25)),
             'behavior_movie': vbp.placeAxesOnGrid(fig, xspan=(0.5, 0.75), yspan=(0, 0.25)),
             'eye_movie': vbp.placeAxesOnGrid(fig, xspan=(0.75, 1), yspan=(0, 0.25)),
-            'dropout_summary':vbp.placeAxesOnGrid(fig, xspan=[0,0.2], yspan=[0,1]),
+            'dropout_summary':vbp.placeAxesOnGrid(fig, xspan=[0.05,0.18], yspan=[0,1]),
             'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.30, 0.5]),
             'licks': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.5, 0.525]),
             'running': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.525, 0.625]),
@@ -2450,14 +2571,18 @@ def plot_lick_triggered_motion(ophys_experiment_id, cell_specimen_id, title=''):
     return fig, ax
 
 
-def cosyne_make_dropout_summary_plot(dropout_summary):
+def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
     '''
         Top level function for cosyne summary plot 
         Plots the distribution of dropout scores by cre-line for the visual, behavioral, and cognitive nested models
     '''
-    fig, ax = plt.subplots(figsize=(10,8))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10,8))
+    else:
+        fig = ax.get_figure()
+
     dropouts_to_show = ['visual','behavioral','cognitive']
-    plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show)
+    plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=palette)
     ax.tick_params(axis='both',labelsize=20)
     ax.set_ylabel('% decrease in variance explained \n when removing sets of kernels',fontsize=24)
     ax.set_xlabel('Sets of Kernels',fontsize=24)
@@ -2467,9 +2592,10 @@ def cosyne_make_dropout_summary_plot(dropout_summary):
     y = ax.get_yticks()
     ax.set_yticklabels(np.round(y*100).astype(int))
     plt.tight_layout()
+
     return fig, ax
 
-def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show):
+def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=None):
     '''
     makes bar plots of results summary
     aesthetics specific to cosyne needs
@@ -2488,7 +2614,8 @@ def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show):
         order=dropouts_to_show,
         hue_order=cre_lines,
         fliersize=0,
-        ax=ax
+        ax=ax,
+        palette=palette
     )
 
     #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
@@ -2573,7 +2700,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
             palette_df, 
             t_span
         )   
-        plot_stimuli(glm.session, ax['{}_kernels'.format(regressor_category)], t_span=t_span)
+        plot_stimuli(glm.session.stimulus_presentations, ax['{}_kernels'.format(regressor_category)], t_span=t_span)
         ax['{}_kernels'.format(regressor_category)].set_title('{}'.format(regressor_category))
         ax['{}_kernels'.format(regressor_category)].set_ylim(
             kernel_df.query('timestamps >= @t0 and timestamps <= @t1')['kernel_outputs'].min()-0.2,
@@ -2623,7 +2750,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
         framealpha = 0.2,
     )
 
-    plot_stimuli(glm.session, ax['cell_response'], t_span=t_span,alpha=alpha)
+    plot_stimuli(glm.session.stimulus_presentations, ax['cell_response'], t_span=t_span,alpha=alpha)
 
     return fig, ax
 

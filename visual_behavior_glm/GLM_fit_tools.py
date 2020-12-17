@@ -802,7 +802,7 @@ def process_data(session, run_params, TESTING=False):
     if ('use_events' in run_params) & (run_params['use_events']):
         print('Using detected events instead of df/f')
         events_trace_arr = get_events_arr(session, timestamps_to_use) 
-        assert np.size(fit_trace_arr) == np.size(events_trace_arr), 'Events array doesnt match size of df/f array'
+        assert np.size(dff_trace_arr) == np.size(events_trace_arr), 'Events array doesnt match size of df/f array'
         fit_trace_arr = copy(events_trace_arr)
     else:
         fit_trace_arr = copy(dff_trace_arr)

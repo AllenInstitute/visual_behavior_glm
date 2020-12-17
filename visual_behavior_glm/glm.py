@@ -71,7 +71,7 @@ class GLM(object):
         print('done fitting model, collecting results')
         self.collect_results()
         print('done collecting results')
-        self.timestamps = self.fit['dff_trace_arr']['dff_trace_timestamps'].values
+        self.timestamps = self.fit['fit_trace_arr']['fit_trace_timestamps'].values
         if log_results:
             print('logging results to mongo')
             gat.log_results_to_mongo(self) 
@@ -166,21 +166,21 @@ class GLM(object):
 
     @cached_property
     def df_full(self):
-        '''creates a tidy dataframe with columns ['dff_trace_timestamps', 'frame_index', 'cell_specimen_id', 'dff', 'dff_predicted] using the full model'''
-        df = self.fit['dff_trace_arr'].to_dataframe(name='dff')
+        '''creates a tidy dataframe with columns ['fit_trace_timestamps', 'frame_index', 'cell_specimen_id', 'dff', 'dff_predicted] using the full model'''
+        df = self.fit['fit_trace_arr'].to_dataframe(name='dff')
 
-        xrt = self.fit['dff_trace_arr'].copy()
+        xrt = self.fit['fit_trace_arr'].copy()
         xrt.values = self.X @ self.W
 
         df = df.merge(
             xrt.to_dataframe(name='dff_predicted'),
-            left_on=['dff_trace_timestamps', 'cell_specimen_id'],
-            right_on=['dff_trace_timestamps', 'cell_specimen_id'],
+            left_on=['fit_trace_timestamps', 'cell_specimen_id'],
+            right_on=['fit_trace_timestamps', 'cell_specimen_id'],
         ).reset_index()
 
         time_df = (
             self
-            .fit['dff_trace_arr']['dff_trace_timestamps']
+            .fit['fit_trace_arr']['fit_trace_timestamps']
             .to_dataframe()
             .reset_index(drop=True)
             .reset_index()
@@ -189,12 +189,12 @@ class GLM(object):
 
         df = df.merge(
             time_df,
-            left_on = 'dff_trace_timestamps',
-            right_on = 'dff_trace_timestamps',
+            left_on = 'fit_trace_timestamps',
+            right_on = 'fit_trace_timestamps',
         )
 
         # adjust frame indices to account for frames that may have been trimmed from start of movie
-        first_frame = np.where(self.session.dataset.ophys_timestamps > df.dff_trace_timestamps.min())[0][0]
+        first_frame = np.where(self.session.dataset.ophys_timestamps > df.fit_trace_timestamps.min())[0][0]
         df['frame_index'] += first_frame
 
         return df

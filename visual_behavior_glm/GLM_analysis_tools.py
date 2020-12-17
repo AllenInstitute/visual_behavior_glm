@@ -56,7 +56,7 @@ def build_kernel_df(glm, cell_specimen_id):
 
     '''
     kernel_list = list(glm.design.kernel_dict.keys())
-    model_timestamps = glm.fit['dff_trace_arr']['dff_trace_timestamps'].values
+    model_timestamps = glm.fit['fit_trace_arr']['fit_trace_timestamps'].values
     kernel_df = []
 
     # get all weight names

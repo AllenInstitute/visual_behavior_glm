@@ -275,21 +275,21 @@ def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     W = fit['dropouts']['Full']['train_weights']
     X = design.get_X()
     var_shuffle = np.empty((fit['fit_trace_arr'].shape[1], num_shuffles)) 
-    dff_shuffle = np.copy(fit['fit_trace_arr'].values)
-    max_shuffle = np.shape(dff_shuffle)[0]
+    y_shuffle = np.copy(fit['fit_trace_arr'].values)
+    max_shuffle = np.shape(y_shuffle)[0]
     
     # Iterate over shuffles
     for count in tqdm(range(0, num_shuffles), total=num_shuffles, desc='    Shuffling by {}'.format(method)):
         if method == 'time':
-            for dex in range(0, np.shape(dff_shuffle)[1]):
+            for dex in range(0, np.shape(y_shuffle)[1]):
                 shuffle_count = np.random.randint(1, max_shuffle)
-                dff_shuffle[:,dex] = np.roll(dff_shuffle[:,dex], shuffle_count, axis=0) 
+                y_shuffle[:,dex] = np.roll(y_shuffle[:,dex], shuffle_count, axis=0) 
         elif method == 'cells':
-            idx = np.random.permutation(np.shape(dff_shuffle)[1])
-            while np.any(idx == np.array(range(0, np.shape(dff_shuffle)[1]))):
-                idx = np.random.permutation(np.shape(dff_shuffle)[1])
-            dff_shuffle = np.copy(fit['fit_trace_arr'].values)[:,idx]
-        var_shuffle[:,count]  = variance_ratio(dff_shuffle, W, X)
+            idx = np.random.permutation(np.shape(y_shuffle)[1])
+            while np.any(idx == np.array(range(0, np.shape(y_shuffle)[1]))):
+                idx = np.random.permutation(np.shape(y_shuffle)[1])
+            y_shuffle = np.copy(fit['fit_trace_arr'].values)[:,idx]
+        var_shuffle[:,count]  = variance_ratio(y_shuffle, W, X)
 
     # Make summary evaluation of shuffle threshold
     fit['var_shuffle_'+method] = var_shuffle

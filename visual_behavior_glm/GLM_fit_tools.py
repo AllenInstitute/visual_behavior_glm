@@ -87,7 +87,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Processing df/f data
     print('Processing df/f data')
-    fit = extract_and_annotate_dff(session,run_params, TESTING=TESTING)
+    fit = extract_and_annotate_ophys(session,run_params, TESTING=TESTING)
 
     # Make Design Matrix
     print('Build Design Matrix')
@@ -405,10 +405,10 @@ def evaluate_models_different_ridge(fit,design,run_params):
 
         for cell_index, cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
 
-            dff = fit['fit_trace_arr'][:,cell_index]
-            Wall = fit_cell_regularized(X_inner,dff, X,fit['cell_regularization'][cell_index])     
-            var_explain = variance_ratio(dff, Wall,X)
-            adjvar_explain = masked_variance_ratio(dff, Wall,X, mask) 
+            y = fit['fit_trace_arr'][:,cell_index]
+            Wall = fit_cell_regularized(X_inner,y, X,fit['cell_regularization'][cell_index])     
+            var_explain = variance_ratio(y, Wall,X)
+            adjvar_explain = masked_variance_ratio(y, Wall,X, mask) 
             all_weights[:,cell_index] = Wall
             all_var_explain[cell_index] = var_explain
             all_adjvar_explain[cell_index] = adjvar_explain
@@ -489,10 +489,10 @@ def evaluate_models_same_ridge(fit, design, run_params):
         Full_X = design.get_X(kernels=fit['dropouts']['Full']['kernels'])
 
         # Fit on full dataset for references as training fit
-        dff = fit['fit_trace_arr']
-        Wall = fit_regularized(dff, X,fit['avg_regularization'])     
-        var_explain = variance_ratio(dff, Wall,X)
-        adjvar_explain = masked_variance_ratio(dff, Wall,X, mask) 
+        y = fit['fit_trace_arr']
+        Wall = fit_regularized(y, X,fit['avg_regularization'])     
+        var_explain = variance_ratio(y, Wall,X)
+        adjvar_explain = masked_variance_ratio(y, Wall,X, mask) 
         fit['dropouts'][model_label]['train_weights'] = Wall
         fit['dropouts'][model_label]['train_variance_explained']    = var_explain
         fit['dropouts'][model_label]['train_adjvariance_explained'] = adjvar_explain
@@ -822,7 +822,7 @@ def process_data(session, run_params, TESTING=False):
            
     return (fit_trace_arr,dff_trace_arr,events_trace_arr)
 
-def extract_and_annotate_dff(session, run_params, TESTING=False):
+def extract_and_annotate_ophys(session, run_params, TESTING=False):
     '''
         Creates fit dictionary
         extracts dff_trace or events_trace from session object

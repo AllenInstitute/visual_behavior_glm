@@ -977,7 +977,7 @@ class GLM_Movie(object):
         self.dropout_summary_plotted = False
         self.cell_roi_plotted = False
 
-        self.this_cell = self.glm.df_full.query('cell_specimen_id == @cell_specimen_id')
+        self.this_cell = self.glm.cell_results_df.query('cell_specimen_id == @cell_specimen_id')
         self.stimulus_presentations = self.glm.session.stimulus_presentations
 
         self.fig, self.ax = self.set_up_axes()
@@ -2710,7 +2710,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
 
     # cell df/f plots:
 
-    this_cell = glm.df_full.query('cell_specimen_id == @cell_specimen_id')
+    this_cell = glm.cell_results_df.query('cell_specimen_id == @cell_specimen_id')
     cell_index = np.where(glm.W['cell_specimen_id'] == cell_specimen_id)[0][0]
 
     query_string = 'fit_trace_timestamps >= {} and fit_trace_timestamps <= {}'.format(

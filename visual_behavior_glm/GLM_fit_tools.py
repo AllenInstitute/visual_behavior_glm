@@ -928,7 +928,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         elif event == 'running':
             running_df = session.dataset.running_data_df
             running_df = running_df.rename(columns={'speed':'values'})
-            timeseries = interpolate_to_dff_timestamps(fit, running_df)['values'].values
+            timeseries = interpolate_to_ophys_timestamps(fit, running_df)['values'].values
             timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
         elif event.startswith('face_motion'):
             PC_number = int(event.split('_')[-1])
@@ -936,7 +936,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
                 'timestamps': session.dataset.behavior_movie_timestamps,
                 'values': session.dataset.behavior_movie_pc_activations[:,PC_number]
             })
-            timeseries = interpolate_to_dff_timestamps(fit, face_motion_df)['values'].values
+            timeseries = interpolate_to_ophys_timestamps(fit, face_motion_df)['values'].values
             timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
         elif event == 'population_mean':
             timeseries = np.mean(fit['fit_trace_arr'],1).values
@@ -944,8 +944,8 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         elif event == 'Population_Activity_PC1':
             pca = PCA()
             pca.fit(fit['fit_trace_arr'].values)
-            dff_pca = pca.transform(fit['fit_trace_arr'].values)
-            timeseries = dff_pca[:,0]
+            y_pca = pca.transform(fit['fit_trace_arr'].values)
+            timeseries = y_pca[:,0]
             timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
         elif (len(event) > 6) & ( event[0:6] == 'model_'):
             bsid = session.dataset.metadata['behavior_session_id']
@@ -954,7 +954,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
             weight_df = pd.DataFrame()
             weight_df['timestamps'] = session.dataset.stimulus_presentations.start_time.values
             weight_df['values'] = weight.values
-            timeseries = interpolate_to_dff_timestamps(fit, weight_df)
+            timeseries = interpolate_to_ophys_timestamps(fit, weight_df)
             timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
             timeseries = timeseries['values'].values
             timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
@@ -1352,7 +1352,7 @@ def get_dff_arr(session, timestamps_to_use):
         )
     return dff_trace_xr
 
-def interpolate_to_dff_timestamps(fit,df):
+def interpolate_to_ophys_timestamps(fit,df):
     '''
     interpolate timeseries onto ophys timestamps
 
@@ -1459,7 +1459,7 @@ def variance_ratio(fit_trace_arr, W, X):
     X: Xarray (n_timepoints, n_kernel_params)
     '''
     Y = X.values @ W.values
-    var_total = np.var(fit_trace_arr, axis=0)   # Total variance in the dff trace for each cell
+    var_total = np.var(fit_trace_arr, axis=0)   # Total variance in the ophys trace for each cell
     var_resid = np.var(fit_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
     return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
 
@@ -1477,13 +1477,13 @@ def masked_variance_ratio(fit_trace_arr, W, X, mask):
     Y = X.values @ W.values
 
     # Define variance function that lets us isolate the mask timepoints
-    def my_var(dff, support_mask):
-        if len(np.shape(dff)) ==1:
-            dff = dff.values[:,np.newaxis]
-        mu = np.mean(dff,axis=0)
-        return np.mean((dff[support_mask,:]-mu)**2,axis=0)
+    def my_var(trace, support_mask):
+        if len(np.shape(trace)) ==1:
+            trace = trace.values[:,np.newaxis]
+        mu = np.mean(trace,axis=0)
+        return np.mean((trace[support_mask,:]-mu)**2,axis=0)
 
-    var_total = my_var(fit_trace_arr, mask)#Total variance in the dff trace for each cell
+    var_total = my_var(fit_trace_arr, mask)#Total variance in the ophys trace for each cell
     var_resid = my_var(fit_trace_arr-Y, mask)#Residual variance in the difference between the model and data
     return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
 

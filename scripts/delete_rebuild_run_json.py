@@ -14,14 +14,14 @@ if __name__ == '__main__':
     parser.add_argument(
         '--version', 
         type=str, 
-        default='9a_L2_optimize_by_session',
+        default='10a_L2_optimize_by_session',
         metavar='model_version',
         help='model version'
     )
     parser.add_argument(
         '--label', 
         type=str, 
-        default='model as of 10/22/2020, include licks only',
+        default='model as of 11/18/2020, based on 9a, no image expectation',
         metavar='model_label',
         help='model label'
     )

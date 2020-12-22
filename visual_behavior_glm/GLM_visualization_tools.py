@@ -125,7 +125,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         plt.figure(figsize=(12,10))
     else:
         plt.figure(figsize=(12,6))
-    time_vec = glm.fit['dff_trace_timestamps'][start:end]
+    time_vec = glm.fit['fit_trace_timestamps'][start:end]
     start_t = time_vec[0]
     end_t = time_vec[-1]
     ones = np.ones(np.shape(time_vec))
@@ -920,7 +920,7 @@ class GLM_Movie(object):
         self.end_frame = end_frame
         self.frame_interval = frame_interval
 
-        self.model_timestamps = glm.fit['dff_trace_arr']['dff_trace_timestamps'].values
+        self.model_timestamps = glm.fit['fit_trace_arr']['fit_trace_timestamps'].values
         self.initial_time = self.model_timestamps[self.start_frame]
         self.final_time = self.model_timestamps[self.end_frame]
 
@@ -977,7 +977,7 @@ class GLM_Movie(object):
         self.dropout_summary_plotted = False
         self.cell_roi_plotted = False
 
-        self.this_cell = self.glm.df_full.query('cell_specimen_id == @cell_specimen_id')
+        self.this_cell = self.glm.cell_results_df.query('cell_specimen_id == @cell_specimen_id')
         self.stimulus_presentations = self.glm.session.stimulus_presentations
 
         self.fig, self.ax = self.set_up_axes()
@@ -1083,7 +1083,7 @@ class GLM_Movie(object):
             print('done plotting behavior videos at {:0.2f} seconds'.format(time.time() - ti))
 
         # make a crude approximation of pixelwise df/f 
-        frame_2p = self.this_cell.query('dff_trace_timestamps >= @t_now')['frame_index'].iloc[0]
+        frame_2p = self.this_cell.query('fit_trace_timestamps >= @t_now')['frame_index'].iloc[0]
         f0 = self.real_2p_movie[frame_2p - 100:frame_2p + 100, :, :].mean(axis=0)
         f = self.real_2p_movie[frame_2p - 3:frame_2p + 3, :, :].mean(axis=0)
         dff = (f-f0)/f0
@@ -1104,14 +1104,14 @@ class GLM_Movie(object):
             print('done plotting 2P FOV at {:0.2f} seconds'.format(time.time() - ti))
 
         # time series plots:
-        query_string = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+        query_string = 'fit_trace_timestamps >= {} and fit_trace_timestamps <= {}'.format(
             t_span[0],
             t_span[1]
         )
         local_df = self.this_cell.query(query_string)
 
         ax['cell_response'].plot(
-            local_df['dff_trace_timestamps'],
+            local_df['fit_trace_timestamps'],
             local_df['dff'],
             alpha=0.9,
             color='lightgreen',
@@ -1119,13 +1119,13 @@ class GLM_Movie(object):
         )
 
         ax['cell_response'].plot(
-            local_df['dff_trace_timestamps'],
+            local_df['fit_trace_timestamps'],
             local_df['dff_predicted'],
             alpha=1,
             color='white',
             linewidth=3,
         )
-        qs = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+        qs = 'fit_trace_timestamps >= {} and fit_trace_timestamps <= {}'.format(
             self.initial_time - t_before,
             self.final_time + t_after
         )
@@ -2710,17 +2710,17 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
 
     # cell df/f plots:
 
-    this_cell = glm.df_full.query('cell_specimen_id == @cell_specimen_id')
+    this_cell = glm.cell_results_df.query('cell_specimen_id == @cell_specimen_id')
     cell_index = np.where(glm.W['cell_specimen_id'] == cell_specimen_id)[0][0]
 
-    query_string = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+    query_string = 'fit_trace_timestamps >= {} and fit_trace_timestamps <= {}'.format(
         t_span[0],
         t_span[1]
     )
     local_df = this_cell.query(query_string)
 
     ax['cell_response'].plot(
-        local_df['dff_trace_timestamps'],
+        local_df['fit_trace_timestamps'],
         local_df['dff'],
         alpha=0.9,
         color='darkgreen',
@@ -2728,13 +2728,13 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
     )
 
     ax['cell_response'].plot(
-        local_df['dff_trace_timestamps'],
+        local_df['fit_trace_timestamps'],
         local_df['dff_predicted'],
         alpha=1,
         color='black',
         linewidth=3,
     )
-    qs = 'dff_trace_timestamps >= {} and dff_trace_timestamps <= {}'.format(
+    qs = 'fit_trace_timestamps >= {} and fit_trace_timestamps <= {}'.format(
         t_span[0],
         t_span[1]
     )

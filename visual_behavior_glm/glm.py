@@ -71,7 +71,7 @@ class GLM(object):
         print('done fitting model, collecting results')
         self.collect_results()
         print('done collecting results')
-        self.timestamps = self.fit['dff_trace_arr']['dff_trace_timestamps'].values
+        self.timestamps = self.fit['fit_trace_arr']['fit_trace_timestamps'].values
         if log_results:
             print('logging results to mongo')
             gat.log_results_to_mongo(self) 
@@ -165,36 +165,58 @@ class GLM(object):
         gvt.plot_filters(self, cell_specimen_id, n_cols)
 
     @cached_property
-    def df_full(self):
-        '''creates a tidy dataframe with columns ['dff_trace_timestamps', 'frame_index', 'cell_specimen_id', 'dff', 'dff_predicted] using the full model'''
-        df = self.fit['dff_trace_arr'].to_dataframe(name='dff')
+    def cell_results_df(self):
+        '''creates a tidy dataframe with columns:
+            'fit_trace_timestamps': The timestamps of the fit array. Timestamps from ophys sessions
+            'frame_index': Index of each frame in the ophys timestamps array. Note that we are trimming off timestamps that occur before the task starts, so this will not start at 0
+            'cell_specimen_id': The ID of the cell
+            'dff': the delta_F/F signal extracted from the 2p movie - one possible array that can be fit by the model
+            'events': Discrete events are derived from dff, then convolved with a half-gaussian filter to give a continuous signal - one possible array that can be fit by the model
+            'fit_arr': The array that the model will try to fit. Can be either 'dff' or 'events' (this column will be a duplicate of one of those two columns)
+            'model_prediction': The output of the model - Should be similar to 'fit_array' (better model performance = more similar)
+        '''
 
-        xrt = self.fit['dff_trace_arr'].copy()
+        # build a dataframe with columns for 'fit_array', 'dff_trace_arr', 'events_trace_arr'
+        df = self.fit['fit_trace_arr'].to_dataframe(name='fit_array').merge(
+            self.fit['dff_trace_arr'].to_dataframe(name='dff'),
+            left_index=True,
+            right_index=True,
+        ).merge(
+            self.fit['events_trace_arr'].to_dataframe(name='events'),
+            left_index=True,
+            right_index=True,
+        )
+
+        # calculate the prediction matrix Y
+        xrt = self.fit['fit_trace_arr'].copy()
         xrt.values = self.X @ self.W
 
+        # add the predictions to the dataframe
         df = df.merge(
-            xrt.to_dataframe(name='dff_predicted'),
-            left_on=['dff_trace_timestamps', 'cell_specimen_id'],
-            right_on=['dff_trace_timestamps', 'cell_specimen_id'],
+            xrt.to_dataframe(name='model_prediction'),
+            left_on=['fit_trace_timestamps', 'cell_specimen_id'],
+            right_on=['fit_trace_timestamps', 'cell_specimen_id'],
         ).reset_index()
 
+        # add time
         time_df = (
             self
-            .fit['dff_trace_arr']['dff_trace_timestamps']
+            .fit['fit_trace_arr']['fit_trace_timestamps']
             .to_dataframe()
             .reset_index(drop=True)
             .reset_index()
             .rename(columns = {'index':'frame_index'})
         )
 
+        # merge in time
         df = df.merge(
             time_df,
-            left_on = 'dff_trace_timestamps',
-            right_on = 'dff_trace_timestamps',
+            left_on = 'fit_trace_timestamps',
+            right_on = 'fit_trace_timestamps',
         )
 
         # adjust frame indices to account for frames that may have been trimmed from start of movie
-        first_frame = np.where(self.session.dataset.ophys_timestamps > df.dff_trace_timestamps.min())[0][0]
+        first_frame = np.where(self.session.dataset.ophys_timestamps > df.fit_trace_timestamps.min())[0][0]
         df['frame_index'] += first_frame
 
         return df

@@ -861,15 +861,14 @@ def get_title(ophys_experiment_id, cell_specimen_id, glm_version):
     experiments_table = loading.get_filtered_ophys_experiment_table().reset_index()
 
     row = experiments_table.query('ophys_experiment_id == @ophys_experiment_id').iloc[0].to_dict()
-    title = '{}__specimen_id={}__exp_id={}__{}__{}__depth={}__cell_id={}__glm_version={}'.format(
+    title = '{}_exp_id={}_{}_{}_depth={}_cell_id={}_glm_version={}'.format(
         row['cre_line'],
-        row['specimen_id'],
         row['ophys_experiment_id'],
         row['session_type'],
         row['targeted_structure'],
         row['imaging_depth'],
         cell_specimen_id,
-        glm_version,
+        glm_version.split('_')[0],
     )
     return title
 
@@ -919,6 +918,12 @@ class GLM_Movie(object):
         self.start_frame = start_frame
         self.end_frame = end_frame
         self.frame_interval = frame_interval
+
+        try:
+            self.parameter_to_fit = 'events' if self.glm.run_params['use_events'] else 'dff'
+        except KeyError:
+            # GLM versions 10 and earlier lack the 'use_events' key and always fit dff
+            self.parameter_to_fit = 'dff'
 
         self.model_timestamps = glm.fit['fit_trace_arr']['fit_trace_timestamps'].values
         self.initial_time = self.model_timestamps[self.start_frame]
@@ -983,6 +988,10 @@ class GLM_Movie(object):
         self.fig, self.ax = self.set_up_axes()
         self.writer = self.set_up_writer()
 
+        self.dff_color = 'lightgreen'
+        self.events_color = 'salmon'
+        self.fit_color = 'white'
+
         if self.verbose:
             print('done initializing')
 
@@ -1023,14 +1032,18 @@ class GLM_Movie(object):
             'face_motion_PC_0',
         ]
 
-        if not self.dropout_summary_plotted:
-            plot_dropout_summary(
-                self.results_summary, 
-                self.cell_specimen_id, 
-                ax['dropout_summary'], 
-                dropouts_to_plot='standard',
-                dropouts_to_exclude = dropouts_to_exclude
-            )
+        if not self.dropout_summary_plotted and len(self.glm.dropout_summary['dropout'].unique()) > 1:
+            try:
+                plot_dropout_summary(
+                    self.results_summary, 
+                    self.cell_specimen_id, 
+                    ax['dropout_summary'], 
+                    dropouts_to_plot='standard',
+                    dropouts_to_exclude = dropouts_to_exclude
+                )
+            except Exception as e:
+                # this fails if all dropouts are not defined
+                warnings.warn('Failed to plot dropout summary')
             self.dropout_summary_plotted = True
 
         if self.verbose:
@@ -1110,34 +1123,49 @@ class GLM_Movie(object):
         )
         local_df = self.this_cell.query(query_string)
 
-        ax['cell_response'].plot(
+        vbp.initialize_legend(
+            ax=ax['dff'], 
+            colors=[self.dff_color, self.events_color, self.fit_color],
+            linewidth=3
+        )
+
+        ax['dff'].plot(
             local_df['fit_trace_timestamps'],
             local_df['dff'],
             alpha=0.9,
-            color='lightgreen',
+            color=self.dff_color,
             linewidth=3,
         )
 
-        ax['cell_response'].plot(
+        ax['events'].plot(
             local_df['fit_trace_timestamps'],
-            local_df['dff_predicted'],
-            alpha=1,
-            color='white',
+            local_df['events'],
+            alpha=0.9,
+            color=self.events_color,
             linewidth=3,
         )
+
+        ax[self.parameter_to_fit].plot(
+            local_df['fit_trace_timestamps'],
+            local_df['model_prediction'],
+            alpha=1,
+            color=self.fit_color,
+            linewidth=3,
+        )
+
         qs = 'fit_trace_timestamps >= {} and fit_trace_timestamps <= {}'.format(
             self.initial_time - t_before,
             self.final_time + t_after
         )
-        ax['cell_response'].set_ylim(
+        ax['dff'].set_ylim(
             self.this_cell.query(qs)['dff'].min() - 0.01,
             self.this_cell.query(qs)['dff'].max() + 0.01,
         )
 
-        ax['cell_response'].legend(
-            ['Actual $\Delta$F/F','Model Predicted $\Delta$F/F'],
+        ax['dff'].legend(
+            ['measured $\Delta$F/F','events', 'model fit'],
             loc='upper left',
-            ncol=2, 
+            ncol=1, 
             framealpha = 0.2,
         )
 
@@ -1184,7 +1212,7 @@ class GLM_Movie(object):
             print('done plotting kernels at {:0.2f} seconds'.format(time.time() - ti))
 
         # some axis formatting: 
-        for axis_name in ['licks', 'cell_response', 'running','kernel_contributions']:
+        for axis_name in ['licks', 'dff', 'running','kernel_contributions']:
             ax[axis_name].axvline(t_now, color='white', linewidth=3, alpha=0.5)
             plot_stimuli(self.stimulus_presentations, ax[axis_name], t_span=t_span)
             if axis_name != 'kernel_contributions':
@@ -1193,16 +1221,17 @@ class GLM_Movie(object):
         if self.verbose:
             print('done plotting stimulus spans at {:0.2f} seconds'.format(time.time() - ti))
 
-        ax['cell_response'].set_title('Time series plots for cell {}'.format(cell_specimen_id), fontsize=22)
+        ax['dff'].set_title('Time series plots for cell {}'.format(cell_specimen_id), fontsize=22)
         ax['licks'].set_xlim(t_span[0], t_span[1])
         ax['licks'].set_yticks([])
 
-        ax['cell_response'].set_xticklabels('')
+        ax['dff'].set_xticklabels('')
 
         ax['licks'].set_xlabel('time')
 
         ax['licks'].set_ylabel('licks/rewards       ', rotation=0,ha='right', va='center')
-        ax['cell_response'].set_ylabel('$\Delta$F/F', rotation=0, ha='right', va='center')
+        ax['dff'].set_ylabel('$\Delta$F/F', rotation=0, ha='right', va='center')
+        ax['events'].set_ylabel('event\nmagnitude', rotation=0, ha='left', va='center')
         ax['running'].set_ylabel('Running\nSpeed\n(cm/s)', rotation=0, ha='right', va='center')
         ax['pupil'].set_ylabel('Pupil\nArea\n(pix^2)', rotation=0, ha='left', va='center')
         ax['kernel_contributions'].set_ylabel('kernel\ncontributions\nto predicted\nsignal\n($\Delta$F/F)', rotation=0, ha='right', va='center')
@@ -1231,17 +1260,19 @@ class GLM_Movie(object):
             'behavior_movie': vbp.placeAxesOnGrid(fig, xspan=(0.5, 0.75), yspan=(0, 0.25)),
             'eye_movie': vbp.placeAxesOnGrid(fig, xspan=(0.75, 1), yspan=(0, 0.25)),
             'dropout_summary':vbp.placeAxesOnGrid(fig, xspan=[0.05,0.18], yspan=[0,1]),
-            'cell_response': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.30, 0.5]),
+            'dff': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.30, 0.5]),
             'licks': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.5, 0.525]),
             'running': vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.525, 0.625]),
             'kernel_contributions':vbp.placeAxesOnGrid(fig, xspan=[0.3, 1], yspan=[0.625, 1]),
             
         }
         ax['pupil'] = ax['running'].twinx()
+        ax['events'] = ax['dff'].twinx()
 
-        ax['licks'].get_shared_x_axes().join(ax['licks'], ax['cell_response'])
-        ax['running'].get_shared_x_axes().join(ax['running'], ax['cell_response'])
-        ax['kernel_contributions'].get_shared_x_axes().join(ax['kernel_contributions'], ax['cell_response'])
+        ax['licks'].get_shared_x_axes().join(ax['licks'], ax['dff'])
+        ax['running'].get_shared_x_axes().join(ax['running'], ax['dff'])
+        ax['events'].get_shared_x_axes().join(ax['events'], ax['dff'])
+        ax['kernel_contributions'].get_shared_x_axes().join(ax['kernel_contributions'], ax['dff'])
 
         variance_explained_string = 'Variance explained (full model) = {:0.1f}%'.format(100*self.glm.results.loc[self.cell_specimen_id]['Full__avg_cv_var_test'])
         fig.suptitle(self.title+'\n'+variance_explained_string, fontsize=18)

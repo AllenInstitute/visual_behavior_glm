@@ -79,9 +79,9 @@ class GLM(object):
             # in these older versions, the fit trace was always the dff trace
             # fill in missing keys in this case so that code below will run
             self.timestamps = self.fit['dff_trace_arr']['dff_trace_timestamps'].values
-            self.fit['dff_trace_arr'] = self.fit['dff_trace_arr'].rename({'dff_trace_timestamps':'fit_trace_timestamps'})
             self.fit['fit_trace_arr'] = self.fit['dff_trace_arr'].copy().rename({'dff_trace_timestamps':'fit_trace_timestamps'})
             self.fit['events_trace_arr'] = self.fit['dff_trace_arr'].copy().rename({'dff_trace_timestamps':'fit_trace_timestamps'})
+            self.fit['dff_trace_arr'] = self.fit['dff_trace_arr'].rename({'dff_trace_timestamps':'fit_trace_timestamps'})
             # fill events xarray with filtered events values from session.dataset
             for idx in range(np.shape(self.fit['events_trace_arr'])[1]):
                 csid = int(self.fit['events_trace_arr']['cell_specimen_id'][idx])

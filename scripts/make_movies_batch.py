@@ -27,6 +27,8 @@ big_droppers = (
 
 for idx, row in big_droppers.iterrows():
     oeid, csid = row['identifier'].split('_')
+    oeid = int(oeid)
+    csid = int(csid)
     for version in versions_to_compare:
         try:
             glm = GLM(
@@ -46,5 +48,8 @@ for idx, row in big_droppers.iterrows():
                 fps=5,
                 destination_folder = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/events_dff_comparison_videos'
             )
-        except:
-            pass
+        except Exception as e:
+            print('failed on oeid {}, csid {}'.format(oeid, csid))
+            print('error:')
+            print(e)
+            print('\n\n')

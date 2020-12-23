@@ -71,7 +71,25 @@ class GLM(object):
         print('done fitting model, collecting results')
         self.collect_results()
         print('done collecting results')
-        self.timestamps = self.fit['fit_trace_arr']['fit_trace_timestamps'].values
+
+        try:
+            self.timestamps = self.fit['fit_trace_arr']['fit_trace_timestamps'].values
+        except KeyError:
+            # older versions of model don't have `fit_trace_arr` or `events_trace_arr`
+            # in these older versions, the fit trace was always the dff trace
+            # fill in missing keys in this case so that code below will run
+            self.timestamps = self.fit['dff_trace_arr']['dff_trace_timestamps'].values
+            self.fit['dff_trace_arr'] = self.fit['dff_trace_arr'].rename({'dff_trace_timestamps':'fit_trace_timestamps'})
+            self.fit['fit_trace_arr'] = self.fit['dff_trace_arr'].copy().rename({'dff_trace_timestamps':'fit_trace_timestamps'})
+            self.fit['events_trace_arr'] = self.fit['dff_trace_arr'].copy().rename({'dff_trace_timestamps':'fit_trace_timestamps'})
+            # fill events xarray with filtered events values from session.dataset
+            for idx in range(np.shape(self.fit['events_trace_arr'])[1]):
+                csid = int(self.fit['events_trace_arr']['cell_specimen_id'][idx])
+                all_events = self.session.dataset.events.loc[csid]['filtered_events']
+                # only include events during task (excluding gray screens at beginning/end)
+                first_index = np.where(self.session.dataset.ophys_timestamps >= self.timestamps[0])[0][0]
+                self.fit['events_trace_arr'][:,idx] = all_events[first_index:first_index + len(self.timestamps)]
+
         if log_results:
             print('logging results to mongo')
             gat.log_results_to_mongo(self) 
@@ -177,14 +195,19 @@ class GLM(object):
         '''
 
         # build a dataframe with columns for 'fit_array', 'dff_trace_arr', 'events_trace_arr'
-        df = self.fit['fit_trace_arr'].to_dataframe(name='fit_array').merge(
-            self.fit['dff_trace_arr'].to_dataframe(name='dff'),
-            left_index=True,
-            right_index=True,
-        ).merge(
-            self.fit['events_trace_arr'].to_dataframe(name='events'),
-            left_index=True,
-            right_index=True,
+        fit_df = self.fit['fit_trace_arr'].to_dataframe(name='fit_array')
+        dff_df = self.fit['dff_trace_arr'].to_dataframe(name='dff')
+        event_df = self.fit['events_trace_arr'].to_dataframe(name='events')
+        df = fit_df.reset_index().merge(
+            dff_df.reset_index(),
+            left_on=['fit_trace_timestamps','cell_specimen_id'],
+            right_on=['fit_trace_timestamps','cell_specimen_id'],
+        )
+        
+        df = df.merge(
+            event_df.reset_index(),
+            left_on=['fit_trace_timestamps','cell_specimen_id'],
+            right_on=['fit_trace_timestamps','cell_specimen_id'],
         )
 
         # calculate the prediction matrix Y
@@ -216,7 +239,7 @@ class GLM(object):
         )
 
         # adjust frame indices to account for frames that may have been trimmed from start of movie
-        first_frame = np.where(self.session.dataset.ophys_timestamps > df.fit_trace_timestamps.min())[0][0]
+        first_frame = np.where(self.session.dataset.ophys_timestamps >= df.fit_trace_timestamps.min())[0][0]
         df['frame_index'] += first_frame
 
         return df
@@ -241,3 +264,32 @@ class GLM(object):
         else:
             warnings.warn('could not locate weights array')
             return None
+
+    def movie(self, cell_specimen_id, action='make_movie', start_frame=0, end_frame=None, frame_interval=1, fps=10, destination_folder=None, verbose=False):
+        '''
+        generate a movie to visualize the contribution of various regressors to the model prediction
+        inputs:
+            cell_specimen_id: the cell to visualize
+            action: 'make_movie' or 'display_first_frame'
+                make_movie will make the full movie from start_frame to end_frame
+                display_first_frame will display a static plot of just start_frame
+        '''
+        if end_frame is None:
+            end_frame = len(self.timestamps)-1
+
+        glm_movie = gvt.GLM_Movie(
+            self, 
+            cell_specimen_id=cell_specimen_id, 
+            start_frame=start_frame, 
+            end_frame=end_frame, 
+            frame_interval=frame_interval, 
+            fps=fps, 
+            destination_folder=destination_folder, 
+            verbose=verbose
+        )
+        if action == 'make_movie':
+            glm_movie.make_movie()
+        elif action == 'display_first_frame':
+            glm_movie.make_cell_movie_frame(glm_movie.ax, glm_movie.glm, start_frame, cell_specimen_id)
+
+        return glm_movie

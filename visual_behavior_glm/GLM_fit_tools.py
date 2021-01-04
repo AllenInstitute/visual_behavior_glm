@@ -136,12 +136,6 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     file_temp = open(filepath, 'wb')
     pickle.dump(fit, file_temp)
     file_temp.close()  
-    
-    # Save Design Matrix
-    print('Saving Design Matrix')  
-    sparse_X = scipy.sparse.csc_matrix(design.get_X().values)
-    filepath = os.path.join(run_params['experiment_output_dir'],'X_sparse_csc_'+str(oeid)+'.npz')
-    scipy.sparse.save_npz(filepath, sparse_X)
 
     # Save Event Table
     print('Saving Events Table')

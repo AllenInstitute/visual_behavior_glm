@@ -793,7 +793,7 @@ def process_data(session, run_params, TESTING=False):
     # Get the matrix of dff traces
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
     
-    if ('use_events' in run_params) & (run_params['use_events']):
+    if ('use_events' in run_params) and (run_params['use_events']):
         print('Using detected events instead of df/f')
         events_trace_arr = get_events_arr(session, timestamps_to_use) 
         assert np.size(dff_trace_arr) == np.size(events_trace_arr), 'Events array doesnt match size of df/f array'

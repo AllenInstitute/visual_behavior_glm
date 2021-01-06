@@ -1,5 +1,7 @@
 import os
+import bz2
 import pickle
+import _pickle as cPickle
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -51,8 +53,9 @@ def check_run_fits(VERSION):
     experiment_table = pd.read_csv(run_params['experiment_table_path']).reset_index(drop=True).set_index('ophys_experiment_id')
     experiment_table['GLM_fit'] = False
     for index, oeid in enumerate(experiment_table.index.values):
-        filename = run_params['experiment_output_dir']+str(oeid)+".pkl" 
-        experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filename) 
+        filenamepkl = run_params['experiment_output_dir']+str(oeid)+".pkl" 
+        filenamepbz2 = run_params['experiment_output_dir']+str(oeid)+".pbz2" 
+        experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filenamepkl) or os.path.isfile(filenamepbz2)
     return experiment_table
 
 def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
@@ -128,14 +131,13 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
         fit = evaluate_shuffle(fit, design, method='cells')
         fit = evaluate_shuffle(fit, design, method='time')
 
-    # Save fit dictionary 
+    # Save fit dictionary to compressed pickle file
     print('Saving results')
     fit['failed_kernels'] = run_params['failed_kernels']
     fit['failed_dropouts'] = run_params['failed_dropouts']
-    filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pkl')
-    file_temp = open(filepath, 'wb')
-    pickle.dump(fit, file_temp)
-    file_temp.close()  
+    filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pbz2')
+    with bz2.BZ2File(filepath, 'w') as f:
+        cPickle.dump(fit,f)
 
     # Save Event Table
     print('Saving Events Table')

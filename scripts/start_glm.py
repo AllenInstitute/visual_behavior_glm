@@ -27,8 +27,9 @@ job_settings            = run_params['job_settings']
 # Start a job for each experiment
 if __name__=="__main__":
     for oeid in ophys_experiment_ids:
-        filename = run_params['experiment_output_dir']+str(oeid)+".pkl" 
-        if os.path.isfile(filename):
+        filenamepkl = run_params['experiment_output_dir']+str(oeid)+".pkl" 
+        filenamepbz2 = run_params['experiment_output_dir']+str(oeid)+".pbz2" 
+        if os.path.isfile(filenamepkl) or os.path.isfile(filenamepbz2):
             # If the output file already exists, it will not over-ride
             print(str(oeid) + " Already done!")
         else:

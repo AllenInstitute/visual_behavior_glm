@@ -293,3 +293,4 @@ class GLM(object):
             glm_movie.make_cell_movie_frame(glm_movie.ax, glm_movie.glm, start_frame, cell_specimen_id)
 
         return glm_movie
+

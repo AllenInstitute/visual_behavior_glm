@@ -1,5 +1,7 @@
 import os
+import bz2
 import pickle
+import _pickle as cPickle
 import warnings
 import numpy as np
 import pandas as pd
@@ -13,7 +15,8 @@ from sklearn.decomposition import PCA
 
 def load_fit_pkl(run_params, ophys_experiment_id):
     '''
-        Loads the fit dictionary from the pkl file dumped by fit_experiment
+        Loads the fit dictionary from the pkl file dumped by fit_experiment.
+        Attempts to load the compressed pickle file if it exists, otherwise loads the uncompressed file
     
         Inputs:
         run_params, the dictionary of parameters for this version
@@ -22,11 +25,21 @@ def load_fit_pkl(run_params, ophys_experiment_id):
         Returns:
         the fit dictionary if it exists
 
-    '''
-    filename = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pkl')
-    with open(filename,'rb') as f:
-        fit = pickle.load(f)
-    return fit
+    ''' 
+
+    filenamepkl = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pkl')
+    filenamepbz2 = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pbz2')
+
+    if os.path.isfile(filenamepbz2):
+        fit = bz2.BZ2File(filenamepbz2, 'rb')
+        fit = cPickle.load(fit)
+        return fit
+    elif os.path.isfile(filenamepkl):
+        with open(filenamepkl,'rb') as f:
+            fit = pickle.load(f)
+        return fit
+    else:
+        return None
 
 def log_error(error_dict, keys_to_check = []):
     '''

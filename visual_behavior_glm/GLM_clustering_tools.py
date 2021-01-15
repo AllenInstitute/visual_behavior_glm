@@ -1,11 +1,18 @@
+import os
+import scipy
+import umap
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans # Dev
 from sklearn.mixture import GaussianMixture
 import scipy.cluster.hierarchy as sch
+import visual_behavior_glm.GLM_visualization_tools as gvt
 
-
+def notes():
+    raise Exception("dont call this function, alex Dev")
+    
+    
 
 def plot_top_level_dropouts_gmm(results_pivoted, filter_cre=False, cre='Slc17a7-IRES2-Cre',bins=150, cmax=10,n_clusters=10):
     '''
@@ -407,4 +414,144 @@ def plot_dendrogram(results_pivoted,regressors='all', method = 'ward', metric = 
     
     return
 
+def cluster_weights_df(weights_df, run_params, kernel, threshold=0.01,drop_threshold=-0.10,session_filter=[1,2,3,4,5,6], equipment_filter="all", depth_filter=[0,1000], cell_filter="all", area_filter=["VISp","VISl"]):
+    '''
+    dev notes 
+    '''
+    version = run_params['version']
+    filter_string = ''
+    problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
 
+    equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
+    if equipment_filter == "scientifica": 
+        equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5"]
+        filter_string += '_scientifica'
+    elif equipment_filter == "mesoscope":
+        equipment_list = ["MESO.1"]
+        filter_string += '_mesoscope'
+ 
+    # Filter by Cell Type    
+    cell_list = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre']     
+    if cell_filter == "sst":
+        cell_list = ['Sst-IRES-Cre']
+        filter_string += '_sst'
+    elif cell_filter == "vip":
+        cell_list = ['Vip-IRES-Cre']
+        filter_string += '_vip'
+    elif cell_filter == "slc":
+        cell_list = ['Slc17a7-IRES2-Cre']
+        filter_string += '_slc'
+
+    # Determine filename
+    if session_filter != [1,2,3,4,5,6]:
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
+    if depth_filter !=[0,1000]:
+        filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
+    if area_filter != ['VISp','VISl']:
+        filter_string+='_area_'+'_'.join(area_filter)
+
+    # Apply filters
+    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
+
+    # Set up matrix of data
+    df = weights[kernel+"_weights"]
+
+    # Set up time vectors.
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
+
+    # Normalize kernels, and interpolate to time_vec
+    data = [x/np.max(np.abs(x)) for x in df[~df.isnull()].values]
+    data = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in data]
+    
+    # Needed for stability
+    if len(data)>0:
+        data = np.vstack(data)
+    else:
+        data = np.empty((2,len(time_vec)))
+        data[:] = np.nan
+   
+    # do some clustering
+    #labels, cluster = do_clustering(data)   
+ 
+    # apply cluster labels onto dataframe
+    #weights['clusters'] = labels   
+
+    # return
+    return weights,data
+
+def cluster_weights_dendrogram(data):
+    method = 'ward' 
+    metric = 'euclidean'
+    plt.figure()
+    ax = plt.gca()
+    Z = sch.linkage(data, method = method, metric = metric)
+    dend = sch.dendrogram(Z, orientation = 'right',color_threshold=None, leaf_font_size = 15, leaf_rotation=0, ax = ax)
+    plt.tight_layout()
+    return Z, dend
+
+def cluster_weights_GMM(data,n=4):
+    estimator = GaussianMixture(n_components=n,covariance_type='full') 
+    estimator.fit(data)
+    return estimator
+
+def cluster_weights_UMAP(weights, data):
+    reducer = umap.UMAP()
+    embedding = reducer.fit_transform(data) 
+    return embedding
+
+def plot_weights_UMAP(weights,run_params, kernel,embedding,s=1):
+    project_colors = gvt.project_colors()
+    filename1 = os.path.join(run_params['fig_clustering_dir'],kernel+'_weights_UMAP_cre.png') 
+    filename2 = os.path.join(run_params['fig_clustering_dir'],kernel+'_weights_UMAP_cre_and_session.png') 
+    
+    fig, axes = plt.subplots(2,2)
+    colors = [project_colors[x] for x in weights['cre_line']]
+    axes[0,0].scatter(embedding[:,0], embedding[:,1], c=colors,s=s)
+    axes[0,0].set_title(kernel)
+    vip = (weights['cre_line'] == 'Vip-IRES-Cre').values
+    sst = (weights['cre_line'] == 'Sst-IRES-Cre').values
+    slc = (weights['cre_line'] == 'Slc17a7-IRES2-Cre').values
+    axes[0,1].scatter(embedding[vip,0], embedding[vip,1], c=np.array(colors)[vip],s=s)
+    axes[1,0].scatter(embedding[slc,0], embedding[slc,1], c=np.array(colors)[slc],s=s)
+    axes[1,1].scatter(embedding[sst,0], embedding[sst,1], c=np.array(colors)[sst],s=s)
+    axes[0,1].set_title('VIP')
+    axes[1,0].set_title('SLC')
+    axes[1,1].set_title('SST')
+    for i in [0,1]:
+        for j in [0,1]:
+            axes[i,j].set_aspect('equal','datalim')
+            axes[i,j].set_xlabel('UMAP 1')
+            axes[i,j].set_ylabel('UMAP 2')
+    plt.tight_layout()
+    plt.savefig(filename1)
+
+
+    fig, axes = plt.subplots(3,6,figsize=(14,6))
+    cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    for i,cre in enumerate(cres):
+        for j,session in enumerate([1,2,3,4,5,6]):
+            dex = ((weights['cre_line'] == cre)&(weights['session_number'] == session)).values    
+            axes[i,j].scatter(embedding[dex,0],embedding[dex,1],s=s,color=project_colors[str(session)])
+            axes[i,j].set_aspect('equal','datalim')
+            axes[i,j].set_xlabel('UMAP 1')
+            axes[i,j].set_ylabel('UMAP 2')
+            axes[i,j].set_title(cre[0:3]+'-'+str(session))
+    plt.tight_layout()
+    plt.savefig(filename2)
+
+def plot_all_UMAP_clustering(run_params, weights_df):
+    for kernel in run_params['kernels']:
+        try:
+            weights, data = cluster_weights_df(weights_df, run_params, kernel)
+            embedding = cluster_weights_UMAP(weights, data)
+            plot_weights_UMAP(weights, run_params, kernel, embedding)
+        except:
+            print('error-'+kernel)
+
+
+
+
+
+ 

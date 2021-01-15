@@ -1,5 +1,7 @@
 import os
+import bz2
 import pickle
+import _pickle as cPickle
 import warnings
 import numpy as np
 import pandas as pd
@@ -13,7 +15,8 @@ from sklearn.decomposition import PCA
 
 def load_fit_pkl(run_params, ophys_experiment_id):
     '''
-        Loads the fit dictionary from the pkl file dumped by fit_experiment
+        Loads the fit dictionary from the pkl file dumped by fit_experiment.
+        Attempts to load the compressed pickle file if it exists, otherwise loads the uncompressed file
     
         Inputs:
         run_params, the dictionary of parameters for this version
@@ -22,11 +25,21 @@ def load_fit_pkl(run_params, ophys_experiment_id):
         Returns:
         the fit dictionary if it exists
 
-    '''
-    filename = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pkl')
-    with open(filename,'rb') as f:
-        fit = pickle.load(f)
-    return fit
+    ''' 
+
+    filenamepkl = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pkl')
+    filenamepbz2 = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pbz2')
+
+    if os.path.isfile(filenamepbz2):
+        fit = bz2.BZ2File(filenamepbz2, 'rb')
+        fit = cPickle.load(fit)
+        return fit
+    elif os.path.isfile(filenamepkl):
+        with open(filenamepkl,'rb') as f:
+            fit = pickle.load(f)
+        return fit
+    else:
+        return None
 
 def log_error(error_dict, keys_to_check = []):
     '''
@@ -56,7 +69,7 @@ def build_kernel_df(glm, cell_specimen_id):
 
     '''
     kernel_list = list(glm.design.kernel_dict.keys())
-    model_timestamps = glm.fit['dff_trace_arr']['dff_trace_timestamps'].values
+    model_timestamps = glm.fit['fit_trace_arr']['fit_trace_timestamps'].values
     kernel_df = []
 
     # get all weight names
@@ -143,7 +156,7 @@ def generate_results_summary_nonadj(glm):
         Returns a dataframe with summary information from the glm object
     '''
     # Get list of columns to look at, removing the non-adjusted dropouts, and training scores
-    test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' not in col)&('session' not in col))]  
+    test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' not in col)&('session' not in col)&('cell' not in col))]  
  
     # Set up space
     results_summary_list = []
@@ -510,7 +523,7 @@ def get_glm_version_comparison_table(versions_to_compare, metric='Full__avg_cv_v
     cols= [col for col in results.columns if col not in pivoted_results.columns and 'test' not in col and 'train' not in col and '__' not in col and 'dropout' not in col]
 
     pivoted_results = pivoted_results.merge(
-        results[cols],
+        results[cols].drop_duplicates(subset=['identifier']),
         left_on='identifier',
         right_on='identifier',
         how='left'
@@ -710,11 +723,13 @@ def compute_over_fitting_proportion(results_full,run_params):
     '''
     dropouts = set(run_params['dropouts'].keys())
     for d in dropouts:
-        results_full[d+'__over_fit'] = (results_full[d+'__avg_cv_var_train']-results_full[d+'__avg_cv_var_test'])/(results_full[d+'__avg_cv_var_train'])
+        if d+'__avg_cv_var_train' in results_full.columns:
+            results_full[d+'__over_fit'] = (results_full[d+'__avg_cv_var_train']-results_full[d+'__avg_cv_var_test'])/(results_full[d+'__avg_cv_var_train'])
     
     dropouts.remove('Full')
     for d in dropouts:
-        results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
+        if d+'__avg_cv_var_train' in results_full.columns:
+            results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
  
 
 

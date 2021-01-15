@@ -1,5 +1,7 @@
 import os
+import bz2
 import pickle
+import _pickle as cPickle
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -51,8 +53,9 @@ def check_run_fits(VERSION):
     experiment_table = pd.read_csv(run_params['experiment_table_path']).reset_index(drop=True).set_index('ophys_experiment_id')
     experiment_table['GLM_fit'] = False
     for index, oeid in enumerate(experiment_table.index.values):
-        filename = run_params['experiment_output_dir']+str(oeid)+".pkl" 
-        experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filename) 
+        filenamepkl = run_params['experiment_output_dir']+str(oeid)+".pkl" 
+        filenamepbz2 = run_params['experiment_output_dir']+str(oeid)+".pbz2" 
+        experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filenamepkl) or os.path.isfile(filenamepbz2)
     return experiment_table
 
 def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
@@ -87,10 +90,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Processing df/f data
     print('Processing df/f data')
-    fit= dict()
-    fit['dff_trace_arr'] = process_data(session,TESTING=TESTING)
-    fit = annotate_dff(fit)
-    fit['ophys_frame_rate'] = session.dataset.metadata['ophys_frame_rate'] 
+    fit = extract_and_annotate_ophys(session,run_params, TESTING=TESTING)
 
     # Make Design Matrix
     print('Build Design Matrix')
@@ -101,8 +101,8 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Set up CV splits
     print('Setting up CV')
-    fit['splits'] = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
-    fit['ridge_splits'] = split_time(fit['dff_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
+    fit['splits'] = split_time(fit['fit_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
+    fit['ridge_splits'] = split_time(fit['fit_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
 
     # Determine Regularization Strength
     print('Evaluating Regularization values')
@@ -120,29 +120,24 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     fit = evaluate_models(fit, design, run_params)
 
     # Start Diagnostic analyses
-    print('Starting diagnostics')
-    print('Bootstrapping synthetic data')
-    fit = bootstrap_model(fit, design, run_params)
+    if not NO_DROPOUTS:
+        print('Starting diagnostics')
+        print('Bootstrapping synthetic data')
+        fit = bootstrap_model(fit, design, run_params)
 
     # Perform shuffle analysis, with two shuffle methods
-    print('Evaluating shuffle fits')
-    fit = evaluate_shuffle(fit, design, method='cells')
-    fit = evaluate_shuffle(fit, design, method='time')
+    if not NO_DROPOUTS:
+        print('Evaluating shuffle fits')
+        fit = evaluate_shuffle(fit, design, method='cells')
+        fit = evaluate_shuffle(fit, design, method='time')
 
-    # Save fit dictionary 
+    # Save fit dictionary to compressed pickle file
     print('Saving results')
     fit['failed_kernels'] = run_params['failed_kernels']
     fit['failed_dropouts'] = run_params['failed_dropouts']
-    filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pkl')
-    file_temp = open(filepath, 'wb')
-    pickle.dump(fit, file_temp)
-    file_temp.close()  
-    
-    # Save Design Matrix
-    print('Saving Design Matrix')  
-    sparse_X = scipy.sparse.csc_matrix(design.get_X().values)
-    filepath = os.path.join(run_params['experiment_output_dir'],'X_sparse_csc_'+str(oeid)+'.npz')
-    scipy.sparse.save_npz(filepath, sparse_X)
+    filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pbz2')
+    with bz2.BZ2File(filepath, 'w') as f:
+        cPickle.dump(fit,f)
 
     # Save Event Table
     print('Saving Events Table')
@@ -175,17 +170,17 @@ def bootstrap_model(fit, design, run_params, regularization=50, norm_preserve=Fa
     '''
     # Set up storage, and how many datasets to make
     zero_dexes = range(100, len(fit['dropouts']['Full']['cv_weights'][:,:,0]),check_every)
-    cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-    cv_var_test     = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-    cv_var_def      = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-    cv_weight_shift = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+    cv_var_train    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+    cv_var_test     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+    cv_var_def      = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
+    cv_weight_shift = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
 
     # Iterate over datasets, making synthetic data, and doing recovery
     for index, zero_dex in enumerate(zero_dexes):
 
         # Set up design matrix and Y variable (will get over-ridden)p
         X = design.get_X()
-        Y_boot = copy(fit['dff_trace_arr'])
+        Y_boot = copy(fit['fit_trace_arr'])
 
         # iterate over cross validation
         for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Bootstrapping with {} regressors'.format(zero_dex)):
@@ -275,22 +270,22 @@ def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     # Set up space
     W = fit['dropouts']['Full']['train_weights']
     X = design.get_X()
-    var_shuffle = np.empty((fit['dff_trace_arr'].shape[1], num_shuffles)) 
-    dff_shuffle = np.copy(fit['dff_trace_arr'].values)
-    max_shuffle = np.shape(dff_shuffle)[0]
+    var_shuffle = np.empty((fit['fit_trace_arr'].shape[1], num_shuffles)) 
+    fit_trace_shuffle = np.copy(fit['fit_trace_arr'].values)
+    max_shuffle = np.shape(fit_trace_shuffle)[0]
     
     # Iterate over shuffles
     for count in tqdm(range(0, num_shuffles), total=num_shuffles, desc='    Shuffling by {}'.format(method)):
         if method == 'time':
-            for dex in range(0, np.shape(dff_shuffle)[1]):
+            for dex in range(0, np.shape(fit_trace_shuffle)[1]):
                 shuffle_count = np.random.randint(1, max_shuffle)
-                dff_shuffle[:,dex] = np.roll(dff_shuffle[:,dex], shuffle_count, axis=0) 
+                fit_trace_shuffle[:,dex] = np.roll(fit_trace_shuffle[:,dex], shuffle_count, axis=0) 
         elif method == 'cells':
-            idx = np.random.permutation(np.shape(dff_shuffle)[1])
-            while np.any(idx == np.array(range(0, np.shape(dff_shuffle)[1]))):
-                idx = np.random.permutation(np.shape(dff_shuffle)[1])
-            dff_shuffle = np.copy(fit['dff_trace_arr'].values)[:,idx]
-        var_shuffle[:,count]  = variance_ratio(dff_shuffle, W, X)
+            idx = np.random.permutation(np.shape(fit_trace_shuffle)[1])
+            while np.any(idx == np.array(range(0, np.shape(fit_trace_shuffle)[1]))):
+                idx = np.random.permutation(np.shape(fit_trace_shuffle)[1])
+            fit_trace_shuffle = np.copy(fit['fit_trace_arr'].values)[:,idx]
+        var_shuffle[:,count]  = variance_ratio(fit_trace_shuffle, W, X)
 
     # Make summary evaluation of shuffle threshold
     fit['var_shuffle_'+method] = var_shuffle
@@ -327,25 +322,25 @@ def evaluate_ridge(fit, design,run_params):
             fit['L2_grid'] = np.geomspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])
         else:
             fit['L2_grid'] = np.linspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])
-        train_cv = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
-        test_cv  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['L2_grid']))) 
+        train_cv = np.empty((fit['fit_trace_arr'].shape[1], len(fit['L2_grid']))) 
+        test_cv  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['L2_grid']))) 
         X = design.get_X()
       
         # Iterate over L2 Values 
         for L2_index, L2_value in enumerate(fit['L2_grid']):
-            cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['ridge_splits'])))
-            cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['ridge_splits'])))
+            cv_var_train = np.empty((fit['fit_trace_arr'].shape[1], len(fit['ridge_splits'])))
+            cv_var_test = np.empty((fit['fit_trace_arr'].shape[1], len(fit['ridge_splits'])))
 
             # Iterate over CV splits
             for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Fitting L2, {}'.format(L2_value)):
                 train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
                 X_test  = X[test_split,:]
                 X_train = X[train_split,:]
-                dff_train = fit['dff_trace_arr'][train_split,:]
-                dff_test  = fit['dff_trace_arr'][test_split,:]
-                W = fit_regularized(dff_train, X_train, L2_value)
-                cv_var_train[:,split_index] = variance_ratio(dff_train, W, X_train)
-                cv_var_test[:,split_index]  = variance_ratio(dff_test, W, X_test)
+                fit_trace_train = fit['fit_trace_arr'][train_split,:]
+                fit_trace_test  = fit['fit_trace_arr'][test_split,:]
+                W = fit_regularized(fit_trace_train, X_train, L2_value)
+                cv_var_train[:,split_index] = variance_ratio(fit_trace_train, W, X_train)
+                cv_var_test[:,split_index]  = variance_ratio(fit_trace_test, W, X_test)
 
             train_cv[:,L2_index] = np.mean(cv_var_train,1)
             test_cv[:,L2_index]  = np.mean(cv_var_test,1)
@@ -389,27 +384,27 @@ def evaluate_models_different_ridge(fit,design,run_params):
         Full_X = design.get_X(kernels=fit['dropouts']['Full']['kernels'])
 
         # Iterate CV
-        cv_var_train    = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
-        cv_var_test     = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
-        cv_adjvar_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
-        cv_adjvar_test  = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
-        cv_adjvar_train_fc = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
-        cv_adjvar_test_fc= np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  
-        cv_weights      = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1], len(fit['splits'])))
-        all_weights     = np.empty((np.shape(X)[1], fit['dff_trace_arr'].shape[1]))
-        all_var_explain = np.empty((fit['dff_trace_arr'].shape[1]))
-        all_adjvar_explain = np.empty((fit['dff_trace_arr'].shape[1]))
-        all_prediction  = np.empty(fit['dff_trace_arr'].shape)
+        cv_var_train    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cv_var_test     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cv_adjvar_train = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_train_fc = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test_fc= np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))  
+        cv_weights      = np.empty((np.shape(X)[1], fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        all_weights     = np.empty((np.shape(X)[1], fit['fit_trace_arr'].shape[1]))
+        all_var_explain = np.empty((fit['fit_trace_arr'].shape[1]))
+        all_adjvar_explain = np.empty((fit['fit_trace_arr'].shape[1]))
+        all_prediction  = np.empty(fit['fit_trace_arr'].shape)
         X_test_array = []   # Cache the intermediate steps for each cell
         X_train_array = []
         X_cov_array = []
 
-        for cell_index, cell_value in tqdm(enumerate(fit['dff_trace_arr']['cell_specimen_id'].values),total=len(fit['dff_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+        for cell_index, cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
 
-            dff = fit['dff_trace_arr'][:,cell_index]
-            Wall = fit_cell_regularized(X_inner,dff, X,fit['cell_regularization'][cell_index])     
-            var_explain = variance_ratio(dff, Wall,X)
-            adjvar_explain = masked_variance_ratio(dff, Wall,X, mask) 
+            fit_trace = fit['fit_trace_arr'][:,cell_index]
+            Wall = fit_cell_regularized(X_inner,fit_trace, X,fit['cell_regularization'][cell_index])     
+            var_explain = variance_ratio(fit_trace, Wall,X)
+            adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
             all_weights[:,cell_index] = Wall
             all_var_explain[cell_index] = var_explain
             all_adjvar_explain[cell_index] = adjvar_explain
@@ -428,32 +423,32 @@ def evaluate_models_different_ridge(fit,design,run_params):
                 X_train = X_train_array[index]
                 X_cov   = X_cov_array[index]
 
-                dff_train = fit['dff_trace_arr'][train_split,cell_index]
-                dff_test = fit['dff_trace_arr'][test_split,cell_index]
-                W = fit_cell_regularized(X_cov,dff_train, X_train, fit['cell_regularization'][cell_index])
-                cv_var_train[cell_index,index] = variance_ratio(dff_train, W, X_train)
-                cv_var_test[cell_index,index] = variance_ratio(dff_test, W, X_test)
-                cv_adjvar_train[cell_index,index]= masked_variance_ratio(dff_train, W, X_train, mask[train_split]) 
-                cv_adjvar_test[cell_index,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split])
+                fit_trace_train = fit['fit_trace_arr'][train_split,cell_index]
+                fit_trace_test = fit['fit_trace_arr'][test_split,cell_index]
+                W = fit_cell_regularized(X_cov,fit_trace_train, X_train, fit['cell_regularization'][cell_index])
+                cv_var_train[cell_index,index] = variance_ratio(fit_trace_train, W, X_train)
+                cv_var_test[cell_index,index] = variance_ratio(fit_trace_test, W, X_test)
+                cv_adjvar_train[cell_index,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask[train_split]) 
+                cv_adjvar_test[cell_index,index] = masked_variance_ratio(fit_trace_test, W, X_test, mask[test_split])
                 cv_weights[:,cell_index,index] = W 
                 if model_label == 'Full':
                     # If this is the Full model, the value is the same
-                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(dff_train, W, X_train, mask[train_split])  
-                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(dff_test, W, X_test, mask[test_split])  
+                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask[train_split])  
+                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(fit_trace_test, W, X_test, mask[test_split])  
                 else:
                     # Otherwise, get weights and design matrix for this cell/cv_split and compute the variance explained on this mask
                     Full_W = xr.DataArray(fit['dropouts']['Full']['cv_weights'][:,cell_index,index])
                     Full_X_test = Full_X[test_split,:]
                     Full_X_train = Full_X[train_split,:]
-                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(dff_train, Full_W, Full_X_train, mask[train_split])  
-                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(dff_test, Full_W, Full_X_test, mask[test_split])    
+                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(fit_trace_train, Full_W, Full_X_train, mask[train_split])  
+                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(fit_trace_test, Full_W, Full_X_test, mask[test_split])    
 
         all_weights_xarray = xr.DataArray(
             data = all_weights,
             dims = ("weights", "cell_specimen_id"),
             coords = {
                 "weights": X.weights.values,
-                "cell_specimen_id": fit['dff_trace_arr'].cell_specimen_id.values
+                "cell_specimen_id": fit['fit_trace_arr'].cell_specimen_id.values
             }
         )
 
@@ -490,22 +485,22 @@ def evaluate_models_same_ridge(fit, design, run_params):
         Full_X = design.get_X(kernels=fit['dropouts']['Full']['kernels'])
 
         # Fit on full dataset for references as training fit
-        dff = fit['dff_trace_arr']
-        Wall = fit_regularized(dff, X,fit['avg_regularization'])     
-        var_explain = variance_ratio(dff, Wall,X)
-        adjvar_explain = masked_variance_ratio(dff, Wall,X, mask) 
+        fit_trace = fit['fit_trace_arr']
+        Wall = fit_regularized(fit_trace, X,fit['avg_regularization'])     
+        var_explain = variance_ratio(fit_trace, Wall,X)
+        adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
         fit['dropouts'][model_label]['train_weights'] = Wall
         fit['dropouts'][model_label]['train_variance_explained']    = var_explain
         fit['dropouts'][model_label]['train_adjvariance_explained'] = adjvar_explain
         fit['dropouts'][model_label]['full_model_train_prediction'] = X.values @ Wall.values
 
         # Iterate CV
-        cv_var_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
-        cv_var_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))
-        cv_adjvar_train = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
-        cv_adjvar_test = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  
-        cv_adjvar_train_fc = np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits']))) 
-        cv_adjvar_test_fc= np.empty((fit['dff_trace_arr'].shape[1], len(fit['splits'])))  
+        cv_var_train = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cv_var_test = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cv_adjvar_train = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))  
+        cv_adjvar_train_fc = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test_fc= np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))  
         cv_weights = np.empty((np.shape(Wall)[0], np.shape(Wall)[1], len(fit['splits'])))
 
         for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
@@ -514,25 +509,25 @@ def evaluate_models_same_ridge(fit, design, run_params):
             X_train = X[train_split,:]
             mask_test = mask[test_split]
             mask_train = mask[train_split]
-            dff_train = fit['dff_trace_arr'][train_split,:]
-            dff_test = fit['dff_trace_arr'][test_split,:]
-            W = fit_regularized(dff_train, X_train, fit['avg_regularization'])
-            cv_var_train[:,index]   = variance_ratio(dff_train, W, X_train)
-            cv_var_test[:,index]    = variance_ratio(dff_test, W, X_test)
-            cv_adjvar_train[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train) 
-            cv_adjvar_test[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test)
+            fit_trace_train = fit['fit_trace_arr'][train_split,:]
+            fit_trace_test = fit['fit_trace_arr'][test_split,:]
+            W = fit_regularized(fit_trace_train, X_train, fit['avg_regularization'])
+            cv_var_train[:,index]   = variance_ratio(fit_trace_train, W, X_train)
+            cv_var_test[:,index]    = variance_ratio(fit_trace_test, W, X_test)
+            cv_adjvar_train[:,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask_train) 
+            cv_adjvar_test[:,index] = masked_variance_ratio(fit_trace_test, W, X_test, mask_test)
             cv_weights[:,:,index]   = W 
             if model_label == 'Full':
                 # If this model is Full, then the masked variance ratio is the same
-                cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, W, X_train, mask_train)  
-                cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test, W, X_test, mask_test)  
+                cv_adjvar_train_fc[:,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask_train)  
+                cv_adjvar_test_fc[:,index] = masked_variance_ratio(fit_trace_test, W, X_test, mask_test)  
             else:
                 # Otherwise load the weights and design matrix for this cv_split, and compute VE with this support mask
                 Full_W = xr.DataArray(fit['dropouts']['Full']['cv_weights'][:,:,index])
                 Full_X_test = Full_X[test_split,:]
                 Full_X_train = Full_X[train_split,:]
-                cv_adjvar_train_fc[:,index]= masked_variance_ratio(dff_train, Full_W, Full_X_train, mask_train)  
-                cv_adjvar_test_fc[:,index] = masked_variance_ratio(dff_test, Full_W, Full_X_test, mask_test)    
+                cv_adjvar_train_fc[:,index]= masked_variance_ratio(fit_trace_train, Full_W, Full_X_train, mask_train)  
+                cv_adjvar_test_fc[:,index] = masked_variance_ratio(fit_trace_test, Full_W, Full_X_test, mask_test)    
 
         fit['dropouts'][model_label]['cv_weights']      = cv_weights
         fit['dropouts'][model_label]['cv_var_train']    = cv_var_train
@@ -586,7 +581,7 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
         Columns: Average (across CV folds) variance explained on the test and training sets for each model defined in fit['dropouts']
     '''
         
-    cellids = fit['dff_trace_arr']['cell_specimen_id'].values
+    cellids = fit['fit_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
 
     # Iterate over models
@@ -684,7 +679,7 @@ def L2_report(fit):
     plt.axvline(fit['avg_regularization'], color='k', linestyle='--', alpha = 0.5)
     plt.ylim(0,.15) 
 
-    cellids = fit['dff_trace_arr']['cell_specimen_id'].values
+    cellids = fit['fit_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=cellids)
     for index, value in enumerate(fit['L2_grid']):
         results["cv_train_"+str(index)] = fit['L2_train_cv'][:,index]
@@ -716,6 +711,25 @@ def load_data(oeid, dataframe_format='wide', smooth_running_data=True):
             v_max='v_sig_max'
         )
     return session
+
+def process_behavior_predictions(session, ophys_timestamps=None, cutoff_threshold=0.01):
+    '''
+    Returns a dataframe of licking/grooming behavior derived from behavior videos
+    All columns are interpolated onto ophys timestamps
+    cutoff_threshold = threshold below which probabilities will be set to 0
+    '''
+    behavior_predictions = pd.DataFrame({'timestamps':ophys_timestamps})
+    for column in ['lick','groom']:
+        f = scipy.interpolate.interp1d(
+            session.dataset.behavior_movie_predictions['timestamps'], 
+            session.dataset.behavior_movie_predictions[column], 
+            bounds_error=False
+        )
+        behavior_predictions[column] = f(behavior_predictions['timestamps'])
+        behavior_predictions[column].fillna(method='ffill',inplace=True)
+        # set values below cutoff threshold to 0
+        behavior_predictions[column][behavior_predictions[column]<cutoff_threshold] = 0
+    return behavior_predictions
 
 def process_eye_data(session,run_params,ophys_timestamps=None):
     '''
@@ -760,7 +774,7 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     return ophys_eye 
 
 
-def process_data(session,TESTING=False):
+def process_data(session, run_params, TESTING=False):
     '''
     Processes dff traces by trimming off portions of recording session outside of the task period. These include:
         * a ~5 minute gray screen period before the task begins
@@ -768,32 +782,57 @@ def process_data(session,TESTING=False):
         * a 5-10 minute movie following the second gray screen period
     
     input -- session object 
+    run_params, run json dictionary
     TESTING,        if True, only includes the first 6 cells of the experiment
 
     returns -- an xarray of of deltaF/F traces with dimensions [timestamps, cell_specimen_ids]
     '''
 
     # clip off the grey screen periods
-    dff_trace_timestamps = session.ophys_timestamps
+    fit_trace_timestamps = session.ophys_timestamps
     timestamps_to_use = get_ophys_frames_to_use(session)
 
     # Get the matrix of dff traces
     dff_trace_arr = get_dff_arr(session, timestamps_to_use)
+    
+    if ('use_events' in run_params) and (run_params['use_events']):
+        print('Using detected events instead of df/f')
+        events_trace_arr = get_events_arr(session, timestamps_to_use) 
+        assert np.size(dff_trace_arr) == np.size(events_trace_arr), 'Events array doesnt match size of df/f array'
+        fit_trace_arr = copy(events_trace_arr)
+    else:
+        fit_trace_arr = copy(dff_trace_arr)
+        events_trace_arr = None 
 
     # some assert statements to ensure that dimensions are correct
-    assert np.sum(timestamps_to_use) == len(dff_trace_arr['dff_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `dff_trace_timestamps` in `dff_trace_arr`'
-    assert np.sum(timestamps_to_use) == dff_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `dff_trace_arr`'
-    assert len(session.cell_specimen_table.query('valid_roi == True')) == dff_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `dff_trace_arr`'
+    assert np.sum(timestamps_to_use) == len(fit_trace_arr['fit_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `fit_trace_timestamps` in `fit_trace_arr`'
+    assert np.sum(timestamps_to_use) == fit_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `fit_trace_arr`'
+    assert len(session.cell_specimen_table.query('valid_roi == True')) == fit_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `fit_trace_arr`'
 
     # Clip the array to just the first 6 cells
     if TESTING:
+        fit_trace_arr = fit_trace_arr[:,0:6]
         dff_trace_arr = dff_trace_arr[:,0:6]
+        if events_trace_arr is not None:
+            events_trace_arr = events_trace_arr[:,0:6]
+           
+    return (fit_trace_arr,dff_trace_arr,events_trace_arr)
 
-    return dff_trace_arr
-
-def annotate_dff(fit):
-    fit['dff_trace_timestamps'] = fit['dff_trace_arr']['dff_trace_timestamps'].values
-    fit['dff_trace_bins'] = np.concatenate([fit['dff_trace_timestamps'],[fit['dff_trace_timestamps'][-1]+np.mean(np.diff(fit['dff_trace_timestamps']))]])  
+def extract_and_annotate_ophys(session, run_params, TESTING=False):
+    '''
+        Creates fit dictionary
+        extracts dff_trace or events_trace from session object
+        sets up the timestamps to be used
+        sets up bins for binning times onto the ophys timestamps
+    '''
+    fit= dict()
+    trace_tuple = process_data(session,run_params, TESTING=TESTING)
+    fit['fit_trace_arr'] = trace_tuple[0]
+    fit['dff_trace_arr'] = trace_tuple[1]
+    fit['events_trace_arr'] = trace_tuple[2]
+    fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
+    fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
+    fit['ophys_frame_rate'] = session.dataset.metadata['ophys_frame_rate'] 
     return fit
 
 def add_kernels(design, run_params,session, fit):
@@ -878,14 +917,14 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
     try:
         event = run_params['kernels'][kernel_name]['event']
         if event == 'intercept':
-            timeseries = np.ones(len(fit['dff_trace_timestamps']))
+            timeseries = np.ones(len(fit['fit_trace_timestamps']))
         elif event == 'time':
-            timeseries = np.array(range(1,len(fit['dff_trace_timestamps'])+1))
+            timeseries = np.array(range(1,len(fit['fit_trace_timestamps'])+1))
             timeseries = timeseries/len(timeseries)
         elif event == 'running':
             running_df = session.dataset.running_data_df
             running_df = running_df.rename(columns={'speed':'values'})
-            timeseries = interpolate_to_dff_timestamps(fit, running_df)['values'].values
+            timeseries = interpolate_to_ophys_timestamps(fit, running_df)['values'].values
             timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
         elif event.startswith('face_motion'):
             PC_number = int(event.split('_')[-1])
@@ -893,16 +932,16 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
                 'timestamps': session.dataset.behavior_movie_timestamps,
                 'values': session.dataset.behavior_movie_pc_activations[:,PC_number]
             })
-            timeseries = interpolate_to_dff_timestamps(fit, face_motion_df)['values'].values
+            timeseries = interpolate_to_ophys_timestamps(fit, face_motion_df)['values'].values
             timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
         elif event == 'population_mean':
-            timeseries = np.mean(fit['dff_trace_arr'],1).values
+            timeseries = np.mean(fit['fit_trace_arr'],1).values
             timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
         elif event == 'Population_Activity_PC1':
             pca = PCA()
-            pca.fit(fit['dff_trace_arr'].values)
-            dff_pca = pca.transform(fit['dff_trace_arr'].values)
-            timeseries = dff_pca[:,0]
+            pca.fit(fit['fit_trace_arr'].values)
+            fit_trace_pca = pca.transform(fit['fit_trace_arr'].values)
+            timeseries = fit_trace_pca[:,0]
             timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
         elif (len(event) > 6) & ( event[0:6] == 'model_'):
             bsid = session.dataset.metadata['behavior_session_id']
@@ -911,13 +950,17 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
             weight_df = pd.DataFrame()
             weight_df['timestamps'] = session.dataset.stimulus_presentations.start_time.values
             weight_df['values'] = weight.values
-            timeseries = interpolate_to_dff_timestamps(fit, weight_df)
+            timeseries = interpolate_to_ophys_timestamps(fit, weight_df)
             timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
             timeseries = timeseries['values'].values
             timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
         elif event == 'pupil':
-            session.ophys_eye = process_eye_data(session,run_params,ophys_timestamps =fit['dff_trace_timestamps'] )
+            session.ophys_eye = process_eye_data(session,run_params,ophys_timestamps =fit['fit_trace_timestamps'] )
             timeseries = session.ophys_eye['pupil_radius'].values
+        elif event == 'lick_model' or event == 'groom_model':
+            if not hasattr(session, 'lick_groom_model'):
+                session.lick_groom_model = process_behavior_predictions(session, ophys_timestamps = fit['fit_trace_timestamps'])
+            timeseries = session.lick_groom_model[event.split('_')[0]].values
         else:
             raise Exception('Could not resolve kernel label')
     except Exception as e:
@@ -940,7 +983,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         return design
     else:
         #assert length of values is same as length of timestamps
-        assert len(timeseries) == fit['dff_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of dff_trace_timestamps'
+        assert len(timeseries) == fit['fit_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of fit_trace_timestamps'
 
         # Add to design matrix
         design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
@@ -990,8 +1033,17 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'lick_bouts':
             licks = session.dataset.licks
             licks['pre_ILI'] = licks['timestamps'] - licks['timestamps'].shift(fill_value=-10)
+            licks['post_ILI'] = licks['timestamps'].shift(periods=-1,fill_value=5000) - licks['timestamps']
             licks['bout_start'] = licks['pre_ILI'] > run_params['lick_bout_ILI']
-            event_times = session.dataset.licks.query('bout_start')['timestamps'].values
+            licks['bout_end'] = licks['post_ILI'] > run_params['lick_bout_ILI']
+            assert np.sum(licks['bout_start']) == np.sum(licks['bout_end']), "Lick bout splitting failed"
+            
+            # We are making an array of in-lick-bout-event-times by tiling timepoints every <min_interval> seconds. 
+            # If a lick is the end of a bout, the bout-event-times continue <min_time_per_bout> after the lick
+            # Otherwise, we tile the duration of the post_ILI
+            event_times = np.concatenate([np.arange(x[0],x[0]+run_params['min_time_per_bout'],run_params['min_interval']) if x[2] else
+                                        np.arange(x[0],x[0]+x[1],run_params['min_interval']) for x in 
+                                        zip(licks['timestamps'], licks['post_ILI'], licks['bout_end'])]) 
         elif event == 'rewards':
             event_times = session.dataset.rewards['timestamps'].values
         elif event == 'change':
@@ -1004,6 +1056,13 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             else:
                 event_times = session.dataset.trials.query(event)['change_time'].values
             event_times = event_times[~np.isnan(event_times)]
+            if len(session.dataset.rewards) < 5: ## HARD CODING THIS VALUE
+                raise Exception('Trial type regressors arent defined for passive sessions (sessions with less than 5 rewards)')
+        elif event == 'passive_change':
+            if len(session.dataset.rewards) > 5: 
+                raise Exception('Passive Change kernel cant be added to active sessions')               
+            event_times = session.dataset.stimulus_presentations.query('change')['start_time'].values
+            event_times = event_times[~np.isnan(event_times)]           
         elif event == 'any-image':
             event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
         elif event == 'image_expectation':
@@ -1037,7 +1096,12 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         )        
         return design       
     else:
-        events_vec, timestamps = np.histogram(event_times, bins=fit['dff_trace_bins'])
+        events_vec, timestamps = np.histogram(event_times, bins=fit['fit_trace_bins'])
+
+        if event == 'lick_bouts': 
+            # Force this to be 0 or 1, since we purposefully over-tiled the space. 
+            events_vec[events_vec > 1] = 1
+
         design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
         return design
 
@@ -1056,7 +1120,7 @@ class DesignMatrix(object):
         self.X = None
         self.kernel_dict = {}
         self.running_stop = 0
-        self.events = {'timestamps':fit_dict['dff_trace_timestamps']}
+        self.events = {'timestamps':fit_dict['fit_trace_timestamps']}
         self.ophys_frame_rate = fit_dict['ophys_frame_rate']
 
     def make_labels(self, label, num_weights,offset, length): 
@@ -1229,6 +1293,34 @@ def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
     )
     return ophys_frames_to_use
 
+def get_events_arr(session, timestamps_to_use):
+    '''
+    Get the events traces from a session in xarray format (preserves cell ids and timestamps)
+
+    timestamps_to_use is a boolean vector that contains which timestamps to use in the analysis
+    '''
+    # Get events and trim off ends
+    all_events = np.stack(session.dataset.events['filtered_events'].values)
+    all_events_to_use = all_events[:, timestamps_to_use]
+
+    # Get the timestamps
+    events_trace_timestamps = session.ophys_timestamps
+    events_trace_timestamps_to_use = events_trace_timestamps[timestamps_to_use]
+
+    # Note: it may be more efficient to get the xarrays directly, rather than extracting/building them from session.events_traces
+    #       The dataframes are built from xarrays to start with, so we are effectively converting them twice by doing this
+    #       But if there's no big time penalty to doing it this way, then maybe just leave it be.
+    # Intentionally setting the name of the time axis to fit_trace_timestamps so it matches the fit_trace_arr
+    events_trace_xr = xr.DataArray(
+            data = all_events_to_use.T,
+            dims = ("fit_trace_timestamps", "cell_specimen_id"),
+            coords = {
+                "fit_trace_timestamps": events_trace_timestamps_to_use,
+                "cell_specimen_id": session.cell_specimen_table.index.values
+            }
+        )
+    return events_trace_xr
+
 def get_dff_arr(session, timestamps_to_use):
     '''
     Get the dff traces from a session in xarray format (preserves cell ids and timestamps)
@@ -1240,34 +1332,34 @@ def get_dff_arr(session, timestamps_to_use):
     all_dff_to_use = all_dff[:, timestamps_to_use]
 
     # Get the timestamps
-    dff_trace_timestamps = session.ophys_timestamps
-    dff_trace_timestamps_to_use = dff_trace_timestamps[timestamps_to_use]
+    fit_trace_timestamps = session.ophys_timestamps
+    fit_trace_timestamps_to_use = fit_trace_timestamps[timestamps_to_use]
 
     # Note: it may be more efficient to get the xarrays directly, rather than extracting/building them from session.dff_traces
     #       The dataframes are built from xarrays to start with, so we are effectively converting them twice by doing this
     #       But if there's no big time penalty to doing it this way, then maybe just leave it be.
     dff_trace_xr = xr.DataArray(
             data = all_dff_to_use.T,
-            dims = ("dff_trace_timestamps", "cell_specimen_id"),
+            dims = ("fit_trace_timestamps", "cell_specimen_id"),
             coords = {
-                "dff_trace_timestamps": dff_trace_timestamps_to_use,
+                "fit_trace_timestamps": fit_trace_timestamps_to_use,
                 "cell_specimen_id": session.cell_specimen_table.index.values
             }
         )
     return dff_trace_xr
 
-def interpolate_to_dff_timestamps(fit,df):
+def interpolate_to_ophys_timestamps(fit,df):
     '''
     interpolate timeseries onto ophys timestamps
 
-    input:  fit, dictionary containing 'dff_trace_timestamps':<array of timestamps>
+    input:  fit, dictionary containing 'fit_trace_timestamps':<array of timestamps>
             df, dataframe with columns:
                 timestamps (timestamps of signal)
                 values  (signal of interest)
 
     returns: dataframe with columns:
-                timestamps (dff_trace_timestamps)
-                values (values interpolated onto dff_trace_timestamps)
+                timestamps (fit_trace_timestamps)
+                values (values interpolated onto fit_trace_timestamps)
    
     '''
     f = scipy.interpolate.interp1d(
@@ -1277,8 +1369,8 @@ def interpolate_to_dff_timestamps(fit,df):
     )
 
     interpolated = pd.DataFrame({
-        'timestamps':fit['dff_trace_timestamps'],
-        'values':f(fit['dff_trace_timestamps'])
+        'timestamps':fit['fit_trace_timestamps'],
+        'values':f(fit['fit_trace_timestamps'])
     })
 
     return interpolated
@@ -1292,21 +1384,21 @@ def get_model_weight(bsid, weight_name, run_params):
     beh_model = pd.read_csv(run_params['beh_model_dir']+str(bsid)+'.csv')
     return beh_model[weight_name].copy()
 
-def fit(dff_trace_arr, X):
+def fit(fit_trace_arr, X):
     '''
     Analytical OLS solution to linear regression. 
 
-    dff_trace_arr: shape (n_timestamps * n_cells)
+    fit_trace_arr: shape (n_timestamps * n_cells)
     X: shape (n_timestamps * n_kernel_params)
     '''
-    W = np.dot(np.linalg.inv(np.dot(X.T, X)), np.dot(X.T, dff_trace_arr))
+    W = np.dot(np.linalg.inv(np.dot(X.T, X)), np.dot(X.T, fit_trace_arr))
     return W
 
-def fit_regularized(dff_trace_arr, X, lam):
+def fit_regularized(fit_trace_arr, X, lam):
     '''
     Analytical OLS solution with added L2 regularization penalty. 
 
-    dff_trace_arr: shape (n_timestamps * n_cells)
+    fit_trace_arr: shape (n_timestamps * n_cells)
     X: shape (n_timestamps * n_kernel_params)
     lam (float): Strength of L2 regularization (hyperparameter to tune)
 
@@ -1314,13 +1406,13 @@ def fit_regularized(dff_trace_arr, X, lam):
     '''
     # Compute the weights
     if lam == 0:
-        W = fit(dff_trace_arr,X)
+        W = fit(fit_trace_arr,X)
     else:
         W = np.dot(np.linalg.inv(np.dot(X.T, X) + lam * np.eye(X.shape[-1])),
-               np.dot(X.T, dff_trace_arr))
+               np.dot(X.T, fit_trace_arr))
 
     # Make xarray
-    cellids = dff_trace_arr['cell_specimen_id'].values
+    cellids = fit_trace_arr['cell_specimen_id'].values
     W_xarray= xr.DataArray(
             W, 
             dims =('weights','cell_specimen_id'), 
@@ -1329,11 +1421,11 @@ def fit_regularized(dff_trace_arr, X, lam):
             )
     return W_xarray
 
-def fit_cell_regularized(X_cov,dff_trace_arr, X, lam):
+def fit_cell_regularized(X_cov,fit_trace_arr, X, lam):
     '''
     Analytical OLS solution with added L2 regularization penalty. 
 
-    dff_trace_arr: shape (n_timestamps * n_cells)
+    fit_trace_arr: shape (n_timestamps * n_cells)
     X: shape (n_timestamps * n_kernel_params)
     lam (float): Strength of L2 regularization (hyperparameter to tune)
 
@@ -1341,10 +1433,10 @@ def fit_cell_regularized(X_cov,dff_trace_arr, X, lam):
     '''
     # Compute the weights
     if lam == 0:
-        W = fit(dff_trace_arr,X)
+        W = fit(fit_trace_arr,X)
     else:
         W = np.dot(np.linalg.inv(X_cov + lam * np.eye(X.shape[-1])),
-               np.dot(X.T, dff_trace_arr))
+               np.dot(X.T, fit_trace_arr))
 
     # Make xarray 
     W_xarray= xr.DataArray(
@@ -1354,25 +1446,25 @@ def fit_cell_regularized(X_cov,dff_trace_arr, X, lam):
             )
     return W_xarray
 
-def variance_ratio(dff_trace_arr, W, X): 
+def variance_ratio(fit_trace_arr, W, X): 
     '''
-    Computes the fraction of variance in dff_trace_arr explained by the linear model Y = X*W
+    Computes the fraction of variance in fit_trace_arr explained by the linear model Y = X*W
     
-    dff_trace_arr: (n_timepoints, n_cells)
+    fit_trace_arr: (n_timepoints, n_cells)
     W: Xarray (n_kernel_params, n_cells)
     X: Xarray (n_timepoints, n_kernel_params)
     '''
     Y = X.values @ W.values
-    var_total = np.var(dff_trace_arr, axis=0)   # Total variance in the dff trace for each cell
-    var_resid = np.var(dff_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
+    var_total = np.var(fit_trace_arr, axis=0)   # Total variance in the ophys trace for each cell
+    var_resid = np.var(fit_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
     return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
 
-def masked_variance_ratio(dff_trace_arr, W, X, mask): 
+def masked_variance_ratio(fit_trace_arr, W, X, mask): 
     '''
-    Computes the fraction of variance in dff_trace_arr explained by the linear model Y = X*W
+    Computes the fraction of variance in fit_trace_arr explained by the linear model Y = X*W
     but only looks at the timepoints in mask
     
-    dff_trace_arr: (n_timepoints, n_cells)
+    fit_trace_arr: (n_timepoints, n_cells)
     W: Xarray (n_kernel_params, n_cells)
     X: Xarray (n_timepoints, n_kernel_params)
     mask: bool vector (n_timepoints,)
@@ -1381,14 +1473,14 @@ def masked_variance_ratio(dff_trace_arr, W, X, mask):
     Y = X.values @ W.values
 
     # Define variance function that lets us isolate the mask timepoints
-    def my_var(dff, support_mask):
-        if len(np.shape(dff)) ==1:
-            dff = dff.values[:,np.newaxis]
-        mu = np.mean(dff,axis=0)
-        return np.mean((dff[support_mask,:]-mu)**2,axis=0)
+    def my_var(trace, support_mask):
+        if len(np.shape(trace)) ==1:
+            trace = trace.values[:,np.newaxis]
+        mu = np.mean(trace,axis=0)
+        return np.mean((trace[support_mask,:]-mu)**2,axis=0)
 
-    var_total = my_var(dff_trace_arr, mask)#Total variance in the dff trace for each cell
-    var_resid = my_var(dff_trace_arr-Y, mask)#Residual variance in the difference between the model and data
+    var_total = my_var(fit_trace_arr, mask)#Total variance in the ophys trace for each cell
+    var_resid = my_var(fit_trace_arr-Y, mask)#Residual variance in the difference between the model and data
     return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
 
 def error_by_time(fit, design):
@@ -1397,7 +1489,7 @@ def error_by_time(fit, design):
     '''
     plt.figure()
     Y = design.get_X().values @ fit['dropouts']['Full']['cv_var_weights'][:,:,0]
-    diff = fit['dff_trace_arr'] - Y
+    diff = fit['fit_trace_arr'] - Y
     plt.figure()
     plt.plot(np.abs(diff.mean(axis=1)), 'k-')
     plt.ylabel('Model Error (df/f)')

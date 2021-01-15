@@ -38,9 +38,11 @@ parser.add_argument(
 
 job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_jobs/ophys_glm"
 
+walltime = '{}:00:00'
+mem = '{}g'
 job_settings = {'queue': 'braintv',
-                'mem': '{}g',
-                'walltime': '{}:00:00',
+                'mem': '16g',
+                'walltime': '2:00:00',
                 'ppn': 16,
                 }
 
@@ -50,7 +52,7 @@ def calculate_required_mem(roi_count):
 
 def calculate_required_walltime(roi_count):
     '''calculate required walltime in hours'''
-    return 1.5 + 0.075*roi_count
+    return 10 + 0.125*roi_count
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -58,10 +60,11 @@ if __name__ == "__main__":
     print('python executable = {}'.format(python_executable))
     python_file = "{}/scripts/fit_glm.py".format(args.src_path)
 
-    experiments_table = loading.get_filtered_ophys_experiment_table()
+    experiments_table = loading.get_filtered_ophys_experiment_table().reset_index()
     # get ROI count for each experiment
-    experiment_table['roi_count'] = experiment_table.reset_index()['ophys_experiment_id'].map(lambda oeid: gat.get_roi_count(oeid))
-    experiment_ids = experiments_table.index.values
+    experiments_table['roi_count'] = experiments_table['ophys_experiment_id'].map(lambda oeid: gat.get_roi_count(oeid))
+    experiment_ids = experiments_table['ophys_experiment_id'].values
+    experiments_table.set_index('ophys_experiment_id', inplace=True)
     job_count = 0
 
     if args.use_previous_fit:
@@ -72,9 +75,9 @@ if __name__ == "__main__":
     for experiment_id in experiment_ids:
 
         #calculate resource needs based on ROI count
-        roi_count = experiment_table.loc[experiment_id]['roi_count']
-        job_settings['walltime'] = job_settings['walltime'].format(int(calculate_required_walltime(roi_count)))
-        job_settings['mem'] = job_settings['mem'].format(int(calculate_required_mem(roi_count)))
+        roi_count = experiments_table.loc[experiment_id]['roi_count']
+        job_settings['walltime'] = walltime.format(int(np.ceil((calculate_required_walltime(roi_count)))))
+        job_settings['mem'] = mem.format(int(np.ceil((calculate_required_mem(roi_count)))))
 
         if args.force_overwrite or not gat.already_fit(experiment_id, args.version):
             job_count += 1

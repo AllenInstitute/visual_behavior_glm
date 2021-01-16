@@ -8,6 +8,8 @@ from sklearn.cluster import KMeans # Dev
 from sklearn.mixture import GaussianMixture
 import scipy.cluster.hierarchy as sch
 import visual_behavior_glm.GLM_visualization_tools as gvt
+import mpl_scatter_density
+from matplotlib.colors import LinearSegmentedColormap
 
 def notes():
     raise Exception("dont call this function, alex Dev")
@@ -527,16 +529,22 @@ def plot_weights_UMAP(weights,run_params, kernel,embedding,s=1):
     plt.tight_layout()
     plt.savefig(filename1)
 
-
-    fig, axes = plt.subplots(3,6,figsize=(14,6))
+    #fig, axes = plt.subplots(3,6,figsize=(14,6))
+    fig, axes = plt.subplots(3,6,figsize=(14,6),subplot_kw={'projection':'scatter_density'})
     cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    cmap = make_density_colormap()
     for i,cre in enumerate(cres):
         for j,session in enumerate([1,2,3,4,5,6]):
             dex = ((weights['cre_line'] == cre)&(weights['session_number'] == session)).values    
-            axes[i,j].scatter(embedding[dex,0],embedding[dex,1],s=s,color=project_colors[str(session)])
+            #axes[i,j].scatter(embedding[dex,0],embedding[dex,1],s=s,color=project_colors[str(session)])
+            density = axes[i,j].scatter_density(embedding[dex,0],embedding[dex,1],cmap=cmap)
+            if j==5:
+                fig.colorbar(density,ax=axes[i,j],label='Points/Pixel')
             axes[i,j].set_aspect('equal','datalim')
-            axes[i,j].set_xlabel('UMAP 1')
-            axes[i,j].set_ylabel('UMAP 2')
+            if j == 0:
+                axes[i,j].set_ylabel('UMAP 2')
+            if i == 2:
+                axes[i,j].set_xlabel('UMAP 1')
             axes[i,j].set_title(cre[0:3]+'-'+str(session))
     plt.tight_layout()
     plt.savefig(filename2)
@@ -551,6 +559,17 @@ def plot_all_UMAP_clustering(run_params, weights_df):
             print('error-'+kernel)
 
 
+def make_density_colormap():
+    cmap = LinearSegmentedColormap.from_list('white_viridis',[
+        (0,'#ffffff'),
+        (1e-2,'#440053'),
+        (0.2,'#404388'),
+        (0.4,'#2a788e'),
+        (0.6,'#21a784'),
+        (0.8,'#78d151'),
+        (1,'#fde624'),
+    ], N=256)
+    return cmap
 
 
 

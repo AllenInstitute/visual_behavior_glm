@@ -503,11 +503,12 @@ def cluster_weights_UMAP(weights, data):
     embedding = reducer.fit_transform(data) 
     return embedding
 
-def plot_weights_UMAP(weights,run_params, kernel,embedding,s=1):
+def plot_weights_UMAP(weights,run_params, kernel,embedding,s=1,plot_density=False):
     project_colors = gvt.project_colors()
     filename1 = os.path.join(run_params['fig_clustering_dir'],kernel+'_weights_UMAP_cre.png') 
     filename2 = os.path.join(run_params['fig_clustering_dir'],kernel+'_weights_UMAP_cre_and_session.png') 
-    
+    filename3 = os.path.join(run_params['fig_clustering_dir'],kernel+'_weights_UMAP_cre_and_area_and_layer.png')   
+
     fig, axes = plt.subplots(2,2)
     colors = [project_colors[x] for x in weights['cre_line']]
     axes[0,0].scatter(embedding[:,0], embedding[:,1], c=colors,s=s)
@@ -529,17 +530,23 @@ def plot_weights_UMAP(weights,run_params, kernel,embedding,s=1):
     plt.tight_layout()
     plt.savefig(filename1)
 
-    #fig, axes = plt.subplots(3,6,figsize=(14,6))
-    fig, axes = plt.subplots(3,6,figsize=(14,6),subplot_kw={'projection':'scatter_density'})
+    if plot_density:
+        fig, axes = plt.subplots(3,6,figsize=(14,6),subplot_kw={'projection':'scatter_density'})   
+    else:
+        fig, axes = plt.subplots(3,6,figsize=(14,6))
+
     cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
     cmap = make_density_colormap()
     for i,cre in enumerate(cres):
         for j,session in enumerate([1,2,3,4,5,6]):
-            dex = ((weights['cre_line'] == cre)&(weights['session_number'] == session)).values    
-            #axes[i,j].scatter(embedding[dex,0],embedding[dex,1],s=s,color=project_colors[str(session)])
-            density = axes[i,j].scatter_density(embedding[dex,0],embedding[dex,1],cmap=cmap)
-            if j==5:
-                fig.colorbar(density,ax=axes[i,j],label='Points/Pixel')
+            dex = ((weights['cre_line'] == cre)&(weights['session_number'] == session)).values   
+            
+            if plot_density:
+                density = axes[i,j].scatter_density(embedding[dex,0],embedding[dex,1],cmap=cmap)
+                if j==5:
+                    fig.colorbar(density,ax=axes[i,j],label='Points/Pixel')       
+            else: 
+                axes[i,j].scatter(embedding[dex,0],embedding[dex,1],s=s,color=project_colors[str(session)])
             axes[i,j].set_aspect('equal','datalim')
             if j == 0:
                 axes[i,j].set_ylabel('UMAP 2')
@@ -548,6 +555,31 @@ def plot_weights_UMAP(weights,run_params, kernel,embedding,s=1):
             axes[i,j].set_title(cre[0:3]+'-'+str(session))
     plt.tight_layout()
     plt.savefig(filename2)
+
+    fig, axes = plt.subplots(3,4,figsize=(10,6))
+    cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    areas = [('VISp','shallow'),('VISp','deep'),('VISl','shallow'),('VISl','deep')]
+    cmap = make_density_colormap()
+    for i,cre in enumerate(cres):
+        for j,area in enumerate(areas):
+            dex = ((weights['cre_line'] == cre)&(weights['targeted_structure'] == area[0])&(weights['layer'] == area[1])).values   
+            
+            if plot_density:
+                density = axes[i,j].scatter_density(embedding[dex,0],embedding[dex,1],color=project_colors[cre])
+                if j==5:
+                    fig.colorbar(density,ax=axes[i,j],label='Points/Pixel')       
+            else: 
+                axes[i,j].scatter(embedding[dex,0],embedding[dex,1],s=s,color=project_colors[cre])
+            axes[i,j].set_aspect('equal','datalim')
+            if j == 0:
+                axes[i,j].set_ylabel('UMAP 2')
+            if i == 2:
+                axes[i,j].set_xlabel('UMAP 1')
+            axes[i,j].set_title(cre[0:3]+' '+area[0]+' '+area[1])
+    plt.tight_layout()
+    plt.savefig(filename2)
+
+    
 
 def plot_all_UMAP_clustering(run_params, weights_df):
     for kernel in run_params['kernels']:

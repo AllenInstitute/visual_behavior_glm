@@ -109,6 +109,12 @@ if False: # Code snippets for doing basic analyses.
     comparison_table = gat.get_glm_version_comparison_table(versions)
     jointplot = gvt.plot_glm_version_comparison(comparison_table, versions_to_compare=versions)
 
+    ## 3D plots
+    #############
+    all_traces = gvt.plot_kernel_comparison(weights_df, run_params, 'omissions')
+    
+
+
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)

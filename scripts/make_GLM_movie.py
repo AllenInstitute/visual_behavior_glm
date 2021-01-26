@@ -24,6 +24,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--savepath', 
+    type=str, 
+    default='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/glm_movies',
+    metavar='savepath',
+    help='where to save GLM movies'
+)
+
+parser.add_argument(
     '--cell-id', 
     type=int, 
     default=0,
@@ -59,7 +67,7 @@ parser.add_argument(
     help='playback speed'
 )
 
-def make_movie(oeid, glm_version, cell_specimen_id, start_frame, end_frame, frame_interval, fps):
+def make_movie(oeid, glm_version, cell_specimen_id, start_frame, end_frame, frame_interval, fps, savepath='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/glm_movies'):
     t0=time.time()
     glm = GLM(oeid, version=glm_version, use_previous_fit=True, log_results=False, log_weights=False)
     print('fitting the model took {} seconds'.format(time.time()-t0))
@@ -70,7 +78,7 @@ def make_movie(oeid, glm_version, cell_specimen_id, start_frame, end_frame, fram
         start_frame = start_frame,
         end_frame = end_frame,
         frame_interval = frame_interval,
-        destination_folder = '/home/dougo/OneDrive/glm_movies',
+        destination_folder = savepath,
         fps = fps
     )
     t0=time.time()
@@ -89,5 +97,6 @@ if __name__ == '__main__':
         int(args.start_frame), 
         int(args.end_frame),
         int(args.frame_interval),
-        int(args.fps)
+        int(args.fps),
+        args.savepath
     )

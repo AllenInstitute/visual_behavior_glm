@@ -763,8 +763,8 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     ophys_eye = pd.DataFrame({'timestamps':ophys_timestamps})
     z_score = ['eye_width','pupil_radius']
     for column in eye.keys():
-        if column != 'time':
-            f = scipy.interpolate.interp1d(eye['time'], eye[column], bounds_error=False)
+        if column != 'timestamps':
+            f = scipy.interpolate.interp1d(eye['timestamps'], eye[column], bounds_error=False)
             ophys_eye[column] = f(ophys_eye['timestamps'])
             ophys_eye[column].fillna(method='ffill',inplace=True)
             if column in z_score:

@@ -587,11 +587,11 @@ def plot_pupil(session, ax, t_span=None):
     vbp.initialize_legend(ax=ax, colors=['skyblue','LemonChiffon'],linewidth=3)
     if t_span:
         pupil_df = session.dataset.eye_tracking.query(
-            'time >= {} and time <= {}'.format(t_span[0], t_span[1]))
+            'timestamps >= {} and timestamps <= {}'.format(t_span[0], t_span[1]))
     else:
         pupil_df = session.dataset.eye_tracking
     ax.plot(
-        pupil_df['time'],
+        pupil_df['timestamps'],
         pupil_df['pupil_area'],
         color='LemonChiffon',
         linewidth=3
@@ -1189,8 +1189,8 @@ class GLM_Movie(object):
             self.glm.session.dataset.running_data_df.query(query_string)['speed'].max() + 5
         )
         plot_pupil(glm.session, ax['pupil'], t_span=t_span)
-        # set pupil ylims (query string needs to change from 'timestamps' to 'time')
-        pupil_query = self.glm.session.dataset.eye_tracking.query(query_string.replace('timestamps','time'))
+        # set pupil ylims
+        pupil_query = self.glm.session.dataset.eye_tracking.query(query_string)
         ax['pupil'].set_ylim(
             pupil_query['pupil_area'].min() - 100,
             pupil_query['pupil_area'].max() + 100,

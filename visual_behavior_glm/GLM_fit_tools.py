@@ -688,15 +688,12 @@ def L2_report(fit):
     plt.plot([0,1],[0,1],'k--')
     return results
  
-def load_data(oeid, dataframe_format='wide'):
+def load_data(oeid):
     '''
         Returns Visual Behavior ResponseAnalysis object
         Allen SDK dataset is an attribute of this object (session)
         Keyword arguments:
             oeid (int) -- ophys_experiment_id
-            dataframe_format (str) -- whether the response dataframes should be in 'wide' or 'tidy'/'long' formats (default = 'wide')
-                                      'wide' format is one row per stimulus/cell, with all timestamps and dff traces in a single cell
-                                      'tidy' or 'long' format has one row per timepoint (this format conforms to seaborn standards)
     '''
     dataset = loading.get_ophys_dataset(oeid, include_invalid_rois=False)
 

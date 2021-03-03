@@ -12,7 +12,7 @@ sys.path.append('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/src
 from pbstools import pbstools  # NOQA E402
 
 parser = argparse.ArgumentParser(description='deploy glm fits to cluster')
-parser.add_argument('--env', type=str, default='visual_behavior', metavar='name of conda environment to use')
+parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='path to conda environment to use')
 parser.add_argument('--version', type=str, default='0', metavar='glm version')
 parser.add_argument(
     '--src-path', 
@@ -35,8 +35,22 @@ parser.add_argument(
     dest='use_previous_fit', 
     help='use previous fit if it exists (boolean, default = False)'
 )
+parser.add_argument(
+    '--job-start-fraction', 
+    type=float, 
+    default=0.0,
+    metavar='start_fraction',
+    help='which fraction of all jobs to start on. useful if splitting jobs amongst users. Default = 0.0'
+)
+parser.add_argument(
+    '--job-end-fraction', 
+    type=float, 
+    default=1.0,
+    metavar='end_fraction',
+    help='which fraction of all jobs to end on. useful if splitting jobs amongst users. Default = 1.0'
+)
 
-job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_jobs/ophys_glm"
+job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/cluster_records_v12"
 
 walltime = '{}:00:00'
 mem = '{}g'
@@ -56,11 +70,11 @@ def calculate_required_walltime(roi_count):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    python_executable = "{}/.conda/envs/{}/bin/python".format(os.path.expanduser('~'), args.env)
+    python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
     python_file = "{}/scripts/fit_glm.py".format(args.src_path)
 
-    experiments_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    experiments_table = loading.get_filtered_ophys_experiment_table(release_data_only=True).reset_index()
     # get ROI count for each experiment
     experiments_table['roi_count'] = experiments_table['ophys_experiment_id'].map(lambda oeid: gat.get_roi_count(oeid))
     experiment_ids = experiments_table['ophys_experiment_id'].values
@@ -72,7 +86,8 @@ if __name__ == "__main__":
     else:
         job_string = "--oeid {} --version {}"
 
-    for experiment_id in experiment_ids:
+    n_experiment_ids = len(experiment_ids)
+    for experiment_id in experiment_ids[int(n_experiment_ids * args.job_start_fraction): int(n_experiment_ids * args.job_end_fraction)]:
 
         #calculate resource needs based on ROI count
         roi_count = experiments_table.loc[experiment_id]['roi_count']

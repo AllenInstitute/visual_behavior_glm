@@ -28,7 +28,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--src-path', 
         type=str, 
-        default='/home/dougo/Code/visual_behavior_glm/',
+        default='/home/dougo/code/visual_behavior_glm/',
         metavar='src_path',
         help='folder where code lives'
     )

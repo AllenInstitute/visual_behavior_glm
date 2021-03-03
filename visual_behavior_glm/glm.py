@@ -82,12 +82,12 @@ class GLM(object):
             self.fit['fit_trace_arr'] = self.fit['dff_trace_arr'].copy().rename({'dff_trace_timestamps':'fit_trace_timestamps'})
             self.fit['events_trace_arr'] = self.fit['dff_trace_arr'].copy().rename({'dff_trace_timestamps':'fit_trace_timestamps'})
             self.fit['dff_trace_arr'] = self.fit['dff_trace_arr'].rename({'dff_trace_timestamps':'fit_trace_timestamps'})
-            # fill events xarray with filtered events values from session.dataset
+            # fill events xarray with filtered events values from session
             for idx in range(np.shape(self.fit['events_trace_arr'])[1]):
                 csid = int(self.fit['events_trace_arr']['cell_specimen_id'][idx])
-                all_events = self.session.dataset.events.loc[csid]['filtered_events']
+                all_events = self.session.events.loc[csid]['filtered_events']
                 # only include events during task (excluding gray screens at beginning/end)
-                first_index = np.where(self.session.dataset.ophys_timestamps >= self.timestamps[0])[0][0]
+                first_index = np.where(self.session.ophys_timestamps >= self.timestamps[0])[0][0]
                 self.fit['events_trace_arr'][:,idx] = all_events[first_index:first_index + len(self.timestamps)]
 
         if log_results:
@@ -239,7 +239,7 @@ class GLM(object):
         )
 
         # adjust frame indices to account for frames that may have been trimmed from start of movie
-        first_frame = np.where(self.session.dataset.ophys_timestamps >= df.fit_trace_timestamps.min())[0][0]
+        first_frame = np.where(self.session.ophys_timestamps >= df.fit_trace_timestamps.min())[0][0]
         df['frame_index'] += first_frame
 
         return df
@@ -265,7 +265,7 @@ class GLM(object):
             warnings.warn('could not locate weights array')
             return None
 
-    def movie(self, cell_specimen_id, action='make_movie', start_frame=0, end_frame=None, frame_interval=1, fps=10, destination_folder=None, verbose=False):
+    def make_movie(self, cell_specimen_id, action='make_movie', start_frame=0, end_frame=None, frame_interval=1, fps=10, destination_folder=None, verbose=False):
         '''
         generate a movie to visualize the contribution of various regressors to the model prediction
         inputs:

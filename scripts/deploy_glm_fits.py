@@ -35,6 +35,20 @@ parser.add_argument(
     dest='use_previous_fit', 
     help='use previous fit if it exists (boolean, default = False)'
 )
+parser.add_argument(
+    '--job-start-fraction', 
+    type=float, 
+    default=0.0,
+    metavar='start_fraction',
+    help='which fraction of all jobs to start on. useful if splitting jobs amongst users. Default = 0.0'
+)
+parser.add_argument(
+    '--job-end-fraction', 
+    type=float, 
+    default=1.0,
+    metavar='end_fraction',
+    help='which fraction of all jobs to end on. useful if splitting jobs amongst users. Default = 1.0'
+)
 
 job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/cluster_jobs/ophys_glm"
 
@@ -60,7 +74,7 @@ if __name__ == "__main__":
     print('python executable = {}'.format(python_executable))
     python_file = "{}/scripts/fit_glm.py".format(args.src_path)
 
-    experiments_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    experiments_table = loading.get_filtered_ophys_experiment_table(release_data_only=True).reset_index()
     # get ROI count for each experiment
     experiments_table['roi_count'] = experiments_table['ophys_experiment_id'].map(lambda oeid: gat.get_roi_count(oeid))
     experiment_ids = experiments_table['ophys_experiment_id'].values
@@ -72,7 +86,8 @@ if __name__ == "__main__":
     else:
         job_string = "--oeid {} --version {}"
 
-    for experiment_id in experiment_ids:
+    n_experiment_ids = len(experiment_ids)
+    for experiment_id in experiment_ids.iloc[int(n_experiment_ids * args.job_start_fraction): int(n_experiment_ids * args.job_end_fraction)]:
 
         #calculate resource needs based on ROI count
         roi_count = experiments_table.loc[experiment_id]['roi_count']

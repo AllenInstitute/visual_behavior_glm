@@ -14,14 +14,14 @@ if __name__ == '__main__':
     parser.add_argument(
         '--version', 
         type=str, 
-        default='12_events_L2_optimize_by_session',
+        default='12_dff_L2_optimize_by_session',
         metavar='model_version',
         help='model version'
     )
     parser.add_argument(
         '--label', 
         type=str, 
-        default='model as of 3/2/2021, same as 11c, but with SDK version 2.8.0 and release only data',
+        default='model as of 3/2/2021, same as 10c, but with SDK version 2.8.0 and release only data',
         metavar='model_label',
         help='model label'
     )

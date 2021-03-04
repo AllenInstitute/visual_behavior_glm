@@ -567,10 +567,10 @@ def plot_rewards(session, ax, y_loc=0, t_span=None):
 
 def plot_running(session, ax, t_span=None):
     if t_span:
-        running_df = session.running_data_df.reset_index().query(
+        running_df = session.running_speed.reset_index().query(
             'timestamps >= {} and timestamps <= {}'.format(t_span[0], t_span[1]))
     else:
-        running_df = session.running_data_df.reset_index()
+        running_df = session.running_speed.reset_index()
     ax.plot(
         running_df['timestamps'],
         running_df['speed'],
@@ -578,8 +578,8 @@ def plot_running(session, ax, t_span=None):
         linewidth=3
     )
     ax.set_ylim(
-        session.running_data_df['speed'].min(),
-        session.running_data_df['speed'].max(),
+        session.running_speed['speed'].min(),
+        session.running_speed['speed'].max(),
     )
 
 def plot_pupil(session, ax, t_span=None):
@@ -672,7 +672,7 @@ def build_simulated_FOV(session, F_dataframe, column):
 
         F_cell = F_dataframe.loc[cell_specimen_id][column]
         # arr += session.cell_specimen_table.loc[cell_specimen_id]['image_mask']*F_cell
-        arr += session.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values*F_cell
+        arr += session.cell_specimen_table.loc[cell_specimen_id]['roi_mask']*F_cell
 
     return arr
 
@@ -1068,12 +1068,12 @@ class GLM_Movie(object):
             )['cell_roi_id'][0]
             if cell_specimen_id in glm.session.cell_specimen_table.index.tolist():
                 print('FOUND CELL SPECIMEN ID')
-                self.com = ndimage.measurements.center_of_mass(glm.session.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values)
+                self.com = ndimage.measurements.center_of_mass(glm.session.cell_specimen_table.loc[cell_specimen_id]['roi_mask'])
             elif cell_roi_id in glm.session.cell_specimen_table['cell_roi_id'].tolist():
                 print('FOUND CELL ROI ID')
                 correct_csid= self.glm.session.cell_specimen_table.query('cell_roi_id == @cell_roi_id').index[0]
                 # self.com = ndimage.measurements.center_of_mass(glm.session.cell_specimen_table.query('cell_roi_id == @cell_roi_id')['roi_mask'].values[0])
-                self.com = ndimage.measurements.center_of_mass(glm.session.get_roi_masks().loc[{'cell_specimen_id':correct_csid}].values)
+                self.com = ndimage.measurements.center_of_mass(glm.session.cell_specimen_table.loc[cell_specimen_id]['roi_mask'])
                 print(self.com)
             else:
                 print('COULD NOT FIND CELL')
@@ -1185,8 +1185,8 @@ class GLM_Movie(object):
         plot_running(glm.session, ax['running'], t_span=t_span)
         # set running y lims
         ax['running'].set_ylim(
-            self.glm.session.running_data_df.query(query_string)['speed'].min() - 5,
-            self.glm.session.running_data_df.query(query_string)['speed'].max() + 5
+            self.glm.session.running_speed.query(query_string)['speed'].min() - 5,
+            self.glm.session.running_speed.query(query_string)['speed'].max() + 5
         )
         plot_pupil(glm.session, ax['pupil'], t_span=t_span)
         # set pupil ylims

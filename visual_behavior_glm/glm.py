@@ -1,5 +1,6 @@
 import warnings
 import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_params as glm_params
 import sys
@@ -197,7 +198,12 @@ class GLM(object):
         # build a dataframe with columns for 'fit_array', 'dff_trace_arr', 'events_trace_arr'
         fit_df = self.fit['fit_trace_arr'].to_dataframe(name='fit_array')
         dff_df = self.fit['dff_trace_arr'].to_dataframe(name='dff')
-        event_df = self.fit['events_trace_arr'].to_dataframe(name='events')
+        try:
+            event_df = self.fit['events_trace_arr'].to_dataframe(name='events')
+        except AttributeError:
+            timestamps_to_use = gft.get_ophys_frames_to_use(self.session)
+            events_trace_arr = gft.get_events_arr(self.session, timestamps_to_use) 
+            event_df = events_trace_arr.to_dataframe(name='events')
         df = fit_df.reset_index().merge(
             dff_df.reset_index(),
             left_on=['fit_trace_timestamps','cell_specimen_id'],

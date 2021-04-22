@@ -872,7 +872,9 @@ def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, n
     results_pivoted_sel     results_pivoted dataframe from one mouse with cell_specimen_id, 
                             mouse_id, session_number, and ophys_session_id as columns
     session_numbers         session numbers to compare 
-
+    novelty                 default None, if there are retakes, assumes novelty = True for ophys 4.
+                            Set to False if novelty of ophys 4 is not a priority
+    
     RETURNS:
     matched_cell_ids        an array of cell specimen ids matched across sessions
     ophys_session_ids       an array of ophys_session_ids, where the cell ids came from
@@ -884,9 +886,8 @@ def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, n
         print('data from more than one mouse found...\nplease, select glm output for one mouse only!')
         matched_cell_ids = None
     else:
-        # start with the first session number
-        matched_cell_ids = results_pivoted_sel[results_pivoted_sel['session_number']
-                                               == session_numbers[0]]['cell_specimen_id'].values
+        # start with all cell ids
+        matched_cell_ids = results_pivoted_sel['cell_specimen_id'].unique()
 
         for session_number in session_numbers:
 

@@ -867,17 +867,17 @@ def find_best_session(results_pivoted, session_number, mouse_id=None, novelty=Fa
 
 def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, novelty=None):
     '''
-    Finds cells with the same cell ids across sessions
-    INPUT:
-    results_pivoted_sel     results_pivoted dataframe from one mouse with cell_specimen_id, 
-                            mouse_id, session_number, and ophys_session_id as columns
-    session_numbers         session numbers to compare 
-    novelty                 default None, if there are retakes, assumes novelty = True for ophys 4.
-                            Set to False if novelty of ophys 4 is not a priority
-    
-    RETURNS:
-    matched_cell_ids        an array of cell specimen ids matched across sessions
-    ophys_session_ids       an array of ophys_session_ids, where the cell ids came from
+        Finds cells with the same cell ids across sessions
+        INPUT:
+        results_pivoted_sel     results_pivoted dataframe from one mouse with cell_specimen_id, 
+                                mouse_id, session_number, and ophys_session_id as columns
+        session_numbers         session numbers to compare 
+        novelty                 default None, if there are retakes, assumes novelty = True for ophys 4.
+                                Set to False if novelty of ophys 4 is not a priority
+
+        RETURNS:
+        matched_cell_ids        an array of cell specimen ids matched across sessions
+        ophys_session_ids       an array of ophys_session_ids, where the cell ids came from
 
     '''
     ophys_session_ids = []
@@ -926,6 +926,25 @@ def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, n
             ophys_session_ids.append(df['ophys_session_id'].unique()[0])
 
     return matched_cell_ids, ophys_session_ids
+
+
+def drop_cells_with_nan(results_pivoted, regressor):
+    '''
+        Find cells that have NaN dropout scores in either one or more ophys sessions
+        and drop them in both ophys sessions. Return glm df without those cells.
+
+        INPUT:
+        results_pivoted    glm output with regressors as columns
+        regressor          name of the regressor
+
+        RETURNS:
+        results_pivoted_without_nan 
+    '''
+    cell_with_nan = results_pivoted[results_pivoted[regressor].isnull(
+    )]['cell_specimen_id'].values
+    results_pivoted_without_nan = results_pivoted[~results_pivoted['cell_specimen_id'].isin(
+        cell_with_nan)]
+    return results_pivoted_without_nan
 
 
 # NOTE:

@@ -732,7 +732,7 @@ def compute_over_fitting_proportion(results_full,run_params):
             results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
 
            
-def find_best_session(results_pivoted, mouse_id, session_number, novelty=False):
+def find_best_session(results_pivoted, session_number, mouse_id=None,  novelty=False):
     '''
         If there are multiple retakes of the same ophys session type, picks one with most 
         registered neurons.
@@ -750,10 +750,15 @@ def find_best_session(results_pivoted, mouse_id, session_number, novelty=False):
         session_number      ophys session number if one is found, None otherwise
 
     '''
-    df = results_pivoted[(results_pivoted['mouse_id'] == mouse_id) &
+    if mouse_id is not None:  # get glm from one mouse
+        df = results_pivoted[(results_pivoted['mouse_id'] == mouse_id) &
                                (results_pivoted['session_number'] == session_number)]
+    else:
+        df = results_pivoted[results_pivoted['session_number'] == session_number]
+        
     sessions = df['ophys_session_id'].unique()
     print('found {} session(s)...'.format(len(sessions)))
+    
     
     if not sessions:  # no sessions
         session_to_use = None

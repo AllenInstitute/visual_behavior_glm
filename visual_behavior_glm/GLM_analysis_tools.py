@@ -730,7 +730,56 @@ def compute_over_fitting_proportion(results_full,run_params):
     for d in dropouts:
         if d+'__avg_cv_var_train' in results_full.columns:
             results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
- 
+
+           
+def find_best_session(results_pivoted, mouse_id, session_number, novelty=False):
+    '''
+        If there are multiple retakes of the same ophys session type, picks one with most 
+        registered neurons.
+        If novelty is True, picks ophys session with prior exposure to session type = 0
+        Returns one ophys session id if there is one, returns None if there is none that meet
+        novelty criteria.
+
+        INPUT:
+        results_pivoted     glm output with each regressor as a column
+        mouse_id            pick one mouse id at a time
+        session_number      pick one session type at a time (1,2...6)
+        novelty             default = False, if set to True = not a retake
+
+        RETURNS:
+        session_number      ophys session number if one is found, None otherwise
+
+    '''
+    df = results_pivoted[(results_pivoted['mouse_id'] == mouse_id) &
+                               (results_pivoted['session_number'] == session_number)]
+    sessions = df['ophys_session_id'].unique()
+    print('found {} session(s)...'.format(len(sessions)))
+    
+    if not sessions:  # no sessions
+        session_to_use = None
+        
+    elif len(sessions)==1 and novelty == False:  # one session
+        session_to_use = sessions[0]
+    
+    elif novelty == True:  # novel session
+        try:
+            session_to_use = df[df['prior_exposures_to_session_type']==0]\
+            ['ophys_session_id'].unique()[0]
+        except:
+            print('no novel session of this type...')
+            session_to_use = None
+        
+    else:  # go through sessions and find the one with most registered neurons
+        n_csids = 0;  # number of cell specimen ids
+        
+        for session in sessions:
+            n_csid = len(df[df['ophys_session_id']==session]['cell_specimen_id'])
+
+            if n_csid > n_csids:
+                n_csids = n_csid
+                session_to_use = session
+                
+    return session_to_use
 
 
 # NOTE:

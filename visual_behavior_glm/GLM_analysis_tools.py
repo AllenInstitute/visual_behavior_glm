@@ -947,6 +947,26 @@ def drop_cells_with_nan(results_pivoted, regressor):
     return results_pivoted_without_nan
 
 
+def get_mouse_ids_matched(results_pivoted, session_numbers):
+    '''
+        Find mouse ids that have matched ophys sessions.
+
+        INPUT:
+        results_pivoted     glm output with regressors as columns
+        ression_numbers     session numbers to match
+
+        RETURNS:
+        mouse_ids           an array with mouse ids that have all listed session numbers
+    '''
+
+    mouse_ids = results_pivoted['mouse_id'].unique()
+    for session_number in session_numbers:
+        mouse_id = results_pivoted[results_pivoted['session_number']
+                                   == session_number]['mouse_id'].unique()
+        mouse_ids = np.intersect1d(mouse_ids, mouse_id)
+    return mouse_ids
+
+
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.
 #dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_lambda_70/'

@@ -967,6 +967,33 @@ def get_mouse_ids_matched(results_pivoted, session_numbers):
     return mouse_ids
 
 
+def clean_glm_dropout_scores(results_pivoted, threshold = 0.01, in_session_numbers = None):
+    '''
+        Selects only neurons what are explained above threshold var. 
+        In_session_numbers allows you specify with sessions to check. 
+
+        INPUT: 
+        results_pivoted           glm output witt session_number and variance_explained_full as columns
+        in_session_numbers        an array of session number(s) to check. 
+
+        RETURNS:
+        results_pivoted_var glm output with cells above threshold of var explained, unmatched cells
+    '''
+    good_cell_ids = df[df['variance_explained_full']>threshold]['cell_specimen_id'].unique()
+    
+    if in_session_numbers is not None:
+        for session_number in in_session_numbers:
+            cell_ids = results_pivoted[(results_pivoted['session_number']==session_number) &
+                (results_pivoted['variance_explained_full']>threshold)]['cell_specimen_id'].unique()
+            good_cell_ids = np.intersect1d(good_cell_ids, cell_ids)
+    else:
+        good_cell_ids = df[df['variance_explained_full']>threshold]['cell_specimen_id'].unique()
+    
+    results_pivoted_var = results_pivoted[results_pivoted['cell_specimen_id'].isin(good_cell_ids)].copy()
+    
+    return results_pivoted_var
+
+
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.
 #dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_lambda_70/'

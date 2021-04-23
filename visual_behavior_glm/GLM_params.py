@@ -4,7 +4,6 @@ import numpy as np
 from copy import copy
 import datetime
 import shutil
-from visual_behavior.data_access import utilities as utils
 import visual_behavior.data_access.loading as loading
 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
@@ -87,29 +86,20 @@ def make_run_json(VERSION, label='', username=None, src_path=None, TESTING=False
 
     # Make directory, will throw an error if already exists
     output_dir = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(VERSION))
-    figure_dir = utils.correct_filepath(os.path.join(output_dir, 'figures'))
-    fig_coding_dir = utils.correct_filepath(os.path.join(figure_dir, 'coding'))
-    fig_kernels_dir = utils.correct_filepath(
-        os.path.join(figure_dir, 'kernels'))
-    fig_overfitting_dir = utils.correct_filepath(
-        os.path.join(figure_dir, 'over_fitting_figures'))
-    fig_clustering_dir = utils.correct_filepath(
-        os.path.join(figure_dir, 'clustering'))
-    model_freeze_dir = utils.correct_filepath(
-        os.path.join(output_dir, 'frozen_model_files'))
-    experiment_output_dir = utils.correct_filepath(
-        os.path.join(output_dir, 'experiment_model_files'))
-    manifest_dir = utils.correct_filepath(os.path.join(output_dir, 'manifest'))
-    manifest = utils.correct_filepath(os.path.join(
-        output_dir, 'manifest', 'manifest.json'))
-    job_dir = utils.correct_filepath(os.path.join(output_dir, 'log_files'))
-    json_path = utils.correct_filepath(
-        os.path.join(output_dir, 'run_params.json'))
-    experiment_table_path = utils.correct_filepath(os.path.join(
-        output_dir, 'experiment_table_v_'+str(VERSION)+'.csv'))
-    beh_model_dir = utils.correct_filepath(
-        '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/model_output/')
-    os.mkdir(utils.correct_filepath(output_dir))
+    figure_dir = os.path.join(output_dir, 'figures')
+    fig_coding_dir = os.path.join(figure_dir, 'coding')
+    fig_kernels_dir = os.path.join(figure_dir, 'kernels')
+    fig_overfitting_dir = os.path.join(figure_dir, 'over_fitting_figures')
+    fig_clustering_dir = os.path.join(figure_dir, 'clustering')
+    model_freeze_dir = os.path.join(output_dir, 'frozen_model_files')
+    experiment_output_dir = os.path.join(output_dir, 'experiment_model_files')
+    manifest_dir = os.path.join(output_dir, 'manifest')
+    manifest = os.path.join(output_dir, 'manifest', 'manifest.json')
+    job_dir = os.path.join(output_dir, 'log_files')
+    json_path = os.path.join(output_dir, 'run_params.json')
+    experiment_table_path = os.path.join(output_dir, 'experiment_table_v_'+str(VERSION)+'.csv')
+    beh_model_dir = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/model_output/'
+    os.mkdir(output_dir)
     os.mkdir(figure_dir)
     os.mkdir(fig_coding_dir)
     os.mkdir(fig_kernels_dir)
@@ -126,8 +116,7 @@ def make_run_json(VERSION, label='', username=None, src_path=None, TESTING=False
             username = pwd.getpwuid(os.getuid())[0]
         except:
             username = 'unknown'
-    readme_file = utils.correct_filepath(
-        os.path.join(output_dir, 'README.txt'))
+    readme_file = os.path.join(output_dir, 'README.txt')
     readme = open(readme_file, 'w')
     readme.writelines(['OPHYS GLM  v', str(VERSION),
                        '\nCreated on ', str(datetime.datetime.now()),
@@ -136,10 +125,8 @@ def make_run_json(VERSION, label='', username=None, src_path=None, TESTING=False
     readme.close()
 
     # Copy model files to frozen directory
-    python_file_full_path = utils.correct_filepath(
-        os.path.join(model_freeze_dir, 'GLM_fit_tools.py'))
-    python_fit_script = utils.correct_filepath(os.path.join(
-        model_freeze_dir, 'fit_glm_v_'+str(VERSION)+'.py'))
+    python_file_full_path = os.path.join(model_freeze_dir, 'GLM_fit_tools.py')
+    python_fit_script = os.path.join(model_freeze_dir, 'fit_glm_v_'+str(VERSION)+'.py')
     if src_path is None:
         raise Exception('You need to provide a path to the model source code')
 

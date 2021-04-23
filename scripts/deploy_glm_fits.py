@@ -50,7 +50,7 @@ parser.add_argument(
     help='which fraction of all jobs to end on. useful if splitting jobs amongst users. Default = 1.0'
 )
 
-job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/cluster_records_v14"
+job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/cluster_records_v12"
 
 walltime = '{}:00:00'
 mem = '{}g'

@@ -931,7 +931,7 @@ def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, n
 def drop_cells_with_nan(results_pivoted, regressor):
     '''
         Find cells that have NaN dropout scores in either one or more ophys sessions
-        and drop them in both ophys sessions. Return glm df without those cells.
+        and drop them in all ophys sessions. Returns glm df without those cells.
 
         INPUT:
         results_pivoted    glm output with regressors as columns

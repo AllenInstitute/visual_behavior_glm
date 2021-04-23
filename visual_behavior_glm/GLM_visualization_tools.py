@@ -1768,7 +1768,7 @@ def plot_all_kernel_comparison(weights_df, run_params, threshold=0.01, drop_thre
         print('The following kernels failed')
         print(fail) 
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True):
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=True):
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1794,7 +1794,8 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
     filter_string = ''
-    problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
+    #problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
+    problem_sessions = [962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
 
     # Filter by Equipment
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
@@ -1832,7 +1833,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     # Set up time vectors.
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
-    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
 
     # Plotting settings
     fig,ax=plt.subplots(figsize=(8,4))
@@ -1871,7 +1872,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     
         # Filter for this group, and plot
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
-        plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, meso_time_vec,plot_errors=plot_errors) 
+        plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, meso_time_vec,plot_errors=plot_errors,normalize=normalize) 
 
     # Clean Plot, and add details
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
@@ -1889,7 +1890,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
 
-def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.1):
+def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.1,normalize=True):
     '''
         Plots the average kernel for the cells in df
         
@@ -1906,7 +1907,10 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_tim
     '''
 
     # Normalize kernels, and interpolate to time_vec
-    df_norm = [x/np.max(np.abs(x)) for x in df[~df.isnull()].values]
+    if normalize:
+        df_norm = [x/np.max(np.abs(x)) for x in df[~df.isnull()].values]
+    else:
+        df_norm = [x for x in df[~df.isnull()].values]
     df_norm = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df_norm]
     
     # Needed for stability
@@ -1949,11 +1953,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
     filter_string = ''
-    problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
+    problem_sessions = [962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
     if problem_9c:
         problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675, 822734832,843871375]
     if problem_9d:
         problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675, 873653940, 878436988,883509540,822734832]
+
     if equipment_filter == "scientifica": 
         weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')
         filter_string+='_scientifica'
@@ -1970,7 +1975,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     # Mesoscope sessions have not been interpolated onto the right time basis yet
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
-    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/10.725)
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
     if (equipment_filter == "mesoscope") & (not interpolate):
         time_vec = meso_time_vec
 
@@ -2006,6 +2011,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     sst_weights = weights.query('cre_line == "Sst-IRES-Cre"')[kernel+'_weights']
     vip_weights = weights.query('cre_line == "Vip-IRES-Cre"')[kernel+'_weights']
     slc_weights = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[kernel+'_weights']
+    
     if normalize:
         sst = [x/np.max(np.abs(x)) for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0]
         vip = [x/np.max(np.abs(x)) for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0]
@@ -2014,7 +2020,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         sst = [x for x in sst_weights[~sst_weights.isnull()].values if np.max(np.abs(x)) > 0]
         vip = [x for x in vip_weights[~vip_weights.isnull()].values if np.max(np.abs(x)) > 0]
         slc = [x for x in slc_weights[~slc_weights.isnull()].values if np.max(np.abs(x)) > 0]
-
+     
     # Interpolate Mesoscope
     # Doing interpolation step here because we have removed the NaN results
     if interpolate:

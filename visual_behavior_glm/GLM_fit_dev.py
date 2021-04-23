@@ -145,15 +145,18 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     gvt.plot_dropouts(run_params)
 
     # Make over-fitting figures
+    print('over fitting figures')
     gat.compute_over_fitting_proportion(full_results, run_params) 
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
 
     # Make Coding Fraction plots
+    print('coding fraction figures')
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction')
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
     
     # Make Kernel figures
+    print('kernel evaluation figures')
     gvt.all_kernels_evaluation(weights_df,run_params)
     gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="mesoscope")
     gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="scientifica")
@@ -165,9 +168,17 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[6])
 
     # Make Kernel Comparison Figures across sessions
+    print('kernel comparison figures')
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='vip',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='sst',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='slc',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, compare=['cre_line'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, compare=['cre_line','layer'],plot_errors=False)
+
+
+def add_behavior_metrics(version, df):
+    ophys = po.get_ophys_summary_table(version)
+    out_df = pd.merge(df, ophys, on='behavior_session_id')
+    out_df['strategy'] = ['visual' if x else 'timing' for x in out_df['visual_strategy_session']]
+    return out_df
 

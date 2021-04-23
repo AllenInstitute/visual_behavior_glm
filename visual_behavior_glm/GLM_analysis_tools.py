@@ -947,7 +947,7 @@ def drop_cells_with_nan(results_pivoted, regressor):
     return results_pivoted_without_nan
 
 
-def get_mouse_ids_matched(results_pivoted, session_numbers):
+def get_matched_mouse_ids(results_pivoted, session_numbers):
     '''
         Find mouse ids that have matched ophys sessions.
 

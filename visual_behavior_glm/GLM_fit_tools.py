@@ -1035,7 +1035,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = session.rewards['timestamps'].values
         elif event == 'change':
             #event_times = session.trials.query('go')['change_time'].values # This method drops auto-rewarded changes
-            event_times = session.stimulus_presentations.query('change')['start_time'].values
+            event_times = session.stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]
         elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
             if event == 'hit': # Includes auto-rewarded changes as hits, since they include a reward. 
@@ -1048,7 +1048,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'passive_change':
             if len(session.rewards) > 5: 
                 raise Exception('Passive Change kernel cant be added to active sessions')               
-            event_times = session.stimulus_presentations.query('change')['start_time'].values
+            event_times = session.stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]           
         elif event == 'any-image':
             event_times = session.stimulus_presentations.query('not omitted')['start_time'].values

@@ -5,6 +5,7 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
 from visual_behavior_glm.glm import GLM
+import psy_output_tools as po
 
 if False: # Code snippets for doing basic analyses. 
 
@@ -178,7 +179,7 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
 
 def add_behavior_metrics(version, df):
     ophys = po.get_ophys_summary_table(version)
-    out_df = pd.merge(df, ophys, on='behavior_session_id')
+    out_df = pd.merge(df, ophys, on='behavior_session_id',suffixes=('','_ophys_table'))
     out_df['strategy'] = ['visual' if x else 'timing' for x in out_df['visual_strategy_session']]
     return out_df
 

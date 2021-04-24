@@ -1795,7 +1795,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     version = run_params['version']
     filter_string = ''
     #problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
-    problem_sessions = [962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
+    problem_sessions = [873720614, 962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
 
     # Filter by Equipment
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
@@ -1835,6 +1835,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     time_vec = np.round(time_vec,2)
     meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
 
+    #return time_vec, meso_time_vec, weights
     # Plotting settings
     fig,ax=plt.subplots(figsize=(8,4))
     
@@ -1953,7 +1954,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
     filter_string = ''
-    problem_sessions = [962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
+    problem_sessions = [873720614,962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
     if problem_9c:
         problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675, 822734832,843871375]
     if problem_9d:
@@ -3028,7 +3029,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
 
             # plot the coding fraction
             filepath = run_params['fig_coding_dir']
-            plot_coding_fraction(results_pivoted, dropout,threshold=threshold,savefile=filepath,session_filter=session,metric=metric,compare=compare)
+            plot_coding_fraction(results_pivoted, dropout,drop_threshold=threshold,savefile=filepath,session_filter=session,metric=metric,compare=compare)
         except Exception as e:
             print(e)
             # Track failures

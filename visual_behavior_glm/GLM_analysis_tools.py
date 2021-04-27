@@ -869,8 +869,8 @@ def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, n
     '''
         Finds cells with the same cell ids across sessions
         INPUT:
-        results_pivoted_sel     results_pivoted dataframe from one mouse with cell_specimen_id, 
-                                mouse_id, session_number, and ophys_session_id as columns
+        results_pivoted_sel     results_pivoted dataframe without retakes with cell_specimen_id,
+                                session_number, mouse_id, and ophys_session_id as columns
         session_numbers         session numbers to compare 
         novelty                 default None, if there are retakes, assumes novelty = True for ophys 4.
                                 Set to False if novelty of ophys 4 is not a priority
@@ -880,21 +880,24 @@ def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, n
         ophys_session_ids       an array of ophys_session_ids, where the cell ids came from
 
     '''
-    ophys_session_ids = []
 
-    if len(results_pivoted_sel['mouse_id'].unique()) != 1:
-        print('data from more than one mouse found...\nplease, select glm output for one mouse only!')
+    # check for retakes first. You cannot match cells if there are more than one one the same session type.
+    ophys_session_ids = []
+    tmp = results_pivoted_sel[['ophys_session_id', 'mouse_id', 'session_number']].drop_duplicates()
+    session_N = tmp.groupby(['mouse_id', 'session_number'])['session_number'].value_counts()
+
+    if session_N.unique() != [1]:
+
+        print('glm output contains retakes; cant match cells')
         matched_cell_ids = None
     else:
+
         # start with all cell ids
         matched_cell_ids = results_pivoted_sel['cell_specimen_id'].unique()
 
         for session_number in session_numbers:
-            df = results_pivoted_sel[results_pivoted_sel['session_number']
-                                         == session_number]
-
-            matched_cell_ids = np.intersect1d(
-                matched_cell_ids, df['cell_specimen_id'].values)
+            df = results_pivoted_sel[results_pivoted_sel['session_number'] == session_number]
+            matched_cell_ids = np.intersect1d(matched_cell_ids, df['cell_specimen_id'].values)
             try:
                 ophys_session_ids.append(df['ophys_session_id'].unique()[0])
             except:

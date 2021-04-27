@@ -890,22 +890,15 @@ def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, n
         matched_cell_ids = results_pivoted_sel['cell_specimen_id'].unique()
 
         for session_number in session_numbers:
-
-            # check if all session numbers exist
-            if len(results_pivoted_sel[results_pivoted_sel['session_number'] == session_number]
-                   ['ophys_session_id']) == 0:
-                print('no ophys session number {} found'.format(session_number))
-
-                break
-
-            else:
-                df = results_pivoted_sel[results_pivoted_sel['session_number']
+            df = results_pivoted_sel[results_pivoted_sel['session_number']
                                          == session_number]
 
             matched_cell_ids = np.intersect1d(
                 matched_cell_ids, df['cell_specimen_id'].values)
-
-            ophys_session_ids.append(df['ophys_session_id'].unique()[0])
+            try:
+                ophys_session_ids.append(df['ophys_session_id'].unique()[0])
+            except:
+                print('no matches')
 
     return matched_cell_ids, ophys_session_ids
 

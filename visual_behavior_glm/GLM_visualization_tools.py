@@ -1392,9 +1392,9 @@ def plot_dropouts_SAC(run_params,save_results=True,num_levels=3,add_text=True):
     '''
     if num_levels==3:
         if add_text:
-            plt.figure(figsize=(12,8))
-        else:
             plt.figure(figsize=(9,8))
+        else:
+            plt.figure(figsize=(5.5,8))
     else:
         plt.figure(figsize=(16,8))
     w = 1/num_levels  
@@ -1528,7 +1528,7 @@ def plot_dropouts_SAC(run_params,save_results=True,num_levels=3,add_text=True):
     plt.ylim(0,len(kernels))
     plt.xlim(0,1)
     labels = ['Features']+['Minor Component']*(num_levels-3)+['Major Component','Full Model']
-    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],labels,fontsize=16)
+    plt.xticks([w*x for x in np.arange(0.5,num_levels+0.5,1)],labels,fontsize=12)
     if add_text:
         plt.yticks(np.arange(len(kernels)-0.5,-0.5,-1),aligned_names,ha='left',family='monospace')
         plt.gca().get_yaxis().set_tick_params(pad=400)
@@ -1767,6 +1767,144 @@ def plot_all_kernel_comparison(weights_df, run_params, threshold=0.01, drop_thre
     if len(fail) > 0:
         print('The following kernels failed')
         print(fail) 
+
+def plot_compare_across_kernels(weights_df, run_params, kernels, threshold = 0.01,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None,normalize=True):
+    version = run_params['version']
+    filter_string = ''
+    problem_sessions = [873720614, 962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
+
+
+    # Filter by Equipment
+    equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
+    if equipment_filter == "scientifica": 
+        equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5"]
+        filter_string += '_scientifica'
+    elif equipment_filter == "mesoscope":
+        equipment_list = ["MESO.1"]
+        filter_string += '_mesoscope'
+    
+    # Filter by Cell Type    
+    cell_list = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre']     
+    if cell_filter == "sst":
+        cell_list = ['Sst-IRES-Cre']
+        filter_string += '_sst'
+    elif cell_filter == "vip":
+        cell_list = ['Vip-IRES-Cre']
+        filter_string += '_vip'
+    elif cell_filter == "slc":
+        cell_list = ['Slc17a7-IRES2-Cre']
+        filter_string += '_slc'
+
+    # Determine filename
+    if session_filter != [1,2,3,4,5,6]:
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
+    if area_filter != ['VISp','VISl']:
+        filter_string+='_area_'+'_'.join(area_filter)
+    if title is None:
+        title=filter_string   
+ 
+    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (variance_explained_full > @threshold)').copy()
+
+    # Set up time vectors.
+    time_vec = np.arange(run_params['kernels'][kernels[0]]['offset'], run_params['kernels'][kernels[0]]['offset'] + run_params['kernels'][kernels[0]]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    meso_time_vec = np.arange(run_params['kernels'][kernels[0]]['offset'], run_params['kernels'][kernels[0]]['offset'] + run_params['kernels'][kernels[0]]['length'],1/11)#1/10.725)
+
+    #return time_vec, meso_time_vec, weights
+    # Plotting settings
+    fig,ax=plt.subplots(figsize=(8,4))
+    
+    # Define color scheme for project
+    colors = project_colors()
+
+    # Define linestyles
+    lines = {
+        0:'-',
+        1:'--',
+        2:':',
+        3:'-.',
+        4:(0,(1,10)),
+        5:(0,(5,10))
+        }
+
+    # Filter for this group, and plot
+    kernel_weights = [x+'_weights' for x in kernels]
+   
+    # Determine unique groups of cells by the categorical attributes in compare
+    if len(compare) == 0:
+        weights_dfiltered = weights[kernel_weights]
+        plot_compare_across_kernels_inner(ax,weights_dfiltered,kernel_weights,'', 'k',lines, time_vec, meso_time_vec,normalize=normalize) 
+    else:
+        groups = list(weights.groupby(compare).groups.keys())
+  
+        # Iterate over groups of cells
+        for dex,group in enumerate(groups):
+            # Build color, linestyle, and query string for this group
+            query_str = '({0} == @group)'.format(compare[0])
+            color = colors.setdefault(group,(100/255,100/255,100/255)) 
+            weights_dfiltered = weights.query(query_str)[kernel_weights]
+            plot_compare_across_kernels_inner(ax,weights_dfiltered,kernel_weights,group, color,lines, time_vec, meso_time_vec,normalize=normalize) 
+
+    # Clean Plot, and add details
+    ax.axhline(0, color='k',linestyle='--',alpha=0.25)
+    ax.axvline(0, color='k',linestyle='--',alpha=0.25)
+    ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=18)   
+    ax.set_xlabel('Time (s)',fontsize=18)
+    ax.set_xlim(time_vec[0],time_vec[-1])   
+    add_stimulus_bars(ax,kernels[0],alpha=.1)
+    plt.tick_params(axis='both',labelsize=16)
+    #plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
+    plt.legend(loc='upper right',title=' & '.join(compare),handlelength=4)
+
+    plt.title(title)
+    plt.tight_layout()
+
+def get_norm(df,kernels,normalize=True):
+    norm_columns = []
+    for k in kernels:
+        df[k+'_norm'] = [np.max(np.abs(x)) for x in df[~df.isnull()][k].values]
+        norm_columns.append(k+'_norm')
+    df['norm'] = df[norm_columns].max(axis=1)   
+    for k in kernels:
+        if normalize:
+            df[k] = [x[0]/x[1] for x in zip(df[k].values,df['norm'].values)] 
+        else:
+            df[k] = [np.array(x) for x in df[k].values] 
+    return df
+
+def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time_vec, meso_time_vec,linewidth=4,alpha=.1,normalize=True):
+    '''
+        Plots the average kernel for the cells in df
+        
+        ax, the axis to plot on
+        df, series of cells with column that is the kernel to plot
+        label, what to label this group of cells
+        color, the line color for this group of cells
+        linestyle, the line style for this group of cells
+        time_vec, the time basis to plot on
+        meso_time_vec, the time basis for mesoscope kernels (will be interpolated to time_vec)
+        plot_errors (bool), if True, plots a shaded error bar
+        linewidth, the width of the mean line
+        alpha, the alpha for the shaded error bar
+    '''
+
+    # Normalize kernels, and interpolate to time_vec
+    df = df.dropna(axis=0,subset=kernels)
+    df = get_norm(df,kernels,normalize=normalize)   
+    for k in kernels:
+        df[k] = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df[k]]
+    
+    # Needed for stability
+    #if len(df)>0:
+    #    df = np.vstack(df)
+    #else:
+    #    df = np.empty((2,len(time_vec)))
+    #    df[:] = np.nan
+    
+    # Plot mean and error bar
+    for dex,k in enumerate(kernels):
+        ax.plot(time_vec, df[k].mean(axis=0),linestyle=linestyles[dex],color=color,label=group+' '+k,linewidth=linewidth)
+
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=True):
     '''

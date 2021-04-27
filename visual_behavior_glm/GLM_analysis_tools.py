@@ -835,18 +835,18 @@ def find_best_session(results_pivoted, session_number, mouse_id=None, novelty=Fa
                              == session_number]
 
     sessions = df['ophys_session_id'].unique()
-    print('found {} session(s)...'.format(len(sessions)))
+    #print('found {} session(s)...'.format(len(sessions)))
 
-    if not sessions:  # no sessions
-        session_to_use = None
 
-    elif len(sessions) == 1 and novelty == False:  # one session
+    if len(sessions) == 1 and novelty == False:  # one session
         session_to_use = sessions[0]
+
+    elif not list(sessions):  # no sessions
+        session_to_use = None
 
     elif novelty == True:  # novel session
         try:
-            session_to_use = df[df['prior_exposures_to_session_type'] == 0]['ophys_session_id'].unique()[
-                0]
+            session_to_use = df[df['prior_exposures_to_session_type'] == 0]['ophys_session_id'].unique()[0]
         except:
             print('no novel session of this type...')
             session_to_use = None
@@ -897,24 +897,6 @@ def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, n
                 print('no ophys session number {} found'.format(session_number))
 
                 break
-
-            # check for retakes
-            elif len(results_pivoted_sel[results_pivoted_sel['session_number'] == session_number]
-                     ['ophys_session_id'].unique()) >= 2:
-                if session_number == 4 and novelty == None:
-                    novelty = True
-                    print('selecting novel session for ophys 4...')
-                else:
-                    novelty = False
-                ophys_session_id = find_best_session(results_pivoted_sel, session_number=session_number,
-                                                     mouse_id=None, novelty=novelty)
-
-                df = results_pivoted_sel[results_pivoted_sel['ophys_session_id']
-                                         == ophys_session_id]
-
-                if df.empty:
-                    print(
-                        'no novel ophys 4, you can set novelty to False to match retake sessions')
 
             else:
                 df = results_pivoted_sel[results_pivoted_sel['session_number']
@@ -979,7 +961,7 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
         RETURNS:
         results_pivoted_var glm output with cells above threshold of var explained, unmatched cells
     '''
-    good_cell_ids = df[df['variance_explained_full']
+    good_cell_ids = results_pivoted[results_pivoted['variance_explained_full']
                        > threshold]['cell_specimen_id'].unique()
 
     if in_session_numbers is not None:

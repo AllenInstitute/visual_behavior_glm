@@ -1059,7 +1059,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'omissions':
             event_times = session.stimulus_presentations.query('omitted')['start_time'].values
         elif (len(event)>5) & (event[0:5] == 'image'):
-            event_times = session.stimulus_presentations.query('image_index == @event[-1]')['start_time'].values
+            event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
         else:
             raise Exception('Could not resolve kernel label')
         if len(event_times) < 5: # HARD CODING THIS VALUE HERE

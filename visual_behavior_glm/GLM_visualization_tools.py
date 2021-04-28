@@ -1842,7 +1842,7 @@ def plot_compare_across_kernels(weights_df, run_params, kernels, threshold = 0.0
             # Build color, linestyle, and query string for this group
             query_str = '({0} == @group)'.format(compare[0])
             color = colors.setdefault(group,(100/255,100/255,100/255)) 
-            weights_dfiltered = weights.query(query_str)[kernel_weights]
+            weights_dfiltered = weights.query(query_str)[kernel_weights].copy()
             plot_compare_across_kernels_inner(ax,weights_dfiltered,kernel_weights,group, color,lines, time_vec, meso_time_vec,normalize=normalize) 
 
     # Clean Plot, and add details
@@ -3309,7 +3309,9 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
   
     # Make a list of comparison groups to plot, but we group all the session numbers together
     groups = [(x[0:-1]) for x in df.index.values if x[-1] == session_filter[0]]
- 
+    
+    labels_SAC = ['deep','superficial']
+
     # Iterate over groups, and plot
     for dex, group in enumerate(groups):
         # Determine color, line, and markerstyle
@@ -3326,10 +3328,11 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
             markerstyle='o'
 
         # Plot
-        plot_coding_fraction_inner(plt.gca(), df.loc[group], color, group, metric=metric, linestyle=linestyle,markerstyle=markerstyle)
+        plot_coding_fraction_inner(plt.gca(), df.loc[group], color, labels_SAC[dex], metric=metric, linestyle=linestyle,markerstyle=markerstyle)
+        #plot_coding_fraction_inner(plt.gca(), df.loc[group], color, group, metric=metric, linestyle=linestyle,markerstyle=markerstyle)
 
     # Clean up plot
-    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),handlelength=4)
+    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),handlelength=4,fontsize=16)
     plt.tight_layout()
     
     # Save figure

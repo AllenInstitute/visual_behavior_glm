@@ -3150,3 +3150,94 @@ def view_cell_across_sessions(cell_specimen_id, glm_version):
     fig.suptitle('Cell Specimen ID = {}, Cre line = {}, rig = {}, GLM Version = {}'.format(cell_specimen_id, row['cre_line'], row['equipment_name'], glm_version))
     
     return fig, axes
+
+
+def plot_sample_cells(glm, cell_specimen_ids, t0, t1, figwidth=8, height_per_cell=1, title='cell_specimen_id'):
+    '''
+    makes a plot of each of the example cells in the list of cell_specimen_ids
+    inputs:
+        glm: an instance of the GLM class
+        cell_specimen_ids: a list of cell specimen IDs. Must be valid IDs for the session.
+        t0, t1: initial and final time for the plots
+        figwidth: width of figure (default = 8)
+        height_per_cell: height of each subfigure (default = 1). Total figure height will be height_per_cell*len(cell_specimen_ids)
+        title: If 'cell_specimen_id' is specified (default), the cell specimen ID will be displayed in the title. Otherwise, it will say 'Example cell N'
+    returns:
+        fig, ax: matplotlib figure and axes
+    '''
+    fig, ax = plt.subplots(len(cell_specimen_ids), 1, figsize = (figwidth, height_per_cell*len(cell_specimen_ids)), sharex=True)
+
+    # load the cell results df. This takes about 30 seconds.
+    # If it's called as an attribute in the loop, it has to be reloaded on each call since it's not a cached attribute (at least for python < 3.8)
+    cell_results_df = glm.cell_results_df
+
+    # iterate over cell ids
+    for row, cell_specimen_id in enumerate(cell_specimen_ids):
+        # get the cell results for this cell between the desired times
+        query_string = 'cell_specimen_id == {} and fit_trace_timestamps >= {} and fit_trace_timestamps <= {}'.format(
+            cell_specimen_id,
+            t0,
+            t1,
+        )
+        local_df = cell_results_df.query(query_string)
+
+        # determine whether the input model used dff or events, set some variables appropriately
+        if glm.run_params['use_events']:
+            y = 'events'
+            ylabel = 'event\nmagnitude'
+            color = 'cornflowerblue'
+        else:
+            y = 'dff'
+            ylabel = r'$\Delta$F/F'
+            color = 'green'
+            
+        # plot the data (be it dff or events)
+        ax[row].plot(
+            local_df['fit_trace_timestamps'],
+            local_df[y],
+            color = color,
+            linewidth = 2,
+        )
+
+        # now plot the fit
+        ax[row].plot(
+            local_df['fit_trace_timestamps'],
+            local_df['model_prediction'],
+            color = 'black',
+            linewidth = 2,
+        )
+
+        # determine what to display in title
+        if title == 'cell_specimen_id':
+            title_string = 'cell_specimen_id = '
+            value = cell_specimen_id
+        else:
+            title_string = 'example cell '
+            value = row + 1
+
+        # now add the title
+        ax[row].set_title(
+            '{} {}, variance_explained = {:0.2f}'.format(
+                title_string,
+                value, 
+                glm.results.loc[cell_specimen_id]['Full__avg_cv_var_test']
+            )
+        )
+        # add the ylabel
+        ax[row].set_ylabel(ylabel, rotation=0, labelpad=35, fontsize=12)
+        
+        # plot vertical bars for stimuli
+        plot_stimuli(glm.session.stimulus_presentations, ax[row], t_span=(t0, t1), alpha=.25)
+        
+        # set the xlims
+        ax[row].set_xlim(t0, t1)
+        
+    # add a legend
+    ax[0].legend([y, 'model fit'], loc = 'upper left')
+
+    # some final formatting
+    ax[row].set_xlabel('time in session (s)', fontsize=12)
+    sns.despine()
+    fig.tight_layout()
+
+    return fig, ax

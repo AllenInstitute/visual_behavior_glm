@@ -848,7 +848,7 @@ def find_best_session(results_pivoted, session_number, mouse_id=None, novelty=Fa
         try:
             session_to_use = df[df['prior_exposures_to_session_type'] == 0]['ophys_session_id'].unique()[0]
         except:
-            print('no novel session of this type...')
+            print('no novel session, id = {}...'.format(df['ophys_session_id'].unique()))
             session_to_use = None
 
     else:  # go through sessions and find the one with most registered neurons
@@ -881,9 +881,9 @@ def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, n
 
     '''
 
-    # check for retakes first. You cannot match cells if there are more than one one the same session type.
+    # check for retakes first. You cannot match cells if there are more than one of the same session type.
     ophys_session_ids = []
-    tmp = results_pivoted_sel[['ophys_session_id', 'mouse_id', 'session_number']].drop_duplicates()
+    tmp = results_pivoted_sel[['mouse_id', 'session_number']].drop_duplicates()
     session_N = tmp.groupby(['mouse_id', 'session_number'])['session_number'].value_counts()
 
     if session_N.unique() != [1]:
@@ -918,10 +918,8 @@ def drop_cells_with_nan(results_pivoted, regressor):
         RETURNS:
         results_pivoted_without_nan 
     '''
-    cell_with_nan = results_pivoted[results_pivoted[regressor].isnull(
-    )]['cell_specimen_id'].values
-    results_pivoted_without_nan = results_pivoted[~results_pivoted['cell_specimen_id'].isin(
-        cell_with_nan)]
+    cell_with_nan = results_pivoted[results_pivoted[regressor].isnull()]['cell_specimen_id'].values
+    results_pivoted_without_nan = results_pivoted[~results_pivoted['cell_specimen_id'].isin(cell_with_nan)]
     return results_pivoted_without_nan
 
 
@@ -966,7 +964,7 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
                                        (results_pivoted['variance_explained_full'] > threshold)]['cell_specimen_id'].unique()
             good_cell_ids = np.intersect1d(good_cell_ids, cell_ids)
     else:
-        good_cell_ids = df[df['variance_explained_full']
+        good_cell_ids = results_pivoted[results_pivoted['variance_explained_full']
                            > threshold]['cell_specimen_id'].unique()
 
     results_pivoted_var = results_pivoted[results_pivoted['cell_specimen_id'].isin(

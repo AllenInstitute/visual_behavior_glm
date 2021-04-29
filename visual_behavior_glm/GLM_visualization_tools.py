@@ -2612,7 +2612,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
     else:
         fig = ax.get_figure()
 
-    dropouts_to_show = ['visual','behavioral','cognitive']
+    dropouts_to_show = ['visual', 'behavioral', 'cognitive']
     plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=palette)
     ax.tick_params(axis='both',labelsize=20)
     ax.set_ylabel('% decrease in variance explained \n when removing sets of kernels',fontsize=24)
@@ -2626,7 +2626,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=None):
+def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show =  ['visual','behavioral','cognitive'], threshold = -0.01,palette=None):
     '''
     makes bar plots of results summary
     aesthetics specific to cosyne needs
@@ -2635,7 +2635,7 @@ def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=N
 
     cre_lines = np.sort(dropout_summary['cre_line'].unique())
     
-    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < -0.01').copy()
+    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     sns.boxplot(
         data = data_to_plot,

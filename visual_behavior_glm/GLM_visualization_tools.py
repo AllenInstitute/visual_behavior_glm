@@ -1905,6 +1905,130 @@ def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time
     for dex,k in enumerate(kernels):
         ax.plot(time_vec, df[k].mean(axis=0),linestyle=linestyles[dex],color=color,label=group+' '+k,linewidth=linewidth)
 
+def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],normalize=True):
+    filter_string = ''
+    problem_sessions = [873720614, 962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
+
+    # Filter by Equipment
+    equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
+    if equipment_filter == "scientifica": 
+        equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5"]
+        filter_string += '_scientifica'
+    elif equipment_filter == "mesoscope":
+        equipment_list = ["MESO.1"]
+        filter_string += '_mesoscope'
+    
+    # Filter by Cell Type    
+    cell_list = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre']     
+    if cell_filter == "sst":
+        cell_list = ['Sst-IRES-Cre']
+        filter_string += '_sst'
+    elif cell_filter == "vip":
+        cell_list = ['Vip-IRES-Cre']
+        filter_string += '_vip'
+    elif cell_filter == "slc":
+        cell_list = ['Slc17a7-IRES2-Cre']
+        filter_string += '_slc'
+
+    # Determine filename
+    if session_filter != [1,2,3,4,5,6]:
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
+    if depth_filter !=[0,1000]:
+        filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
+    if area_filter != ['VISp','VISl']:
+        filter_string+='_area_'+'_'.join(area_filter)
+    filename2 = os.path.join(run_params['fig_kernels_dir'],kernel+'_perturbation_validation.png')
+    filename1 = os.path.join(run_params['fig_kernels_dir'],kernel+'_perturbation.png')
+
+    # Applying hard thresholds to dataset
+    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
+
+    # Set up time vectors.
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
+    groups = list(weights.groupby(['cre_line']).groups.keys())
+    
+    kernel_means = {}
+    for dex,group in enumerate(groups):
+        query_str = 'cre_line == @group'
+        df = weights.query(query_str)[kernel+'_weights']
+        if normalize:
+            df_norm = [x/np.max(np.abs(x)) for x in df[~df.isnull()].values]
+        else:
+            df_norm = [x for x in df[~df.isnull()].values]
+        df_norm = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df_norm]
+        df_norm = np.vstack(df_norm)
+        kernel_means[group]=df_norm.mean(axis=0)
+        
+    
+    mids_range = range(int(np.floor(time_vec[0]/0.75)),int(np.floor(time_vec[-1]/0.75))+1)
+    mids = [x*0.75+0.75/2 for x in mids_range] 
+    print(mids)
+    times = {}
+    for flash_num in mids_range:
+        times[flash_num] = (time_vec >= 0.75*flash_num) & (time_vec < 0.75*(flash_num+1))
+    
+    avg_vals = pd.DataFrame({'Slc17a7-IRES2-Cre':[], 'Sst-IRES-Cre':[],'Vip-IRES-Cre':[]})
+    for dex, group in enumerate(groups):
+        avg_vals[group] = [np.mean(kernel_means[group][times[x]]) for x in mids_range] 
+
+    avg_vals['vip-sst'] = avg_vals['Vip-IRES-Cre']-avg_vals['Sst-IRES-Cre']
+    colors = project_colors()   
+
+
+    plt.figure()
+    for k in kernel_means.keys():
+        plt.plot(time_vec, kernel_means[k],  color=colors[k])
+        plt.plot(mids,avg_vals[k],'o',color=colors[k])
+    plt.ylabel(kernel,fontsize=16)
+    plt.xlabel('Time',fontsize=16)
+    plt.tick_params(axis='both',labelsize=12)
+    plt.tight_layout()
+    print('Figure Saved to: '+filename2)
+    plt.savefig(filename2) 
+
+    plt.figure()
+    
+    #cmap = plt.get_cmap('tab20c')
+    cmap = plt.get_cmap('Blues')(np.linspace(0.3,1,len(mids_range)))
+    
+    for dex,flash_num in enumerate(mids_range):
+        if flash_num == 0:
+            label = kernel
+        elif flash_num < 0:
+            label = 'Pre '+kernel+' '+str(flash_num)          
+        else:
+            label = 'Post '+kernel+' '+str(flash_num)
+        plt.plot(avg_vals.loc[dex]['vip-sst'],avg_vals.loc[dex]['Slc17a7-IRES2-Cre'],'o',color=cmap[dex],markersize=10,label=label)
+
+    for dex, flash_num in enumerate(mids_range):
+        if dex == 0:
+            startxy = [0,0]
+        else:
+            startxy=[avg_vals.loc[dex-1]['vip-sst'],avg_vals.loc[dex-1]['Slc17a7-IRES2-Cre']]
+
+        endxy  =[avg_vals.loc[dex]['vip-sst'],avg_vals.loc[dex]['Slc17a7-IRES2-Cre']]
+        dx = (startxy[0]-endxy[0])*0.1
+        dy = (startxy[1]-endxy[1])*0.1
+        sxy =(startxy[0]-dx,startxy[1]-dy)
+        exy =(endxy[0]+dx,endxy[1]+dy)
+        plt.gca().annotate("",xy=exy,xytext=sxy,arrowprops=dict(arrowstyle="->",color=cmap[dex]))
+   
+    plt.legend(loc='upper left')
+    ylim = plt.ylim()
+    xlim = plt.xlim()
+    yrange = ylim[1]-ylim[0]
+    xrange = xlim[1]-xlim[0]
+    plt.ylim(ylim[0]-.25*yrange, ylim[1]+.25*yrange)
+    plt.xlim(xlim[0]-.25*xrange, xlim[1]+.25*xrange)
+    plt.ylabel('Excitatory',fontsize=16)
+    plt.xlabel('VIP - SST',fontsize=16)
+    plt.tick_params(axis='both',labelsize=12)
+    plt.tight_layout()
+    print('Figure Saved to: '+filename1)
+    plt.savefig(filename1) 
+ 
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=True):
     '''

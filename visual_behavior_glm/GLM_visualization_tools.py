@@ -3152,6 +3152,26 @@ def view_cell_across_sessions(cell_specimen_id, glm_version):
     return fig, axes
 
 
+def plot_var_explained(results_summary, figsize=(10,6)):
+    fig, ax = plt.subplots(figsize=figsize)
+
+    cre_lines = np.sort(results_summary['cre_line'].unique())
+    colors = project_colors()
+    palette = [colors[cre_line] for cre_line in cre_lines]
+
+    sns.boxplot(
+        data = results_summary,
+        y = 'Full__avg_cv_var_test',
+        x = 'session_number',
+        hue = 'cre_line',
+        palette = palette, 
+        whis = np.inf,
+        ax = ax
+    )
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    fig.tight_layout()
+
+    
 def plot_sample_cells(glm, cell_specimen_ids, t0, t1, figwidth=8, height_per_cell=1, title='cell_specimen_id'):
     '''
     makes a plot of each of the example cells in the list of cell_specimen_ids

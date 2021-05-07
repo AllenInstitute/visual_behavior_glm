@@ -688,29 +688,16 @@ def L2_report(fit):
     plt.plot([0,1],[0,1],'k--')
     return results
  
-def load_data(oeid, dataframe_format='wide', smooth_running_data=True):
+def load_data(oeid):
     '''
         Returns Visual Behavior ResponseAnalysis object
-        Allen SDK dataset is an attribute of this object (session.dataset)
+        Allen SDK dataset is an attribute of this object (session)
         Keyword arguments:
             oeid (int) -- ophys_experiment_id
-            dataframe_format (str) -- whether the response dataframes should be in 'wide' or 'tidy'/'long' formats (default = 'wide')
-                                      'wide' format is one row per stimulus/cell, with all timestamps and dff traces in a single cell
-                                      'tidy' or 'long' format has one row per timepoint (this format conforms to seaborn standards)
     '''
     dataset = loading.get_ophys_dataset(oeid, include_invalid_rois=False)
-    session = ResponseAnalysis(
-        dataset, 
-        overwrite_analysis_files=False, 
-        use_extended_stimulus_presentations=True, 
-        dataframe_format = dataframe_format
-    ) 
-    if smooth_running_data:
-        session.dataset.running_data_df = process_encoder_data(
-            session.dataset.running_data_df.reset_index(), 
-            v_max='v_sig_max'
-        )
-    return session
+
+    return dataset
 
 def process_behavior_predictions(session, ophys_timestamps=None, cutoff_threshold=0.01):
     '''
@@ -721,8 +708,8 @@ def process_behavior_predictions(session, ophys_timestamps=None, cutoff_threshol
     behavior_predictions = pd.DataFrame({'timestamps':ophys_timestamps})
     for column in ['lick','groom']:
         f = scipy.interpolate.interp1d(
-            session.dataset.behavior_movie_predictions['timestamps'], 
-            session.dataset.behavior_movie_predictions[column], 
+            session.behavior_movie_predictions['timestamps'], 
+            session.behavior_movie_predictions[column], 
             bounds_error=False
         )
         behavior_predictions[column] = f(behavior_predictions['timestamps'])
@@ -743,8 +730,8 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     '''    
 
     # Set parameters for blink detection, and load data
-    session.dataset.set_params(eye_tracking_z_threshold=run_params['eye_blink_z'])
-    eye = session.dataset.eye_tracking.copy(deep=True)
+    session.set_params(eye_tracking_z_threshold=run_params['eye_blink_z'])
+    eye = session.eye_tracking.copy(deep=True)
 
     # Compute pupil radius
     eye['pupil_radius'] = np.sqrt(eye['pupil_area']*(1/np.pi))
@@ -763,8 +750,8 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     ophys_eye = pd.DataFrame({'timestamps':ophys_timestamps})
     z_score = ['eye_width','pupil_radius']
     for column in eye.keys():
-        if column != 'time':
-            f = scipy.interpolate.interp1d(eye['time'], eye[column], bounds_error=False)
+        if column != 'timestamps':
+            f = scipy.interpolate.interp1d(eye['timestamps'], eye[column], bounds_error=False)
             ophys_eye[column] = f(ophys_eye['timestamps'])
             ophys_eye[column].fillna(method='ffill',inplace=True)
             if column in z_score:
@@ -832,7 +819,7 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['events_trace_arr'] = trace_tuple[2]
     fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
     fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
-    fit['ophys_frame_rate'] = session.dataset.metadata['ophys_frame_rate'] 
+    fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate'] 
     return fit
 
 def add_kernels(design, run_params,session, fit):
@@ -922,15 +909,15 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
             timeseries = np.array(range(1,len(fit['fit_trace_timestamps'])+1))
             timeseries = timeseries/len(timeseries)
         elif event == 'running':
-            running_df = session.dataset.running_data_df
+            running_df = session.running_speed
             running_df = running_df.rename(columns={'speed':'values'})
             timeseries = interpolate_to_ophys_timestamps(fit, running_df)['values'].values
             timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
         elif event.startswith('face_motion'):
             PC_number = int(event.split('_')[-1])
             face_motion_df =  pd.DataFrame({
-                'timestamps': session.dataset.behavior_movie_timestamps,
-                'values': session.dataset.behavior_movie_pc_activations[:,PC_number]
+                'timestamps': session.behavior_movie_timestamps,
+                'values': session.behavior_movie_pc_activations[:,PC_number]
             })
             timeseries = interpolate_to_ophys_timestamps(fit, face_motion_df)['values'].values
             timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
@@ -944,11 +931,11 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
             timeseries = fit_trace_pca[:,0]
             timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
         elif (len(event) > 6) & ( event[0:6] == 'model_'):
-            bsid = session.dataset.metadata['behavior_session_id']
+            bsid = session.metadata['behavior_session_id']
             weight_name = event[6:]
             weight = get_model_weight(bsid, weight_name, run_params)
             weight_df = pd.DataFrame()
-            weight_df['timestamps'] = session.dataset.stimulus_presentations.start_time.values
+            weight_df['timestamps'] = session.stimulus_presentations.start_time.values
             weight_df['values'] = weight.values
             timeseries = interpolate_to_ophys_timestamps(fit, weight_df)
             timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
@@ -972,7 +959,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
             'error_type': 'kernel', 
             'kernel_name': kernel_name, 
             'exception':e.args[0], 
-            'oeid':session.dataset.metadata['ophys_experiment_id'], 
+            'oeid':session.metadata['ophys_experiment_id'], 
             'glm_version':run_params['version']
         }
         # log error to mongo
@@ -1029,9 +1016,9 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     try:
         event = run_params['kernels'][kernel_name]['event']
         if event == 'licks':
-            event_times = session.dataset.licks['timestamps'].values
+            event_times = session.licks['timestamps'].values
         elif event == 'lick_bouts':
-            licks = session.dataset.licks
+            licks = session.licks
             licks['pre_ILI'] = licks['timestamps'] - licks['timestamps'].shift(fill_value=-10)
             licks['post_ILI'] = licks['timestamps'].shift(periods=-1,fill_value=5000) - licks['timestamps']
             licks['bout_start'] = licks['pre_ILI'] > run_params['lick_bout_ILI']
@@ -1045,34 +1032,34 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
                                         np.arange(x[0],x[0]+x[1],run_params['min_interval']) for x in 
                                         zip(licks['timestamps'], licks['post_ILI'], licks['bout_end'])]) 
         elif event == 'rewards':
-            event_times = session.dataset.rewards['timestamps'].values
+            event_times = session.rewards['timestamps'].values
         elif event == 'change':
-            #event_times = session.dataset.trials.query('go')['change_time'].values # This method drops auto-rewarded changes
-            event_times = session.dataset.stimulus_presentations.query('change')['start_time'].values
+            #event_times = session.trials.query('go')['change_time'].values # This method drops auto-rewarded changes
+            event_times = session.stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]
         elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
             if event == 'hit': # Includes auto-rewarded changes as hits, since they include a reward. 
-                event_times = session.dataset.trials.query('hit or auto_rewarded')['change_time'].values           
+                event_times = session.trials.query('hit or auto_rewarded')['change_time'].values           
             else:
-                event_times = session.dataset.trials.query(event)['change_time'].values
+                event_times = session.trials.query(event)['change_time'].values
             event_times = event_times[~np.isnan(event_times)]
-            if len(session.dataset.rewards) < 5: ## HARD CODING THIS VALUE
+            if len(session.rewards) < 5: ## HARD CODING THIS VALUE
                 raise Exception('Trial type regressors arent defined for passive sessions (sessions with less than 5 rewards)')
         elif event == 'passive_change':
-            if len(session.dataset.rewards) > 5: 
+            if len(session.rewards) > 5: 
                 raise Exception('Passive Change kernel cant be added to active sessions')               
-            event_times = session.dataset.stimulus_presentations.query('change')['start_time'].values
+            event_times = session.stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]           
         elif event == 'any-image':
-            event_times = session.dataset.stimulus_presentations.query('not omitted')['start_time'].values
+            event_times = session.stimulus_presentations.query('not omitted')['start_time'].values
         elif event == 'image_expectation':
-            event_times = session.dataset.stimulus_presentations['start_time'].values
+            event_times = session.stimulus_presentations['start_time'].values
             # Append last image
             event_times = np.concatenate([event_times,[event_times[-1]+.75]])
         elif event == 'omissions':
-            event_times = session.dataset.stimulus_presentations.query('omitted')['start_time'].values
+            event_times = session.stimulus_presentations.query('omitted')['start_time'].values
         elif (len(event)>5) & (event[0:5] == 'image'):
-            event_times = session.dataset.stimulus_presentations.query('image_index == @event[-1]')['start_time'].values
+            event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
         else:
             raise Exception('Could not resolve kernel label')
         if len(event_times) < 5: # HARD CODING THIS VALUE HERE
@@ -1086,7 +1073,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             'error_type': 'kernel', 
             'kernel_name': kernel_name, 
             'exception':e.args[0], 
-            'oeid':session.dataset.metadata['ophys_experiment_id'], 
+            'oeid':session.metadata['ophys_experiment_id'], 
             'glm_version':run_params['version']
         }
         # log error to mongo:
@@ -1300,7 +1287,7 @@ def get_events_arr(session, timestamps_to_use):
     timestamps_to_use is a boolean vector that contains which timestamps to use in the analysis
     '''
     # Get events and trim off ends
-    all_events = np.stack(session.dataset.events['filtered_events'].values)
+    all_events = np.stack(session.events['filtered_events'].values)
     all_events_to_use = all_events[:, timestamps_to_use]
 
     # Get the timestamps

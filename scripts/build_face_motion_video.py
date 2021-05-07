@@ -130,7 +130,7 @@ def plot_frame(mask, nan_mask, prediction_df, movie, session, frame, fig, ax, t_
                 ax['PC_plot'][row].set_xlabel('time (s)')
         
         if replot_pc_masks == True:
-            arr = session.dataset.behavior_movie_pc_masks[:,:,row] #*prediction_df.loc[frame]['PC{}'.format(pc)]
+            arr = session.behavior_movie_pc_masks[:,:,row] #*prediction_df.loc[frame]['PC{}'.format(pc)]
             lim = np.abs(arr).max()
             ax['PC_masks'][row].imshow(arr,clim=[-1*lim, lim],cmap='seismic')
             ax['PC_masks'][row].set_xlim(left_clip, right_clip)
@@ -155,8 +155,8 @@ def make_movie(oeid, start_frame, end_frame, filename, fps=30):
     print('done loading movie')
     
     fig,ax = make_fig_ax()
-    mask = np.zeros(session.dataset.behavior_movie_pc_masks[:,:,0].shape, dtype=np.uint8)
-    mask[session.dataset.behavior_movie_pc_masks[:,:,0]!=0]=1
+    mask = np.zeros(session.behavior_movie_pc_masks[:,:,0].shape, dtype=np.uint8)
+    mask[session.behavior_movie_pc_masks[:,:,0]!=0]=1
     nan_mask = mask.copy().astype(float)
     nan_mask[nan_mask==0]=np.nan
     
@@ -164,11 +164,11 @@ def make_movie(oeid, start_frame, end_frame, filename, fps=30):
     top_clip,bottom_clip = np.where(mask==1)[0].max(),np.where(mask==1)[0].min()
     mask_lims_lrtb = (left_clip,right_clip,top_clip,bottom_clip)
     
-    prediction_df = pd.DataFrame({'timestamps': session.dataset.behavior_movie_timestamps})
+    prediction_df = pd.DataFrame({'timestamps': session.behavior_movie_timestamps})
     for pc in range(15):
-        prediction_df['PC{}'.format(pc)] = session.dataset.behavior_movie_pc_activations[:,pc]
+        prediction_df['PC{}'.format(pc)] = session.behavior_movie_pc_activations[:,pc]
     prediction_df = prediction_df.merge(
-        session.dataset.behavior_movie_predictions,
+        session.behavior_movie_predictions,
         left_on='timestamps',
         right_on='timestamps',
         how='left'

@@ -166,21 +166,21 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     if plot_bands:
         reward_dex += -.4
     if plot_ticks:
-        rewards =glm.session.dataset.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
+        rewards =glm.session.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
         plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'k|')
     
     # Stimulus Presentations
-    stim = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & not omitted')
+    stim = glm.session.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & not omitted')
     for index, time in enumerate(stim['start_time'].values):
         plt.axvspan(time, time+0.25, color='k',alpha=.1)
     if plot_ticks:
         for index in range(0,8):
-            image = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & image_index == @index')['start_time']
+            image = glm.session.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & image_index == @index')['start_time']
             image_dex = stim_points['image'+str(index)][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['image'+str(index)]['offset'])*31)
             plt.plot(image, image_dex*np.ones(np.shape(image)),'k|')
 
     # Stimulus Changes
-    change = glm.session.dataset.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & change')
+    change = glm.session.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & change')
     if plot_ticks:
         if 'change' in glm.run_params['kernels']:
             change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*31)
@@ -190,28 +190,28 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
 
     # Stimulus Omissions
     if plot_ticks:
-        omitted = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & omitted')['start_time']
+        omitted = glm.session.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & omitted')['start_time']
         omitted_dex = stim_points['omissions'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['omissions']['offset'])*31)
         plt.plot(omitted, omitted_dex*np.ones(np.shape(omitted)),'k|')
 
     # Image Expectation
     if plot_ticks & ('image_expectation' in glm.run_params['kernels']):
-        expectation = glm.session.dataset.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & not omitted')['start_time']
+        expectation = glm.session.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & not omitted')['start_time']
         expectation_dex = stim_points['image_expectation'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['image_expectation']['offset'])*31)
         plt.plot(expectation, expectation_dex*np.ones(np.shape(expectation)),'k|')
 
     # Licks
     if plot_ticks:
-        licks = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
+        licks = glm.session.licks.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
         
         if 'pre_lick_bouts' in glm.run_params['kernels']:
-            bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
+            bouts = glm.session.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
             pre_dex = stim_points['pre_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['pre_lick_bouts']['offset'])*31)
             post_dex = stim_points['post_lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['post_lick_bouts']['offset'])*31)
             plt.plot(bouts, pre_dex*np.ones(np.shape(bouts)),'k|')
             plt.plot(bouts, post_dex*np.ones(np.shape(bouts)),'k|')
         if 'lick_bouts' in glm.run_params['kernels']:
-            bouts = glm.session.dataset.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
+            bouts = glm.session.licks.query('timestamps < @end_t & timestamps > @start_t & bout_start')['timestamps']
             dex = stim_points['lick_bouts'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['lick_bouts']['offset'])*31)
             plt.plot(bouts, dex*np.ones(np.shape(bouts)),'k|')
 
@@ -229,7 +229,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     if plot_ticks:
         types = ['hit','miss','false_alarm','correct_reject']
         ks = ['hits','misses','false_alarms','correct_rejects']
-        trials = glm.session.dataset.trials.query('change_time < @end_t & change_time > @start_t')
+        trials = glm.session.trials.query('change_time < @end_t & change_time > @start_t')
         for index, t in enumerate(types):
             try:
                 change_time = trials[trials[t]]['change_time'] 
@@ -535,10 +535,10 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outl
 
 def plot_licks(session, ax, y_loc=0, t_span=None):
     if t_span:
-        df = session.dataset.licks.query(
+        df = session.licks.query(
             'timestamps >= {} and timestamps <= {}'.format(t_span[0], t_span[1]))
     else:
-        df = session.dataset.licks
+        df = session.licks
     ax.plot(
         df['timestamps'],
         y_loc*np.ones_like(df['timestamps']),
@@ -550,10 +550,10 @@ def plot_licks(session, ax, y_loc=0, t_span=None):
 
 def plot_rewards(session, ax, y_loc=0, t_span=None):
     if t_span:
-        df = session.dataset.rewards.query(
+        df = session.rewards.query(
             'timestamps >= {} and timestamps <= {}'.format(t_span[0], t_span[1]))
     else:
-        df = session.dataset.licks
+        df = session.licks
     ax.plot(
         df['timestamps'],
         y_loc*np.ones_like(df['timestamps']),
@@ -567,10 +567,10 @@ def plot_rewards(session, ax, y_loc=0, t_span=None):
 
 def plot_running(session, ax, t_span=None):
     if t_span:
-        running_df = session.dataset.running_data_df.reset_index().query(
+        running_df = session.running_speed.reset_index().query(
             'timestamps >= {} and timestamps <= {}'.format(t_span[0], t_span[1]))
     else:
-        running_df = session.dataset.running_data_df.reset_index()
+        running_df = session.running_speed.reset_index()
     ax.plot(
         running_df['timestamps'],
         running_df['speed'],
@@ -578,20 +578,20 @@ def plot_running(session, ax, t_span=None):
         linewidth=3
     )
     ax.set_ylim(
-        session.dataset.running_data_df['speed'].min(),
-        session.dataset.running_data_df['speed'].max(),
+        session.running_speed['speed'].min(),
+        session.running_speed['speed'].max(),
     )
 
 def plot_pupil(session, ax, t_span=None):
     '''shares axis with running'''
     vbp.initialize_legend(ax=ax, colors=['skyblue','LemonChiffon'],linewidth=3)
     if t_span:
-        pupil_df = session.dataset.eye_tracking.query(
-            'time >= {} and time <= {}'.format(t_span[0], t_span[1]))
+        pupil_df = session.eye_tracking.query(
+            'timestamps >= {} and timestamps <= {}'.format(t_span[0], t_span[1]))
     else:
-        pupil_df = session.dataset.eye_tracking
+        pupil_df = session.eye_tracking
     ax.plot(
-        pupil_df['time'],
+        pupil_df['timestamps'],
         pupil_df['pupil_area'],
         color='LemonChiffon',
         linewidth=3
@@ -667,12 +667,12 @@ def build_simulated_FOV(session, F_dataframe, column):
 
     assert len(session.cell_specimen_table) == len(F_dataframe)
 
-    arr = np.zeros_like(session.dataset.max_projection)
-    for ii, cell_specimen_id in enumerate(session.dataset.cell_specimen_ids):
+    arr = np.zeros_like(session.max_projection)
+    for ii, cell_specimen_id in enumerate(session.cell_specimen_ids):
 
         F_cell = F_dataframe.loc[cell_specimen_id][column]
         # arr += session.cell_specimen_table.loc[cell_specimen_id]['image_mask']*F_cell
-        arr += session.dataset.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values*F_cell
+        arr += session.cell_specimen_table.loc[cell_specimen_id]['roi_mask']*F_cell
 
     return arr
 
@@ -1066,14 +1066,14 @@ class GLM_Movie(object):
                 }, 
                 results_type='full'
             )['cell_roi_id'][0]
-            if cell_specimen_id in glm.session.dataset.cell_specimen_table.index.tolist():
+            if cell_specimen_id in glm.session.cell_specimen_table.index.tolist():
                 print('FOUND CELL SPECIMEN ID')
-                self.com = ndimage.measurements.center_of_mass(glm.session.dataset.get_roi_masks().loc[{'cell_specimen_id':cell_specimen_id}].values)
-            elif cell_roi_id in glm.session.dataset.cell_specimen_table['cell_roi_id'].tolist():
+                self.com = ndimage.measurements.center_of_mass(glm.session.cell_specimen_table.loc[cell_specimen_id]['roi_mask'])
+            elif cell_roi_id in glm.session.cell_specimen_table['cell_roi_id'].tolist():
                 print('FOUND CELL ROI ID')
-                correct_csid= self.glm.session.dataset.cell_specimen_table.query('cell_roi_id == @cell_roi_id').index[0]
-                # self.com = ndimage.measurements.center_of_mass(glm.session.dataset.cell_specimen_table.query('cell_roi_id == @cell_roi_id')['roi_mask'].values[0])
-                self.com = ndimage.measurements.center_of_mass(glm.session.dataset.get_roi_masks().loc[{'cell_specimen_id':correct_csid}].values)
+                correct_csid= self.glm.session.cell_specimen_table.query('cell_roi_id == @cell_roi_id').index[0]
+                # self.com = ndimage.measurements.center_of_mass(glm.session.cell_specimen_table.query('cell_roi_id == @cell_roi_id')['roi_mask'].values[0])
+                self.com = ndimage.measurements.center_of_mass(glm.session.cell_specimen_table.loc[cell_specimen_id]['roi_mask'])
                 print(self.com)
             else:
                 print('COULD NOT FIND CELL')
@@ -1185,12 +1185,12 @@ class GLM_Movie(object):
         plot_running(glm.session, ax['running'], t_span=t_span)
         # set running y lims
         ax['running'].set_ylim(
-            self.glm.session.dataset.running_data_df.query(query_string)['speed'].min() - 5,
-            self.glm.session.dataset.running_data_df.query(query_string)['speed'].max() + 5
+            self.glm.session.running_speed.query(query_string)['speed'].min() - 5,
+            self.glm.session.running_speed.query(query_string)['speed'].max() + 5
         )
         plot_pupil(glm.session, ax['pupil'], t_span=t_span)
-        # set pupil ylims (query string needs to change from 'timestamps' to 'time')
-        pupil_query = self.glm.session.dataset.eye_tracking.query(query_string.replace('timestamps','time'))
+        # set pupil ylims
+        pupil_query = self.glm.session.eye_tracking.query(query_string)
         ax['pupil'].set_ylim(
             pupil_query['pupil_area'].min() - 100,
             pupil_query['pupil_area'].max() + 100,
@@ -3172,5 +3172,92 @@ def plot_var_explained(results_summary, figsize=(10,6)):
     fig.tight_layout()
 
     
+def plot_sample_cells(glm, cell_specimen_ids, t0, t1, figwidth=8, height_per_cell=1, title='cell_specimen_id'):
+    '''
+    makes a plot of each of the example cells in the list of cell_specimen_ids
+    inputs:
+        glm: an instance of the GLM class
+        cell_specimen_ids: a list of cell specimen IDs. Must be valid IDs for the session.
+        t0, t1: initial and final time for the plots
+        figwidth: width of figure (default = 8)
+        height_per_cell: height of each subfigure (default = 1). Total figure height will be height_per_cell*len(cell_specimen_ids)
+        title: If 'cell_specimen_id' is specified (default), the cell specimen ID will be displayed in the title. Otherwise, it will say 'Example cell N'
+    returns:
+        fig, ax: matplotlib figure and axes
+    '''
+    fig, ax = plt.subplots(len(cell_specimen_ids), 1, figsize = (figwidth, height_per_cell*len(cell_specimen_ids)), sharex=True)
+
+    # load the cell results df. This takes about 30 seconds.
+    # If it's called as an attribute in the loop, it has to be reloaded on each call since it's not a cached attribute (at least for python < 3.8)
+    cell_results_df = glm.cell_results_df
+
+    # iterate over cell ids
+    for row, cell_specimen_id in enumerate(cell_specimen_ids):
+        # get the cell results for this cell between the desired times
+        query_string = 'cell_specimen_id == {} and fit_trace_timestamps >= {} and fit_trace_timestamps <= {}'.format(
+            cell_specimen_id,
+            t0,
+            t1,
+        )
+        local_df = cell_results_df.query(query_string)
+
+        # determine whether the input model used dff or events, set some variables appropriately
+        if glm.run_params['use_events']:
+            y = 'events'
+            ylabel = 'event\nmagnitude'
+            color = 'cornflowerblue'
+        else:
+            y = 'dff'
+            ylabel = r'$\Delta$F/F'
+            color = 'green'
+            
+        # plot the data (be it dff or events)
+        ax[row].plot(
+            local_df['fit_trace_timestamps'],
+            local_df[y],
+            color = color,
+            linewidth = 2,
+        )
+
+        # now plot the fit
+        ax[row].plot(
+            local_df['fit_trace_timestamps'],
+            local_df['model_prediction'],
+            color = 'black',
+            linewidth = 2,
+        )
+
+        # determine what to display in title
+        if title == 'cell_specimen_id':
+            title_string = 'cell_specimen_id = '
+            value = cell_specimen_id
+        else:
+            title_string = 'example cell '
+            value = row + 1
+
+        # now add the title
+        ax[row].set_title(
+            '{} {}, variance_explained = {:0.2f}'.format(
+                title_string,
+                value, 
+                glm.results.loc[cell_specimen_id]['Full__avg_cv_var_test']
+            )
+        )
+        # add the ylabel
+        ax[row].set_ylabel(ylabel, rotation=0, labelpad=35, fontsize=12)
+        
+        # plot vertical bars for stimuli
+        plot_stimuli(glm.session.stimulus_presentations, ax[row], t_span=(t0, t1), alpha=.25)
+        
+        # set the xlims
+        ax[row].set_xlim(t0, t1)
+        
+    # add a legend
+    ax[0].legend([y, 'model fit'], loc = 'upper left')
+
+    # some final formatting
+    ax[row].set_xlabel('time in session (s)', fontsize=12)
+    sns.despine()
+    fig.tight_layout()
 
     return fig, ax

@@ -7,7 +7,10 @@ import shutil
 from visual_behavior.data_access import utilities as utils
 import visual_behavior.data_access.loading as loading
 
-OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
+if os.name == 'nt':
+    OUTPUT_DIR_BASE = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
+else:
+    OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
 
 
 def define_levels():
@@ -15,7 +18,7 @@ def define_levels():
     levels = {
         num_levels: ['Full'],
         num_levels-1: ['visual', 'behavioral', 'cognitive'],
-        num_levels-2: ['licking', 'task', 'face_motion_energy', 'pupil_and_running', 'all-images', 'beh_model', 'expectation'],
+        num_levels-2: ['licking', 'task', 'face_motion_energy', 'pupil_and_running', 'all-images', 'beh_model', 'omissions'],
         num_levels-3: ['pupil_and_omissions'],
         num_levels-4: ['running_and_omissions'],
     }
@@ -292,9 +295,10 @@ def define_dropouts(kernels):
 
     # Define the nested_models
     dropout_definitions = {
-        'visual':               ['image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'omissions', 'image_expectation'],
+        'visual':               ['image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'omissions_within', 'omissions_post'],
         'all-images':           ['image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7'],
-        'expectation':          ['image_expectation', 'omissions'],
+        'omissions':            ['omissions_within', 'omissions_post'],
+        #'expectation':          ['image_expectation', 'omissions'],
         'cognitive':            ['hits', 'misses', 'false_alarms', 'correct_rejects', 'passive_change', 'change', 'rewards', 'model_bias', 'model_task0', 'model_timing1D', 'model_omissions1'],
         'task':                 ['hits', 'misses', 'false_alarms', 'correct_rejects', 'passive_change', 'change', 'rewards'],
         'beh_model':            ['model_bias', 'model_task0', 'model_timing1D', 'model_omissions1'],

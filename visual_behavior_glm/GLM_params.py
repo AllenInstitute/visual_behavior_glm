@@ -296,8 +296,8 @@ def define_dropouts(kernels):
         'behavioral':           ['running', 'pupil', 'licks', 'lick_bouts', 'lick_model', 'groom_model'],
         'licking':              ['licks', 'lick_bouts', 'lick_model', 'groom_model'],
         'pupil_and_running':    ['pupil', 'running'],
-        'pupil_and_omissions':  ['pupil', 'omissions'],
-        'running_and_omissions': ['running', 'omissions']
+        'pupil_and_omissions':  ['pupil', 'omissions_within', 'omissions_post'],
+        'running_and_omissions': ['running', 'omissions_within', 'omissions_post']
     }
 
     # Add all face_motion_energy individual kernels to behavioral, and as a group model

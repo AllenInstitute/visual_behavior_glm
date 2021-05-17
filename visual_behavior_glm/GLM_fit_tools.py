@@ -99,6 +99,9 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
 
+    # split by engagement
+    design = split_by_engagement(design, run_params, session, fit)
+
     # Set up CV splits
     print('Setting up CV')
     fit['splits'] = split_time(fit['fit_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
@@ -1210,6 +1213,9 @@ class DesignMatrix(object):
             }
         self.running_stop += kernel_length_samples
 
+def split_by_engagement(design, run_params, session, fit):
+    # TODO, implement
+    return design
 
 def split_time(timebase, subsplits_per_split=10, output_splits=6):
     '''

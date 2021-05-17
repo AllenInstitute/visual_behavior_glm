@@ -181,6 +181,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'levels':define_levels(),
         'split_on_engagement': True,   # If True, uses 'engagement_preference' to determine what engagement state to use
         'engagement_preference': 'engaged',  # Either None, "engaged", or "disengaged". Must be None if split_on_engagement is False
+        'min_engaged_duration': 600,    # Minimum time, in seconds, the session needs to be in the preferred engagement state 
         'lick_bout_ILI': 0.7,           # The minimum duration of time between two licks to segment them into separate lick bouts
         'min_time_per_bout': 0.2,       # length of bout event that continues after last lick in bout
         'min_interval':0.01,            # over-tiling value for making bout events. Must be << ophys-step-size
@@ -191,7 +192,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100,           # If 1, has no effect. Scales running speed to be O(1). 
-        'use_events': True              # If True, use detected events. If False, use raw deltaF/F 
+        'use_events': False             # If True, use detected events. If False, use raw deltaF/F 
     } 
     # Regularization parameter checks 
     a = run_params['L2_optimize_by_cell'] 
@@ -219,6 +220,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         assert (run_params['engagement_preference'] is 'engaged') or (run_params['engagement_preference'] is 'disengaged'), "Splitting on engagement, preference must be 'engaged' or 'disengaged'"
     elif not run_params['split_on_engagement']: 
         assert run_params['engagement_preference'] is None, "Not splitting on engagement, engagement preference must be None"
+    assert run_params['min_engaged_duration'] >=0, "Must define a minimum interval for the preferred engagement state"
 
 
     with open(json_path, 'w') as json_file:

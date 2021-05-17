@@ -179,6 +179,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'kernels':kernels,
         'dropouts':dropouts,
         'levels':define_levels(),
+        'split_on_engagement': True,   # If True, uses 'engagement_preference' to determine what engagement state to use
+        'engagement_preference': 'engaged',  # Either None, "engaged", or "disengaged". Must be None if split_on_engagement is False
         'lick_bout_ILI': 0.7,           # The minimum duration of time between two licks to segment them into separate lick bouts
         'min_time_per_bout': 0.2,       # length of bout event that continues after last lick in bout
         'min_interval':0.01,            # over-tiling value for making bout events. Must be << ophys-step-size
@@ -211,6 +213,13 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         assert len(run_params['L2_grid_range']) ==2, "Must have a minimum and maximum L2 grid option"
         assert run_params['L2_grid_type'] in ['log','linear'], "L2_grid_type must be log or linear"
         assert run_params['L2_grid_range'][0] > 0, "Must have a positive regularization minimum value."
+    
+    # Check Engagement split parameters
+    if run_params['split_on_engagement']:
+        assert (run_params['engagement_preference'] is 'engaged') or (run_params['engagement_preference'] is 'disengaged'), "Splitting on engagement, preference must be 'engaged' or 'disengaged'"
+    elif not run_params['split_on_engagement']: 
+        assert run_params['engagement_preference'] is None, "Not splitting on engagement, engagement preference must be None"
+
 
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)

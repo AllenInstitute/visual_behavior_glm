@@ -469,7 +469,7 @@ def get_roi_count(ophys_experiment_id):
     df = db.lims_query(query)
     return df['valid_roi'].sum()
 
-def retrieve_results(search_dict={}, results_type='full'):
+def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True):
     '''
     gets cached results from mongodb
     input:
@@ -482,26 +482,39 @@ def retrieve_results(search_dict={}, results_type='full'):
                 Each row contains a `dropout` label describing the particular dropout coefficent(s) that apply to that row. 
                 All derived values (`variance_explained`, `fraction_change_from_full`, `absolute_change_from_full`) 
                 are calculated only on test data, not train data.
+        return_list - a list of columns to return. Returning fewer columns speeds queries
+        merge_in_experiment_metadata - boolan which, if True, merges in data from experiment table
     output:
         dataframe of results
     '''
+    if return_list is None:
+        return_dict = {'_id': 0}
+    else:
+        return_dict = {v: 1 for v in return_list}
+        if '_id' not in return_list:
+            # don't return `_id` unless it was specifically requested
+            return_dict.update({'_id': 0})
+
     conn = db.Database('visual_behavior_data')
     database = 'ophys_glm'
-    results = pd.DataFrame(list(conn[database]['results_{}'.format(results_type)].find(search_dict)))
+    results = pd.DataFrame(list(conn[database]['results_{}'.format(results_type)].find(search_dict, return_dict)))
 
     # make 'glm_version' column a string
-    results['glm_version'] = results['glm_version'].astype(str)
+    if 'glm_version' in results.columns:
+        results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
 
-    # get experiment table, merge in details of each experiment
-    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
-    results = results.merge(
-        experiment_table, 
-        left_on='ophys_experiment_id',
-        right_on='ophys_experiment_id', 
-        how='left',
-        suffixes=['', '_duplicated'],
-    )
+    if merge_in_experiment_metadata:
+        # get experiment table, merge in details of each experiment
+        experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+        results = results.merge(
+            experiment_table, 
+            left_on='ophys_experiment_id',
+            right_on='ophys_experiment_id', 
+            how='left',
+            suffixes=['', '_duplicated'],
+        )
+
     duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
     return results.drop(columns=duplicated_cols)
 
@@ -897,6 +910,49 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
     return results_pivoted_var
           
 
+
+def inventory_glm_version(glm_version):
+    '''
+    checks to see which experiments and cell_roi_ids do not yet exist for a given GLM version
+    inputs:
+        glm_version: string
+        
+    returns: dict
+        {
+            'missing_experiments': a list of missing experiment IDs
+            'missing_rois': a list of missing cell_roi_ids
+            'incomplete_experiments': a list of experiments which exist, but for which the cell_roi_id list is incomplete
+        }
+    '''
+    glm_results = retrieve_results(
+        search_dict = {'glm_version': glm_version},
+        return_list = ['ophys_experiment_id', 'cell_specimen_id', 'cell_roi_id'],
+        merge_in_experiment_metadata=False
+    )
+    cell_table = loading.get_cell_table(columns_to_return = ['ophys_experiment_id','cell_specimen_id', 'cell_roi_id'])
+
+    missing_experiments = list(
+        set(cell_table['ophys_experiment_id'].unique()) - 
+        set(glm_results['ophys_experiment_id'].unique())
+    )
+
+    missing_rois = list(
+        set(cell_table['cell_roi_id'].unique()) - 
+        set(glm_results['cell_roi_id'].unique())
+    )
+
+    # get any experiments for which the ROI count is incomplete. These are 'incomplete_experiments'
+    incomplete_experiments = []
+    additional_missing_cells = list(
+        set(cell_table.query('ophys_experiment_id in {}'.format(list(glm_results['ophys_experiment_id'].unique())))['cell_roi_id']) - 
+        set(glm_results['cell_roi_id'])
+    )
+    for missing_cell in additional_missing_cells:
+        associated_oeid = cell_table.query('cell_roi_id == @missing_cell_id').iloc[0]['ophys_experiment_id']
+        # only append an experiment to the incomplete experiments list if it's not already in the list
+        incomplete_experiments.append(associated_oeid) if associated_oeid not in incomplete_experiments else None
+
+    return {'missing_experiments': missing_experiments, 'missing_rois': missing_rois, 'incomplete_experiments': incomplete_experiments}
 
 
 # NOTE:

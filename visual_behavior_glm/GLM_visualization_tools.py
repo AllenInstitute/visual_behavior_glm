@@ -1905,7 +1905,7 @@ def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time
     for dex,k in enumerate(kernels):
         ax.plot(time_vec, df[k].mean(axis=0),linestyle=linestyles[dex],color=color,label=group+' '+k,linewidth=linewidth)
 
-def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],normalize=True):
+def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],normalize=True,CMAP='Blues',in_ax=None):
     filter_string = ''
     problem_sessions = [873720614, 962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
 
@@ -1937,8 +1937,8 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
         filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
     if area_filter != ['VISp','VISl']:
         filter_string+='_area_'+'_'.join(area_filter)
-    filename2 = os.path.join(run_params['fig_kernels_dir'],kernel+'_perturbation_validation.png')
-    filename1 = os.path.join(run_params['fig_kernels_dir'],kernel+'_perturbation.png')
+    filename2 = os.path.join(run_params['fig_kernels_dir'],kernel+filter_string+'_perturbation_validation.png')
+    filename1 = os.path.join(run_params['fig_kernels_dir'],kernel+filter_string+'_perturbation.png')
 
     # Applying hard thresholds to dataset
     weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
@@ -1988,10 +1988,14 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
     print('Figure Saved to: '+filename2)
     plt.savefig(filename2) 
 
-    plt.figure()
+    if in_ax is None:
+        plt.figure()
+        ax = plt.gca()
+    else:
+        ax = in_ax 
     
     #cmap = plt.get_cmap('tab20c')
-    cmap = plt.get_cmap('Blues')(np.linspace(0.3,1,len(mids_range)))
+    cmap = plt.get_cmap(CMAP)(np.linspace(0.3,1,len(mids_range)))
     
     for dex,flash_num in enumerate(mids_range):
         if flash_num == 0:
@@ -2000,7 +2004,7 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
             label = 'Pre '+kernel+' '+str(flash_num)          
         else:
             label = 'Post '+kernel+' '+str(flash_num)
-        plt.plot(avg_vals.loc[dex]['vip-sst'],avg_vals.loc[dex]['Slc17a7-IRES2-Cre'],'o',color=cmap[dex],markersize=10,label=label)
+        ax.plot(avg_vals.loc[dex]['vip-sst'],avg_vals.loc[dex]['Slc17a7-IRES2-Cre'],'o',color=cmap[dex],markersize=10,label=label)
 
     for dex, flash_num in enumerate(mids_range):
         if dex == 0:
@@ -2013,21 +2017,22 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
         dy = (startxy[1]-endxy[1])*0.1
         sxy =(startxy[0]-dx,startxy[1]-dy)
         exy =(endxy[0]+dx,endxy[1]+dy)
-        plt.gca().annotate("",xy=exy,xytext=sxy,arrowprops=dict(arrowstyle="->",color=cmap[dex]))
+        ax.annotate("",xy=exy,xytext=sxy,arrowprops=dict(arrowstyle="->",color=cmap[dex]))
    
     plt.legend(loc='upper left')
     ylim = plt.ylim()
     xlim = plt.xlim()
     yrange = ylim[1]-ylim[0]
     xrange = xlim[1]-xlim[0]
-    plt.ylim(ylim[0]-.25*yrange, ylim[1]+.25*yrange)
-    plt.xlim(xlim[0]-.25*xrange, xlim[1]+.25*xrange)
-    plt.ylabel('Excitatory',fontsize=16)
-    plt.xlabel('VIP - SST',fontsize=16)
+    ax.set_ylim(ylim[0]-.25*yrange, ylim[1]+.25*yrange)
+    ax.set_xlim(xlim[0]-.25*xrange, xlim[1]+.25*xrange)
+    ax.set_ylabel('Excitatory',fontsize=16)
+    ax.set_xlabel('VIP - SST',fontsize=16)
     plt.tick_params(axis='both',labelsize=12)
     plt.tight_layout()
     print('Figure Saved to: '+filename1)
     plt.savefig(filename1) 
+    return ax
  
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=True):

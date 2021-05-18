@@ -1959,8 +1959,7 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
             df_norm = [x for x in df[~df.isnull()].values]
         df_norm = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df_norm]
         df_norm = np.vstack(df_norm)
-        kernel_means[group]=df_norm.mean(axis=0)
-        
+        kernel_means[group]=df_norm.mean(axis=0)     
     
     mids_range = range(int(np.floor(time_vec[0]/0.75)),int(np.floor(time_vec[-1]/0.75))+1)
     mids = [x*0.75+0.75/2 for x in mids_range] 
@@ -2032,7 +2031,15 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
     plt.tight_layout()
     print('Figure Saved to: '+filename1)
     plt.savefig(filename1) 
-    return ax
+
+    plt.figure()
+    plt.plot(kernel_means['Vip-IRES-Cre']-kernel_means['Sst-IRES-Cre'],kernel_means['Slc17a7-IRES2-Cre'])
+    plt.ylabel('Excitatory',fontsize=16)
+    plt.xlabel('VIP - SST',fontsize=16)
+    plt.tick_params(axis='both',labelsize=12)
+    plt.tight_layout()
+   
+    return ax,kernel_means
  
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=True):

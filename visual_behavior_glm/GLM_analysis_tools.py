@@ -13,62 +13,55 @@ import visual_behavior.database as db
 
 from sklearn.decomposition import PCA
 
-
 def load_fit_pkl(run_params, ophys_experiment_id):
     '''
         Loads the fit dictionary from the pkl file dumped by fit_experiment.
         Attempts to load the compressed pickle file if it exists, otherwise loads the uncompressed file
-
+    
         Inputs:
         run_params, the dictionary of parameters for this version
         ophys_experiment_id, the oeid to load the fit for
-
+    
         Returns:
         the fit dictionary if it exists
 
-    '''
+    ''' 
 
-    filenamepkl = os.path.join(
-        run_params['experiment_output_dir'], str(ophys_experiment_id)+'.pkl')
-    filenamepbz2 = os.path.join(
-        run_params['experiment_output_dir'], str(ophys_experiment_id)+'.pbz2')
+    filenamepkl = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pkl')
+    filenamepbz2 = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pbz2')
 
     if os.path.isfile(filenamepbz2):
         fit = bz2.BZ2File(filenamepbz2, 'rb')
         fit = cPickle.load(fit)
         return fit
     elif os.path.isfile(filenamepkl):
-        with open(filenamepkl, 'rb') as f:
+        with open(filenamepkl,'rb') as f:
             fit = pickle.load(f)
         return fit
     else:
         return None
 
-
-def log_error(error_dict, keys_to_check=[]):
+def log_error(error_dict, keys_to_check = []):
     '''
     logs contents of error_dict to the `error_logs` collection in the `ophys_glm` mongo database
     '''
-    conn = db.Database('visual_behavior_data')  # establishes connection
+    conn=db.Database('visual_behavior_data') #establishes connection
     db.update_or_create(
-        collection=conn['ophys_glm']['error_logs'],
-        document=db.clean_and_timestamp(error_dict),
-        # keys to check to determine whether an entry already exists. Overwrites if an entry is found with matching keys
-        keys_to_check=keys_to_check,
+        collection = conn['ophys_glm']['error_logs'],
+        document = db.clean_and_timestamp(error_dict),
+        keys_to_check = keys_to_check, # keys to check to determine whether an entry already exists. Overwrites if an entry is found with matching keys
     )
     conn.close()
 
-
-def get_error_log(search_dict={}):
+def get_error_log(search_dict = {}):
     '''
     searches the mongo error log for all entries matching the search_dict
     if search dict is an empty dict (default), it will return full contents of the kernel_error_log collection
     '''
-    conn = db.Database('visual_behavior_data')  # establishes connection
+    conn=db.Database('visual_behavior_data') #establishes connection
     result = conn['ophys_glm']['error_logs'].find(search_dict)
     conn.close()
     return pd.DataFrame(list(result))
-
 
 def build_kernel_df(glm, cell_specimen_id):
     '''
@@ -88,8 +81,7 @@ def build_kernel_df(glm, cell_specimen_id):
         kernel = glm.design.kernel_dict[kernel_name]['kernel']
 
         # get the weight matrix for the weights associated with this kernel and cell (dims = 1 x n_weights)
-        kernel_weight_names = [
-            w for w in all_weight_names if w.startswith(kernel_name)]
+        kernel_weight_names = [w for w in all_weight_names if w.startswith(kernel_name)]
         w_kernel = np.expand_dims(glm.W.loc[dict(
             weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)], axis=0)
 
@@ -98,7 +90,7 @@ def build_kernel_df(glm, cell_specimen_id):
         kernel_df.append(
             pd.DataFrame({
                 'timestamps': model_timestamps,
-                'timestamp_index': np.arange(len(model_timestamps)),
+                'timestamp_index':np.arange(len(model_timestamps)),
                 'kernel_outputs': (w_kernel @ kernel).squeeze(),
                 'kernel_name': [kernel_name]*len(model_timestamps)
             })
@@ -107,28 +99,25 @@ def build_kernel_df(glm, cell_specimen_id):
     # return the concatenated dataframe (concatenating a list of dataframes makes a single dataframe)
     return pd.concat(kernel_df)
 
-
 def generate_results_summary(glm):
     nonadj_dropout_summary = generate_results_summary_nonadj(glm)
     adj_dropout_summary = generate_results_summary_adj(glm)
 
     dropout_summary = pd.merge(
-        nonadj_dropout_summary,
+        nonadj_dropout_summary, 
         adj_dropout_summary,
         on=['dropout', 'cell_specimen_id']
     ).reset_index()
     dropout_summary.columns.name = None
     return dropout_summary
 
-
 def generate_results_summary_adj(glm):
     '''
         Returns a dataframe with summary information from the glm object
     '''
     # Get list of columns to look at, removing the non-adjusted dropouts, and training scores
-    test_cols = [col for col in glm.results.columns if (
-        (not col.endswith('train')) & ('adj' in col))]
-
+    test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' in col))]
+    
     # Set up space
     results_summary_list = []
 
@@ -136,29 +125,25 @@ def generate_results_summary_adj(glm):
     for cell_specimen_id in glm.results.index.values:
 
         # For each cell, get the relevant columns
-        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index(
-        ).rename(columns={cell_specimen_id: 'variance_explained', 'index': 'dropout_name'})
+        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index().rename(columns={cell_specimen_id:'variance_explained','index':'dropout_name'})
 
         # For each dropout, separate the name of the dropout from the type of information
-        for idx, row in results_summary.iterrows():
-            results_summary.at[idx, 'dropout'] = row['dropout_name'].split('__')[
-                0]
-            results_summary.at[idx, 'type'] = row['dropout_name'].split('__')[
-                1]
+        for idx,row in results_summary.iterrows():
+            results_summary.at[idx,'dropout'] = row['dropout_name'].split('__')[0]
+            results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
 
         # pivot the table on the dropout names
-        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=[
-                                         'dropout'], columns=['type'], values=['variance_explained'])
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
         results_summary.columns = results_summary.columns.droplevel()
         results_summary = results_summary.rename(columns={
             'avg_cv_adjvar_test': 'adj_variance_explained',
             'avg_cv_adjvar_test_full_comparison': 'adj_variance_explained_full',
             'adj_dropout': 'adj_fraction_change_from_full'
         })
-
+ 
         # add the cell id info
         results_summary['cell_specimen_id'] = cell_specimen_id
-
+         
         # pack up
         results_summary_list.append(results_summary)
 
@@ -166,15 +151,13 @@ def generate_results_summary_adj(glm):
 
     return pd.concat(results_summary_list)
 
-
 def generate_results_summary_nonadj(glm):
     '''
         Returns a dataframe with summary information from the glm object
     '''
     # Get list of columns to look at, removing the non-adjusted dropouts, and training scores
-    test_cols = [col for col in glm.results.columns if ((not col.endswith('train')) & (
-        'adj' not in col) & ('session' not in col) & ('cell' not in col))]
-
+    test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' not in col)&('session' not in col)&('cell' not in col))]  
+ 
     # Set up space
     results_summary_list = []
 
@@ -182,28 +165,24 @@ def generate_results_summary_nonadj(glm):
     for cell_specimen_id in glm.results.index.values:
 
         # For each cell, get the relevant columns
-        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index(
-        ).rename(columns={cell_specimen_id: 'variance_explained', 'index': 'dropout_name'})
+        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index().rename(columns={cell_specimen_id:'variance_explained','index':'dropout_name'})
 
         # For each dropout, separate the name of the dropout from the type of information
-        for idx, row in results_summary.iterrows():
-            results_summary.at[idx, 'dropout'] = row['dropout_name'].split('__')[
-                0]
-            results_summary.at[idx, 'type'] = row['dropout_name'].split('__')[
-                1]
+        for idx,row in results_summary.iterrows():
+            results_summary.at[idx,'dropout'] = row['dropout_name'].split('__')[0]
+            results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
 
         # pivot the table on the dropout names
-        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=[
-                                         'dropout'], columns=['type'], values=['variance_explained'])
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
         results_summary.columns = results_summary.columns.droplevel()
         results_summary = results_summary.rename(columns={
-            'avg_cv_var_test': 'variance_explained',
-            'avg_cv_var_test_full_comparison': 'variance_explained_full',
-            'dropout': 'fraction_change_from_full'})
-
+            'avg_cv_var_test':'variance_explained',
+            'avg_cv_var_test_full_comparison':'variance_explained_full',
+            'dropout':'fraction_change_from_full'})
+ 
         # add the cell id info
         results_summary['cell_specimen_id'] = cell_specimen_id
-
+         
         # pack up
         results_summary_list.append(results_summary)
 
@@ -211,36 +190,28 @@ def generate_results_summary_nonadj(glm):
 
     return pd.concat(results_summary_list)
 
-
 def generate_results_summary_non_cleaned(glm):
     '''
         Returns a dataframe with summary information from the glm object
     '''
     # Preserving the old functionality for now, but filtering out the adjusted variance columns
-    test_cols = [col for col in glm.results.columns if (
-        col.endswith('test') & ('adj' not in col))]
+    test_cols = [col for col in glm.results.columns if (col.endswith('test') & ('adj' not in col))]
     results_summary_list = []
     for cell_specimen_id in glm.results.index.values:
-        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index(
-        ).rename(columns={cell_specimen_id: 'variance_explained', 'index': 'dropout'})
-        for idx, row in results_summary.iterrows():
-            results_summary.at[idx, 'dropout'] = row['dropout'].split('_avg')[
-                0]
+        results_summary = pd.DataFrame(glm.results.loc[cell_specimen_id][test_cols]).reset_index().rename(columns={cell_specimen_id:'variance_explained','index':'dropout'})
+        for idx,row in results_summary.iterrows():
+            results_summary.at[idx,'dropout'] = row['dropout'].split('_avg')[0]
 
         def calculate_fractional_change(row):
-            full_model_performance = results_summary[results_summary['dropout']
-                                                     == 'Full']['variance_explained'].iloc[0]
+            full_model_performance = results_summary[results_summary['dropout']=='Full']['variance_explained'].iloc[0]
             return (row['variance_explained'] - full_model_performance)/full_model_performance
 
         def calculate_absolute_change(row):
-            full_model_performance = results_summary[results_summary['dropout']
-                                                     == 'Full']['variance_explained'].iloc[0]
+            full_model_performance = results_summary[results_summary['dropout']=='Full']['variance_explained'].iloc[0]
             return row['variance_explained'] - full_model_performance
 
-        results_summary['fraction_change_from_full'] = results_summary.apply(
-            calculate_fractional_change, axis=1)
-        results_summary['absolute_change_from_full'] = results_summary.apply(
-            calculate_absolute_change, axis=1)
+        results_summary['fraction_change_from_full'] = results_summary.apply(calculate_fractional_change, axis=1)
+        results_summary['absolute_change_from_full'] = results_summary.apply(calculate_absolute_change, axis=1)
         results_summary['cell_specimen_id'] = cell_specimen_id
         results_summary_list.append(results_summary)
     return pd.concat(results_summary_list)
@@ -257,17 +228,14 @@ def identify_dominant_dropouts(data, cluster_column_name, cols_to_search):
         cols_to_search - (list) list of columns to search over for dominant column. Should be same set of columns used for clustering
     returns:
         None (operates in place)
-
+    
     '''
     for cluster_id in data[cluster_column_name].unique():
-        data_subset = data.query("{} == {}".format(
-            cluster_column_name, cluster_id))
+        data_subset = data.query("{} == {}".format(cluster_column_name, cluster_id))
 
         data_subset_medians = data_subset[cols_to_search].median(axis=0)
-        data.loc[data_subset.index,
-                 'dominant_dropout'] = data_subset_medians.idxmin()
-        data.loc[data_subset.index,
-                 'dominant_dropout_median'] = data_subset_medians.min()
+        data.loc[data_subset.index, 'dominant_dropout'] = data_subset_medians.idxmin()
+        data.loc[data_subset.index, 'dominant_dropout_median'] = data_subset_medians.min()
 
 
 def sort_data(df_in, sort_order, cluster_column_name):
@@ -276,9 +244,9 @@ def sort_data(df_in, sort_order, cluster_column_name):
     identifies rows where the cluster_id shifts
     '''
     sorted_data = (df_in
-                   .sort_values(by=sort_order)
-                   .reset_index(drop=True)
-                   )
+            .sort_values(by=sort_order)
+            .reset_index(drop=True)
+        )
 
     # identify cluster transitions
     sorted_data['cluster_transition'] = sorted_data[cluster_column_name] != sorted_data[cluster_column_name].shift()
@@ -292,8 +260,7 @@ def already_fit(oeid, version):
     '''
     conn = db.Database('visual_behavior_data')
     coll = conn['ophys_glm']['weight_matrix_lookup_table']
-    document_count = coll.count_documents(
-        {'ophys_experiment_id': int(oeid), 'glm_version': str(version)})
+    document_count = coll.count_documents({'ophys_experiment_id':int(oeid), 'glm_version':str(version)})
     conn.close()
     return document_count > 0
 
@@ -320,22 +287,21 @@ def log_results_to_mongo(glm):
     conn = db.Database('visual_behavior_data')
 
     keys_to_check = {
-        'results_full': ['ophys_experiment_id', 'cell_specimen_id', 'glm_version'],
-        'results_summary': ['ophys_experiment_id', 'cell_specimen_id', 'dropout', 'glm_version']
+        'results_full':['ophys_experiment_id','cell_specimen_id','glm_version'],
+        'results_summary':['ophys_experiment_id','cell_specimen_id', 'dropout','glm_version']
     }
 
-    for df, collection in zip([full_results, results_summary], ['results_full', 'results_summary']):
+    for df,collection in zip([full_results, results_summary], ['results_full','results_summary']):
         coll = conn['ophys_glm'][collection]
 
-        for idx, row in df.iterrows():
+        for idx,row in df.iterrows():
             entry = row.to_dict()
             db.update_or_create(
                 coll,
                 db.clean_and_timestamp(entry),
-                keys_to_check=keys_to_check[collection]
+                keys_to_check = keys_to_check[collection]
             )
     conn.close()
-
 
 def xarray_to_mongo(xarray):
     '''
@@ -348,7 +314,6 @@ def xarray_to_mongo(xarray):
     _id, _ = xdb.put(xarray)
     return _id
 
-
 def get_weights_matrix_from_mongo(ophys_experiment_id, glm_version):
     '''
     retrieves weights matrix from mongo for a given oeid/glm_version
@@ -356,20 +321,18 @@ def get_weights_matrix_from_mongo(ophys_experiment_id, glm_version):
     '''
     conn = db.Database('visual_behavior_data')
     lookup_table_document = {
-        'ophys_experiment_id': ophys_experiment_id,
-        'glm_version': glm_version,
+        'ophys_experiment_id':ophys_experiment_id,
+        'glm_version':glm_version,
     }
     w_matrix_lookup_table = conn['ophys_glm']['weight_matrix_lookup_table']
     w_matrix_database = conn['ophys_glm_xarrays']
 
     if w_matrix_lookup_table.count_documents(lookup_table_document) == 0:
-        warnings.warn('there is no record of a the weights matrix for oeid {}, glm_version {}'.format(
-            ophys_experiment_id, glm_version))
+        warnings.warn('there is no record of a the weights matrix for oeid {}, glm_version {}'.format(ophys_experiment_id, glm_version))
         conn.close()
         return None
     else:
-        lookup_result = list(
-            w_matrix_lookup_table.find(lookup_table_document))[0]
+        lookup_result = list(w_matrix_lookup_table.find(lookup_table_document))[0]
         # get the id of the xarray
         w_matrix_id = lookup_result['w_matrix_id']
         xdb = xarray_mongodb.XarrayMongoDB(w_matrix_database)
@@ -391,24 +354,22 @@ def log_weights_matrix_to_mongo(glm):
     '''
     conn = db.Database('visual_behavior_data')
     lookup_table_document = {
-        'ophys_experiment_id': glm.ophys_experiment_id,
-        'glm_version': glm.version,
+        'ophys_experiment_id':glm.ophys_experiment_id,
+        'glm_version':glm.version,
     }
     w_matrix_lookup_table = conn['ophys_glm']['weight_matrix_lookup_table']
     w_matrix_database = conn['ophys_glm_xarrays']
 
     if w_matrix_lookup_table.count_documents(lookup_table_document) >= 1:
-        lookup_result = list(
-            w_matrix_lookup_table.find(lookup_table_document))[0]
+        lookup_result = list(w_matrix_lookup_table.find(lookup_table_document))[0]
         # if weights matrix for this experiment/version has already been logged, we need to replace it
 
         # get the id of the xarray
         w_matrix_id = lookup_result['w_matrix_id']
 
         # delete the existing xarray (both metadata and chunks)
-        w_matrix_database['xarray.chunks'].delete_many(
-            {'meta_id': w_matrix_id})
-        w_matrix_database['xarray.meta'].delete_many({'_id': w_matrix_id})
+        w_matrix_database['xarray.chunks'].delete_many({'meta_id':w_matrix_id})
+        w_matrix_database['xarray.meta'].delete_many({'_id':w_matrix_id})
 
         # write the new weights matrix to mongo
         new_w_matrix_id = xarray_to_mongo(glm.W)
@@ -416,8 +377,7 @@ def log_weights_matrix_to_mongo(glm):
         # update the lookup table entry
         lookup_result['w_matrix_id'] = new_w_matrix_id
         _id = lookup_result.pop('_id')
-        w_matrix_lookup_table.update_one(
-            {'_id': _id}, {"$set": db.clean_and_timestamp(lookup_result)})
+        w_matrix_lookup_table.update_one({'_id':_id}, {"$set": db.clean_and_timestamp(lookup_result)})
     else:
         # if the weights matrix had not already been logged
 
@@ -428,11 +388,9 @@ def log_weights_matrix_to_mongo(glm):
         lookup_table_document.update({'w_matrix_id': w_matrix_id})
 
         # insert the lookup table document into the lookup table
-        w_matrix_lookup_table.insert_one(
-            db.clean_and_timestamp(lookup_table_document))
+        w_matrix_lookup_table.insert_one(db.clean_and_timestamp(lookup_table_document))
 
     conn.close()
-
 
 def get_experiment_table(glm_version):
     '''
@@ -441,46 +399,43 @@ def get_experiment_table(glm_version):
         * roi count
         * cluster job summary for each experiment
         * number of existing dropouts
-
+    
     Warning: this takes a couple of minutes to run.
     '''
     experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
-    dropout_summary = retrieve_results(
-        {'glm_version': glm_version}, results_type='summary')
+    dropout_summary = retrieve_results({'glm_version':glm_version}, results_type='summary')
     stdout_summary = get_stdout_summary(glm_version)
 
     # add ROI count to experiment table
-    experiment_table['roi_count'] = experiment_table['ophys_experiment_id'].map(
-        lambda oeid: get_roi_count(oeid))
+    experiment_table['roi_count'] = experiment_table['ophys_experiment_id'].map(lambda oeid: get_roi_count(oeid))
 
     # get a count of the dropoutsof for each experiment/cell
     dropout_count = pd.DataFrame(
         (dropout_summary
-            .groupby(['ophys_experiment_id', 'cell_specimen_id'])['dropout']
+            .groupby(['ophys_experiment_id','cell_specimen_id'])['dropout']
             .count())
-        .reset_index()
-        .rename(columns={'dropout': 'dropout_count'}
-                )
+            .reset_index()
+            .rename(columns={'dropout': 'dropout_count'}
+        )
     )
 
     # merge in stdout summary
     experiment_table_merged = experiment_table.merge(
         stdout_summary,
-        left_on='ophys_experiment_id',
-        right_on='ophys_experiment_id',
+        left_on = 'ophys_experiment_id',
+        right_on = 'ophys_experiment_id',
         how='left'
     )
     # merge in dropout count (average dropout count per experiment - should be same for all cells)
     experiment_table_merged = experiment_table_merged.merge(
-        pd.DataFrame(dropout_count.groupby('ophys_experiment_id')
-                     ['dropout_count'].mean()).reset_index(),
-        left_on='ophys_experiment_id',
-        right_on='ophys_experiment_id',
+        pd.DataFrame(dropout_count.groupby('ophys_experiment_id')['dropout_count'].mean()).reset_index(),
+        left_on = 'ophys_experiment_id',
+        right_on = 'ophys_experiment_id',
         how='left'
     )
 
     return experiment_table_merged
-
+    
 
 def get_stdout_summary(glm_version):
     '''
@@ -488,20 +443,15 @@ def get_stdout_summary(glm_version):
     '''
     conn = db.Database('visual_behavior_data')
     collection = conn['ophys_glm']['cluster_stdout']
-    stdout_summary = pd.DataFrame(
-        list(collection.find({'glm_version': glm_version})))
+    stdout_summary = pd.DataFrame(list(collection.find({'glm_version':glm_version})))
     conn.close()
 
     # parse the walltime column
-    stdout_summary['required_walltime_seconds'] = stdout_summary['required_walltime'].map(
-        lambda walltime_str: walltime_to_seconds(walltime_str))
-    stdout_summary['required_walltime_minutes'] = stdout_summary['required_walltime'].map(
-        lambda walltime_str: walltime_to_seconds(walltime_str)/60)
-    stdout_summary['required_walltime_hours'] = stdout_summary['required_walltime'].map(
-        lambda walltime_str: walltime_to_seconds(walltime_str)/3600)
+    stdout_summary['required_walltime_seconds'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str))
+    stdout_summary['required_walltime_minutes'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str)/60)
+    stdout_summary['required_walltime_hours'] = stdout_summary['required_walltime'].map(lambda walltime_str: walltime_to_seconds(walltime_str)/3600)
 
     return stdout_summary
-
 
 def walltime_to_seconds(walltime_str):
     '''
@@ -511,16 +461,13 @@ def walltime_to_seconds(walltime_str):
     h, m, s = walltime_str.split(':')
     return int(h)*60*60 + int(m)*60 + int(s)
 
-
 def get_roi_count(ophys_experiment_id):
     '''
     a LIMS query to get the valid ROI count for a given experiment
     '''
-    query = 'select * from cell_rois where ophys_experiment_id = {}'.format(
-        ophys_experiment_id)
+    query= 'select * from cell_rois where ophys_experiment_id = {}'.format(ophys_experiment_id)
     df = db.lims_query(query)
     return df['valid_roi'].sum()
-
 
 def retrieve_results(search_dict={}, results_type='full'):
     '''
@@ -540,8 +487,7 @@ def retrieve_results(search_dict={}, results_type='full'):
     '''
     conn = db.Database('visual_behavior_data')
     database = 'ophys_glm'
-    results = pd.DataFrame(
-        list(conn[database]['results_{}'.format(results_type)].find(search_dict)))
+    results = pd.DataFrame(list(conn[database]['results_{}'.format(results_type)].find(search_dict)))
 
     # make 'glm_version' column a string
     results['glm_version'] = results['glm_version'].astype(str)
@@ -550,20 +496,17 @@ def retrieve_results(search_dict={}, results_type='full'):
     # get experiment table, merge in details of each experiment
     experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
     results = results.merge(
-        experiment_table,
+        experiment_table, 
         left_on='ophys_experiment_id',
-        right_on='ophys_experiment_id',
+        right_on='ophys_experiment_id', 
         how='left',
         suffixes=['', '_duplicated'],
     )
-    duplicated_cols = [
-        col for col in results.columns if col.endswith('_duplicated')]
+    duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
     return results.drop(columns=duplicated_cols)
 
-
 def make_identifier(row):
-    return '{}_{}'.format(row['ophys_experiment_id'], row['cell_specimen_id'])
-
+    return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
 
 def get_glm_version_comparison_table(versions_to_compare, metric='Full__avg_cv_var_test'):
     '''
@@ -572,14 +515,12 @@ def get_glm_version_comparison_table(versions_to_compare, metric='Full__avg_cv_v
     '''
     results = []
     for glm_version in versions_to_compare:
-        results.append(retrieve_results(
-            {'glm_version': glm_version}, results_type='full'))
+        results.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
     results = pd.concat(results, sort=True)
-
+    
     results['identifier'] = results.apply(make_identifier, axis=1)
-    pivoted_results = results.pivot(
-        index='identifier', columns='glm_version', values=metric)
-    cols = [col for col in results.columns if col not in pivoted_results.columns and 'test' not in col and 'train' not in col and '__' not in col and 'dropout' not in col]
+    pivoted_results = results.pivot(index='identifier', columns='glm_version',values=metric)
+    cols= [col for col in results.columns if col not in pivoted_results.columns and 'test' not in col and 'train' not in col and '__' not in col and 'dropout' not in col]
 
     pivoted_results = pivoted_results.merge(
         results[cols].drop_duplicates(subset=['identifier']),
@@ -589,7 +530,6 @@ def get_glm_version_comparison_table(versions_to_compare, metric='Full__avg_cv_v
     )
 
     return pivoted_results
-
 
 def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None):
     '''
@@ -602,55 +542,48 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
     output:
         wide form results summary
     '''
-
+    
     # some aassertions to make sure the right combination of stuff is input
     assert results_summary is not None or glm_version is not None, 'must pass either a results_summary or a glm_version'
-    assert not (
-        results_summary is not None and glm_version is not None), 'cannot pass both a results summary and a glm_version'
+    assert not (results_summary is not None and glm_version is not None), 'cannot pass both a results summary and a glm_version'
     if results_summary is not None:
-        assert len(results_summary['glm_version'].unique(
-        )) == 1, 'number of glm_versions in the results summary caannot exceed 1'
-
+        assert len(results_summary['glm_version'].unique()) == 1, 'number of glm_versions in the results summary caannot exceed 1'
+        
     # get results summary if none was passed
     if results_summary is None:
-        results_summary = retrieve_results(
-            search_dict={'glm_version': glm_version}, results_type='summary')
-
-    results_summary['identifier'] = results_summary['ophys_experiment_id'].astype(
-        str) + '_' + results_summary['cell_specimen_id'].astype(str)
-
+        results_summary = retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary')
+        
+    results_summary['identifier'] = results_summary['ophys_experiment_id'].astype(str) + '_' +  results_summary['cell_specimen_id'].astype(str)
+    
     # apply cutoff. Set to -inf if not specified
     if cutoff is None:
         cutoff = -np.inf
-    cells_to_keep = list(results_summary.query(
-        'dropout == "Full" and variance_explained >= @cutoff')['identifier'].unique())
-
+    cells_to_keep = list(results_summary.query('dropout == "Full" and variance_explained >= @cutoff')['identifier'].unique())
+    
     # pivot the results summary so that dropout scores become columns
-    results_summary_pivoted = results_summary.query('identifier in @cells_to_keep').pivot(
-        index='identifier', columns='dropout', values=value_to_use).reset_index()
-
+    results_summary_pivoted = results_summary.query('identifier in @cells_to_keep').pivot(index='identifier',columns='dropout',values=value_to_use).reset_index()
+    
     # merge in other identifying columns, leaving out those that will have more than one unique value per cell
     potential_cols_to_drop = [
-        '_id',
+        '_id', 
         'index',
-        'dropout',
-        'variance_explained',
-        'fraction_change_from_full',
+        'dropout', 
+        'variance_explained', 
+        'fraction_change_from_full', 
         'absolute_change_from_full',
         'adj_fraction_change_from_full',
         'adj_variance_explained',
         'adj_variance_explained_full',
         'entry_time_utc',
     ]
-    cols_to_drop = [
-        col for col in potential_cols_to_drop if col in results_summary.columns]
+    cols_to_drop = [col for col in potential_cols_to_drop if col in results_summary.columns]
     results_summary_pivoted = results_summary_pivoted.merge(
         results_summary.drop(columns=cols_to_drop).drop_duplicates(),
         left_on='identifier',
         right_on='identifier',
         how='left'
     )
-
+    
     return results_summary_pivoted
 
 
@@ -661,7 +594,7 @@ def summarize_variance_explained(results=None):
     if results is None:
         results_dict = retrieve_results()
         results = results_dict['full']
-    return results.groupby(['glm_version', 'cre_line'])['Full_avg_cv_var_test'].describe()
+    return results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_test'].describe()
 
 
 def get_experiment_inventory(results=None):
@@ -683,16 +616,14 @@ def get_experiment_inventory(results=None):
         results_dict = retrieve_results()
         results = results_dict['full']
     results = results.set_index(['ophys_experiment_id'])
-
+    
     experiments_table = loading.get_filtered_ophys_experiment_table()
 
     for glm_version in results['glm_version'].unique():
         for oeid in experiments_table.index.values:
-            experiments_table.at[oeid, 'glm_version_{}_exists'.format(
-                glm_version)] = oeid_in_results(oeid, glm_version)
+            experiments_table.at[oeid, 'glm_version_{}_exists'.format(glm_version)] = oeid_in_results(oeid, glm_version)
 
     return experiments_table
-
 
 def run_pca(dropout_matrix, n_components=40, deal_with_nans='fill_with_zero'):
     '''
@@ -713,7 +644,7 @@ def run_pca(dropout_matrix, n_components=40, deal_with_nans='fill_with_zero'):
     pca.results = pca_result
     pca.component_names = dropout_matrix.columns
     return pca
-
+    
 
 def process_session_to_df(oeid, run_params):
     '''
@@ -722,44 +653,42 @@ def process_session_to_df(oeid, run_params):
     '''
     # Get weights
     W = get_weights_matrix_from_mongo(int(oeid), run_params['version'])
-
+    
     # Make Dataframe with cell and experiment info
-    session_df = pd.DataFrame()
+    session_df  = pd.DataFrame()
     session_df['cell_specimen_id'] = W.cell_specimen_id.values
-    session_df['ophys_experiment_id'] = [
-        int(oeid)]*len(W.cell_specimen_id.values)
-
+    session_df['ophys_experiment_id'] = [int(oeid)]*len(W.cell_specimen_id.values)  
+    
     # For each kernel, extract the weights for this kernel
     for k in run_params['kernels']:
         weight_names = [w for w in W.weights.values if w.startswith(k)]
-
+        
         # Check if this kernel was in this model
         if len(weight_names) > 0:
             session_df[k] = W.loc[dict(weights=weight_names)].values.T.tolist()
     return session_df
 
-
-def build_weights_df(run_params, results_pivoted, cache_results=False, load_cache=False):
+def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False):
     '''
         Builds a dataframe of (cell_specimen_id, ophys_experiment_id) with the weight parameters for each kernel
         Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream   
-
+ 
         INPUTS:
         run_params, parameter json for the version to analyze
         results_pivoted = build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
         cache_results, if True, save dataframe as csv file
         load_cache, if True, load cached results, if it exists
-
+    
         RETURNS:
         a dataframe
     '''
-
-    # if load_cache & os.path.exists(run_params['output_dir']+'/weights_df.csv'):
+    
+    #if load_cache & os.path.exists(run_params['output_dir']+'/weights_df.csv'):
     #    # Need to convert things to np.array
     #    return pd.read_csv(run_params['output_dir']+'/weights_df.csv')
-
-    # Make dataframe for cells and experiments
-    oeids = results_pivoted['ophys_experiment_id'].unique()
+   
+    # Make dataframe for cells and experiments 
+    oeids = results_pivoted['ophys_experiment_id'].unique() 
 
     # For each experiment, get the weight matrix from mongo (slow)
     # Then pull the weights from each kernel into a dataframe
@@ -769,19 +698,17 @@ def build_weights_df(run_params, results_pivoted, cache_results=False, load_cach
         sessions.append(session_df)
 
     # Merge all the session_dfs, and add more session level info
-    weights_df = pd.concat(sessions, sort=False)
-    weights_df = pd.merge(weights_df, results_pivoted, on=[
-                          'cell_specimen_id', 'ophys_experiment_id'], suffixes=('_weights', ''))
-
-    # Cache Results
-    # if cache_results:
-    #    weights_df.to_csv(run_params['output_dir']+'/weights_df.csv')
+    weights_df = pd.concat(sessions,sort=False)
+    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
+    
+    ## Cache Results
+    #if cache_results:
+    #    weights_df.to_csv(run_params['output_dir']+'/weights_df.csv') 
 
     # Return weights_df
-    return weights_df
+    return weights_df 
 
-
-def compute_over_fitting_proportion(results_full, run_params):
+def compute_over_fitting_proportion(results_full,run_params):
     '''
         Computes the over-fitting proportion for each cell on each dropout model:
         (train_ve - test_ve)/train_ve
@@ -797,15 +724,12 @@ def compute_over_fitting_proportion(results_full, run_params):
     dropouts = set(run_params['dropouts'].keys())
     for d in dropouts:
         if d+'__avg_cv_var_train' in results_full.columns:
-            results_full[d+'__over_fit'] = (results_full[d+'__avg_cv_var_train'] -
-                                            results_full[d+'__avg_cv_var_test'])/(results_full[d+'__avg_cv_var_train'])
-
+            results_full[d+'__over_fit'] = (results_full[d+'__avg_cv_var_train']-results_full[d+'__avg_cv_var_test'])/(results_full[d+'__avg_cv_var_train'])
+    
     dropouts.remove('Full')
     for d in dropouts:
         if d+'__avg_cv_var_train' in results_full.columns:
-            results_full[d+'__dropout_overfit_proportion'] = 1 - \
-                results_full[d+'__over_fit']/results_full['Full__over_fit']
-
+            results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
     return
 
 
@@ -971,6 +895,8 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
         good_cell_ids)].copy()
 
     return results_pivoted_var
+          
+
 
 
 # NOTE:
@@ -1131,7 +1057,7 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
 
 
 # def process_to_flashes(fit_data, session):
-#     '''
+#     ''' 
 #         Is now fast
 #     '''
 #     cells = list(fit_data['w'].keys())
@@ -1165,7 +1091,7 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
 
 
 # def process_to_trials(fit_data, session):
-#     '''
+#     ''' 
 #         Takes Forever
 #     '''
 #     cells = list(fit_data['w'].keys())
@@ -1199,7 +1125,7 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
 # def compute_shuffle_var_explained(flash_df, cell_id):
 #     '''
 #         Computes the variance explained in a shuffle distribution
-#         NOTE: this variance explained is going to be different from the full thing because im being a little hacky. buts I think its ok for the purpose of this analysis
+#         NOTE: this variance explained is going to be different from the full thing because im being a little hacky. buts I think its ok for the purpose of this analysis 
 #     '''
 #     cell_df = flash_df.query('cell_specimen_id == @cell_id').reset_index()
 #     cell_df['model_dff_shuffle'] = cell_df.sample(

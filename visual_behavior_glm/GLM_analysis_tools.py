@@ -730,7 +730,173 @@ def compute_over_fitting_proportion(results_full,run_params):
     for d in dropouts:
         if d+'__avg_cv_var_train' in results_full.columns:
             results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
- 
+    return
+
+
+def find_best_session(results_pivoted, session_number, mouse_id=None, novelty=False):
+    '''
+        If there are multiple retakes of the same ophys session type, picks one with most 
+        registered neurons.
+        If novelty is True, picks ophys session with prior exposure to session type = 0
+        Returns one ophys session id if there is one, returns None if there is none that meet
+        novelty criteria.
+
+        INPUT:
+        results_pivoted     glm output with each regressor as a column
+        mouse_id            pick one mouse id at a time
+        session_number      pick one session type at a time (1,2...6)
+        novelty             default = False, if set to True = not a retake
+
+        RETURNS:
+        session_number      ophys session number if one is found, None otherwise
+
+    '''
+    if mouse_id is not None:  # get glm from one mouse
+        df = results_pivoted[(results_pivoted['mouse_id'] == mouse_id) &
+                             (results_pivoted['session_number'] == session_number)]
+    else:
+        df = results_pivoted[results_pivoted['session_number']
+                             == session_number]
+
+    sessions = df['ophys_session_id'].unique()
+    #print('found {} session(s)...'.format(len(sessions)))
+
+
+    if len(sessions) == 1 and novelty == False:  # one session
+        session_to_use = sessions[0]
+
+    elif not list(sessions):  # no sessions
+        session_to_use = None
+
+    elif novelty == True:  # novel session
+        try:
+            session_to_use = df[df['prior_exposures_to_session_type'] == 0]['ophys_session_id'].unique()[0]
+        except:
+            print('no novel session, id = {}...'.format(df['ophys_session_id'].unique()))
+            session_to_use = None
+
+    else:  # go through sessions and find the one with most registered neurons
+        n_csids = 0  # number of cell specimen ids
+
+        for session in sessions:
+            n_csid = len(df[df['ophys_session_id'] == session]
+                         ['cell_specimen_id'])
+
+            if n_csid > n_csids:
+                n_csids = n_csid
+                session_to_use = session
+
+    return session_to_use
+
+
+def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, novelty=None):
+    '''
+        Finds cells with the same cell ids across sessions
+        INPUT:
+        results_pivoted_sel     results_pivoted dataframe without retakes with cell_specimen_id,
+                                session_number, mouse_id, and ophys_session_id as columns
+        session_numbers         session numbers to compare 
+        novelty                 default None, if there are retakes, assumes novelty = True for ophys 4.
+                                Set to False if novelty of ophys 4 is not a priority
+
+        RETURNS:
+        matched_cell_ids        an array of cell specimen ids matched across sessions
+        ophys_session_ids       an array of ophys_session_ids, where the cell ids came from
+
+    '''
+
+    # check for retakes first. You cannot match cells if there are more than one of the same session type.
+    ophys_session_ids = []
+    tmp = results_pivoted_sel[['mouse_id', 'session_number']].drop_duplicates()
+    session_N = tmp.groupby(['mouse_id', 'session_number'])['session_number'].value_counts()
+
+    if session_N.unique() != [1]:
+
+        print('glm output contains retakes; cant match cells')
+        matched_cell_ids = None
+    else:
+
+        # start with all cell ids
+        matched_cell_ids = results_pivoted_sel['cell_specimen_id'].unique()
+
+        for session_number in session_numbers:
+            df = results_pivoted_sel[results_pivoted_sel['session_number'] == session_number]
+            matched_cell_ids = np.intersect1d(matched_cell_ids, df['cell_specimen_id'].values)
+            try:
+                ophys_session_ids.append(df['ophys_session_id'].unique()[0])
+            except:
+                print('no matches')
+
+    return matched_cell_ids, ophys_session_ids
+
+
+def drop_cells_with_nan(results_pivoted, regressor):
+    '''
+        Find cells that have NaN dropout scores in either one or more ophys sessions
+        and drop them in all ophys sessions. Returns glm df without those cells.
+
+        INPUT:
+        results_pivoted    glm output with regressors as columns
+        regressor          name of the regressor
+
+        RETURNS:
+        results_pivoted_without_nan 
+    '''
+    cell_with_nan = results_pivoted[results_pivoted[regressor].isnull()]['cell_specimen_id'].values
+    results_pivoted_without_nan = results_pivoted[~results_pivoted['cell_specimen_id'].isin(cell_with_nan)]
+    return results_pivoted_without_nan
+
+
+def get_matched_mouse_ids(results_pivoted, session_numbers):
+    '''
+        Find mouse ids that have matched ophys sessions.
+
+        INPUT:
+        results_pivoted     glm output with regressors as columns
+        ression_numbers     session numbers to match
+
+        RETURNS:
+        mouse_ids           an array with mouse ids that have all listed session numbers
+    '''
+
+    mouse_ids = results_pivoted['mouse_id'].unique()
+    for session_number in session_numbers:
+        mouse_id = results_pivoted[results_pivoted['session_number']
+                                   == session_number]['mouse_id'].unique()
+        mouse_ids = np.intersect1d(mouse_ids, mouse_id)
+    return mouse_ids
+
+
+def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers=None):
+    '''
+        Selects only neurons what are explained above threshold var. 
+        In_session_numbers allows you specify with sessions to check. 
+
+        INPUT: 
+        results_pivoted           glm output witt session_number and variance_explained_full as columns
+        in_session_numbers        an array of session number(s) to check. 
+
+        RETURNS:
+        results_pivoted_var glm output with cells above threshold of var explained, unmatched cells
+    '''
+    good_cell_ids = results_pivoted[results_pivoted['variance_explained_full']
+                       > threshold]['cell_specimen_id'].unique()
+
+    if in_session_numbers is not None:
+        for session_number in in_session_numbers:
+            cell_ids = results_pivoted[(results_pivoted['session_number'] == session_number) &
+                                       (results_pivoted['variance_explained_full'] > threshold)]['cell_specimen_id'].unique()
+            good_cell_ids = np.intersect1d(good_cell_ids, cell_ids)
+    else:
+        good_cell_ids = results_pivoted[results_pivoted['variance_explained_full']
+                           > threshold]['cell_specimen_id'].unique()
+
+    results_pivoted_var = results_pivoted[results_pivoted['cell_specimen_id'].isin(
+        good_cell_ids)].copy()
+
+    return results_pivoted_var
+          
+
 
 
 # NOTE:

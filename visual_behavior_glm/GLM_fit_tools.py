@@ -123,7 +123,6 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
 
-    return fit
     # Start Diagnostic analyses
     if not NO_DROPOUTS:
         print('Starting diagnostics')
@@ -828,6 +827,7 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     
     # If we are splitting on engagement, then determine the engagement timepoints
     if run_params['split_on_engagement']:
+        print('Adding Engagement labels. Preferred engagement state: '+run_params['engagement_preference'])
         fit = add_engagement_labels(fit, session, run_params)
     return fit
 
@@ -864,7 +864,8 @@ def add_engagement_labels(fit, session, run_params):
     
     # Interpolate onto fit timestamps
     fit['engaged']= interpolate_to_ophys_timestamps(fit,engaged_df)['values'].values 
-
+    print('\t% of session engaged:    '+str(np.sum(fit['engaged'])/len(fit['engaged'])))
+    print('\t% of session disengaged: '+str(1-np.sum(fit['engaged'])/len(fit['engaged'])))
     return fit
 
 def add_kernels(design, run_params,session, fit):
@@ -1092,7 +1093,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
                 raise Exception('Trial type regressors arent defined for passive sessions (sessions with less than 5 rewards)')
         elif event == 'passive_change':
             if len(session.rewards) > 5: 
-                raise Exception('Passive Change kernel cant be added to active sessions')               
+                raise Exception('\tPassive Change kernel cant be added to active sessions')               
             event_times = session.stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]           
         elif event == 'any-image':
@@ -1106,11 +1107,17 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif (len(event)>5) & (event[0:5] == 'image'):
             event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
         else:
-            raise Exception('Could not resolve kernel label')
+            raise Exception('\tCould not resolve kernel label')
+
+        # Ensure minimum number of events
         if len(event_times) < 5: # HARD CODING THIS VALUE HERE
-            raise Exception('Less than minimum number of events: '+str(len(event_times)) +' '+event)
+            raise Exception('\tLess than minimum number of events: '+str(len(event_times)) +' '+event)
+    
+        # Ensure minimum number of events in preferred engagement state
+        check_by_engagement_state(run_params, fit, event_times,event)
+
     except Exception as e:
-        print('Error encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
+        print('\tError encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel.' )
         print(e)
         # Need to remove from relevant lists
         run_params['failed_kernels'].add(kernel_name)      
@@ -1136,6 +1143,31 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
 
         design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
         return design
+
+def check_by_engagement_state(run_params, fit,event_times,event):
+    if not run_params['split_on_engagement']:
+        return
+
+    # Bin events onto fit_trace_timestamps    
+    events_vec, timestamps = np.histogram(event_times, bins=fit['fit_trace_bins'])    
+    if event == 'lick_bouts': 
+        # Force this to be 0 or 1, since we purposefully over-tiled the space. 
+        events_vec[events_vec > 1] = 1
+
+    # filter by engagement state
+    if run_params['engagement_preference'] == 'engaged': 
+        preferred_engagement_state_event_times = events_vec[fit['engaged'].astype(bool)]
+        nonpreferred_engagement_state_event_times = events_vec[~fit['engaged'].astype(bool)]
+    else:
+        preferred_engagement_state_event_times = events_vec[~fit['engaged'].astype(bool)]
+        nonpreferred_engagement_state_event_times = events_vec[fit['engaged'].astype(bool)]
+    # Check to see if we have enough
+    if np.sum(preferred_engagement_state_event_times) < 5:
+        raise Exception('\tLess than minimum number of events in preferred engagement state: '+str(np.sum(preferred_engagement_state_event_times)) +' '+event+
+        '\n\tTotal number of events: '+str(len(event_times))+
+        '\n\tPreferred events:       '+str(np.sum(preferred_engagement_state_event_times))+
+        '\n\tNon-Preferred events:   '+str(np.sum(nonpreferred_engagement_state_event_times)))    
+
 
 class DesignMatrix(object):
     def __init__(self, fit_dict):
@@ -1176,8 +1208,9 @@ class DesignMatrix(object):
     
     def trim_X(self,boolean_mask):
         for kernel in self.kernel_dict.keys():
-            self.kernel_dict[kernel]['kernel'] = self.kernel_dict[kernel]['kernel'][:,boolean_mask]   
-        self.events['timestamps'] = self.events['timestamps'][boolean_mask]
+            self.kernel_dict[kernel]['kernel'] = self.kernel_dict[kernel]['kernel'][:,boolean_mask] 
+        for event in self.events.keys():  
+            self.events[event] = self.events[event][boolean_mask]
     
     def get_X(self, kernels=None):
         '''
@@ -1268,6 +1301,8 @@ def split_by_engagement(design, run_params, session, fit):
     # If we aren't splitting by engagement, do nothing and return
     if not run_params['split_on_engagement']:
         return design, fit
+    
+    print('Splitting fit dictionary entries by engagement')
 
     # Set up time arrays, and dff/events arrays to match engagement preference
     fit['engaged_trace_arr'] = fit['fit_trace_arr'][fit['engaged'].astype(bool),:]
@@ -1280,6 +1315,7 @@ def split_by_engagement(design, run_params, session, fit):
     fit['fit_trace_timestamps'] = fit[run_params['engagement_preference']+'_trace_timestamps']
 
     # trim design matrix  
+    print('Trimming Design Matrix by engagement')
     if run_params['engagement_preference'] == 'engaged':
         design.trim_X(fit['engaged'].astype(bool))
     else:

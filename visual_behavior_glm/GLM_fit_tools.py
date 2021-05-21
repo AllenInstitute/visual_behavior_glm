@@ -866,6 +866,19 @@ def add_engagement_labels(fit, session, run_params):
     fit['engaged']= interpolate_to_ophys_timestamps(fit,engaged_df)['values'].values 
     print('\t% of session engaged:    '+str(np.sum(fit['engaged'])/len(fit['engaged'])))
     print('\t% of session disengaged: '+str(1-np.sum(fit['engaged'])/len(fit['engaged'])))
+
+    # Check min_engaged_duration:
+    seconds_in_engaged = np.sum(fit['engaged'])/fit['ophys_frame_rate']
+    seconds_in_disengaged = np.sum(~fit['engaged'].astype(bool))/fit['ophys_frame_rate']
+    if run_params['engagement_preference'] == 'engaged':
+        fit['preferred_engagement_state_duration'] = seconds_in_engaged
+        fit['ok_to_fit_preferred_engagement'] = seconds_in_engaged > run_params['min_engaged_duration']
+    else:
+        fit['preferred_engagement_state_duration'] = seconds_in_disengaged
+        fit['ok_to_fit_preferred_engagement'] = seconds_in_disengaged > run_params['min_engaged_duration']
+    
+    if not fit['ok_to_fit_preferred_engagement']:
+        print('WARNING, insufficient time points in preferred engagement state. This model will not fit')  
     return fit
 
 def add_kernels(design, run_params,session, fit):

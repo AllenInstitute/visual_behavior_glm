@@ -101,7 +101,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     design = add_kernels(design, run_params, session, fit) 
 
     # split by engagement
-    design = split_by_engagement(design, run_params, session, fit)
+    design,fit = split_by_engagement(design, run_params, session, fit)
 
     # Set up CV splits
     print('Setting up CV')
@@ -123,6 +123,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
 
+    return fit
     # Start Diagnostic analyses
     if not NO_DROPOUTS:
         print('Starting diagnostics')
@@ -824,11 +825,20 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
     fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
+    
+    # If we are splitting on engagement, then determine the engagement timepoints
     if run_params['split_on_engagement']:
         fit = add_engagement_labels(fit, session, run_params)
     return fit
 
 def add_engagement_labels(fit, session, run_params):
+    '''
+        Adds a boolean vector 'engaged' to the fit dictionary based on the reward rate
+        
+        The reward rate is determined on an image by image basis by comparing the reward rate to a fixed threshold. Therefore the 
+        engagement state only changes at the start/end of each image cycle
+    '''
+    
 
     # Debugging session with model fit
     # BSID 965505185
@@ -1163,7 +1173,12 @@ class DesignMatrix(object):
             X = self.get_X(kernels=kernels) 
         mask = np.any(~(X==0), axis=1)
         return mask.values
- 
+    
+    def trim_X(self,boolean_mask):
+        for kernel in self.kernel_dict.keys():
+            self.kernel_dict[kernel]['kernel'] = self.kernel_dict[kernel]['kernel'][:,boolean_mask]   
+        self.events['timestamps'] = self.events['timestamps'][boolean_mask]
+    
     def get_X(self, kernels=None):
         '''
         Get the design matrix. 
@@ -1246,8 +1261,31 @@ class DesignMatrix(object):
         self.running_stop += kernel_length_samples
 
 def split_by_engagement(design, run_params, session, fit):
-    # TODO, implement
-    return design
+    '''
+        Splits the elements of fit and design matrix based on the engagement preference
+    '''
+    
+    # If we aren't splitting by engagement, do nothing and return
+    if not run_params['split_on_engagement']:
+        return design, fit
+
+    # Set up time arrays, and dff/events arrays to match engagement preference
+    fit['engaged_trace_arr'] = fit['fit_trace_arr'][fit['engaged'].astype(bool),:]
+    fit['disengaged_trace_arr'] = fit['fit_trace_arr'][~fit['engaged'].astype(bool),:]
+    fit['engaged_trace_timestamps'] = fit['fit_trace_timestamps'][fit['engaged'].astype(bool)]
+    fit['disengaged_trace_timestamps'] =fit['fit_trace_timestamps'][~fit['engaged'].astype(bool)]
+    fit['full_trace_arr'] = fit['fit_trace_arr']
+    fit['full_trace_timestamps'] = fit['fit_trace_timestamps']    
+    fit['fit_trace_arr'] = fit[run_params['engagement_preference']+'_trace_arr']
+    fit['fit_trace_timestamps'] = fit[run_params['engagement_preference']+'_trace_timestamps']
+
+    # trim design matrix  
+    if run_params['engagement_preference'] == 'engaged':
+        design.trim_X(fit['engaged'].astype(bool))
+    else:
+        design.trim_X(~fit['engaged'].astype(bool)) 
+ 
+    return design,fit
 
 def split_time(timebase, subsplits_per_split=10, output_splits=6):
     '''

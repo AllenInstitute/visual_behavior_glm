@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 import visual_behavior.data_access.loading as loading
+import visual_behavior.data_access.reformat as reformat
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
 import visual_behavior_glm.GLM_analysis_tools as gat
 
@@ -822,7 +823,38 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['events_trace_arr'] = trace_tuple[2]
     fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
     fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
-    fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate'] 
+    fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
+    if run_params['split_on_engagement']:
+        fit = add_engagement_labels(fit, session, run_params)
+    return fit
+
+def add_engagement_labels(fit, session, run_params):
+
+    # Debugging session with model fit
+    # BSID 965505185
+    # OEID 965928394
+
+    # Reward rate calculation parameters, hard-coded here
+    reward_threshold=1/90
+    win_dur=320
+    win_type='triang'
+
+    # Get reward rate
+    session.stimulus_presentations = reformat.add_rewards_each_flash(session.stimulus_presentations,session.rewards)
+    session.stimulus_presentations['rewarded'] = [len(x) > 0 for x in session.stimulus_presentations['rewards']]
+    session.stimulus_presentations['reward_rate'] = session.stimulus_presentations['rewarded'].rolling(win_dur,min_periods=1,win_type=win_type).mean()/.75
+    session.stimulus_presentations['engaged']= [x > reward_threshold for x in session.stimulus_presentations['reward_rate']]    
+
+    # Make dataframe with start/end of each image cycle pinned with correct engagement value
+    start_df = session.stimulus_presentations[['start_time','engaged']].copy()
+    end_df = session.stimulus_presentations[['start_time','engaged']].copy()
+    end_df['start_time'] = end_df['start_time']+0.75
+    engaged_df = pd.concat([start_df,end_df])
+    engaged_df = engaged_df.sort_values(by='start_time').rename(columns={'start_time':'timestamps','engaged':'values'})  
+    
+    # Interpolate onto fit timestamps
+    fit['engaged']= interpolate_to_ophys_timestamps(fit,engaged_df)['values'].values 
+
     return fit
 
 def add_kernels(design, run_params,session, fit):

@@ -372,14 +372,22 @@ def evaluate_models(fit, design, run_params):
     '''
     if not fit['ok_to_fit_preferred_engagement']:
         print('\tSkipping model evaluate because insufficient preferred engagement timepoints')
-        fit['dropouts']['Full']['cv_weights']      = np.empty((0,fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cellids = fit['fit_trace_arr']['cell_specimen_id'].values
+        W = np.empty((0,fit['fit_trace_arr'].shape[1]))
+        dummy_weights= xr.DataArray(
+            W, 
+            dims =('weights','cell_specimen_id'), 
+            coords = {  'weights':[], 
+                        'cell_specimen_id':cellids}
+            )
+        fit['dropouts']['Full']['cv_weights']      = np.empty((0,fit['fit_trace_arr'].shape[1], len(fit['splits']))) ## Needs to be xarray
         fit['dropouts']['Full']['cv_var_train']    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         fit['dropouts']['Full']['cv_var_test']     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         fit['dropouts']['Full']['cv_adjvar_train'] = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         fit['dropouts']['Full']['cv_adjvar_test']  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         fit['dropouts']['Full']['cv_adjvar_train_full_comparison'] = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         fit['dropouts']['Full']['cv_adjvar_test_full_comparison']  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
-        fit['dropouts']['Full']['train_weights'] = np.empty((0,fit['fit_trace_arr'].shape[1]))
+        fit['dropouts']['Full']['train_weights'] = dummy_weights#np.empty((0,fit['fit_trace_arr'].shape[1])) ## Needs to be xarray
         fit['dropouts']['Full']['train_variance_explained']    = np.empty((fit['fit_trace_arr'].shape[1],)) 
         fit['dropouts']['Full']['train_adjvariance_explained'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
         fit['dropouts']['Full']['full_model_train_prediction'] = np.empty((0,fit['fit_trace_arr'].shape[1])) 

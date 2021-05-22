@@ -124,13 +124,13 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     fit = evaluate_models(fit, design, run_params)
 
     # Start Diagnostic analyses
-    if not NO_DROPOUTS:
+    if (not NO_DROPOUTS) & fit['ok_to_fit_preferred_engagement']:
         print('Starting diagnostics')
         print('Bootstrapping synthetic data')
         fit = bootstrap_model(fit, design, run_params)
 
     # Perform shuffle analysis, with two shuffle methods
-    if not NO_DROPOUTS:
+    if (not NO_DROPOUTS) & fit['ok_to_fit_preferred_engagement']:
         print('Evaluating shuffle fits')
         fit = evaluate_shuffle(fit, design, method='cells')
         fit = evaluate_shuffle(fit, design, method='time')
@@ -320,6 +320,14 @@ def evaluate_ridge(fit, design,run_params):
     if run_params['L2_use_fixed_value']:
         print('Using a hard-coded regularization value')
         fit['avg_regularization'] = run_params['L2_fixed_lambda']
+    elif not fit['ok_to_fit_preferred_engagement']:
+        print('\tSkipping ridge evaluation because insufficient preferred engagement timepoints')
+        fit['avg_regularization'] = np.nan      
+        fit['cell_regularization'] = np.empty((fit['fit_trace_arr'].shape[1],))
+        fit['L2_test_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
+        fit['L2_train_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
+        fit['L2_at_grid_min'] = np.empty((fit['fit_trace_arr'].shape[1],))
+        fit['L2_at_grid_max'] = np.empty((fit['fit_trace_arr'].shape[1],))
     else:
         print('Evaluating a grid of regularization values')
         if run_params['L2_grid_type'] == 'log':
@@ -362,7 +370,21 @@ def evaluate_models(fit, design, run_params):
         Evaluates the model selections across all dropouts using either the single L2 value, or each cell's optimal value
 
     '''
-    if run_params['L2_use_fixed_value'] or run_params['L2_optimize_by_session']:
+    if not fit['ok_to_fit_preferred_engagement']:
+        print('\tSkipping model evaluate because insufficient preferred engagement timepoints')
+        fit['dropouts']['Full']['cv_weights']      = np.empty((0,fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_var_train']    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_var_test']     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_adjvar_train'] = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_adjvar_test']  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_adjvar_train_full_comparison'] = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_adjvar_test_full_comparison']  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['train_weights'] = np.empty((0,fit['fit_trace_arr'].shape[1]))
+        fit['dropouts']['Full']['train_variance_explained']    = np.empty((fit['fit_trace_arr'].shape[1],)) 
+        fit['dropouts']['Full']['train_adjvariance_explained'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
+        fit['dropouts']['Full']['full_model_train_prediction'] = np.empty((0,fit['fit_trace_arr'].shape[1])) 
+        return fit
+    if run_params['L2_use_fixed_value'] or run_params['L2_optimize_by_session'] :
         print('Using a constant regularization value across all cells')
         return evaluate_models_same_ridge(fit,design, run_params)
     else:
@@ -878,7 +900,7 @@ def add_engagement_labels(fit, session, run_params):
         fit['ok_to_fit_preferred_engagement'] = seconds_in_disengaged > run_params['min_engaged_duration']
     
     if not fit['ok_to_fit_preferred_engagement']:
-        print('WARNING, insufficient time points in preferred engagement state. This model will not fit')  
+        print('WARNING, insufficient time points in preferred engagement state. This model will not fit') 
     return fit
 
 def add_kernels(design, run_params,session, fit):
@@ -897,7 +919,7 @@ def add_kernels(design, run_params,session, fit):
     run_params['failed_kernels']=set()
     run_params['failed_dropouts']=set()
     run_params['kernel_error_dict'] = dict()
-    for kernel_name in run_params['kernels']:
+    for kernel_name in run_params['kernels']:          
         if run_params['kernels'][kernel_name]['type'] == 'discrete':
             design = add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit)
         else:
@@ -914,7 +936,8 @@ def clean_failed_kernels(run_params):
     if run_params['failed_kernels']:
         print('The following kernels failed to be added to the model: ')
         print(run_params['failed_kernels'])
-    
+        print()   
+ 
     # Iterate failed kernels
     for kernel in run_params['failed_kernels']:     
         # Remove the failed kernel from the full list of kernels
@@ -948,6 +971,7 @@ def clean_failed_kernels(run_params):
     if run_params['failed_dropouts']:
         print('The following dropouts failed to be added to the model: ')
         print(run_params['failed_dropouts'])
+        print()
 
 
 def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit):
@@ -962,6 +986,10 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
     print('    Adding kernel: '+kernel_name)
     try:
         event = run_params['kernels'][kernel_name]['event']
+
+        if not fit['ok_to_fit_preferred_engagement']:
+            raise Exception('\tInsufficient time points to add kernel')
+
         if event == 'intercept':
             timeseries = np.ones(len(fit['fit_trace_timestamps']))
         elif event == 'time':
@@ -1010,7 +1038,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         else:
             raise Exception('Could not resolve kernel label')
     except Exception as e:
-        print('Error encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
+        print('\tError encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
         print(e)
         # Need to remove from relevant lists
         run_params['failed_kernels'].add(kernel_name)      
@@ -1073,6 +1101,8 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     ''' 
     print('    Adding kernel: '+kernel_name)
     try:
+        if not fit['ok_to_fit_preferred_engagement']:
+            raise Exception('\tInsufficient time points to add kernel') 
         event = run_params['kernels'][kernel_name]['event']
         if event == 'licks':
             event_times = session.licks['timestamps'].values

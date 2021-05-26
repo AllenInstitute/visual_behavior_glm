@@ -14,21 +14,21 @@ if __name__ == '__main__':
     parser.add_argument(
         '--version', 
         type=str, 
-        default='10a_L2_optimize_by_session',
+        default='16_events_all_L2_optimize_by_session',
         metavar='model_version',
         help='model version'
     )
     parser.add_argument(
         '--label', 
         type=str, 
-        default='model as of 11/18/2020, based on 9a, no image expectation',
+        default='disengaged portions of sessions only',
         metavar='model_label',
         help='model label'
     )
     parser.add_argument(
         '--src-path', 
         type=str, 
-        default='/home/dougo/Code/visual_behavior_glm/',
+        default='/home/dougo/code/visual_behavior_glm/',
         metavar='src_path',
         help='folder where code lives'
     )

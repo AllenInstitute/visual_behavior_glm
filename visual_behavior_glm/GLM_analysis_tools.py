@@ -133,7 +133,7 @@ def generate_results_summary_adj(glm):
             results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
 
         # pivot the table on the dropout names
-        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'],dropna=False)
         results_summary.columns = results_summary.columns.droplevel()
         results_summary = results_summary.rename(columns={
             'avg_cv_adjvar_test': 'adj_variance_explained',
@@ -173,7 +173,7 @@ def generate_results_summary_nonadj(glm):
             results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
 
         # pivot the table on the dropout names
-        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'],dropna=False)
         results_summary.columns = results_summary.columns.droplevel()
         results_summary = results_summary.rename(columns={
             'avg_cv_var_test':'variance_explained',
@@ -702,6 +702,8 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
    
     # Make dataframe for cells and experiments 
     oeids = results_pivoted['ophys_experiment_id'].unique() 
+    if len(oeids) == 0:
+        return None
 
     # For each experiment, get the weight matrix from mongo (slow)
     # Then pull the weights from each kernel into a dataframe
@@ -953,6 +955,40 @@ def inventory_glm_version(glm_version):
         incomplete_experiments.append(associated_oeid) if associated_oeid not in incomplete_experiments else None
 
     return {'missing_experiments': missing_experiments, 'missing_rois': missing_rois, 'incomplete_experiments': incomplete_experiments}
+  
+  
+def select_experiments_for_testing(returns = 'experiment_ids'):
+    '''
+    This function will return 10 hand-picked experiment IDs to use for testing purposes.
+    This will allow multiple versions to test against the same small set of experiments.
+
+    Experiments were chosen as follows:
+        2x OPHYS_2_passive
+        2x OPHYS_5_passive
+        2x active w/ fraction engaged < 0.05 (1 @ 0.00, 1 @ 0.02)
+        2x active w/ fraction engaged > 0.99 (1 @ 0.97, 1 @ 0.98)
+        2x active w/ fraction engaged in range (0.4, 0.6) (1 @ 0.44, 1 @ 0.59)
+
+    Parameters:
+    ----------
+    returns : str
+        either 'experiment_ids' or 'dataframe'
+
+    Returns:
+    --------
+    if returns == 'experiment_ids' (default)
+        list of 10 pre-chosen experiment IDs
+    if returns == 'dataframe':
+        experiment table for 10 pre-chosen experiments
+    '''
+
+    test_experiments = pd.read_csv('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/experiments_for_testing.csv')
+
+    if returns == 'experiment_ids':
+        return test_experiments['ophys_experiment_id'].unique()
+    elif returns == 'dataframe':
+        return test_experiments
+
 
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.

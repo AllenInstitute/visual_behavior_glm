@@ -19,6 +19,7 @@ import gc
 from scipy import ndimage
 from scipy import stats
 import scipy.cluster.hierarchy as sch
+import visual_behavior.visualization.utils as utils
 
 def project_colors():
     '''
@@ -2612,7 +2613,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
     else:
         fig = ax.get_figure()
 
-    dropouts_to_show = ['visual','behavioral','cognitive']
+    dropouts_to_show = ['visual', 'behavioral', 'cognitive']
     plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=palette)
     ax.tick_params(axis='both',labelsize=20)
     ax.set_ylabel('% decrease in variance explained \n when removing sets of kernels',fontsize=24)
@@ -2626,7 +2627,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=None):
+def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show =  ['visual','behavioral','cognitive'], threshold = -0.01,palette=None):
     '''
     makes bar plots of results summary
     aesthetics specific to cosyne needs
@@ -2635,7 +2636,7 @@ def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=N
 
     cre_lines = np.sort(dropout_summary['cre_line'].unique())
     
-    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < -0.01').copy()
+    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     sns.boxplot(
         data = data_to_plot,
@@ -3152,6 +3153,49 @@ def view_cell_across_sessions(cell_specimen_id, glm_version):
     return fig, axes
 
 
+def plot_regressor_heatmap_by_cre_line_sorted_by_MI(results_pivoted, session_numbers, regressor, model_output_type = 'adj_fraction_change_from_full',
+                                                        limit_to_nonzero=True, save_dir=None):
+
+    '''
+    Plots modulation index for the same cells in two ophys sessions.
+
+    INPUT:
+    results_pivoted       glm output with matched cells in two sessions
+    session_numbers       session numbers that the cells were matched across
+    regressor             which regressor to use for MI
+    model_output_type     this is for figure name purposes, default is 'adj_fraction_change_from_full'
+    limit_to_nonzero      default True
+    save_dir              default None, string of figure path
+
+    '''
+    figsize = (12, 8)
+    fig, ax = plt.subplots(1, 3, figsize=figsize)
+    cbar_ax = fig.add_axes([.95, .15, .03, .7])
+    for i, cre_line in enumerate(results_pivoted['cre_lines'].unique()):
+        results = results_pivoted[(results_pivoted.cre_line==cre_line)]
+        reg_values = results.pivot(index='cell_specimen_id', columns='session_number', values=regressor)
+        reg_values = reg_values.abs()
+        reg_values['MI'] = [(reg_values.loc[row][session_numbers[1]]-reg_values.loc[row][session_numbers[0]])/(reg_values.loc[row][session_numbers[1]]+reg_values.loc[row][session_numbers[0]]) for row in reg_values.index.values]
+        reg_values = reg_values.sort_values(by=['MI'])
+        if limit_to_nonzero:
+            reg_values = reg_values.dropna()
+            suffix = '_nonzero'
+        else:
+            suffix = ''
+        index_label = '('+str(session_numbers[1])+'-'+str(session_numbers[0])+')/('+str(session_numbers[1])+'+'+str(session_numbers[0])+')'
+        ax[i] = sns.heatmap(reg_values.values, ax = ax[i], cmap='RdBu',
+                            vmin=-1, vmax=1, cbar_kws={'label':model_output_type+'\n'+index_label}, cbar_ax=cbar_ax)
+        ax[i].set_title(cre_line)
+        ax[i].set_xticklabels(session_numbers+['MI'])
+        ax[i].set_ylabel('cell number')
+    fig.suptitle(regressor+', sessions '+str(session_numbers[0])+' - '+str(session_numbers[1]), x=0.51, y=0.99, fontsize=22)
+    plt.subplots_adjust(wspace=0.5)
+    if save_dir:
+        if 'single' in regressor:
+            utils.save_figure(fig, figsize, os.path.join(save_dir, 'regressor_heatmaps\single'),'sorted_by_MI'+suffix, model_output_type+'_'+regressor+'_'+str(session_numbers[0])+'_'+str(session_numbers[1])+'_MI')
+        else:
+            utils.save_figure(fig, figsize, os.path.join(save_dir, 'regressor_heatmaps\standard'), 'sorted_by_MI'+suffix, model_output_type+'_'+regressor+'_'+str(session_numbers[0])+'_'+str(session_numbers[1])+'_MI')
+
 def plot_var_explained(results_summary, figsize=(10,6)):
     fig, ax = plt.subplots(figsize=figsize)
 
@@ -3261,3 +3305,4 @@ def plot_sample_cells(glm, cell_specimen_ids, t0, t1, figwidth=8, height_per_cel
     fig.tight_layout()
 
     return fig, ax
+

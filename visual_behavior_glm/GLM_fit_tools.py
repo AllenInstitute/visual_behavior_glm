@@ -328,6 +328,11 @@ def evaluate_ridge(fit, design,run_params):
         fit['L2_train_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
         fit['L2_at_grid_min'] = np.empty((fit['fit_trace_arr'].shape[1],))
         fit['L2_at_grid_max'] = np.empty((fit['fit_trace_arr'].shape[1],))
+        fit['cell_regularization'][:] = np.nan
+        fit['L2_test_cv'][:] = np.nan
+        fit['L2_train_cv'][:] =np.nan
+        fit['L2_at_grid_min'][:] =np.nan
+        fit['L2_at_grid_max'][:] =np.nan
     else:
         print('Evaluating a grid of regularization values')
         if run_params['L2_grid_type'] == 'log':
@@ -374,23 +379,34 @@ def evaluate_models(fit, design, run_params):
         print('\tSkipping model evaluate because insufficient preferred engagement timepoints')
         cellids = fit['fit_trace_arr']['cell_specimen_id'].values
         W = np.empty((0,fit['fit_trace_arr'].shape[1]))
+        W[:] = np.nan
         dummy_weights= xr.DataArray(
             W, 
             dims =('weights','cell_specimen_id'), 
             coords = {  'weights':[], 
                         'cell_specimen_id':cellids}
             )
-        fit['dropouts']['Full']['cv_weights']      = np.empty((0,fit['fit_trace_arr'].shape[1], len(fit['splits']))) ## Needs to be xarray
+        fit['dropouts']['Full']['cv_weights']      = np.empty((0,fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
         fit['dropouts']['Full']['cv_var_train']    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         fit['dropouts']['Full']['cv_var_test']     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         fit['dropouts']['Full']['cv_adjvar_train'] = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         fit['dropouts']['Full']['cv_adjvar_test']  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         fit['dropouts']['Full']['cv_adjvar_train_full_comparison'] = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         fit['dropouts']['Full']['cv_adjvar_test_full_comparison']  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
-        fit['dropouts']['Full']['train_weights'] = dummy_weights#np.empty((0,fit['fit_trace_arr'].shape[1])) ## Needs to be xarray
+        fit['dropouts']['Full']['train_weights'] = dummy_weights # Needs to be xarray
         fit['dropouts']['Full']['train_variance_explained']    = np.empty((fit['fit_trace_arr'].shape[1],)) 
         fit['dropouts']['Full']['train_adjvariance_explained'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
-        fit['dropouts']['Full']['full_model_train_prediction'] = np.empty((0,fit['fit_trace_arr'].shape[1])) 
+        fit['dropouts']['Full']['full_model_train_prediction'] = np.empty((0,fit['fit_trace_arr'].shape[1]))
+        fit['dropouts']['Full']['cv_weights'][:]      = np.nan
+        fit['dropouts']['Full']['cv_var_train'][:]    = np.nan
+        fit['dropouts']['Full']['cv_var_test'][:]     = np.nan
+        fit['dropouts']['Full']['cv_adjvar_train'][:] = np.nan
+        fit['dropouts']['Full']['cv_adjvar_test'][:]  = np.nan
+        fit['dropouts']['Full']['cv_adjvar_train_full_comparison'][:] = np.nan
+        fit['dropouts']['Full']['cv_adjvar_test_full_comparison'][:]  = np.nan
+        fit['dropouts']['Full']['train_variance_explained'][:]    = np.nan 
+        fit['dropouts']['Full']['train_adjvariance_explained'][:] = np.nan 
+        fit['dropouts']['Full']['full_model_train_prediction'][:] = np.nan  
         return fit
     if run_params['L2_use_fixed_value'] or run_params['L2_optimize_by_session'] :
         print('Using a constant regularization value across all cells')

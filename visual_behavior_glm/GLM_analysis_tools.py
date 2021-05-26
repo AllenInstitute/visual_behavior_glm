@@ -732,6 +732,38 @@ def compute_over_fitting_proportion(results_full,run_params):
             results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
  
 
+def select_experiments_for_testing(returns = 'experiment_ids'):
+    '''
+    This function will return 10 hand-picked experiment IDs to use for testing purposes.
+    This will allow multiple versions to test against the same small set of experiments.
+
+    Experiments were chosen as follows:
+        2x OPHYS_2_passive
+        2x OPHYS_5_passive
+        2x active w/ fraction engaged < 0.05 (1 @ 0.00, 1 @ 0.02)
+        2x active w/ fraction engaged > 0.99 (1 @ 0.97, 1 @ 0.98)
+        2x active w/ fraction engaged in range (0.4, 0.6) (1 @ 0.44, 1 @ 0.59)
+
+    Parameters:
+    ----------
+    returns : str
+        either 'experiment_ids' or 'dataframe'
+
+    Returns:
+    --------
+    if returns == 'experiment_ids' (default)
+        list of 10 pre-chosen experiment IDs
+    if returns == 'dataframe':
+        experiment table for 10 pre-chosen experiments
+    '''
+
+    test_experiments = pd.read_csv('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/experiments_for_testing.csv')
+
+    if returns == 'experiment_ids':
+        return test_experiments['ophys_experiment_id'].unique()
+    elif returns == 'dataframe':
+        return test_experiments
+
 
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.

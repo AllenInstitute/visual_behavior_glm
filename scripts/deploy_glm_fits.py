@@ -82,9 +82,9 @@ if __name__ == "__main__":
     python_file = "{}/scripts/fit_glm.py".format(args.src_path)
 
     if args.testing:
-        experiments_table = loading.get_filtered_ophys_experiment_table(release_data_only=True).reset_index()
-    else:
         experiments_table = gat.select_experiments_for_testing(returns = 'dataframe')
+    else:
+        experiments_table = loading.get_filtered_ophys_experiment_table(release_data_only=True).reset_index()
 
     job_count = 0
 

@@ -133,7 +133,7 @@ def generate_results_summary_adj(glm):
             results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
 
         # pivot the table on the dropout names
-        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'],dropna=False)
         results_summary.columns = results_summary.columns.droplevel()
         results_summary = results_summary.rename(columns={
             'avg_cv_adjvar_test': 'adj_variance_explained',
@@ -173,7 +173,7 @@ def generate_results_summary_nonadj(glm):
             results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
 
         # pivot the table on the dropout names
-        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'],dropna=False)
         results_summary.columns = results_summary.columns.droplevel()
         results_summary = results_summary.rename(columns={
             'avg_cv_var_test':'variance_explained',
@@ -689,6 +689,8 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
    
     # Make dataframe for cells and experiments 
     oeids = results_pivoted['ophys_experiment_id'].unique() 
+    if len(oeids) == 0:
+        return None
 
     # For each experiment, get the weight matrix from mongo (slow)
     # Then pull the weights from each kernel into a dataframe

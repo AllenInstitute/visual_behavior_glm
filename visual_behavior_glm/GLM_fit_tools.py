@@ -875,6 +875,8 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     if run_params['split_on_engagement']:
         print('Adding Engagement labels. Preferred engagement state: '+run_params['engagement_preference'])
         fit = add_engagement_labels(fit, session, run_params)
+    else:
+        fit['ok_to_fit_preferred_engagement'] = True
     return fit
 
 def add_engagement_labels(fit, session, run_params):

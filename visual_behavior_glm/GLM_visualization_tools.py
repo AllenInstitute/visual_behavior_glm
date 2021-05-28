@@ -9,6 +9,7 @@ import seaborn as sns
 import scipy
 import numpy as np
 import pandas as pd
+import pickle
 import os
 import time
 from tqdm import tqdm
@@ -2042,7 +2043,7 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
     return ax,kernel_means
  
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=True):
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=True,save_kernels=False):
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -2132,6 +2133,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         # Determine number of 2nd level attributes for linestyle definitions 
         num_2nd = len(list(weights[compare[1]].unique()))
    
+    outputs={}
     # Iterate over groups of cells
     for dex,group in enumerate(groups):
 
@@ -2147,7 +2149,8 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     
         # Filter for this group, and plot
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
-        plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, meso_time_vec,plot_errors=plot_errors,normalize=normalize) 
+        k=plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, meso_time_vec,plot_errors=plot_errors,normalize=normalize) 
+        outputs[group]=k
 
     # Clean Plot, and add details
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
@@ -2163,7 +2166,15 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     plt.tight_layout()
     if save_results:
         print('Figure Saved to: '+filename)
-        plt.savefig(filename) 
+        plt.savefig(filename)
+    if save_kernels:
+        outputs['time'] = time_vec
+        filename2 = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.pkl')
+        print('Kernels Saved to: '+filename2)
+        file_temp = open(filename2,'wb')
+        pickle.dump(outputs, file_temp)
+        file_temp.close()
+    return outputs
 
 def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.1,normalize=True):
     '''
@@ -2199,6 +2210,7 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_tim
     if plot_errors:
         ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0), df_norm.mean(axis=0)+df_norm.std(axis=0),facecolor=color, alpha=alpha)   
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
+    return df_norm.mean(axis=0)
 
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):
     '''

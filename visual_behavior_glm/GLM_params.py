@@ -11,12 +11,14 @@ OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/o
 
 def define_levels():
     num_levels = 6
+
     levels={
         num_levels:['Full'],
         num_levels-1:['visual','behavioral','cognitive'],
         num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
         num_levels-3:['pupil_and_omissions'],
         num_levels-4:['running_and_omissions'],
+
     }
     return levels
 
@@ -43,6 +45,7 @@ def define_kernels():
     ## add face motion energy PCs
     for PC in range(5):
         kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':True, 'text':'PCA from face motion videos'}
+
     return kernels
 
 
@@ -75,11 +78,12 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         <username>  include a string to README.txt who created each model iteration. If none is provided
                     attempts to load linux username. Will default to "unknown" on error
         <label>     include a string to README.txt with a brief summary of the model iteration
-        <src_path>  path to repo home. Will throw an error if not passed in 
+        <src_path>  path to repo home. Will throw an error if not passed in
         <TESTING>   if true, will only include 5 sessions in the experiment list
     '''
 
     # Make directory, will throw an error if already exists
+
     output_dir              = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(VERSION))
     figure_dir              = os.path.join(output_dir, 'figures')
     fig_coding_dir          = os.path.join(figure_dir, 'coding')
@@ -94,6 +98,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     json_path               = os.path.join(output_dir, 'run_params.json')
     experiment_table_path   = os.path.join(output_dir, 'experiment_table_v_'+str(VERSION)+'.csv')
     beh_model_dir           = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/model_output/'
+
     os.mkdir(output_dir)
     os.mkdir(figure_dir)
     os.mkdir(fig_coding_dir)
@@ -112,11 +117,13 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         except:
             username = 'unknown'
     readme_file = os.path.join(output_dir, 'README.txt')
+
     readme = open(readme_file,'w')
     readme.writelines([ 'OPHYS GLM  v',str(VERSION),
                         '\nCreated on ',str(datetime.datetime.now()), 
                         '\nCreated by ',username,
                         '\nComment    ',label,'\n\n'])
+
     readme.close()
 
     # Copy model files to frozen directory
@@ -128,6 +135,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     shutil.copyfile(os.path.join(src_path, 'visual_behavior_glm/GLM_fit_tools.py'),   python_file_full_path)
     shutil.copyfile(os.path.join(src_path, 'scripts/fit_glm.py'),     python_fit_script)
     
+
     # Define list of experiments to fit
     experiment_table = get_experiment_table()
     if TESTING:
@@ -179,6 +187,9 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'kernels':kernels,
         'dropouts':dropouts,
         'levels':define_levels(),
+        'split_on_engagement': False,   # If True, uses 'engagement_preference' to determine what engagement state to use
+        'engagement_preference': None,  # Either None, "engaged", or "disengaged". Must be None if split_on_engagement is False
+        'min_engaged_duration': 600,    # Minimum time, in seconds, the session needs to be in the preferred engagement state 
         'lick_bout_ILI': 0.7,           # The minimum duration of time between two licks to segment them into separate lick bouts
         'min_time_per_bout': 0.2,       # length of bout event that continues after last lick in bout
         'min_interval':0.01,            # over-tiling value for making bout events. Must be << ophys-step-size
@@ -189,7 +200,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100,           # If 1, has no effect. Scales running speed to be O(1). 
-        'use_events': True              # If True, use detected events. If False, use raw deltaF/F 
+        'use_events': True             # If True, use detected events. If False, use raw deltaF/F 
     } 
     # Regularization parameter checks 
     a = run_params['L2_optimize_by_cell'] 
@@ -203,7 +214,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     if (not run_params['L2_use_fixed_value']) and (run_params['L2_fixed_lambda'] is not None): 
         raise Exception('L2_use_fixed_value is False, but L2_fixed_lambda has been set')      
     if run_params['L2_use_fixed_value']:
-        assert run_params['L2_fixed_lambda'] > 0, "Must have some positive regularization value to prevent singular matrix"
+        assert run_params[
+                   'L2_fixed_lambda'] > 0, "Must have some positive regularization value to prevent singular matrix"
 
     # Check L2 Optimization parameters
     if (a or b):
@@ -211,12 +223,20 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         assert len(run_params['L2_grid_range']) ==2, "Must have a minimum and maximum L2 grid option"
         assert run_params['L2_grid_type'] in ['log','linear'], "L2_grid_type must be log or linear"
         assert run_params['L2_grid_range'][0] > 0, "Must have a positive regularization minimum value."
+    
+    # Check Engagement split parameters
+    if run_params['split_on_engagement']:
+        assert (run_params['engagement_preference'] == 'engaged') or (run_params['engagement_preference'] == 'disengaged'), "Splitting on engagement, preference must be 'engaged' or 'disengaged'"
+    elif not run_params['split_on_engagement']: 
+        assert run_params['engagement_preference'] is None, "Not splitting on engagement, engagement preference must be None"
+    assert run_params['min_engaged_duration'] >=0, "Must define a minimum interval for the preferred engagement state"
+
 
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
 
     # Print Success
-    print('Model Successfully Saved, version '+str(VERSION))
+    print('Model Successfully Saved, version ' + str(VERSION))
 
 def process_kernels(kernels):
     '''
@@ -233,8 +253,8 @@ def process_kernels(kernels):
         specs = kernels.pop('beh_model')
         weight_names = ['bias','task0','omissions1','timing1D']
         for index, val in enumerate(weight_names):
-            kernels['model_'+str(val)] = copy(specs)
-            kernels['model_'+str(val)]['event'] = 'model_'+str(val)
+            kernels['model_' + str(val)] = copy(specs)
+            kernels['model_' + str(val)]['event'] = 'model_' + str(val)
     return kernels
 
 def define_dropouts(kernels):
@@ -283,6 +303,7 @@ def define_dropouts(kernels):
             # the full model, and those in the dropout specified by this kernel.
             # This formulation lets us do single kernel dropouts for things like beh_model,
             # or all-images
+
             kernels = set(dropouts['Full']['kernels'])-set(dropouts[drop]['kernels'])
             kernels.add('intercept') # We always include the intercept
             dropped_kernels = set(dropouts['Full']['kernels']) - kernels
@@ -292,17 +313,20 @@ def define_dropouts(kernels):
     for drop in dropouts.keys():
         assert len(dropouts[drop]['kernels']) + len(dropouts[drop]['dropped_kernels']) == len(dropouts['Full']['kernels']), 'bad length'
 
+
     return dropouts
     
 def set_up_dropouts(dropouts,kernels,dropout_name, kernel_list):
     '''
-        Helper function to define dropouts. 
+        Helper function to define dropouts.
         dropouts,       dictionary of dropout models
         kernels,        dictionary of expanded kernel names
         dropout_name,   name of dropout to be defined
         kernel_list,    list of kernels to be dropped from this nested model
     '''
+
     dropouts[dropout_name] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+
     for k in kernel_list:
         if k in kernels:
             dropouts[dropout_name]['kernels'].remove(k)
@@ -313,11 +337,13 @@ def set_up_dropouts(dropouts,kernels,dropout_name, kernel_list):
 def load_run_json(version):
     '''
         Loads the run parameters for model v_<version>
-        Assumes verion is saved with root directory global OUTPUT_DIR_BASE       
+        Assumes verion is saved with root directory global OUTPUT_DIR_BASE
         returns a dictionary of run parameters
     '''
+
     json_path = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(version), 'run_params.json')
     with open(json_path,'r') as json_file:
+
         run_params = json.load(json_file)
 
     # Backwards compatability
@@ -355,6 +381,7 @@ def describe_model_version(version):
             print(kernel.ljust(18) + " runs the full length of the session, and is "+ text)
     
     print('\nThe model contains the following dropout, or reduced models:') 
+
     for d in run_params['dropouts']:
         if 'is_single' in run_params['dropouts'][d]:
             is_single=run_params['dropouts'][d]['is_single']
@@ -382,4 +409,3 @@ def describe_model_version(version):
             else:
                 print(d.ljust(25) +" contains all kernels except "+', '.join(drops))    
  
-

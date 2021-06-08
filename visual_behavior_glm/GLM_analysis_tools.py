@@ -990,6 +990,53 @@ def select_experiments_for_testing(returns = 'experiment_ids'):
         return test_experiments
 
 
+def get_normalized_results_pivoted(glm_version = None, kind = 'max', cutoff = -np.inf):
+    '''
+    Loads absolute results pivoted, then normalization.
+    Currently only normalizes to max
+
+    INPUT:
+    glm_version     default is version 15 with events
+    kind            type of normalization. Currently only uses max, other options could be session number.
+
+    OUTPUT:
+    results_pivoted_normalized
+    '''
+    if glm_version == None:
+        glm_vesion = '15_events_L2_optimize_by_session'
+        print('loading glm version 15 with events by default ...')
+
+    results_pivoted = gat.build_pivoted_results_summary(glm_version=glm_version,
+                                                value_to_use='absolute_change_from_full',
+                                                results_summary=None,
+                                                cutoff=cutoff)
+
+    col_to_exclude = ['identifier', 'Full','variance_explained_full', 'cell_specimen_id', 'cell_roi_id',
+       'glm_version', 'ophys_experiment_id', 'ophys_session_id',
+       'equipment_name', 'donor_id', 'full_genotype', 'mouse_id',
+       'reporter_line', 'driver_line', 'sex', 'age_in_days', 'foraging_id',
+       'cre_line', 'indicator', 'session_number',
+       'prior_exposures_to_session_type', 'prior_exposures_to_image_set',
+       'prior_exposures_to_omissions', 'behavior_session_id',
+       'ophys_container_id', 'project_code', 'container_workflow_state',
+       'experiment_workflow_state', 'session_name', 'isi_experiment_id',
+       'imaging_depth', 'targeted_structure', 'published_at',
+       'date_of_acquisition', 'session_type', 'session_tags', 'failure_tags',
+       'model_outputs_available', 'location']
+
+    if kind == 'max':
+        abs_max_df = glm[['variance_explained_full', 'cell_specimen_id']].groupby('cell_specimen_id').max()
+        results_pivoted_normalized = results_pivoted.join(abs_max_df, on= 'cell_specimen_id', rsuffix='_max').copy()
+
+        for column in glm.columns:
+            if column not in col_to_exclude:
+                results_pivoted_normalized.loc[results_pivoted_normalized[column]>0,column]=0
+                results_pivoted_normalized[column] = results_pivoted_normalized[column].divide(results_pivoted_normalized['variance_explained_full_max'])
+
+    return results_pivoted_normalized
+
+
+
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.
 #dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_lambda_70/'

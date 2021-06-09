@@ -521,16 +521,18 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
 def make_identifier(row):
     return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
 
-def get_glm_version_comparison_table(versions_to_compare, metric='Full__avg_cv_var_test'):
+def get_glm_version_comparison_table(versions_to_compare, results=None, metric='Full__avg_cv_var_test'):
     '''
     builds a table that allows to glm versions to be directly compared
     input is list of glm versions to compare (list of strings)
+    if results dataframe is not passed, it will be queried from Mongo
     '''
-    results = []
-    for glm_version in versions_to_compare:
-        results.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
-    results = pd.concat(results, sort=True)
-    
+    if results is None:
+        results = []
+        for glm_version in versions_to_compare:
+            results.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
+        results = pd.concat(results, sort=True)
+
     results['identifier'] = results.apply(make_identifier, axis=1)
     pivoted_results = results.pivot(index='identifier', columns='glm_version',values=metric)
     cols= [col for col in results.columns if col not in pivoted_results.columns and 'test' not in col and 'train' not in col and '__' not in col and 'dropout' not in col]
@@ -988,6 +990,48 @@ def select_experiments_for_testing(returns = 'experiment_ids'):
         return test_experiments['ophys_experiment_id'].unique()
     elif returns == 'dataframe':
         return test_experiments
+
+
+def get_kernel_weights(glm, kernel_name, cell_specimen_id):
+    '''
+    gets the weights associated with a given kernel for a given cell_specimen_id
+
+    inputs:
+        glm : GLM class
+        kernel_name : str
+            name of desired kernel
+        cell_specimen_id : int
+            desired cell specimen ID
+
+    returns:
+        t_kernel, w_kernel
+            t_kernel : array
+                timestamps associated with the kernel
+            w_kernel : 
+                weights associated with the kernel
+    '''
+    
+    # get all of the weight names for the given model
+    all_weight_names = glm.X.weights.values
+    
+    # get the weight names associated with the desired kernel
+    kernel_weight_names = [w for w in all_weight_names if w.startswith(kernel_name)]
+
+    # get the weights
+    w_kernel = glm.W.loc[dict(weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)]
+
+    # calculate the time array
+
+    # first get the timestep
+    timestep = 1/glm.fit['ophys_frame_rate']
+
+    # get the timepoint that is closest to the desired offset
+    offset_int = int(round(glm.design.kernel_dict[kernel_name]['offset_seconds']/timestep))
+
+    # calculate t_kernel
+    t_kernel = (np.arange(len(w_kernel)) + offset_int) * timestep
+
+    return t_kernel, w_kernel
 
 
 # NOTE:

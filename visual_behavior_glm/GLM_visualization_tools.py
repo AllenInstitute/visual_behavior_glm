@@ -245,7 +245,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     plt.tight_layout()
     return
 
-def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None,savefig=True):
+def plot_glm_version_comparison(comparison_table=None, results=None, versions_to_compare=None, savefig=True):
     '''
     makes a scatterplot comparing cellwise performance on two GLM versions
 
@@ -255,17 +255,27 @@ def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None,
     savefig (bool) if True, saves a figure for each version in versions_to_compare
     '''
     assert not (comparison_table is None and versions_to_compare is None), 'must pass either a comparison table or a list of two versions to compare'
-    if comparison_table is None:
-        comparison_table = gat.get_glm_version_comparison_table(versions_to_compare)
+    assert not (comparison_table is not None and results is not None), 'must pass either a comparison table or a results dataframe, not both'
 
+    if results is not None:
+        if versions_to_compare is None:
+            versions_to_compare = results['glm_version'].unique()
+        assert len(versions_to_compare) == 2, 'can only compare two glm_versions. Either pass a list of two versions, or pass a results table with two versions'
+
+    if comparison_table is None:
+        comparison_table = gat.get_glm_version_comparison_table(versions_to_compare=versions_to_compare, results=results)
+
+    cre_lines = np.sort(comparison_table['cre_line'].dropna().unique())
     jointplot = sns.jointplot(
         data = comparison_table,
         x = versions_to_compare[0],
         y = versions_to_compare[1],
         hue = 'cre_line',
-        hue_order = np.sort(comparison_table['cre_line'].dropna().unique()),
+        hue_order = cre_lines,
         alpha = 0.15,
         marginal_kws = {'common_norm':False},
+        palette = [project_colors()[cre_line] for cre_line in cre_lines],
+        height = 10,
     )
 
     # add a diagonal black line
@@ -827,15 +837,9 @@ def plot_filters(glm, cell_specimen_id, n_cols=5):
         for col in range(n_cols):
             if ii <= len(kernel_list) - 1:
                 kernel_name = kernel_list[ii]
-                t = np.linspace(
-                    0,
-                    glm.design.kernel_dict[kernel_name]['kernel_length_samples']/glm.fit['ophys_frame_rate'],
-                    glm.design.kernel_dict[kernel_name]['kernel_length_samples']
-                )
-                t += glm.design.kernel_dict[kernel_name]['offset_seconds']
+                
+                t_kernel, w_kernel = get_kernel_weights(glm, kernel_name, cell_specimen_id)
 
-                kernel_weight_names = [w for w in all_weight_names if w.startswith(kernel_name)]
-                w_kernel = glm.W.loc[dict(weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)]
                 ax[row,col].plot(t,w_kernel,marker='.')
                 ax[row,col].set_title(kernel_name)
                 ax[row,col].axvline(0, color='k',linestyle=':')

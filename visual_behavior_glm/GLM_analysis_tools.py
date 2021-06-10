@@ -1025,10 +1025,10 @@ def get_normalized_results_pivoted(glm_version = None, kind = 'max', cutoff = -n
        'model_outputs_available', 'location']
 
     if kind == 'max':
-        abs_max_df = glm[['variance_explained_full', 'cell_specimen_id']].groupby('cell_specimen_id').max()
+        abs_max_df = results_pivoted[['variance_explained_full', 'cell_specimen_id']].groupby('cell_specimen_id').max()
         results_pivoted_normalized = results_pivoted.join(abs_max_df, on= 'cell_specimen_id', rsuffix='_max').copy()
 
-        for column in glm.columns:
+        for column in results_pivoted.columns:
             if column not in col_to_exclude:
                 results_pivoted_normalized.loc[results_pivoted_normalized[column]>0,column]=0
                 results_pivoted_normalized[column] = results_pivoted_normalized[column].divide(results_pivoted_normalized['variance_explained_full_max'])

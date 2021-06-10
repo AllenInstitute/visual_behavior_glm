@@ -1003,10 +1003,10 @@ def get_normalized_results_pivoted(glm_version = None, kind = 'max', cutoff = -n
     results_pivoted_normalized
     '''
     if glm_version == None:
-        glm_vesion = '15_events_L2_optimize_by_session'
+        glm_version = '15_events_L2_optimize_by_session'
         print('loading glm version 15 with events by default ...')
 
-    results_pivoted = gat.build_pivoted_results_summary(glm_version=glm_version,
+    results_pivoted = build_pivoted_results_summary(glm_version=glm_version,
                                                 value_to_use='absolute_change_from_full',
                                                 results_summary=None,
                                                 cutoff=cutoff)

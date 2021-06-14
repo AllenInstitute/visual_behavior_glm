@@ -187,8 +187,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'kernels':kernels,
         'dropouts':dropouts,
         'levels':define_levels(),
-        'split_on_engagement': False,   # If True, uses 'engagement_preference' to determine what engagement state to use
-        'engagement_preference': None,  # Either None, "engaged", or "disengaged". Must be None if split_on_engagement is False
+        'split_on_engagement': True,   # If True, uses 'engagement_preference' to determine what engagement state to use
+        'engagement_preference': "engaged",  # Either None, "engaged", or "disengaged". Must be None if split_on_engagement is False
         'min_engaged_duration': 600,    # Minimum time, in seconds, the session needs to be in the preferred engagement state 
         'lick_bout_ILI': 0.7,           # The minimum duration of time between two licks to segment them into separate lick bouts
         'min_time_per_bout': 0.2,       # length of bout event that continues after last lick in bout

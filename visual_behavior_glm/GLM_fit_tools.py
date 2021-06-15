@@ -17,7 +17,7 @@ import visual_behavior.data_access.reformat as reformat
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
 import visual_behavior_glm.GLM_analysis_tools as gat
 
-def load_fit_experiment(ophys_experiment_id, run_params):
+def load_fit_experiment(ophys_experiment_id, run_params, session=None):
     '''
         Loads the session data, the fit dictionary and the design matrix for this oeid/run_params
     
@@ -33,7 +33,8 @@ def load_fit_experiment(ophys_experiment_id, run_params):
         design      DesignMatrix object for this experiment
     '''
     fit = gat.load_fit_pkl(run_params, ophys_experiment_id)
-    session = load_data(ophys_experiment_id)
+    if session is None:
+        session = load_data(ophys_experiment_id)
     design = DesignMatrix(fit)
     design = add_kernels(design, run_params, session,fit)
     return session, fit, design
@@ -59,7 +60,7 @@ def check_run_fits(VERSION):
         experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filenamepkl) or os.path.isfile(filenamepbz2)
     return experiment_table
 
-def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
+def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False, session=None):
     '''
         Fits the GLM to the ophys_experiment_id
         
@@ -87,7 +88,8 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Load Data
     print('Loading data')
-    session = load_data(oeid)
+    if session is None:
+        session = load_data(oeid)
 
     # Processing df/f data
     print('Processing df/f data')

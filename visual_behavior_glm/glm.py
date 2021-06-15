@@ -29,14 +29,18 @@ class GLM(object):
         recompute (bool): if True, if the attempt to load the existing results fails, will fit the model instead of crashing
         use_inputs (bool): if True, gets session, fit, and design objects from inputs=[session, fit, design]
         inputs (List): if use_inputs, this must be a list of session, fit, and design objects
+        gft_import (str): If 'cached', loads cached version from directory. If 'current', loads current version from repository.
     '''
 
     def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, 
-                recompute=True, use_inputs=False, inputs=None, NO_DROPOUTS=False, TESTING=False):
+                recompute=True, use_inputs=False, inputs=None, NO_DROPOUTS=False, TESTING=False, gft_import='cached', session=None):
         
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
-        self.ophys_session_id = db.lims_query('select ophys_session_id from ophys_experiments where id = {}'.format(self.ophys_experiment_id))
+        if self.ophys_experiment_id:
+            self.ophys_session_id = db.lims_query('select ophys_session_id from ophys_experiments where id = {}'.format(self.ophys_experiment_id))
+        else:
+            self.ophys_session_id = None
         self.oeid = self.ophys_experiment_id
         self.run_params = glm_params.load_run_json(self.version)
         self.kernels = self.run_params['kernels']
@@ -44,8 +48,12 @@ class GLM(object):
         self.NO_DROPOUTS=NO_DROPOUTS
         self.TESTING=TESTING
 
-        # Import the version's codebase
-        self._import_glm_fit_tools()
+        if gft_import == 'cached':
+            # Import the version's codebase
+            self._import_glm_fit_tools()
+        elif gft_import == 'current':
+            import visual_behavior_glm.GLM_fit_tools as gft
+            self.gft = gft
 
         if use_inputs & (inputs is not None):
             # If user supplied session, fit, and design objects we dont need to load from file or fit model
@@ -67,7 +75,7 @@ class GLM(object):
                     raise Exception('Crash during load_fit_model(), check if file exists') 
         else:
             # Fit the model, can be slow
-            self.fit_model()
+            self.fit_model(session=session)
         
         print('done fitting model, collecting results')
         self.collect_results()
@@ -116,12 +124,12 @@ class GLM(object):
         spec.loader.exec_module(gft)
         self.gft = gft
 
-    def fit_model(self):
+    def fit_model(self, session=None):
         '''
         Fits the model
         '''
         self.session, self.fit, self.design = self.gft.fit_experiment(
-            self.oeid, self.run_params, self.NO_DROPOUTS, self.TESTING)
+            self.oeid, self.run_params, self.NO_DROPOUTS, self.TESTING, session=session)
 
     def load_fit_model(self):
         '''
@@ -198,24 +206,23 @@ class GLM(object):
         # build a dataframe with columns for 'fit_array', 'dff_trace_arr', 'events_trace_arr'
         fit_df = self.fit['fit_trace_arr'].to_dataframe(name='fit_array')
         dff_df = self.fit['dff_trace_arr'].to_dataframe(name='dff')
-        try:
-            event_df = self.fit['events_trace_arr'].to_dataframe(name='events')
-        except AttributeError:
-            timestamps_to_use = gft.get_ophys_frames_to_use(self.session)
-            events_trace_arr = gft.get_events_arr(self.session, timestamps_to_use) 
-            event_df = events_trace_arr.to_dataframe(name='events')
+
         df = fit_df.reset_index().merge(
             dff_df.reset_index(),
             left_on=['fit_trace_timestamps','cell_specimen_id'],
             right_on=['fit_trace_timestamps','cell_specimen_id'],
         )
-        
-        df = df.merge(
-            event_df.reset_index(),
-            left_on=['fit_trace_timestamps','cell_specimen_id'],
-            right_on=['fit_trace_timestamps','cell_specimen_id'],
-        )
 
+        try:
+            event_df = self.fit['events_trace_arr'].to_dataframe(name='events')
+            df = df.merge(
+                event_df.reset_index(),
+                left_on=['fit_trace_timestamps','cell_specimen_id'],
+                right_on=['fit_trace_timestamps','cell_specimen_id'],
+            )
+        except AttributeError:
+            pass
+        
         # calculate the prediction matrix Y
         xrt = self.fit['fit_trace_arr'].copy()
         xrt.values = self.X @ self.W

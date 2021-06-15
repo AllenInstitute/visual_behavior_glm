@@ -27,7 +27,9 @@ def define_kernels():
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'constant value'},
         'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'linear ramp from 0 to 1'},
         'licks':        {'event':'licks',       'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'mouse lick'},
-        # 'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'lick bout'},
+        'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'lick bout'},
+        'rewards':      {'event':'rewards',     'type':'discrete',      'length':5,     'offset':-1,  'dropout':True, 'text': 'water reward'},
+        'change':       {'event':'change',      'type':'discrete',      'length':4.5,     'offset':-1,     'dropout':True, 'text': 'image change'},
         'hits':         {'event':'hit',         'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick to image change'},
         'misses':       {'event':'miss',        'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick to image change'},
         'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'passive session image change'},
@@ -200,7 +202,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100,           # If 1, has no effect. Scales running speed to be O(1). 
-        'use_events': True             # If True, use detected events. If False, use raw deltaF/F 
+        'use_events': False            # If True, use detected events. If False, use raw deltaF/F 
     } 
     # Regularization parameter checks 
     a = run_params['L2_optimize_by_cell'] 

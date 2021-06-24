@@ -504,7 +504,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
 
-    if merge_in_experiment_metadata:
+    if len(results) > 0 and merge_in_experiment_metadata:
         # get experiment table, merge in details of each experiment
         experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
         results = results.merge(

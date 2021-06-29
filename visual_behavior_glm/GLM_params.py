@@ -26,27 +26,27 @@ def define_kernels():
     kernels = {
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'constant value'},
         'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'linear ramp from 0 to 1'},
-        'licks':        {'event':'licks',       'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'mouse lick'},
-        'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'lick bout'},
-        'rewards':      {'event':'rewards',     'type':'discrete',      'length':5,     'offset':-1,  'dropout':True, 'text': 'water reward'},
-        'change':       {'event':'change',      'type':'discrete',      'length':4.5,     'offset':-1,     'dropout':True, 'text': 'image change'},
-        'hits':         {'event':'hit',         'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick to image change'},
-        'misses':       {'event':'miss',        'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick to image change'},
-        'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'passive session image change'},
-        'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick on catch trials'},
-        'correct_rejects':  {'event':'correct_reject','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick on catch trials'},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'dropout':True, 'text': 'image was omitted'},
+        'licks':        {'event':'licks',       'type':'discrete',      'length':8,     'offset':-4,    'dropout':True, 'text': 'mouse lick'},
+        'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':8,     'offset':-4,    'dropout':True, 'text': 'lick bout'},
+        'rewards':      {'event':'rewards',     'type':'discrete',      'length':8,     'offset':-1,  'dropout':True, 'text': 'water reward'},
+        'change':       {'event':'change',      'type':'discrete',      'length':6,     'offset':-1,     'dropout':True, 'text': 'image change'},
+        'hits':         {'event':'hit',         'type':'discrete',      'length':6,   'offset':-1,    'dropout':True, 'text': 'lick to image change'},
+        'misses':       {'event':'miss',        'type':'discrete',      'length':6,   'offset':-1,    'dropout':True, 'text': 'no lick to image change'},
+        'passive_change':   {'event':'passive_change','type':'discrete','length':6,   'offset':-1,    'dropout':True, 'text': 'passive session image change'},
+        'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':6,   'offset':-1,    'dropout':True, 'text': 'lick on catch trials'},
+        'correct_rejects':  {'event':'correct_reject','type':'discrete','length':6,   'offset':-1,    'dropout':True, 'text': 'no lick on catch trials'},
+        # 'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'dropout':True, 'text': 'image was omitted'},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.767, 'offset':-0.25,     'dropout':True, 'text': 'image presentation'},
         # 'image_expectation':   {'event':'image_expectation','type':'discrete','length':0.767, 'offset':-0.767,'dropout':True, 'text': '750ms from last image'},
-        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'normalized running speed'},
-        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25,  'dropout':True, 'text': 'behavioral model weights'},
-        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'Z-scored pupil diameter'},
+        'running':      {'event':'running',     'type':'continuous',    'length':6,     'offset':-3,    'dropout':True, 'text': 'normalized running speed'},
+        # 'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25,  'dropout':True, 'text': 'behavioral model weights'},
+        # 'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'Z-scored pupil diameter'},
         # 'lick_model':        {'event':'lick_model',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'lick probability from video'},
         # 'groom_model':        {'event':'groom_model',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'groom probability from video'},
     }
     ## add face motion energy PCs
-    for PC in range(5):
-        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':True, 'text':'PCA from face motion videos'}
+    # for PC in range(5):
+    #     kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':True, 'text':'PCA from face motion videos'}
 
     return kernels
 

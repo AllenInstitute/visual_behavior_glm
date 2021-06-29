@@ -1568,7 +1568,6 @@ def fit(fit_trace_arr, X):
     fit_trace_arr: shape (n_timestamps * n_cells)
     X: shape (n_timestamps * n_kernel_params)
     '''
-    print('INSIDE FIT')
     W = np.dot(np.linalg.inv(np.dot(X.T, X)), np.dot(X.T, fit_trace_arr))
     return W
 
@@ -1583,7 +1582,6 @@ def fit_regularized(fit_trace_arr, X, lam):
     Returns: XArray
     '''
     # Compute the weights
-    print('INSIDE FIT REGULARIZED')
     if lam == 0:
         W = fit(fit_trace_arr,X)
     else:

@@ -21,6 +21,8 @@ K = 5
 - remove tracked cells from estimate?
 '''
 
+FIGURE_DIR = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/clustering_figs/'
+
 def load_table():
     filepath = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/summary_plots/glm/kmeans_glm_novel.hdf'
     df = pd.read_hdf(filepath)
@@ -41,6 +43,8 @@ def build_pivot_table(cre='all'):
     df_pivot['tracked_13'] = df_pivot[['1','3']].isnull().sum(axis=1) ==0
     df_pivot['tracked_12'] = df_pivot[['1','2']].isnull().sum(axis=1) ==0
     df_pivot['tracked_34'] = df_pivot[['3','4']].isnull().sum(axis=1) ==0
+    df_pivot['never_tracked']=df_pivot[['1','2','3','4','5','6']].isnull().sum(axis=1) ==5
+    df_pivot['full_tracked']=df_pivot[['1','2','3','4','5','6']].isnull().sum(axis=1) ==0
     return df_pivot
 
 def compute_distribution(df_pivot, session,session_dists={},dropna=False):
@@ -73,23 +77,32 @@ def check_distributions(cre='all'):
     session_dists_n12, session_dists_no_nans_n12 = compute_all_distributions(df_pivot.query('not tracked_12'))
     session_dists_n34, session_dists_no_nans_n34 = compute_all_distributions(df_pivot.query('not tracked_34'))
 
+    session_dists_never, session_dists_no_nans_never = compute_all_distributions(df_pivot.query('never_tracked'))
+    session_dists_full, session_dists_no_nans_full =   compute_all_distributions(df_pivot.query('full_tracked'))
+
     ## Result 1, are clusters different across sessions?
     plot_distribution_by_session(session_dists, [str(x) for x in range(1,7)],title=cre)
     ## Result 2, novelty clusters are different without nans!
     plot_distribution_by_session(session_dists_no_nans, [str(x) for x in range(1,7)],dropna=True,title=cre)
 
     #plot_distribution_by_group([session_dists, session_dists_13],1,labels=['all','tracked 1,3'])
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_13, session_dists_no_nans_n13],1,labels=['all','tracked 1,3','not tracked 1,3'],dropna=True,title='Session 1')
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_13, session_dists_no_nans_n13],3,labels=['all','tracked 1,3','not tracked 1,3'],dropna=True,title='Session 3')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_13, session_dists_no_nans_n13],1,labels=['all','tracked 1,3','not tracked 1,3'],dropna=True,title=cre+' Session 1')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_13, session_dists_no_nans_n13],3,labels=['all','tracked 1,3','not tracked 1,3'],dropna=True,title=cre+' Session 3')
 
 
     #plot_distribution_by_group([session_dists, session_dists_12],1,labels=['all','tracked 1,2'])
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_12,session_dists_no_nans_n12],1,labels=['all','tracked 1,2','not tracked 1,2'],dropna=True,title='Session 1')
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_12,session_dists_no_nans_n12],2,labels=['all','tracked 1,2','not tracked 1,2'],dropna=True,title='Session 2')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_12,session_dists_no_nans_n12],1,labels=['all','tracked 1,2','not tracked 1,2'],dropna=True,title=cre+' Session 1')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_12,session_dists_no_nans_n12],2,labels=['all','tracked 1,2','not tracked 1,2'],dropna=True,title=cre+' Session 2')
 
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_34,session_dists_no_nans_n34],3,labels=['all','tracked 3,4','not tracked 3,4'],dropna=True,title='Session 3')
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_34,session_dists_no_nans_n34],4,labels=['all','tracked 3,4','not tracked 3,4'],dropna=True,title='Session 4')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_34,session_dists_no_nans_n34],3,labels=['all','tracked 3,4','not tracked 3,4'],dropna=True,title=cre+' Session 3')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_34,session_dists_no_nans_n34],4,labels=['all','tracked 3,4','not tracked 3,4'],dropna=True,title=cre+' Session 4')
 
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],1,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],2,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],3,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],4,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],5,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],6,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
 
 def plot_distribution_by_session(session_dists,sessions,dropna=False,title=''):
     plt.figure()
@@ -112,7 +125,11 @@ def plot_distribution_by_session(session_dists,sessions,dropna=False,title=''):
     ax.legend()
     ax.set_title(title)
     plt.tight_layout()
-
+    if dropna:
+        plt.savefig(FIGURE_DIR+title+'_by_session_no_nans.png')
+    else:
+        plt.savefig(FIGURE_DIR+title+'_by_session.png')
+ 
 def plot_distribution_by_group(session_dists_lists, session, dropna=False, title='',labels=[]):
     plt.figure()
     ax = plt.gca()
@@ -134,6 +151,7 @@ def plot_distribution_by_group(session_dists_lists, session, dropna=False, title
     ax.legend()
     ax.set_title(title)
     plt.tight_layout()
+    plt.savefig(FIGURE_DIR+title+'_'+str(session)+'_'+labels[1]+'.png')
 
 #####################
 def make_all(df):

@@ -10,6 +10,7 @@ from tqdm import tqdm
 from copy import copy
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+import warnings
 
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 import visual_behavior.data_access.loading as loading
@@ -1586,15 +1587,17 @@ def fit_regularized(fit_trace_arr, X, lam):
     if lam == 0:
         W = fit(fit_trace_arr,X)
     else:
+        if np.any(pd.isnull(X)):
+            X = X.fillna(0)
+            warnings.warn('There are NaNs in the design matrix associated with the following regressors. They are being set to 0.\n{}'.format(
+                list(X[np.where(X == np.nan)].coords['weights'].values)
+            ))
+
         W = np.dot(np.linalg.inv(np.dot(X.T, X) + lam * np.eye(X.shape[-1])),
                np.dot(X.T, fit_trace_arr))
-        print('fit_trace_arr')
-        print('===========')
-        print(fit_trace_arr)
-        print('\n\n\n')
-        print('W:')
-        print('===========')
-        print(W)
+
+    if np.any(pd.isnull(X)):
+        warnings.warn('There are NaNs in the weights vector.')
 
     # Make xarray
     cellids = fit_trace_arr['cell_specimen_id'].values

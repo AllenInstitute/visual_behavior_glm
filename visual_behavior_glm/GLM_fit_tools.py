@@ -1078,10 +1078,13 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
             'glm_version':run_params['version']
         }
         # log error to mongo
-        gat.log_error(
-            run_params['kernel_error_dict'][kernel_name], 
-            keys_to_check = ['oeid', 'glm_version', 'kernel_name']
-        )
+        try:
+            gat.log_error(
+                run_params['kernel_error_dict'][kernel_name], 
+                keys_to_check = ['oeid', 'glm_version', 'kernel_name']
+            )
+        except Exception as e:
+            print('failed to log error to mongo\n{}'.format(e))
         return design
     else:
         #assert length of values is same as length of timestamps
@@ -1200,10 +1203,13 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             'glm_version':run_params['version']
         }
         # log error to mongo:
-        gat.log_error(
-            run_params['kernel_error_dict'][kernel_name], 
-            keys_to_check = ['oeid', 'glm_version', 'kernel_name']
-        )        
+        try:
+            gat.log_error(
+                run_params['kernel_error_dict'][kernel_name], 
+                keys_to_check = ['oeid', 'glm_version', 'kernel_name']
+            )   
+        except Exception as e:
+            print('could not log error to mongo\n{}'.format(e))     
         return design       
     else:
         events_vec, timestamps = np.histogram(event_times, bins=fit['fit_trace_bins'])
@@ -1561,6 +1567,7 @@ def fit(fit_trace_arr, X):
     fit_trace_arr: shape (n_timestamps * n_cells)
     X: shape (n_timestamps * n_kernel_params)
     '''
+    print('INSIDE FIT')
     W = np.dot(np.linalg.inv(np.dot(X.T, X)), np.dot(X.T, fit_trace_arr))
     return W
 
@@ -1575,11 +1582,19 @@ def fit_regularized(fit_trace_arr, X, lam):
     Returns: XArray
     '''
     # Compute the weights
+    print('INSIDE FIT REGULARIZED')
     if lam == 0:
         W = fit(fit_trace_arr,X)
     else:
         W = np.dot(np.linalg.inv(np.dot(X.T, X) + lam * np.eye(X.shape[-1])),
                np.dot(X.T, fit_trace_arr))
+        print('fit_trace_arr')
+        print('===========')
+        print(fit_trace_arr)
+        print('\n\n\n')
+        print('W:')
+        print('===========')
+        print(W)
 
     # Make xarray
     cellids = fit_trace_arr['cell_specimen_id'].values

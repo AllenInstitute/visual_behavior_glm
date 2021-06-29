@@ -5,6 +5,8 @@ from statsmodels.stats.proportion import multinomial_proportions_confint as mpc
 K = 5
 
 '''
+- check novel only familar only
+- ensure cell shows up in each container
 - if more than one session type, just taking the first
 - how to deal with NaNs, there could always be more cells "lurking"
     - Can I just assume that all cells show up at least once?
@@ -45,6 +47,10 @@ def build_pivot_table(cre='all'):
     df_pivot['tracked_34'] = df_pivot[['3','4']].isnull().sum(axis=1) ==0
     df_pivot['never_tracked']=df_pivot[['1','2','3','4','5','6']].isnull().sum(axis=1) ==5
     df_pivot['full_tracked']=df_pivot[['1','2','3','4','5','6']].isnull().sum(axis=1) ==0
+    df_pivot['full_novel_tracked']= (df_pivot[['4','5','6']].isnull().sum(axis=1)==0)&(df_pivot[['1','2','3']].isnull().sum(axis=1)==3)
+    df_pivot['full_familiar_tracked']=(df_pivot[['1','2','3']].isnull().sum(axis=1)==0)&(df_pivot[['4','5','6']].isnull().sum(axis=1)==3)
+    df_pivot['partial_novel_tracked']=(df_pivot[['4','5','6']].isnull().sum(axis=1)<3)&(df_pivot[['1','2','3']].isnull().sum(axis=1)==3)
+    df_pivot['partial_familiar_tracked']=(df_pivot[['1','2','3']].isnull().sum(axis=1)<3)&(df_pivot[['4','5','6']].isnull().sum(axis=1)==3)
     return df_pivot
 
 def compute_distribution(df_pivot, session,session_dists={},dropna=False):
@@ -80,6 +86,12 @@ def check_distributions(cre='all'):
     session_dists_never, session_dists_no_nans_never = compute_all_distributions(df_pivot.query('never_tracked'))
     session_dists_full, session_dists_no_nans_full =   compute_all_distributions(df_pivot.query('full_tracked'))
 
+    session_dists_partial_novel, session_dists_no_nans_partial_novel = compute_all_distributions(df_pivot.query('partial_novel_tracked'))
+    session_dists_partial_familiar, session_dists_no_nans_partial_familiar =   compute_all_distributions(df_pivot.query('partial_familiar_tracked'))
+
+    session_dists_full_novel, session_dists_no_nans_full_novel = compute_all_distributions(df_pivot.query('full_novel_tracked'))
+    session_dists_full_familiar, session_dists_no_nans_full_familiar =   compute_all_distributions(df_pivot.query('full_familiar_tracked'))
+
     ## Result 1, are clusters different across sessions?
     plot_distribution_by_session(session_dists, [str(x) for x in range(1,7)],title=cre)
     ## Result 2, novelty clusters are different without nans!
@@ -97,12 +109,31 @@ def check_distributions(cre='all'):
     plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_34,session_dists_no_nans_n34],3,labels=['all','tracked 3,4','not tracked 3,4'],dropna=True,title=cre+' Session 3')
     plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_34,session_dists_no_nans_n34],4,labels=['all','tracked 3,4','not tracked 3,4'],dropna=True,title=cre+' Session 4')
 
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],1,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],2,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],3,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],4,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],5,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
-    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],6,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full')
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],1,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full'+' '+str(1))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],2,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full'+' '+str(2))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],3,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full'+' '+str(3))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],4,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full'+' '+str(4))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],5,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full'+' '+str(5))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_never, session_dists_no_nans_full],6,labels=['all','never tracked','full tracked'],dropna=True, title=cre+' never full'+' '+str(6))
+
+
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_full_novel, session_dists_no_nans_full_familiar],1,labels=['all','full_novel tracked','full_familiar tracked'],dropna=True, title=cre+' full_novel full_familiar'+' '+str(1))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_full_novel, session_dists_no_nans_full_familiar],2,labels=['all','full_novel tracked','full_familiar tracked'],dropna=True, title=cre+' full_novel full_familiar'+' '+str(2))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_full_novel, session_dists_no_nans_full_familiar],3,labels=['all','full_novel tracked','full_familiar tracked'],dropna=True, title=cre+' full_novel full_familiar'+' '+str(3))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_full_novel, session_dists_no_nans_full_familiar],4,labels=['all','full_novel tracked','full_familiar tracked'],dropna=True, title=cre+' full_novel full_familiar'+' '+str(4))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_full_novel, session_dists_no_nans_full_familiar],5,labels=['all','full_novel tracked','full_familiar tracked'],dropna=True, title=cre+' full_novel full_familiar'+' '+str(5))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_full_novel, session_dists_no_nans_full_familiar],6,labels=['all','full_novel tracked','full_familiar tracked'],dropna=True, title=cre+' full_novel full_familiar'+' '+str(6))
+
+
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_partial_novel, session_dists_no_nans_partial_familiar],1,labels=['all','partial_novel tracked','partial_familiar tracked'],dropna=True, title=cre+' partial_novel partial_familiar'+' '+str(1))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_partial_novel, session_dists_no_nans_partial_familiar],2,labels=['all','partial_novel tracked','partial_familiar tracked'],dropna=True, title=cre+' partial_novel partial_familiar'+' '+str(2))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_partial_novel, session_dists_no_nans_partial_familiar],3,labels=['all','partial_novel tracked','partial_familiar tracked'],dropna=True, title=cre+' partial_novel partial_familiar'+' '+str(3))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_partial_novel, session_dists_no_nans_partial_familiar],4,labels=['all','partial_novel tracked','partial_familiar tracked'],dropna=True, title=cre+' partial_novel partial_familiar'+' '+str(4))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_partial_novel, session_dists_no_nans_partial_familiar],5,labels=['all','partial_novel tracked','partial_familiar tracked'],dropna=True, title=cre+' partial_novel partial_familiar'+' '+str(5))
+    plot_distribution_by_group([session_dists_no_nans, session_dists_no_nans_partial_novel, session_dists_no_nans_partial_familiar],6,labels=['all','partial_novel tracked','partial_familiar tracked'],dropna=True, title=cre+' partial_novel partial_familiar'+' '+str(6))
+
+
+
 
 def plot_distribution_by_session(session_dists,sessions,dropna=False,title=''):
     plt.figure()

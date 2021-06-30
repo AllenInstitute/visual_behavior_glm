@@ -2,35 +2,43 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.stats.proportion import multinomial_proportions_confint as mpc
-K = 5
 
-'''
-- ensure cell shows up in each container
-- if more than one session type, just taking the first
-- Document
-- Check estimate ordering of indexes in estimate construction
-- update transition matrix
-'''
-
+K = 5 # number of clusters
 FIGURE_DIR = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/clustering_figs/'
 
 def load_table():
+    '''
+        Loads the dataframe of cells and their cluster labels
+    '''
     filepath = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/summary_plots/glm/kmeans_glm_novel.hdf'
     df = pd.read_hdf(filepath)
     return df
 
 def clean_table(df):
+    '''
+        Make sure each cell has only one session of each session number
+        Note this does not ensure that each cell has a session of every session number
+    '''
     df['identifier'] = [str(x[0])+'_'+str(x[1]) for x in zip(df['cell_specimen_id'], df['session_number'])]
     df = df.drop_duplicates(subset='identifier').copy()
     return df
 
 def build_pivot_table(cre='all'):
+    '''
+        Builds a table where each cell is a row, and its cluster labels are in columns. Filters by cre line, and annotates different subsets of cells
+        based on what sessions they were tracked across
+    '''
+    # load data and filter
     df = load_table()
     if cre != 'all':
         df = df.query('cre_line == @cre').copy()
     df = clean_table(df)
+    
+    # pivot and rename columns
     df_pivot = pd.pivot_table(df, index='cell_specimen_id',columns='session_number',values='K_cluster')
     df_pivot = df_pivot.rename(columns={1:'1',2:'2',3:'3',4:'4',5:'5',6:'6'})
+    
+    # annotate subsets of cells
     df_pivot['tracked_13'] = df_pivot[['1','3']].isnull().sum(axis=1) ==0
     df_pivot['tracked_12'] = df_pivot[['1','2']].isnull().sum(axis=1) ==0
     df_pivot['tracked_34'] = df_pivot[['3','4']].isnull().sum(axis=1) ==0
@@ -46,18 +54,29 @@ def build_pivot_table(cre='all'):
     return df_pivot
 
 def compute_distribution(df_pivot, session,session_dists={},dropna=False):
+    '''
+        For a given session, counts how many cells were in each cluster. Also normalizes to make a fraction, and computes a confidence interval
+        if dropna, then ignore NaNs
+        if session_dists is passed it, then adds this distribution to that dictionary
+    '''
+    # do the count
     session_dists[str(session)] = df_pivot[str(session)].value_counts(dropna=dropna)
+    # check for empty clusters, and manually add 0
     for val in range(0,K):
         if val not in session_dists[str(session)].index:
             session_dists[str(session)].loc[val] = 0
         if (not dropna) & (np.nan not in session_dists[str(session)].index):
             session_dists[str(session)].loc[np.nan] = 0
+    # normalize and add confidence interval
     session_dists[str(session)] = session_dists[str(session)].sort_index(na_position='first')
     session_dists['normalized_'+str(session)] = session_dists[str(session)]/sum(session_dists[str(session)])
     session_dists['ci_'+str(session)] = mpc(session_dists[str(session)])
     return session_dists
 
 def compute_all_distributions(df_pivot):
+    '''
+        Computes the distributions for all sessions
+    '''
     session_dists = {}
     session_dists_no_nans = {}
     for i in range(1,7):
@@ -66,38 +85,68 @@ def compute_all_distributions(df_pivot):
     return session_dists, session_dists_no_nans 
 
 def build_transition_matrix(df_pivot, sessions):
+    ''' 
+        Builds the transition matrix for a pair of sessions
+    '''
+    
+    # find tracked cells
     df_pivot_sessions = df_pivot[~df_pivot[sessions[0]].isnull() & ~df_pivot[sessions[1]].isnull()]
+    
+    # groupby pair of sessions
     stacked_t = df_pivot_sessions.groupby(sessions).size()
+    
+    # add missing pairs
     for s1kdex, s1k in enumerate(range(0,K)):
         for s2kdex, s2k in enumerate(range(0,K)):
             if (s1k,s2k) not in stacked_t.index:
                 stacked_t.loc[(s1k,s2k)] = 0
+    
+    # unstack into matrix
     stacked_t = stacked_t.sort_index()
     T = stacked_t.unstack().T
     return T
 
 def normalize_matrix(T):
+    '''
+        Ensures each column sums to 1, makes the transition matrix a probability matrix
+    '''
     normT = T/T.sum(axis=0)
     return normT
 
 def transitions_by_cre():
+    ''' 
+        Builds a summary table of all transition matrices for all three cre lines
+    '''
+    # set up
     cres = ['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre']
     cmaps = ['Blues','Reds', 'Greens']
     fig, ax =plt.subplots(3,5,figsize=(10,4))
+
+    # Iterate over cre lines
     for dex, cre in enumerate(cres):
         df_pivot_cre = build_pivot_table(cre=cre)
         transitions_by_cre_inner(df_pivot_cre, ax[dex,:],cmaps[dex])    
         ax[dex,0].set_ylabel(cre.split('-')[0]+'\n Session 2')
+    
+    # clean up plot
     plt.tight_layout()
     plt.savefig(FIGURE_DIR+'transitions_by_cre.png')
 
 def transitions_by_cre_inner(df_pivot, ax,cmap):
+    '''
+        Builds all transition matrices for the cells passed in
+        ax is the list of axes to plot on
+        cmap is the colormap name to use
+    '''
     sessions = [1,2,3,4,5]
     for sdex, s in enumerate(sessions):
         T = build_transition_matrix(df_pivot, sessions=[str(s),str(s+1)])
         plot_transition_matrix(T, [str(s),str(s+1)],ax=ax[s-1],compact=True,cmap=cmap)   
 
 def example_transition(cre='Slc17a7-IRES2-Cre',sessions=['3','4']):
+    '''
+        Builds the transition matrix for a single transition for a single cre line
+    '''
     df_pivot = build_pivot_table(cre=cre)
     T = build_transition_matrix(df_pivot, sessions=sessions)
     fig,ax =plt.subplots()
@@ -105,13 +154,24 @@ def example_transition(cre='Slc17a7-IRES2-Cre',sessions=['3','4']):
     plt.savefig(FIGURE_DIR+cre+'_'+sessions[0]+'_'+sessions[1]+'.png')
 
 def build_estimate(df_pivot, sessions, session_dists):
+    ''' 
+        Builds the estimated distribution using the transition matrix computed from the cells in df_pivot
+        and the input distrubtion from session_dists
+    '''
+    # Build Transition matrix
     T = build_transition_matrix(df_pivot, sessions)
     T = clean_transition_matrix(T)
+    
+    # Compute estimate and CI, ignore uncertainty in transition matrix
     session_dists['estimate_'+str(sessions[0])+'_to_'+str(sessions[1])] = np.dot(normalize_matrix(T),session_dists['normalized_'+str(sessions[0])])
     session_dists['estimate_ci_'+str(sessions[0])+'_to_'+str(sessions[1])] = np.dot(normalize_matrix(T),session_dists['ci_'+str(sessions[0])])
     return session_dists
 
 def clean_transition_matrix(T,verbose=False):
+    '''
+        Checks for columns with no cells that would otherwise create NaNs.
+        Conservatively, assumes a uniform column.
+    '''
     cleaned = False
     for c in T.columns:
         if T[c].sum() == 0:
@@ -122,6 +182,11 @@ def clean_transition_matrix(T,verbose=False):
     return T   
  
 def build_all_estimates(session_dists,df_pivot):
+    ''' 
+        Builds the estimates from all pairs of transitions
+        Uses the input distributions in session_dists
+        builds the transition matrices with df_pivot
+    '''
     sessions = [1,2,3,4,5,6]
     for sdex, s in enumerate(sessions):
         for edex, e in enumerate(sessions[:sdex]):
@@ -129,7 +194,15 @@ def build_all_estimates(session_dists,df_pivot):
     return session_dists
 
 def plot_estimate(cre='all',transition_query='',in_dist_query='',out_dist_query='',sessions=['3','4']):
-    
+    '''
+        Plots the estimated distribution
+        cre, cre line to use
+        transition_query, which subset of cells to use to make transition matrix
+        in_dist_query, which subset of cells to use to propagate forward
+        out_dist_query, which subset of cells to compare against
+        sessions, which sessions to perform the transition over
+    '''  
+  
     # Filter subsets of cells for each step
     labels = ['Measured','Estimate']
     if transition_query == '':
@@ -156,11 +229,16 @@ def plot_estimate(cre='all',transition_query='',in_dist_query='',out_dist_query=
     est_session_dists = build_all_estimates(in_session_dists, df_pivot_transition)
     out_session_dists_with_nans, out_session_dists = compute_all_distributions(df_pivot_out_dist)
 
+    # plot
     title = 'Estimating Session '+str(sessions[1])+' from Session '+str(sessions[0])
     savefile = 'estimate_session_'+str(sessions[1])+'_from_session_'+str(sessions[0])+'_'+cre+'_transition_'+transition_query+'_input_'+in_dist_query+'_output_'+out_dist_query+'.png'
     plot_distribution_estimate(out_session_dists, est_session_dists, sessions,title=title,labels=labels,savefile=savefile)
 
 def check_estimates(cre='all'):
+    '''
+        top level analysis function, makes many plots
+    '''
+    # For session 3,4 explore different inclusion criteria
     plot_estimate(cre=cre, transition_query='full_tracked',in_dist_query='full_familiar_tracked', out_dist_query='full_novel_tracked', sessions=['3','4'])
     plot_estimate(cre=cre, transition_query='full_tracked',in_dist_query='partial_familiar_tracked', out_dist_query='partial_novel_tracked', sessions=['3','4'])
 
@@ -170,11 +248,13 @@ def check_estimates(cre='all'):
     plot_estimate(cre=cre, in_dist_query='not tracked_34', out_dist_query='not tracked_34', sessions=['3','4'])
     plot_estimate(cre=cre, sessions=['3','4'])
 
+    # most inclusive across all sessions
     plot_estimate(cre=cre, sessions=['1','2'])
     plot_estimate(cre=cre, sessions=['2','3'])
     plot_estimate(cre=cre, sessions=['4','5'])
     plot_estimate(cre=cre, sessions=['5','6'])
 
+    # More restrictive across all sessions
     plot_estimate(cre=cre, in_dist_query='not tracked_12', out_dist_query='not tracked_12', sessions=['1','2'])
     plot_estimate(cre=cre, in_dist_query='not tracked_23', out_dist_query='not tracked_23', sessions=['2','3'])
     plot_estimate(cre=cre, in_dist_query='not tracked_45', out_dist_query='not tracked_45', sessions=['4','5'])
@@ -182,17 +262,29 @@ def check_estimates(cre='all'):
 
 
 def check_transitions(cre='all'):
+    '''
+        Plots the transition matrix for all possible transitions, including things like 1,6 and 2,5
+    '''    
+
+    # select cells
     df_pivot = build_pivot_table(cre=cre)
+
+    # Iterate over session pairs
     sessions = [1,2,3,4,5,6]
     fig, ax = plt.subplots(5,5,figsize=(8,8))
     for sdex, s in enumerate(sessions):
+        
+        # remove empty axes
         if s < 6:
             for edex, e in enumerate(sessions[:sdex]):
                 ax[s-1,e-1].set_axis_off()
+    
+        # build transition matrix
         for edex, e in enumerate(sessions[sdex+1:]):
             T = build_transition_matrix(df_pivot, sessions=[str(s),str(e)])
             plot_transition_matrix(T, [str(s),str(e)],ax=ax[s-1,e-2],compact=True)
 
+    # use empty corner to build big 3,4 transition matrix
     gs = ax[0,0].get_gridspec()
     ax[4,0].remove()
     ax[4,1].remove()
@@ -201,11 +293,16 @@ def check_transitions(cre='all'):
     axbig = fig.add_subplot(gs[3:, :2])
     T = build_transition_matrix(df_pivot,sessions=['3','4'])
     plot_transition_matrix(T, ['3','4'], ax=axbig,vmax=1)
+
+    # clean up plot
     fig.suptitle(cre)
     plt.tight_layout()
     plt.savefig(FIGURE_DIR+'transitions_'+cre+'.png')
 
 def check_distributions(cre='all'):
+    '''
+        Plot the distribution of cell clusters based on different subsets of cells
+    '''
     df_pivot = build_pivot_table(cre=cre)
     session_dists, session_dists_no_nans = compute_all_distributions(df_pivot)
     session_dists_13, session_dists_no_nans_13 = compute_all_distributions(df_pivot.query('tracked_13'))

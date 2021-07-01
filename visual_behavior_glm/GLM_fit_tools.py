@@ -38,6 +38,8 @@ def load_fit_experiment(ophys_experiment_id, run_params, session=None):
         session = load_data(ophys_experiment_id)
     design = DesignMatrix(fit)
     design = add_kernels(design, run_params, session,fit)
+    # split by engagement
+    design,fit = split_by_engagement(design, run_params, session, fit)
     return session, fit, design
 
 def check_run_fits(VERSION):

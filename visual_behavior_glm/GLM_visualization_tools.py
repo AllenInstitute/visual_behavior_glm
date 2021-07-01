@@ -245,7 +245,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     plt.tight_layout()
     return
 
-def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None,savefig=True):
+def plot_glm_version_comparison(comparison_table=None, results=None, versions_to_compare=None, savefig=True):
     '''
     makes a scatterplot comparing cellwise performance on two GLM versions
 
@@ -255,17 +255,27 @@ def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None,
     savefig (bool) if True, saves a figure for each version in versions_to_compare
     '''
     assert not (comparison_table is None and versions_to_compare is None), 'must pass either a comparison table or a list of two versions to compare'
-    if comparison_table is None:
-        comparison_table = gat.get_glm_version_comparison_table(versions_to_compare)
+    assert not (comparison_table is not None and results is not None), 'must pass either a comparison table or a results dataframe, not both'
 
+    if results is not None:
+        if versions_to_compare is None:
+            versions_to_compare = results['glm_version'].unique()
+        assert len(versions_to_compare) == 2, 'can only compare two glm_versions. Either pass a list of two versions, or pass a results table with two versions'
+
+    if comparison_table is None:
+        comparison_table = gat.get_glm_version_comparison_table(versions_to_compare=versions_to_compare, results=results)
+
+    cre_lines = np.sort(comparison_table['cre_line'].dropna().unique())
     jointplot = sns.jointplot(
         data = comparison_table,
         x = versions_to_compare[0],
         y = versions_to_compare[1],
         hue = 'cre_line',
-        hue_order = np.sort(comparison_table['cre_line'].dropna().unique()),
+        hue_order = cre_lines,
         alpha = 0.15,
         marginal_kws = {'common_norm':False},
+        palette = [project_colors()[cre_line] for cre_line in cre_lines],
+        height = 10,
     )
 
     # add a diagonal black line
@@ -749,7 +759,9 @@ def plot_session_summary(glm):
     plt.xlabel('Cells')
 
 def plot_dropout_summary(results_summary, cell_specimen_id, ax, 
-        dropouts_to_show=None, dropouts_to_plot='both', dropouts_to_exclude=[]):
+        dropouts_to_show=None, dropouts_to_plot='both', dropouts_to_exclude=[],
+        ylabel_fontsize=22, ticklabel_fontsize=21, title_fontsize=22, legend_fontsize=18):
+
     '''
     makes bar plots of results summary
     inputs:
@@ -808,10 +820,19 @@ def plot_dropout_summary(results_summary, cell_specimen_id, ax,
         order=yorder,
         palette=['magenta','cyan'] if dropouts_to_plot == 'both' else ['cyan']
     )
-    ax.set_ylabel('', fontsize=22)
+    bar_colors = ['black','gray']
+    for row in ax.get_yticks():
+        ax.axhspan(row - 0.5, row + 0.5, color = bar_colors[row%2], alpha=0.25)
+    ax.set_ylim(ax.get_yticks().max()+0.5, ax.get_yticks().min()-0.5)
+    plt.legend(ncol=1, loc='upper left')
+    plt.setp(ax.get_legend().get_texts(), fontsize=legend_fontsize) # for legend text
+    plt.setp(ax.get_legend().get_title(), fontsize=legend_fontsize) # for legend title
+    
+    
+    ax.set_ylabel('', fontsize=ylabel_fontsize)
     # ax.set_xlabel('Fraction Change in Var Explained', fontsize=22)
-    bp.tick_params(labelsize=21)
-    ax.set_title('Fraction Change\nin Variance Explained', fontsize=22)
+    bp.tick_params(labelsize=ticklabel_fontsize)
+    ax.set_title('Fraction Change\nin Variance Explained', fontsize=title_fontsize)
 
 
 def plot_filters(glm, cell_specimen_id, n_cols=5):
@@ -827,15 +848,9 @@ def plot_filters(glm, cell_specimen_id, n_cols=5):
         for col in range(n_cols):
             if ii <= len(kernel_list) - 1:
                 kernel_name = kernel_list[ii]
-                t = np.linspace(
-                    0,
-                    glm.design.kernel_dict[kernel_name]['kernel_length_samples']/glm.fit['ophys_frame_rate'],
-                    glm.design.kernel_dict[kernel_name]['kernel_length_samples']
-                )
-                t += glm.design.kernel_dict[kernel_name]['offset_seconds']
+                
+                t_kernel, w_kernel = get_kernel_weights(glm, kernel_name, cell_specimen_id)
 
-                kernel_weight_names = [w for w in all_weight_names if w.startswith(kernel_name)]
-                w_kernel = glm.W.loc[dict(weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)]
                 ax[row,col].plot(t,w_kernel,marker='.')
                 ax[row,col].set_title(kernel_name)
                 ax[row,col].axvline(0, color='k',linestyle=':')

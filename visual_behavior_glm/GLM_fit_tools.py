@@ -1587,7 +1587,7 @@ def fit_regularized(fit_trace_arr, X, lam):
     else:
         if np.any(pd.isnull(X)):
             X = X.fillna(0)
-            warnings.warn('There are NaNs in the design matrix associated with the following regressors. They are being set to 0.\n{}'.format(
+            warnings.warn('There are NaNs in the design matrix associated with the following regressors.\n{}\nThey are being set to 0.'.format(
                 list(X[np.where(X == np.nan)].coords['weights'].values)
             ))
 

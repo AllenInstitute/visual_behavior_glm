@@ -33,7 +33,7 @@ def load_fit_experiment(ophys_experiment_id, run_params):
         design      DesignMatrix object for this experiment
     '''
     fit = gat.load_fit_pkl(run_params, ophys_experiment_id)
-    session = load_data(ophys_experiment_id)
+    session = load_data(ophys_experiment_id, run_params)
     design = DesignMatrix(fit)
     design = add_kernels(design, run_params, session,fit)
     # split by engagement
@@ -61,7 +61,7 @@ def check_run_fits(VERSION):
         experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filenamepkl) or os.path.isfile(filenamepbz2)
     return experiment_table
 
-def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
+def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     '''
         Fits the GLM to the ophys_experiment_id
         
@@ -89,7 +89,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Load Data
     print('Loading data')
-    session = load_data(oeid)
+    session = load_data(oeid, run_params)
 
     # Processing df/f data
     print('Processing df/f data')
@@ -740,14 +740,21 @@ def L2_report(fit):
     plt.plot([0,1],[0,1],'k--')
     return results
  
-def load_data(oeid):
+def load_data(oeid, run_params):
     '''
         Returns Visual Behavior ResponseAnalysis object
         Allen SDK dataset is an attribute of this object (session)
         Keyword arguments:
             oeid (int) -- ophys_experiment_id
+            run_params (dict) -- dictionary of parameters
     '''
-    dataset = loading.get_ophys_dataset(oeid, include_invalid_rois=False)
+    
+    if ('include_invalid_rois' in run_params):
+        include_invalid_rois = (run_params['include_invalid_rois'])
+    else:
+        include_invalid_rois = False
+
+    dataset = loading.get_ophys_dataset(oeid, include_invalid_rois=include_invalid_rois)
 
     return dataset
 

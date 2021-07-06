@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
             # instantiate a SLURM object
             slurm = Slurm(
-                cpus_per_task=1,
+                cpus_per_task=16,
                 job_name=job_title,
                 time=walltime.format(int(np.ceil((calculate_required_walltime(roi_count))))),
                 mem=mem.format(int(np.ceil((calculate_required_mem(roi_count)))))

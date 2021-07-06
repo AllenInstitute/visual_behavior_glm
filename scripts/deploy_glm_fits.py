@@ -98,8 +98,6 @@ if __name__ == "__main__":
 
         # calculate resource needs based on ROI count
         roi_count = experiments_table.query('ophys_experiment_id == @experiment_id').iloc[0]['roi_count']
-        walltime = 
-        job_settings['mem'] = 
 
         if args.force_overwrite or not gat.already_fit(experiment_id, args.version):
             job_count += 1

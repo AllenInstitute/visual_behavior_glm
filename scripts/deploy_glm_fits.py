@@ -112,7 +112,7 @@ if __name__ == "__main__":
                 cpus_per_task=16,
                 job_name=job_title,
                 time=walltime.format(int(np.ceil((calculate_required_walltime(roi_count))))),
-                mem=mem.format(int(np.ceil((calculate_required_mem(roi_count)))))
+                mem=mem.format(int(np.ceil((calculate_required_mem(roi_count))))),
                 output=f'{stdout_location}/{Slurm.JOB_ARRAY_MASTER_ID}_{Slurm.JOB_ARRAY_ID}.out',
             )
 

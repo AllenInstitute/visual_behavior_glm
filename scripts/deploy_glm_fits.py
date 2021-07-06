@@ -56,11 +56,6 @@ parser.add_argument(
     help='which fraction of all jobs to end on. useful if splitting jobs amongst users. Default = 1.0'
 )
 
-stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
-stdout_location = os.path.join(stdout_basedir, 'job_records_{}'.format(args.version))
-if not os.path.exists(stdout_location):
-    os.mkdir(stdout_location)
-
 def calculate_required_mem(roi_count):
     '''calculate required memory in GB'''
     return 12 + 0.25*roi_count
@@ -74,6 +69,11 @@ if __name__ == "__main__":
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
     python_file = "{}/scripts/fit_glm.py".format(args.src_path)
+
+    stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
+    stdout_location = os.path.join(stdout_basedir, 'job_records_{}'.format(args.version))
+    if not os.path.exists(stdout_location):
+        os.mkdir(stdout_location)
 
     if args.testing:
         experiments_table = gat.select_experiments_for_testing(returns = 'dataframe')

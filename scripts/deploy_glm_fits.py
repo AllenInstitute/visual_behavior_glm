@@ -56,7 +56,7 @@ parser.add_argument(
     help='which fraction of all jobs to end on. useful if splitting jobs amongst users. Default = 1.0'
 )
 
-stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/"
+stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
 stdout_location = os.path.join(stdout_basedir, 'job_records_{}'.format(args.version))
 if not os.path.exists(stdout_location):
     os.mkdir(stdout_location)

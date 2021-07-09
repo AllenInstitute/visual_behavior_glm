@@ -108,6 +108,15 @@ def color_interpolate(start, end, num,position):
     diff = (np.array(start) - np.array(end))/num
     return tuple(start-diff*position)
 
+def get_problem_sessions():
+    '''
+        Returns a list of ophys_session_ids that break various plotting codes. Specifically the problem is that these sessions were collected with a different ophys_sampling rate on mesoscope, and they need to be interpolated onto scientifica timestamps separately. For now, I am just excluding them in analyses that require interpolation onto common timestamps. 
+    
+        This list may not be exhaustive. Its just a manual list I generated when code broke. 
+    '''
+    problem_sessions = [873720614, 962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
+    return problem_sessions
+
 def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True,start=10000,end=11000):
     '''
         Plots the time points where each kernel has support 
@@ -1772,8 +1781,7 @@ def plot_all_kernel_comparison(weights_df, run_params, threshold=0.01, drop_thre
 def plot_compare_across_kernels(weights_df, run_params, kernels, threshold = 0.01,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None,normalize=True):
     version = run_params['version']
     filter_string = ''
-    problem_sessions = [873720614, 962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
-
+    problem_sessions = get_problem_sessions() 
 
     # Filter by Equipment
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
@@ -1908,8 +1916,8 @@ def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time
 
 def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],normalize=True,CMAP='Blues',in_ax=None):
     filter_string = ''
-    problem_sessions = [873720614, 962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
-
+    problem_sessions = get_problem_sessions()
+ 
     # Filter by Equipment
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
     if equipment_filter == "scientifica": 
@@ -2069,9 +2077,8 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
     filter_string = ''
-    #problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675]
-    problem_sessions = [873720614, 962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
-
+    problem_sessions = get_problem_sessions()   
+ 
     # Filter by Equipment
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
     if equipment_filter == "scientifica": 
@@ -2240,11 +2247,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
     filter_string = ''
-    problem_sessions = [873720614,962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
-    if problem_9c:
-        problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675, 822734832,843871375]
-    if problem_9d:
-        problem_sessions = [962045676, 1048363441,1050231786,1051107431,1051319542,1052096166,1052512524,1052752249,1049240847,1050929040,1052330675, 873653940, 878436988,883509540,822734832]
+    problem_sessions = get_problem_sessions()
 
     if equipment_filter == "scientifica": 
         weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')

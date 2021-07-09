@@ -50,10 +50,10 @@ def plot_nice_dropouts(VERSION):
     run_params['levels']['2'] = run_params['levels'].pop('5')
     run_params['levels']['3'] = run_params['levels'].pop('6')
     run_params['levels']['2'] = ['all-images','expectation','behavioral','cognitive']
-    cd = plot_dropouts_SAC(run_params,num_levels=3,add_text=False)
+    cd = plot_dropouts_2(run_params,num_levels=3,add_text=False)
     return cd
 
-def plot_dropouts_SAC(run_params,save_results=True,num_levels=3,add_text=True):
+def plot_dropouts_2(run_params,save_results=True,num_levels=3,add_text=True):
     '''
         Makes a visual and graphic representation of how the kernels are nested inside dropout models
         save_results (bool) if True, saves the figure
@@ -213,7 +213,7 @@ def plot_dropouts_SAC(run_params,save_results=True,num_levels=3,add_text=True):
         
     # Save results
     if save_results:
-        fig_filename = os.path.join(run_params['figure_dir'],'nested_models_'+str(num_levels)+'_SAC.png')
+        fig_filename = os.path.join(run_params['figure_dir'],'nested_models_'+str(num_levels)+'_polished.png')
         plt.savefig(fig_filename)
         #df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df

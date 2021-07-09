@@ -1,17 +1,41 @@
-import visual_behavior_glm.GLM_visualization_tools as gvt
-import visual_behavior_glm.GLM_params as glm_params
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
 import os
+import numpy as np
+import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
+import visual_behavior_glm.GLM_params as glm_params
+import visual_behavior_glm.GLM_visualization_tools as gvt
 
+def plot_all_dropouts(VERSION):
+    '''
+        Plots all kernels and all nested dropouts
+    '''
+    run_params = glm_params.load_run_json(VERSION)
+    cd = plot_dropouts(run_params)
+    return cd
 
-
-def plot_SAC_dropouts(VERSION):
+def plot_high_level_dropouts(VERSION):
     '''
         Plots the full model, major and minor components, and the features.
         Ignores time and intercept. 
+    '''
+    run_params = glm_params.load_run_json(VERSION)
+    run_params['kernels'].pop('time')
+    run_params['kernels'].pop('intercept')
+    run_params['levels'].pop('2')
+    run_params['levels'].pop('3')
+    run_params['levels']['2'] = run_params['levels'].pop('4')
+    run_params['levels']['3'] = run_params['levels'].pop('5')
+    run_params['levels']['4'] = run_params['levels'].pop('6')
+    cd = plot_dropouts(run_params,num_levels=4,add_text=False,SAC=True)
+    return cd
+
+def plot_nice_dropouts(VERSION):
+    '''
+        Plots the full model, major and minor components, and the features.
+        Ignores time and intercept.
+        Removes behavioral model
+        major components separate omissions and images  
     '''
     run_params = glm_params.load_run_json(VERSION)
     run_params['kernels'].pop('time')
@@ -25,11 +49,9 @@ def plot_SAC_dropouts(VERSION):
     run_params['levels'].pop('4')
     run_params['levels']['2'] = run_params['levels'].pop('5')
     run_params['levels']['3'] = run_params['levels'].pop('6')
-    # SAC hack
     run_params['levels']['2'] = ['all-images','expectation','behavioral','cognitive']
     cd = plot_dropouts_SAC(run_params,num_levels=3,add_text=False)
-    return cd,run_params
-
+    return cd
 
 def plot_dropouts_SAC(run_params,save_results=True,num_levels=3,add_text=True):
     '''
@@ -128,7 +150,7 @@ def plot_dropouts_SAC(run_params,save_results=True,num_levels=3,add_text=True):
     # add color of level-1 value to df['color']
     df['color'] = None
     # Get Project Colors
-    proj_colors = project_colors() 
+    proj_colors = gvt.project_colors() 
     for key in color_dict.keys():
         dropout = key.split('-')[2]
         if dropout == 'all':
@@ -195,29 +217,6 @@ def plot_dropouts_SAC(run_params,save_results=True,num_levels=3,add_text=True):
         plt.savefig(fig_filename)
         #df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
-
-
-
-
-
-
-def plot_high_level_dropouts(VERSION):
-    '''
-        Plots the full model, major and minor components, and the features.
-        Ignores time and intercept. 
-    '''
-    run_params = glm_params.load_run_json(VERSION)
-    run_params['kernels'].pop('time')
-    run_params['kernels'].pop('intercept')
-    run_params['levels'].pop('2')
-    run_params['levels'].pop('3')
-    run_params['levels']['2'] = run_params['levels'].pop('4')
-    run_params['levels']['3'] = run_params['levels'].pop('5')
-    run_params['levels']['4'] = run_params['levels'].pop('6')
-    # SAC hack
-    run_params['levels']['3'] = ['all-images','expectation','behavioral','cognitive']
-    cd = plot_dropouts(run_params,num_levels=4,add_text=False,SAC=True)
-    return cd,run_params
 
 def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True, SAC=False):
     '''

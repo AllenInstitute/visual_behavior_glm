@@ -4,6 +4,7 @@ import pandas as pd
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
 import psy_output_tools as po
 from scipy.stats import linregress
@@ -80,7 +81,10 @@ if False: # Code snippets for doing basic analyses.
     #####################
 
     # Make Nested Model plot (rainbow plot)
-    gvt.plot_dropouts(run_params)
+    # A couple versions with more or less detail
+    schematic_df = gsm.plot_all_dropouts(run_params['version']
+    schematic_df = gsm.plot_high_level_dropouts(run_params['version'])
+    schematic_df = gsm.plot_nice_dropouts(run_params['version'])
 
     # Make plot of kernel support
     gvt.plot_kernel_support(g)

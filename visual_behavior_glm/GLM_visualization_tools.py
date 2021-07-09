@@ -2778,7 +2778,7 @@ def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=
 
 
 
-def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
+def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35,dropout_df):
     ### PROBABLY BROKEN BY RECENT REFACTORING
     '''
     makes a summary figure for cosyne abstract
@@ -2787,6 +2787,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
         cell_specimen_id
         time_to_plot: time to show in center of plot for time-varying axes
         t_span: time range to show around time_to_plot, in seconds
+        dropout_df = gsp.plot_dropouts()
     '''
     fig = plt.figure(figsize=(18,10))
 
@@ -2814,7 +2815,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35):
 
 
     run_params = glm_params.load_run_json(glm.version)
-    dropout_df = plot_dropouts(run_params)
+    #dropout_df = plot_dropouts(run_params)
     palette_df = dropout_df[['color']].reset_index().rename(columns={'color':'kernel_color','index':'kernel_name'})
 
     t0, t1 = t_span

@@ -12,6 +12,10 @@ import visual_behavior.data_access.loading as loading
 import visual_behavior.database as db
 
 from sklearn.decomposition import PCA
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+
+import matplotlib.pyplot as plt
 
 def load_fit_pkl(run_params, ophys_experiment_id):
     '''
@@ -1033,6 +1037,106 @@ def get_kernel_weights(glm, kernel_name, cell_specimen_id):
 
     return t_kernel, w_kernel
 
+def unstack_results_pivoted(results_pivoted, regressors=None, use_single=True):
+    df = results_pivoted.groupby(['cell_specimen_id', 'session_number']).mean()
+    if regressors == None:
+        regressors = ['all-images', 'behavioral', 'omissions', 'task']
+    if use_single == True:
+        for regressor in regressors:
+            regressors.append('single-'+regressor)
+    df = df[regressors]
+    df_unstacked = df.unstack()
+    return df_unstacked
+
+def get_data_to_predict(df_unstacked, regressor, session_number, use_single=False):
+    session_numbers = df_unstacked[regressor].columns.values
+    session_numbers = session_numbers[session_numbers != session_number]
+
+    if use_single == True:
+        regressors = [regressor, 'single-' + regressor]
+    else:
+        regressors = [regressor]
+
+    predict_df = df_unstacked.loc[df_unstacked[regressor][session_number].isna(), regressors]
+    print('session number {}, {}'.format(session_number, regressor))
+
+    for n in session_numbers:
+        predict_df = predict_df.loc[~predict_df[regressor][n].isna(), :]
+        print(len(predict_df))
+
+    return predict_df
+
+
+def get_training_df(df_unstacked, regressor, use_single=False):
+    '''
+    This function gets cells from unstacked df that have dropout scores
+    '''
+    if use_single == True:
+        regressors = [regressor, 'single-' + regressor]
+    else:
+        regressors = [regressor]
+
+    training_df = df_unstacked[regressors].dropna(axis=0)
+
+    return training_df
+
+
+def predict_dropout_scores(df_unstacked, regressor, session_number, regr=None, use_single=False):
+    '''
+    df              unstacked df, index=cell_speciment_id, columns = regressors x session numbers
+                    (recommended to use one cre_line at a time)
+    regressor       one regressor at a time
+    session_number  one session at a time
+    regr            set-up regression model for predicting, if None, uses Random Forest Regrr
+    use_single      whether to use single dropout score for prediction also
+
+
+    '''
+
+    if regressor == 'task' and [2, 5].count(session_number) == 1:
+
+        print('cannot predict task regressor for passive sessions... \nreturning the same df')
+    else:
+
+        if regr is None:
+            regr = RandomForestRegressor(n_estimators=20, max_depth=10, random_state=0,
+                                         min_samples_split=10, criterion="mse")
+
+        # 1. Get training dataset
+        training_df = get_training_df(df_unstacked=df_unstacked, regressor=regressor, use_single=use_single)
+
+        # 2. Find cells with missing values (regressor, session_number)
+        predict_df = get_data_to_predict(df_unstacked=df_unstacked, regressor=regressor, session_number=session_number,
+                                         use_single=use_single)
+
+        # 3. Split data into two arrays for training
+        X = training_df.drop(session_number, level=1, axis=1).values
+        y = np.stack(training_df[regressor][session_number].values)
+
+        # 4. Create an array for run the model on
+        X_predict = predict_df.drop(session_number, level=1, axis=1).values
+
+        # 5. Train regr
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=0)
+        regr.fit(X_train, y_train)
+
+        # 6. Test
+        y_predicted = regr.predict(X_test)
+        plt.scatter(y_test, y_predicted)
+        plt.xlabel('tested');
+        plt.ylabel('predicted')
+
+        print('R sqed = {}'.format(regr.score(X_test, y_test)))
+
+        if len(predict_df) != 0:
+            # 7. Run on missing values
+            y_predicted = regr.predict(X_predict)
+            cell_specimen_ids = predict_df.index.values
+            # add values to the df
+            for i, csid in enumerate(cell_specimen_ids):
+                df_unstacked.loc[csid][regressor][session_number] = y_predicted[i]
+
+    return df_unstacked
 
 # NOTE:
 # Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.

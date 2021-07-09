@@ -20,6 +20,7 @@ import gc
 from scipy import ndimage
 from scipy import stats
 import scipy.cluster.hierarchy as sch
+import visual_behavior.visualization.utils as utils
 
 def project_colors():
     '''
@@ -254,7 +255,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     plt.tight_layout()
     return
 
-def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None,savefig=True):
+def plot_glm_version_comparison(comparison_table=None, results=None, versions_to_compare=None, savefig=True):
     '''
     makes a scatterplot comparing cellwise performance on two GLM versions
 
@@ -264,17 +265,27 @@ def plot_glm_version_comparison(comparison_table=None, versions_to_compare=None,
     savefig (bool) if True, saves a figure for each version in versions_to_compare
     '''
     assert not (comparison_table is None and versions_to_compare is None), 'must pass either a comparison table or a list of two versions to compare'
-    if comparison_table is None:
-        comparison_table = gat.get_glm_version_comparison_table(versions_to_compare)
+    assert not (comparison_table is not None and results is not None), 'must pass either a comparison table or a results dataframe, not both'
 
+    if results is not None:
+        if versions_to_compare is None:
+            versions_to_compare = results['glm_version'].unique()
+        assert len(versions_to_compare) == 2, 'can only compare two glm_versions. Either pass a list of two versions, or pass a results table with two versions'
+
+    if comparison_table is None:
+        comparison_table = gat.get_glm_version_comparison_table(versions_to_compare=versions_to_compare, results=results)
+
+    cre_lines = np.sort(comparison_table['cre_line'].dropna().unique())
     jointplot = sns.jointplot(
         data = comparison_table,
         x = versions_to_compare[0],
         y = versions_to_compare[1],
         hue = 'cre_line',
-        hue_order = np.sort(comparison_table['cre_line'].dropna().unique()),
+        hue_order = cre_lines,
         alpha = 0.15,
         marginal_kws = {'common_norm':False},
+        palette = [project_colors()[cre_line] for cre_line in cre_lines],
+        height = 10,
     )
 
     # add a diagonal black line
@@ -836,15 +847,9 @@ def plot_filters(glm, cell_specimen_id, n_cols=5):
         for col in range(n_cols):
             if ii <= len(kernel_list) - 1:
                 kernel_name = kernel_list[ii]
-                t = np.linspace(
-                    0,
-                    glm.design.kernel_dict[kernel_name]['kernel_length_samples']/glm.fit['ophys_frame_rate'],
-                    glm.design.kernel_dict[kernel_name]['kernel_length_samples']
-                )
-                t += glm.design.kernel_dict[kernel_name]['offset_seconds']
+                
+                t_kernel, w_kernel = get_kernel_weights(glm, kernel_name, cell_specimen_id)
 
-                kernel_weight_names = [w for w in all_weight_names if w.startswith(kernel_name)]
-                w_kernel = glm.W.loc[dict(weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)]
                 ax[row,col].plot(t,w_kernel,marker='.')
                 ax[row,col].set_title(kernel_name)
                 ax[row,col].axvline(0, color='k',linestyle=':')
@@ -3112,7 +3117,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
     else:
         fig = ax.get_figure()
 
-    dropouts_to_show = ['visual','behavioral','cognitive']
+    dropouts_to_show = ['visual', 'behavioral', 'cognitive']
     plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=palette)
     ax.tick_params(axis='both',labelsize=20)
     ax.set_ylabel('% decrease in variance explained \n when removing sets of kernels',fontsize=24)
@@ -3126,7 +3131,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=None):
+def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show =  ['visual','behavioral','cognitive'], threshold = -0.01,palette=None):
     '''
     makes bar plots of results summary
     aesthetics specific to cosyne needs
@@ -3135,7 +3140,7 @@ def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=N
 
     cre_lines = np.sort(dropout_summary['cre_line'].unique())
     
-    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < -0.01').copy()
+    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     sns.boxplot(
         data = data_to_plot,
@@ -3653,3 +3658,158 @@ def view_cell_across_sessions(cell_specimen_id, glm_version):
     fig.suptitle('Cell Specimen ID = {}, Cre line = {}, rig = {}, GLM Version = {}'.format(cell_specimen_id, row['cre_line'], row['equipment_name'], glm_version))
     
     return fig, axes
+
+
+def plot_regressor_heatmap_by_cre_line_sorted_by_MI(results_pivoted, session_numbers, regressor, model_output_type = 'adj_fraction_change_from_full',
+                                                        limit_to_nonzero=True, save_dir=None):
+
+    '''
+    Plots modulation index for the same cells in two ophys sessions.
+
+    INPUT:
+    results_pivoted       glm output with matched cells in two sessions
+    session_numbers       session numbers that the cells were matched across
+    regressor             which regressor to use for MI
+    model_output_type     this is for figure name purposes, default is 'adj_fraction_change_from_full'
+    limit_to_nonzero      default True
+    save_dir              default None, string of figure path
+
+    '''
+    figsize = (12, 8)
+    fig, ax = plt.subplots(1, 3, figsize=figsize)
+    cbar_ax = fig.add_axes([.95, .15, .03, .7])
+    for i, cre_line in enumerate(results_pivoted['cre_lines'].unique()):
+        results = results_pivoted[(results_pivoted.cre_line==cre_line)]
+        reg_values = results.pivot(index='cell_specimen_id', columns='session_number', values=regressor)
+        reg_values = reg_values.abs()
+        reg_values['MI'] = [(reg_values.loc[row][session_numbers[1]]-reg_values.loc[row][session_numbers[0]])/(reg_values.loc[row][session_numbers[1]]+reg_values.loc[row][session_numbers[0]]) for row in reg_values.index.values]
+        reg_values = reg_values.sort_values(by=['MI'])
+        if limit_to_nonzero:
+            reg_values = reg_values.dropna()
+            suffix = '_nonzero'
+        else:
+            suffix = ''
+        index_label = '('+str(session_numbers[1])+'-'+str(session_numbers[0])+')/('+str(session_numbers[1])+'+'+str(session_numbers[0])+')'
+        ax[i] = sns.heatmap(reg_values.values, ax = ax[i], cmap='RdBu',
+                            vmin=-1, vmax=1, cbar_kws={'label':model_output_type+'\n'+index_label}, cbar_ax=cbar_ax)
+        ax[i].set_title(cre_line)
+        ax[i].set_xticklabels(session_numbers+['MI'])
+        ax[i].set_ylabel('cell number')
+    fig.suptitle(regressor+', sessions '+str(session_numbers[0])+' - '+str(session_numbers[1]), x=0.51, y=0.99, fontsize=22)
+    plt.subplots_adjust(wspace=0.5)
+    if save_dir:
+        if 'single' in regressor:
+            utils.save_figure(fig, figsize, os.path.join(save_dir, 'regressor_heatmaps\single'),'sorted_by_MI'+suffix, model_output_type+'_'+regressor+'_'+str(session_numbers[0])+'_'+str(session_numbers[1])+'_MI')
+        else:
+            utils.save_figure(fig, figsize, os.path.join(save_dir, 'regressor_heatmaps\standard'), 'sorted_by_MI'+suffix, model_output_type+'_'+regressor+'_'+str(session_numbers[0])+'_'+str(session_numbers[1])+'_MI')
+
+def plot_var_explained(results_summary, figsize=(10,6)):
+    fig, ax = plt.subplots(figsize=figsize)
+
+    cre_lines = np.sort(results_summary['cre_line'].unique())
+    colors = project_colors()
+    palette = [colors[cre_line] for cre_line in cre_lines]
+
+    sns.boxplot(
+        data = results_summary,
+        y = 'Full__avg_cv_var_test',
+        x = 'session_number',
+        hue = 'cre_line',
+        palette = palette, 
+        whis = np.inf,
+        ax = ax
+    )
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    fig.tight_layout()
+
+    
+def plot_sample_cells(glm, cell_specimen_ids, t0, t1, figwidth=8, height_per_cell=1, title='cell_specimen_id'):
+    '''
+    makes a plot of each of the example cells in the list of cell_specimen_ids
+    inputs:
+        glm: an instance of the GLM class
+        cell_specimen_ids: a list of cell specimen IDs. Must be valid IDs for the session.
+        t0, t1: initial and final time for the plots
+        figwidth: width of figure (default = 8)
+        height_per_cell: height of each subfigure (default = 1). Total figure height will be height_per_cell*len(cell_specimen_ids)
+        title: If 'cell_specimen_id' is specified (default), the cell specimen ID will be displayed in the title. Otherwise, it will say 'Example cell N'
+    returns:
+        fig, ax: matplotlib figure and axes
+    '''
+    fig, ax = plt.subplots(len(cell_specimen_ids), 1, figsize = (figwidth, height_per_cell*len(cell_specimen_ids)), sharex=True)
+
+    # load the cell results df. This takes about 30 seconds.
+    # If it's called as an attribute in the loop, it has to be reloaded on each call since it's not a cached attribute (at least for python < 3.8)
+    cell_results_df = glm.cell_results_df
+
+    # iterate over cell ids
+    for row, cell_specimen_id in enumerate(cell_specimen_ids):
+        # get the cell results for this cell between the desired times
+        query_string = 'cell_specimen_id == {} and fit_trace_timestamps >= {} and fit_trace_timestamps <= {}'.format(
+            cell_specimen_id,
+            t0,
+            t1,
+        )
+        local_df = cell_results_df.query(query_string)
+
+        # determine whether the input model used dff or events, set some variables appropriately
+        if glm.run_params['use_events']:
+            y = 'events'
+            ylabel = 'event\nmagnitude'
+            color = 'cornflowerblue'
+        else:
+            y = 'dff'
+            ylabel = r'$\Delta$F/F'
+            color = 'green'
+            
+        # plot the data (be it dff or events)
+        ax[row].plot(
+            local_df['fit_trace_timestamps'],
+            local_df[y],
+            color = color,
+            linewidth = 2,
+        )
+
+        # now plot the fit
+        ax[row].plot(
+            local_df['fit_trace_timestamps'],
+            local_df['model_prediction'],
+            color = 'black',
+            linewidth = 2,
+        )
+
+        # determine what to display in title
+        if title == 'cell_specimen_id':
+            title_string = 'cell_specimen_id = '
+            value = cell_specimen_id
+        else:
+            title_string = 'example cell '
+            value = row + 1
+
+        # now add the title
+        ax[row].set_title(
+            '{} {}, variance_explained = {:0.2f}'.format(
+                title_string,
+                value, 
+                glm.results.loc[cell_specimen_id]['Full__avg_cv_var_test']
+            )
+        )
+        # add the ylabel
+        ax[row].set_ylabel(ylabel, rotation=0, labelpad=35, fontsize=12)
+        
+        # plot vertical bars for stimuli
+        plot_stimuli(glm.session.stimulus_presentations, ax[row], t_span=(t0, t1), alpha=.25)
+        
+        # set the xlims
+        ax[row].set_xlim(t0, t1)
+        
+    # add a legend
+    ax[0].legend([y, 'model fit'], loc = 'upper left')
+
+    # some final formatting
+    ax[row].set_xlabel('time in session (s)', fontsize=12)
+    sns.despine()
+    fig.tight_layout()
+
+    return fig, ax
+

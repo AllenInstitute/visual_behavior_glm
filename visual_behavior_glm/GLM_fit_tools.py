@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 import visual_behavior.data_access.loading as loading
+import visual_behavior.data_access.reformat as reformat
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
 import visual_behavior_glm.GLM_analysis_tools as gat
 
@@ -35,6 +36,8 @@ def load_fit_experiment(ophys_experiment_id, run_params):
     session = load_data(ophys_experiment_id)
     design = DesignMatrix(fit)
     design = add_kernels(design, run_params, session,fit)
+    # split by engagement
+    design,fit = split_by_engagement(design, run_params, session, fit)
     return session, fit, design
 
 def check_run_fits(VERSION):
@@ -99,6 +102,9 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
 
+    # split by engagement
+    design,fit = split_by_engagement(design, run_params, session, fit)
+
     # Set up CV splits
     print('Setting up CV')
     fit['splits'] = split_time(fit['fit_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
@@ -120,13 +126,13 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
     fit = evaluate_models(fit, design, run_params)
 
     # Start Diagnostic analyses
-    if not NO_DROPOUTS:
+    if (not NO_DROPOUTS) & fit['ok_to_fit_preferred_engagement']:
         print('Starting diagnostics')
         print('Bootstrapping synthetic data')
         fit = bootstrap_model(fit, design, run_params)
 
     # Perform shuffle analysis, with two shuffle methods
-    if not NO_DROPOUTS:
+    if (not NO_DROPOUTS) & fit['ok_to_fit_preferred_engagement']:
         print('Evaluating shuffle fits')
         fit = evaluate_shuffle(fit, design, method='cells')
         fit = evaluate_shuffle(fit, design, method='time')
@@ -316,6 +322,19 @@ def evaluate_ridge(fit, design,run_params):
     if run_params['L2_use_fixed_value']:
         print('Using a hard-coded regularization value')
         fit['avg_regularization'] = run_params['L2_fixed_lambda']
+    elif not fit['ok_to_fit_preferred_engagement']:
+        print('\tSkipping ridge evaluation because insufficient preferred engagement timepoints')
+        fit['avg_regularization'] = np.nan      
+        fit['cell_regularization'] = np.empty((fit['fit_trace_arr'].shape[1],))
+        fit['L2_test_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
+        fit['L2_train_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
+        fit['L2_at_grid_min'] = np.empty((fit['fit_trace_arr'].shape[1],))
+        fit['L2_at_grid_max'] = np.empty((fit['fit_trace_arr'].shape[1],))
+        fit['cell_regularization'][:] = np.nan
+        fit['L2_test_cv'][:] = np.nan
+        fit['L2_train_cv'][:] =np.nan
+        fit['L2_at_grid_min'][:] =np.nan
+        fit['L2_at_grid_max'][:] =np.nan
     else:
         print('Evaluating a grid of regularization values')
         if run_params['L2_grid_type'] == 'log':
@@ -358,7 +377,40 @@ def evaluate_models(fit, design, run_params):
         Evaluates the model selections across all dropouts using either the single L2 value, or each cell's optimal value
 
     '''
-    if run_params['L2_use_fixed_value'] or run_params['L2_optimize_by_session']:
+    if not fit['ok_to_fit_preferred_engagement']:
+        print('\tSkipping model evaluate because insufficient preferred engagement timepoints')
+        cellids = fit['fit_trace_arr']['cell_specimen_id'].values
+        W = np.empty((0,fit['fit_trace_arr'].shape[1]))
+        W[:] = np.nan
+        dummy_weights= xr.DataArray(
+            W, 
+            dims =('weights','cell_specimen_id'), 
+            coords = {  'weights':[], 
+                        'cell_specimen_id':cellids}
+            )
+        fit['dropouts']['Full']['cv_weights']      = np.empty((0,fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        fit['dropouts']['Full']['cv_var_train']    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_var_test']     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_adjvar_train'] = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_adjvar_test']  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_adjvar_train_full_comparison'] = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_adjvar_test_full_comparison']  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['train_weights'] = dummy_weights # Needs to be xarray
+        fit['dropouts']['Full']['train_variance_explained']    = np.empty((fit['fit_trace_arr'].shape[1],)) 
+        fit['dropouts']['Full']['train_adjvariance_explained'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
+        fit['dropouts']['Full']['full_model_train_prediction'] = np.empty((0,fit['fit_trace_arr'].shape[1]))
+        fit['dropouts']['Full']['cv_weights'][:]      = np.nan
+        fit['dropouts']['Full']['cv_var_train'][:]    = np.nan
+        fit['dropouts']['Full']['cv_var_test'][:]     = np.nan
+        fit['dropouts']['Full']['cv_adjvar_train'][:] = np.nan
+        fit['dropouts']['Full']['cv_adjvar_test'][:]  = np.nan
+        fit['dropouts']['Full']['cv_adjvar_train_full_comparison'][:] = np.nan
+        fit['dropouts']['Full']['cv_adjvar_test_full_comparison'][:]  = np.nan
+        fit['dropouts']['Full']['train_variance_explained'][:]    = np.nan 
+        fit['dropouts']['Full']['train_adjvariance_explained'][:] = np.nan 
+        fit['dropouts']['Full']['full_model_train_prediction'][:] = np.nan  
+        return fit
+    if run_params['L2_use_fixed_value'] or run_params['L2_optimize_by_session'] :
         print('Using a constant regularization value across all cells')
         return evaluate_models_same_ridge(fit,design, run_params)
     else:
@@ -819,7 +871,64 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['events_trace_arr'] = trace_tuple[2]
     fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
     fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
-    fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate'] 
+    fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
+    
+    # If we are splitting on engagement, then determine the engagement timepoints
+    if run_params['split_on_engagement']:
+        print('Adding Engagement labels. Preferred engagement state: '+run_params['engagement_preference'])
+        fit = add_engagement_labels(fit, session, run_params)
+    else:
+        fit['ok_to_fit_preferred_engagement'] = True
+    return fit
+
+def add_engagement_labels(fit, session, run_params):
+    '''
+        Adds a boolean vector 'engaged' to the fit dictionary based on the reward rate
+        
+        The reward rate is determined on an image by image basis by comparing the reward rate to a fixed threshold. Therefore the 
+        engagement state only changes at the start/end of each image cycle
+    '''
+    
+
+    # Debugging session with model fit
+    # BSID 965505185
+    # OEID 965928394
+
+    # Reward rate calculation parameters, hard-coded here
+    reward_threshold=1/90
+    win_dur=320
+    win_type='triang'
+
+    # Get reward rate
+    session.stimulus_presentations = reformat.add_rewards_each_flash(session.stimulus_presentations,session.rewards)
+    session.stimulus_presentations['rewarded'] = [len(x) > 0 for x in session.stimulus_presentations['rewards']]
+    session.stimulus_presentations['reward_rate'] = session.stimulus_presentations['rewarded'].rolling(win_dur,min_periods=1,win_type=win_type).mean()/.75
+    session.stimulus_presentations['engaged']= [x > reward_threshold for x in session.stimulus_presentations['reward_rate']]    
+
+    # Make dataframe with start/end of each image cycle pinned with correct engagement value
+    start_df = session.stimulus_presentations[['start_time','engaged']].copy()
+    end_df = session.stimulus_presentations[['start_time','engaged']].copy()
+    end_df['start_time'] = end_df['start_time']+0.75
+    engaged_df = pd.concat([start_df,end_df])
+    engaged_df = engaged_df.sort_values(by='start_time').rename(columns={'start_time':'timestamps','engaged':'values'})  
+    
+    # Interpolate onto fit timestamps
+    fit['engaged']= interpolate_to_ophys_timestamps(fit,engaged_df)['values'].values 
+    print('\t% of session engaged:    '+str(np.sum(fit['engaged'])/len(fit['engaged'])))
+    print('\t% of session disengaged: '+str(1-np.sum(fit['engaged'])/len(fit['engaged'])))
+
+    # Check min_engaged_duration:
+    seconds_in_engaged = np.sum(fit['engaged'])/fit['ophys_frame_rate']
+    seconds_in_disengaged = np.sum(~fit['engaged'].astype(bool))/fit['ophys_frame_rate']
+    if run_params['engagement_preference'] == 'engaged':
+        fit['preferred_engagement_state_duration'] = seconds_in_engaged
+        fit['ok_to_fit_preferred_engagement'] = seconds_in_engaged > run_params['min_engaged_duration']
+    else:
+        fit['preferred_engagement_state_duration'] = seconds_in_disengaged
+        fit['ok_to_fit_preferred_engagement'] = seconds_in_disengaged > run_params['min_engaged_duration']
+    
+    if not fit['ok_to_fit_preferred_engagement']:
+        print('WARNING, insufficient time points in preferred engagement state. This model will not fit') 
     return fit
 
 def add_kernels(design, run_params,session, fit):
@@ -838,7 +947,7 @@ def add_kernels(design, run_params,session, fit):
     run_params['failed_kernels']=set()
     run_params['failed_dropouts']=set()
     run_params['kernel_error_dict'] = dict()
-    for kernel_name in run_params['kernels']:
+    for kernel_name in run_params['kernels']:          
         if run_params['kernels'][kernel_name]['type'] == 'discrete':
             design = add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit)
         else:
@@ -855,7 +964,8 @@ def clean_failed_kernels(run_params):
     if run_params['failed_kernels']:
         print('The following kernels failed to be added to the model: ')
         print(run_params['failed_kernels'])
-    
+        print()   
+ 
     # Iterate failed kernels
     for kernel in run_params['failed_kernels']:     
         # Remove the failed kernel from the full list of kernels
@@ -889,6 +999,7 @@ def clean_failed_kernels(run_params):
     if run_params['failed_dropouts']:
         print('The following dropouts failed to be added to the model: ')
         print(run_params['failed_dropouts'])
+        print()
 
 
 def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit):
@@ -903,6 +1014,10 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
     print('    Adding kernel: '+kernel_name)
     try:
         event = run_params['kernels'][kernel_name]['event']
+
+        if not fit['ok_to_fit_preferred_engagement']:
+            raise Exception('\tInsufficient time points to add kernel')
+
         if event == 'intercept':
             timeseries = np.ones(len(fit['fit_trace_timestamps']))
         elif event == 'time':
@@ -951,7 +1066,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         else:
             raise Exception('Could not resolve kernel label')
     except Exception as e:
-        print('Error encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
+        print('\tError encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
         print(e)
         # Need to remove from relevant lists
         run_params['failed_kernels'].add(kernel_name)      
@@ -1014,6 +1129,8 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     ''' 
     print('    Adding kernel: '+kernel_name)
     try:
+        if not fit['ok_to_fit_preferred_engagement']:
+            raise Exception('\tInsufficient time points to add kernel') 
         event = run_params['kernels'][kernel_name]['event']
         if event == 'licks':
             event_times = session.licks['timestamps'].values
@@ -1035,7 +1152,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = session.rewards['timestamps'].values
         elif event == 'change':
             #event_times = session.trials.query('go')['change_time'].values # This method drops auto-rewarded changes
-            event_times = session.stimulus_presentations.query('change')['start_time'].values
+            event_times = session.stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]
         elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
             if event == 'hit': # Includes auto-rewarded changes as hits, since they include a reward. 
@@ -1047,8 +1164,8 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
                 raise Exception('Trial type regressors arent defined for passive sessions (sessions with less than 5 rewards)')
         elif event == 'passive_change':
             if len(session.rewards) > 5: 
-                raise Exception('Passive Change kernel cant be added to active sessions')               
-            event_times = session.stimulus_presentations.query('change')['start_time'].values
+                raise Exception('\tPassive Change kernel cant be added to active sessions')               
+            event_times = session.stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]           
         elif event == 'any-image':
             event_times = session.stimulus_presentations.query('not omitted')['start_time'].values
@@ -1059,13 +1176,19 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'omissions':
             event_times = session.stimulus_presentations.query('omitted')['start_time'].values
         elif (len(event)>5) & (event[0:5] == 'image'):
-            event_times = session.stimulus_presentations.query('image_index == @event[-1]')['start_time'].values
+            event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
         else:
-            raise Exception('Could not resolve kernel label')
+            raise Exception('\tCould not resolve kernel label')
+
+        # Ensure minimum number of events
         if len(event_times) < 5: # HARD CODING THIS VALUE HERE
-            raise Exception('Less than minimum number of events: '+str(len(event_times)) +' '+event)
+            raise Exception('\tLess than minimum number of events: '+str(len(event_times)) +' '+event)
+    
+        # Ensure minimum number of events in preferred engagement state
+        check_by_engagement_state(run_params, fit, event_times,event)
+
     except Exception as e:
-        print('Error encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel. ' )
+        print('\tError encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel.' )
         print(e)
         # Need to remove from relevant lists
         run_params['failed_kernels'].add(kernel_name)      
@@ -1091,6 +1214,31 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
 
         design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
         return design
+
+def check_by_engagement_state(run_params, fit,event_times,event):
+    if not run_params['split_on_engagement']:
+        return
+
+    # Bin events onto fit_trace_timestamps    
+    events_vec, timestamps = np.histogram(event_times, bins=fit['fit_trace_bins'])    
+    if event == 'lick_bouts': 
+        # Force this to be 0 or 1, since we purposefully over-tiled the space. 
+        events_vec[events_vec > 1] = 1
+
+    # filter by engagement state
+    if run_params['engagement_preference'] == 'engaged': 
+        preferred_engagement_state_event_times = events_vec[fit['engaged'].astype(bool)]
+        nonpreferred_engagement_state_event_times = events_vec[~fit['engaged'].astype(bool)]
+    else:
+        preferred_engagement_state_event_times = events_vec[~fit['engaged'].astype(bool)]
+        nonpreferred_engagement_state_event_times = events_vec[fit['engaged'].astype(bool)]
+    # Check to see if we have enough
+    if np.sum(preferred_engagement_state_event_times) < 5:
+        raise Exception('\tLess than minimum number of events in preferred engagement state: '+str(np.sum(preferred_engagement_state_event_times)) +' '+event+
+        '\n\tTotal number of events: '+str(len(event_times))+
+        '\n\tPreferred events:       '+str(np.sum(preferred_engagement_state_event_times))+
+        '\n\tNon-Preferred events:   '+str(np.sum(nonpreferred_engagement_state_event_times)))    
+
 
 class DesignMatrix(object):
     def __init__(self, fit_dict):
@@ -1128,7 +1276,13 @@ class DesignMatrix(object):
             X = self.get_X(kernels=kernels) 
         mask = np.any(~(X==0), axis=1)
         return mask.values
- 
+    
+    def trim_X(self,boolean_mask):
+        for kernel in self.kernel_dict.keys():
+            self.kernel_dict[kernel]['kernel'] = self.kernel_dict[kernel]['kernel'][:,boolean_mask] 
+        for event in self.events.keys():  
+            self.events[event] = self.events[event][boolean_mask]
+    
     def get_X(self, kernels=None):
         '''
         Get the design matrix. 
@@ -1210,6 +1364,35 @@ class DesignMatrix(object):
             }
         self.running_stop += kernel_length_samples
 
+def split_by_engagement(design, run_params, session, fit):
+    '''
+        Splits the elements of fit and design matrix based on the engagement preference
+    '''
+    
+    # If we aren't splitting by engagement, do nothing and return
+    if not run_params['split_on_engagement']:
+        return design, fit
+    
+    print('Splitting fit dictionary entries by engagement')
+
+    # Set up time arrays, and dff/events arrays to match engagement preference
+    fit['engaged_trace_arr'] = fit['fit_trace_arr'][fit['engaged'].astype(bool),:]
+    fit['disengaged_trace_arr'] = fit['fit_trace_arr'][~fit['engaged'].astype(bool),:]
+    fit['engaged_trace_timestamps'] = fit['fit_trace_timestamps'][fit['engaged'].astype(bool)]
+    fit['disengaged_trace_timestamps'] =fit['fit_trace_timestamps'][~fit['engaged'].astype(bool)]
+    fit['full_trace_arr'] = fit['fit_trace_arr']
+    fit['full_trace_timestamps'] = fit['fit_trace_timestamps']    
+    fit['fit_trace_arr'] = fit[run_params['engagement_preference']+'_trace_arr']
+    fit['fit_trace_timestamps'] = fit[run_params['engagement_preference']+'_trace_timestamps']
+
+    # trim design matrix  
+    print('Trimming Design Matrix by engagement')
+    if run_params['engagement_preference'] == 'engaged':
+        design.trim_X(fit['engaged'].astype(bool))
+    else:
+        design.trim_X(~fit['engaged'].astype(bool)) 
+ 
+    return design,fit
 
 def split_time(timebase, subsplits_per_split=10, output_splits=6):
     '''

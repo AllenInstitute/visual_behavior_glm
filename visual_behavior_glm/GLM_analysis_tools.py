@@ -133,7 +133,7 @@ def generate_results_summary_adj(glm):
             results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
 
         # pivot the table on the dropout names
-        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'],dropna=False)
         results_summary.columns = results_summary.columns.droplevel()
         results_summary = results_summary.rename(columns={
             'avg_cv_adjvar_test': 'adj_variance_explained',
@@ -173,7 +173,7 @@ def generate_results_summary_nonadj(glm):
             results_summary.at[idx,'type'] = row['dropout_name'].split('__')[1]
 
         # pivot the table on the dropout names
-        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'])
+        results_summary = pd.pivot_table(results_summary.drop(columns=['dropout_name']), index=['dropout'],columns=['type'],values =['variance_explained'],dropna=False)
         results_summary.columns = results_summary.columns.droplevel()
         results_summary = results_summary.rename(columns={
             'avg_cv_var_test':'variance_explained',
@@ -469,7 +469,7 @@ def get_roi_count(ophys_experiment_id):
     df = db.lims_query(query)
     return df['valid_roi'].sum()
 
-def retrieve_results(search_dict={}, results_type='full'):
+def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True):
     '''
     gets cached results from mongodb
     input:
@@ -482,42 +482,57 @@ def retrieve_results(search_dict={}, results_type='full'):
                 Each row contains a `dropout` label describing the particular dropout coefficent(s) that apply to that row. 
                 All derived values (`variance_explained`, `fraction_change_from_full`, `absolute_change_from_full`) 
                 are calculated only on test data, not train data.
+        return_list - a list of columns to return. Returning fewer columns speeds queries
+        merge_in_experiment_metadata - boolan which, if True, merges in data from experiment table
     output:
         dataframe of results
     '''
+    if return_list is None:
+        return_dict = {'_id': 0}
+    else:
+        return_dict = {v: 1 for v in return_list}
+        if '_id' not in return_list:
+            # don't return `_id` unless it was specifically requested
+            return_dict.update({'_id': 0})
+
     conn = db.Database('visual_behavior_data')
     database = 'ophys_glm'
-    results = pd.DataFrame(list(conn[database]['results_{}'.format(results_type)].find(search_dict)))
+    results = pd.DataFrame(list(conn[database]['results_{}'.format(results_type)].find(search_dict, return_dict)))
 
     # make 'glm_version' column a string
-    results['glm_version'] = results['glm_version'].astype(str)
+    if 'glm_version' in results.columns:
+        results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
 
-    # get experiment table, merge in details of each experiment
-    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
-    results = results.merge(
-        experiment_table, 
-        left_on='ophys_experiment_id',
-        right_on='ophys_experiment_id', 
-        how='left',
-        suffixes=['', '_duplicated'],
-    )
+    if merge_in_experiment_metadata:
+        # get experiment table, merge in details of each experiment
+        experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+        results = results.merge(
+            experiment_table, 
+            left_on='ophys_experiment_id',
+            right_on='ophys_experiment_id', 
+            how='left',
+            suffixes=['', '_duplicated'],
+        )
+
     duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
     return results.drop(columns=duplicated_cols)
 
 def make_identifier(row):
     return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
 
-def get_glm_version_comparison_table(versions_to_compare, metric='Full__avg_cv_var_test'):
+def get_glm_version_comparison_table(versions_to_compare, results=None, metric='Full__avg_cv_var_test'):
     '''
     builds a table that allows to glm versions to be directly compared
     input is list of glm versions to compare (list of strings)
+    if results dataframe is not passed, it will be queried from Mongo
     '''
-    results = []
-    for glm_version in versions_to_compare:
-        results.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
-    results = pd.concat(results, sort=True)
-    
+    if results is None:
+        results = []
+        for glm_version in versions_to_compare:
+            results.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
+        results = pd.concat(results, sort=True)
+
     results['identifier'] = results.apply(make_identifier, axis=1)
     pivoted_results = results.pivot(index='identifier', columns='glm_version',values=metric)
     cols= [col for col in results.columns if col not in pivoted_results.columns and 'test' not in col and 'train' not in col and '__' not in col and 'dropout' not in col]
@@ -689,6 +704,8 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
    
     # Make dataframe for cells and experiments 
     oeids = results_pivoted['ophys_experiment_id'].unique() 
+    if len(oeids) == 0:
+        return None
 
     # For each experiment, get the weight matrix from mongo (slow)
     # Then pull the weights from each kernel into a dataframe
@@ -730,7 +747,291 @@ def compute_over_fitting_proportion(results_full,run_params):
     for d in dropouts:
         if d+'__avg_cv_var_train' in results_full.columns:
             results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
- 
+    return
+
+
+def find_best_session(results_pivoted, session_number, mouse_id=None, novelty=False):
+    '''
+        If there are multiple retakes of the same ophys session type, picks one with most 
+        registered neurons.
+        If novelty is True, picks ophys session with prior exposure to session type = 0
+        Returns one ophys session id if there is one, returns None if there is none that meet
+        novelty criteria.
+
+        INPUT:
+        results_pivoted     glm output with each regressor as a column
+        mouse_id            pick one mouse id at a time
+        session_number      pick one session type at a time (1,2...6)
+        novelty             default = False, if set to True = not a retake
+
+        RETURNS:
+        session_number      ophys session number if one is found, None otherwise
+
+    '''
+    if mouse_id is not None:  # get glm from one mouse
+        df = results_pivoted[(results_pivoted['mouse_id'] == mouse_id) &
+                             (results_pivoted['session_number'] == session_number)]
+    else:
+        df = results_pivoted[results_pivoted['session_number']
+                             == session_number]
+
+    sessions = df['ophys_session_id'].unique()
+    #print('found {} session(s)...'.format(len(sessions)))
+
+
+    if len(sessions) == 1 and novelty == False:  # one session
+        session_to_use = sessions[0]
+
+    elif not list(sessions):  # no sessions
+        session_to_use = None
+
+    elif novelty == True:  # novel session
+        try:
+            session_to_use = df[df['prior_exposures_to_session_type'] == 0]['ophys_session_id'].unique()[0]
+        except:
+            print('no novel session, id = {}...'.format(df['ophys_session_id'].unique()))
+            session_to_use = None
+
+    else:  # go through sessions and find the one with most registered neurons
+        n_csids = 0  # number of cell specimen ids
+
+        for session in sessions:
+            n_csid = len(df[df['ophys_session_id'] == session]
+                         ['cell_specimen_id'])
+
+            if n_csid > n_csids:
+                n_csids = n_csid
+                session_to_use = session
+
+    return session_to_use
+
+
+def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, novelty=None):
+    '''
+        Finds cells with the same cell ids across sessions
+        INPUT:
+        results_pivoted_sel     results_pivoted dataframe without retakes with cell_specimen_id,
+                                session_number, mouse_id, and ophys_session_id as columns
+        session_numbers         session numbers to compare 
+        novelty                 default None, if there are retakes, assumes novelty = True for ophys 4.
+                                Set to False if novelty of ophys 4 is not a priority
+
+        RETURNS:
+        matched_cell_ids        an array of cell specimen ids matched across sessions
+        ophys_session_ids       an array of ophys_session_ids, where the cell ids came from
+
+    '''
+
+    # check for retakes first. You cannot match cells if there are more than one of the same session type.
+    ophys_session_ids = []
+    tmp = results_pivoted_sel[['mouse_id', 'session_number']].drop_duplicates()
+    session_N = tmp.groupby(['mouse_id', 'session_number'])['session_number'].value_counts()
+
+    if session_N.unique() != [1]:
+
+        print('glm output contains retakes; cant match cells')
+        matched_cell_ids = None
+    else:
+
+        # start with all cell ids
+        matched_cell_ids = results_pivoted_sel['cell_specimen_id'].unique()
+
+        for session_number in session_numbers:
+            df = results_pivoted_sel[results_pivoted_sel['session_number'] == session_number]
+            matched_cell_ids = np.intersect1d(matched_cell_ids, df['cell_specimen_id'].values)
+            try:
+                ophys_session_ids.append(df['ophys_session_id'].unique()[0])
+            except:
+                print('no matches')
+
+    return matched_cell_ids, ophys_session_ids
+
+
+def drop_cells_with_nan(results_pivoted, regressor):
+    '''
+        Find cells that have NaN dropout scores in either one or more ophys sessions
+        and drop them in all ophys sessions. Returns glm df without those cells.
+
+        INPUT:
+        results_pivoted    glm output with regressors as columns
+        regressor          name of the regressor
+
+        RETURNS:
+        results_pivoted_without_nan 
+    '''
+    cell_with_nan = results_pivoted[results_pivoted[regressor].isnull()]['cell_specimen_id'].values
+    results_pivoted_without_nan = results_pivoted[~results_pivoted['cell_specimen_id'].isin(cell_with_nan)]
+    return results_pivoted_without_nan
+
+
+def get_matched_mouse_ids(results_pivoted, session_numbers):
+    '''
+        Find mouse ids that have matched ophys sessions.
+
+        INPUT:
+        results_pivoted     glm output with regressors as columns
+        ression_numbers     session numbers to match
+
+        RETURNS:
+        mouse_ids           an array with mouse ids that have all listed session numbers
+    '''
+
+    mouse_ids = results_pivoted['mouse_id'].unique()
+    for session_number in session_numbers:
+        mouse_id = results_pivoted[results_pivoted['session_number']
+                                   == session_number]['mouse_id'].unique()
+        mouse_ids = np.intersect1d(mouse_ids, mouse_id)
+    return mouse_ids
+
+
+def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers=None):
+    '''
+        Selects only neurons what are explained above threshold var. 
+        In_session_numbers allows you specify with sessions to check. 
+
+        INPUT: 
+        results_pivoted           glm output witt session_number and variance_explained_full as columns
+        in_session_numbers        an array of session number(s) to check. 
+
+        RETURNS:
+        results_pivoted_var glm output with cells above threshold of var explained, unmatched cells
+    '''
+    good_cell_ids = results_pivoted[results_pivoted['variance_explained_full']
+                       > threshold]['cell_specimen_id'].unique()
+
+    if in_session_numbers is not None:
+        for session_number in in_session_numbers:
+            cell_ids = results_pivoted[(results_pivoted['session_number'] == session_number) &
+                                       (results_pivoted['variance_explained_full'] > threshold)]['cell_specimen_id'].unique()
+            good_cell_ids = np.intersect1d(good_cell_ids, cell_ids)
+    else:
+        good_cell_ids = results_pivoted[results_pivoted['variance_explained_full']
+                           > threshold]['cell_specimen_id'].unique()
+
+    results_pivoted_var = results_pivoted[results_pivoted['cell_specimen_id'].isin(
+        good_cell_ids)].copy()
+
+    return results_pivoted_var
+          
+
+
+def inventory_glm_version(glm_version):
+    '''
+    checks to see which experiments and cell_roi_ids do not yet exist for a given GLM version
+    inputs:
+        glm_version: string
+        
+    returns: dict
+        {
+            'missing_experiments': a list of missing experiment IDs
+            'missing_rois': a list of missing cell_roi_ids
+            'incomplete_experiments': a list of experiments which exist, but for which the cell_roi_id list is incomplete
+        }
+    '''
+    glm_results = retrieve_results(
+        search_dict = {'glm_version': glm_version},
+        return_list = ['ophys_experiment_id', 'cell_specimen_id', 'cell_roi_id'],
+        merge_in_experiment_metadata=False
+    )
+    cell_table = loading.get_cell_table(columns_to_return = ['ophys_experiment_id','cell_specimen_id', 'cell_roi_id'])
+
+    missing_experiments = list(
+        set(cell_table['ophys_experiment_id'].unique()) - 
+        set(glm_results['ophys_experiment_id'].unique())
+    )
+
+    missing_rois = list(
+        set(cell_table['cell_roi_id'].unique()) - 
+        set(glm_results['cell_roi_id'].unique())
+    )
+
+    # get any experiments for which the ROI count is incomplete. These are 'incomplete_experiments'
+    incomplete_experiments = []
+    additional_missing_cells = list(
+        set(cell_table.query('ophys_experiment_id in {}'.format(list(glm_results['ophys_experiment_id'].unique())))['cell_roi_id']) - 
+        set(glm_results['cell_roi_id'])
+    )
+    for missing_cell in additional_missing_cells:
+        associated_oeid = cell_table.query('cell_roi_id == @missing_cell_id').iloc[0]['ophys_experiment_id']
+        # only append an experiment to the incomplete experiments list if it's not already in the list
+        incomplete_experiments.append(associated_oeid) if associated_oeid not in incomplete_experiments else None
+
+    return {'missing_experiments': missing_experiments, 'missing_rois': missing_rois, 'incomplete_experiments': incomplete_experiments}
+  
+  
+def select_experiments_for_testing(returns = 'experiment_ids'):
+    '''
+    This function will return 10 hand-picked experiment IDs to use for testing purposes.
+    This will allow multiple versions to test against the same small set of experiments.
+
+    Experiments were chosen as follows:
+        2x OPHYS_2_passive
+        2x OPHYS_5_passive
+        2x active w/ fraction engaged < 0.05 (1 @ 0.00, 1 @ 0.02)
+        2x active w/ fraction engaged > 0.99 (1 @ 0.97, 1 @ 0.98)
+        2x active w/ fraction engaged in range (0.4, 0.6) (1 @ 0.44, 1 @ 0.59)
+
+    Parameters:
+    ----------
+    returns : str
+        either 'experiment_ids' or 'dataframe'
+
+    Returns:
+    --------
+    if returns == 'experiment_ids' (default)
+        list of 10 pre-chosen experiment IDs
+    if returns == 'dataframe':
+        experiment table for 10 pre-chosen experiments
+    '''
+
+    test_experiments = pd.read_csv('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/experiments_for_testing.csv')
+
+    if returns == 'experiment_ids':
+        return test_experiments['ophys_experiment_id'].unique()
+    elif returns == 'dataframe':
+        return test_experiments
+
+
+def get_kernel_weights(glm, kernel_name, cell_specimen_id):
+    '''
+    gets the weights associated with a given kernel for a given cell_specimen_id
+
+    inputs:
+        glm : GLM class
+        kernel_name : str
+            name of desired kernel
+        cell_specimen_id : int
+            desired cell specimen ID
+
+    returns:
+        t_kernel, w_kernel
+            t_kernel : array
+                timestamps associated with the kernel
+            w_kernel : 
+                weights associated with the kernel
+    '''
+    
+    # get all of the weight names for the given model
+    all_weight_names = glm.X.weights.values
+    
+    # get the weight names associated with the desired kernel
+    kernel_weight_names = [w for w in all_weight_names if w.startswith(kernel_name)]
+
+    # get the weights
+    w_kernel = glm.W.loc[dict(weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)]
+
+    # calculate the time array
+
+    # first get the timestep
+    timestep = 1/glm.fit['ophys_frame_rate']
+
+    # get the timepoint that is closest to the desired offset
+    offset_int = int(round(glm.design.kernel_dict[kernel_name]['offset_seconds']/timestep))
+
+    # calculate t_kernel
+    t_kernel = (np.arange(len(w_kernel)) + offset_int) * timestep
+
+    return t_kernel, w_kernel
 
 
 # NOTE:

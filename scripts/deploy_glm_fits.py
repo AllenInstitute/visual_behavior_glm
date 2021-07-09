@@ -29,6 +29,13 @@ parser.add_argument(
     help='Overwrites existing fits for this version if enabled. Otherwise only experiments without existing results are fit'
 )
 parser.add_argument(
+    '--testing', 
+    action='store_true',
+    default=False,
+    dest='testing', 
+    help='If this flag is called, only 10 test sessions will be deployed'
+)
+parser.add_argument(
     '--use-previous-fit', 
     action='store_true',
     default=False,
@@ -74,12 +81,17 @@ if __name__ == "__main__":
     print('python executable = {}'.format(python_executable))
     python_file = "{}/scripts/fit_glm.py".format(args.src_path)
 
-    experiments_table = loading.get_filtered_ophys_experiment_table(release_data_only=True).reset_index()
+    if args.testing:
+        experiments_table = gat.select_experiments_for_testing(returns = 'dataframe')
+    else:
+        experiments_table = loading.get_filtered_ophys_experiment_table(release_data_only=True).reset_index()
+
+    job_count = 0
+
     # get ROI count for each experiment
     experiments_table['roi_count'] = experiments_table['ophys_experiment_id'].map(lambda oeid: gat.get_roi_count(oeid))
+
     experiment_ids = experiments_table['ophys_experiment_id'].values
-    experiments_table.set_index('ophys_experiment_id', inplace=True)
-    job_count = 0
 
     if args.use_previous_fit:
         job_string = "--oeid {} --version {} --use-previous-fit"
@@ -89,8 +101,8 @@ if __name__ == "__main__":
     n_experiment_ids = len(experiment_ids)
     for experiment_id in experiment_ids[int(n_experiment_ids * args.job_start_fraction): int(n_experiment_ids * args.job_end_fraction)]:
 
-        #calculate resource needs based on ROI count
-        roi_count = experiments_table.loc[experiment_id]['roi_count']
+        # calculate resource needs based on ROI count
+        roi_count = experiments_table.query('ophys_experiment_id == @experiment_id').iloc[0]['roi_count']
         job_settings['walltime'] = walltime.format(int(np.ceil((calculate_required_walltime(roi_count)))))
         job_settings['mem'] = mem.format(int(np.ceil((calculate_required_mem(roi_count)))))
 

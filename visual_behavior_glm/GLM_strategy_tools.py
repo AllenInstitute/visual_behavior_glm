@@ -8,6 +8,15 @@ BEH_STRATEGY_OUTPUT = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavi
 # TODO
 # Separate computation and plotting code
 # analyze engaged/disengaged separatation 
+# set up folder for saving figures
+# set up automatic figure saving
+# save fits dictionary somewhere
+# on scatter plot, add binned values on regression
+# on scatter plot, include regression values (r^2 and slope)
+# disengaged regression has nans
+# set up regression by exposure number
+# maybe try regressing against hit/miss difference?
+# what filtering do we need to do on cells and sessions?
 
 def make_strategy_figures(VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):
     

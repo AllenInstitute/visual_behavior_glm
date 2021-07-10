@@ -6,8 +6,7 @@ import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
-import psy_output_tools as po
-from scipy.stats import linregress
+
 
 if False: # Code snippets for doing basic analyses. 
 
@@ -181,26 +180,6 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     gvt.plot_all_kernel_comparison(weights_df, run_params, compare=['cre_line'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, compare=['cre_line','layer'],plot_errors=False)
 
-
-def add_behavior_metrics(version, df):
-    ophys = po.get_ophys_summary_table(version)
-    out_df = pd.merge(df, ophys, on='behavior_session_id',suffixes=('','_ophys_table'))
-    out_df['strategy'] = ['visual' if x else 'timing' for x in out_df['visual_strategy_session']]
-    return out_df
-
-def make_strategy_figures(BEH_VERSION = None, VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):
-    
-    # Analysis Dataframes 
-    #####################
-    if run_params is None:
-        print('loading data')
-        run_params, results, results_pivoted, weights_df, full_results = get_analysis_dfs(VERSION)
-        print('making figues')
-    results_beh = add_behavior_metrics(BEH_VERSION, results_pivoted.copy())
-    weights_beh = add_behavior_metrics(BEH_VERSION, weights_df.copy())
-  
-    scatter_by_session(results_beh, cre_line ='Slc17a7-IRES2-Cre',ymetric='hits') 
-
 def dev_ignore():
     gvt.plot_all_kernel_comparison(weights_beh, run_params, compare=['cre_line','strategy'], plot_errors=False) 
     gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='vip', compare=['strategy'], plot_errors=False)
@@ -215,26 +194,4 @@ def dev_ignore():
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[4])
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
 
-def scatter_by_cell(results_beh, cre_line=None, threshold=0.01, sessions=[1],xmetric='strategy_dropout_index',ymetric='omissions',title=''):
-    g = results_beh.query('cre_line == @cre_line').query('variance_explained_full > @threshold').query('session_number in @sessions')
 
-    plt.figure()
-    plt.plot(g[xmetric], g[ymetric],'ko')
-    plt.xlabel(xmetric)
-    plt.ylabel(ymetric)
-    x = linregress(g[xmetric], g[ymetric])
-    plt.plot(g[xmetric], x[1]+x[0]*g[xmetric],'r-')
-    plt.title(title)
-    return x    
-
-def scatter_by_session(results_beh, cre_line=None, threshold=0.01,xmetric='strategy_dropout_index',ymetric='omissions',sessions=[1,3,4,6]):
-    fits = {}
-    for s in sessions:
-        fits[s] = scatter_by_cell(results_beh,cre_line=cre_line,xmetric=xmetric, ymetric=ymetric, sessions=[s],title='Session '+str(s))
-    
-    plt.figure()
-    for s in sessions:
-        plt.plot(s,fits[s][0],'ko')
-        plt.plot([s,s], [fits[s][0]-fits[s][4],fits[s][0]+fits[s][4]], 'k--')
-    
-    return fits 

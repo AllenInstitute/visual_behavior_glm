@@ -54,7 +54,8 @@ def scatter_dataset(results_beh, run_params,threshold=0.01, xmetric='strategy_dr
     ymins = []
     ymaxs =[]
     for dex,cre in enumerate(cres):
-        fits[cre] = scatter_by_session(results_beh, run_params, cre_line = cre, threshold=threshold, xmetric=xmetric, ymetric=ymetric, sessions=sessions, ax = ax[dex,:])
+        col_start = dex == 0
+        fits[cre] = scatter_by_session(results_beh, run_params, cre_line = cre, threshold=threshold, xmetric=xmetric, ymetric=ymetric, sessions=sessions, ax = ax[dex,:],col_start=col_start)
         ymins.append(fits[cre]['yrange'][0])
         ymaxs.append(fits[cre]['yrange'][1])
     
@@ -62,13 +63,14 @@ def scatter_dataset(results_beh, run_params,threshold=0.01, xmetric='strategy_dr
         ax[dex,-1].set_ylim(np.min(ymins),np.max(ymaxs))
     return fits
 
-def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0.01,xmetric='strategy_dropout_index',ymetric='omissions',sessions=[1,3,4,6],ax=None):
+def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0.01,xmetric='strategy_dropout_index',ymetric='omissions',sessions=[1,3,4,6],ax=None,col_start=False):
     if ax is None:
         fig, ax = plt.subplots(1,len(sessions)+1, figsize=(18,3.25))
 
     fits = {}
     for dex,s in enumerate(sessions):
-        fits[str(s)] = scatter_by_cell(results_beh,cre_line=cre_line,xmetric=xmetric, ymetric=ymetric, sessions=[s],title='Session '+str(s),ax=ax[dex])
+        row_start = dex == 0
+        fits[str(s)] = scatter_by_cell(results_beh,cre_line=cre_line,xmetric=xmetric, ymetric=ymetric, sessions=[s],title='Session '+str(s),ax=ax[dex],row_start=row_start,col_start=col_start)
 
     ax[-1].axhline(0, linestyle='--',color='k',alpha=.25)   
     for s in sessions:
@@ -76,6 +78,7 @@ def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0.01,xm
         ax[-1].plot([s,s], [fits[str(s)][0]-fits[str(s)][4],fits[str(s)][0]+fits[str(s)][4]], 'k--')
     ax[-1].set_ylabel('Regression slope')
     ax[-1].set_xlabel('Session Number')
+    ax[-1].set_title(cre_line)
     plt.tight_layout()
 
     fits['yrange'] = ax[-1].get_ylim()
@@ -86,8 +89,8 @@ def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0.01,xm
     fits['glm_version'] = run_params['version'] 
     return fits 
 
-def scatter_by_cell(results_beh, cre_line=None, threshold=0.01, sessions=[1],xmetric='strategy_dropout_index',ymetric='omissions',title='',nbins=10,ax=None):
-    g = results_beh.query('cre_line == @cre_line').query('variance_explained_full > @threshold').query('session_number in @sessions')
+def scatter_by_cell(results_beh, cre_line=None, threshold=0.01, sessions=[1],xmetric='strategy_dropout_index',ymetric='omissions',title='',nbins=10,ax=None,row_start=False,col_start=False):
+    g = results_beh.query('cre_line == @cre_line').query('variance_explained_full > @threshold').query('session_number in @sessions').dropna(axis=0, subset=[ymetric,xmetric]).copy()
 
     # Figure axis
     if ax is None:
@@ -97,7 +100,10 @@ def scatter_by_cell(results_beh, cre_line=None, threshold=0.01, sessions=[1],xme
     # Plot Raw data
     ax.plot(g[xmetric], g[ymetric],'ko',alpha=.1,label='raw data')
     ax.set_xlabel(xmetric)
-    ax.set_ylabel(ymetric)
+    if row_start:
+        ax.set_ylabel(cre_line +'\n'+ymetric)
+    else:
+        ax.set_ylabel(ymetric)
 
     # Plot binned data
     g['binned_xmetric'] = pd.cut(g[xmetric],nbins,labels=False) 
@@ -112,7 +118,8 @@ def scatter_by_cell(results_beh, cre_line=None, threshold=0.01, sessions=[1],xme
     ax.plot(g[xmetric], x[1]+x[0]*g[xmetric],'r-',label='r^2 = '+str(np.round(x.slope,4)))
 
     # Clean up
-    ax.set_title(title)
+    if col_start:
+        ax.set_title(title)
     #ax.legend()
 
     return x    

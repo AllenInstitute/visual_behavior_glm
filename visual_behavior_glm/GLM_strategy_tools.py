@@ -6,6 +6,7 @@ from scipy.stats import linregress
 
 BEH_STRATEGY_OUTPUT = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/behavior_model_output/_summary_table.pkl'
 # TODO
+# set up regression against prior_exposure_to_omissions
 # Separate computation and plotting code
 # analyze engaged/disengaged separatation 
 # set up folder for saving figures
@@ -47,7 +48,7 @@ def add_behavior_metrics(df):
     out_df['strategy'] = ['visual' if x else 'timing' for x in out_df['visual_strategy_session']]
     return out_df
 
-def scatter_dataset(results_beh, run_params,threshold=0.01, xmetric='strategy_dropout_index', ymetric='omissions',sessions=[1,3,4,6]):
+def scatter_dataset(results_beh, run_params,threshold=0,ymetric_threshold=0, xmetric='strategy_dropout_index', ymetric='omissions',sessions=[1,3,4,6],use_prior_omissions=False):
     fig, ax = plt.subplots(3,len(sessions)+1, figsize=(18,10))
     fits = {}
     cres = ['Slc17a7-IRES2-Cre', 'Vip-IRES-Cre','Sst-IRES-Cre']
@@ -55,7 +56,7 @@ def scatter_dataset(results_beh, run_params,threshold=0.01, xmetric='strategy_dr
     ymaxs =[]
     for dex,cre in enumerate(cres):
         col_start = dex == 0
-        fits[cre] = scatter_by_session(results_beh, run_params, cre_line = cre, threshold=threshold, xmetric=xmetric, ymetric=ymetric, sessions=sessions, ax = ax[dex,:],col_start=col_start)
+        fits[cre] = scatter_by_session(results_beh, run_params, cre_line = cre, threshold=threshold, ymetric_threshold=ymetric_threshold, xmetric=xmetric, ymetric=ymetric, sessions=sessions, ax = ax[dex,:],col_start=col_start,use_prior_omissions=use_prior_omissions)
         ymins.append(fits[cre]['yrange'][0])
         ymaxs.append(fits[cre]['yrange'][1])
     
@@ -63,19 +64,20 @@ def scatter_dataset(results_beh, run_params,threshold=0.01, xmetric='strategy_dr
         ax[dex,-1].set_ylim(np.min(ymins),np.max(ymaxs))
     return fits
 
-def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0.01,xmetric='strategy_dropout_index',ymetric='omissions',sessions=[1,3,4,6],ax=None,col_start=False):
+def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0,ymetric_threshold=0,xmetric='strategy_dropout_index',ymetric='omissions',sessions=[1,3,4,6],ax=None,col_start=False,use_prior_omissions=False):
     if ax is None:
         fig, ax = plt.subplots(1,len(sessions)+1, figsize=(18,3.25))
 
     fits = {}
     for dex,s in enumerate(sessions):
         row_start = dex == 0
-        fits[str(s)] = scatter_by_cell(results_beh,cre_line=cre_line,xmetric=xmetric, ymetric=ymetric, sessions=[s],title='Session '+str(s),ax=ax[dex],row_start=row_start,col_start=col_start)
+        fits[str(s)] = scatter_by_cell(results_beh,cre_line=cre_line,threshold=threshold,ymetric_threshold=ymetric_threshold, xmetric=xmetric, ymetric=ymetric, sessions=[s],title='Session '+str(s),ax=ax[dex],row_start=row_start,col_start=col_start,use_prior_omissions=use_prior_omissions)
 
     ax[-1].axhline(0, linestyle='--',color='k',alpha=.25)   
     for s in sessions:
-        ax[-1].plot(s,fits[str(s)][0],'ko')
-        ax[-1].plot([s,s], [fits[str(s)][0]-fits[str(s)][4],fits[str(s)][0]+fits[str(s)][4]], 'k--')
+        if fits[str(s)] is not None:
+            ax[-1].plot(s,fits[str(s)][0],'ko')
+            ax[-1].plot([s,s], [fits[str(s)][0]-fits[str(s)][4],fits[str(s)][0]+fits[str(s)][4]], 'k--')
     ax[-1].set_ylabel('Regression slope')
     ax[-1].set_xlabel('Session Number')
     ax[-1].set_title(cre_line)
@@ -89,8 +91,17 @@ def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0.01,xm
     fits['glm_version'] = run_params['version'] 
     return fits 
 
-def scatter_by_cell(results_beh, cre_line=None, threshold=0.01, sessions=[1],xmetric='strategy_dropout_index',ymetric='omissions',title='',nbins=10,ax=None,row_start=False,col_start=False):
-    g = results_beh.query('cre_line == @cre_line').query('variance_explained_full > @threshold').query('session_number in @sessions').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+def scatter_by_cell(results_beh, cre_line=None, threshold=0, ymetric_threshold=0, sessions=[1],xmetric='strategy_dropout_index',ymetric='omissions',title='',nbins=10,ax=None,row_start=False,col_start=False,use_prior_omissions = False,plot_single=False):
+    if use_prior_omissions: # need to filter for active, and familiar ?? &(active=="active"), need to filter by area and depth??
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_omissions_ophys_table in @sessions)&(familiar == "familiar")').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+    else:
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(session_number in @sessions)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+    if ymetric_threshold != 0:
+        print('filtering')
+        g = g[g[ymetric] < ymetric_threshold]
+
+    if len(g) == 0:
+        return
 
     # Figure axis
     if ax is None:
@@ -100,6 +111,7 @@ def scatter_by_cell(results_beh, cre_line=None, threshold=0.01, sessions=[1],xme
     # Plot Raw data
     ax.plot(g[xmetric], g[ymetric],'ko',alpha=.1,label='raw data')
     ax.set_xlabel(xmetric)
+    ax.set_xlim(results_beh[xmetric].min(), results_beh[xmetric].max())
     if row_start:
         ax.set_ylabel(cre_line +'\n'+ymetric)
     else:
@@ -115,12 +127,16 @@ def scatter_by_cell(results_beh, cre_line=None, threshold=0.01, sessions=[1],xme
 
     # Plot Linear regression
     x = linregress(g[xmetric], g[ymetric])
-    ax.plot(g[xmetric], x[1]+x[0]*g[xmetric],'r-',label='r^2 = '+str(np.round(x.slope,4)))
+    label = 'r = '+str(np.round(x.rvalue,4))+'\np = '+str(np.round(x.pvalue,decimals=4))
+    ax.plot(g[xmetric], x[1]+x[0]*g[xmetric],'r-',label=label)
 
     # Clean up
     if col_start:
         ax.set_title(title)
-    #ax.legend()
+    if plot_single:
+        ax.set_title(title)
+        ax.legend()
+        plt.tight_layout()
 
     return x    
 

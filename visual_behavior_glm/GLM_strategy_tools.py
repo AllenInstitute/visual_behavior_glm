@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,7 +32,35 @@ def make_strategy_figures(VERSION=None,run_params=None, results=None, results_pi
     weights_beh = add_behavior_metrics(weights_df.copy())
   
     scatter_by_session(results_beh, run_params, cre_line ='Slc17a7-IRES2-Cre',ymetric='hits') 
-    scatter_by_session(results_beh, run_params, cre_line ='Vip-IRES-Cre',ymetric='omissions') 
+    scatter_by_session(results_beh, run_params, cre_line ='Vip-IRES-Cre',ymetric='omissions')
+
+def plot_strategy(results_beh, run_params,ym='omissions'):
+    cres = ['Vip-IRES-Cre','Slc17a7-IRES2-Cre','Sst-IRES-Cre']
+    for cre in cres:
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar')
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar',area = ['VISp'])
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar',area = ['VISl'])
+
+    for cre in cres:
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre,ymetric=ym,sessions=[0,1,2,3,4,5,6,7,8],use_prior_omissions=True,plot_single=True,image_set='novel',title=cre)
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre,ymetric=ym,sessions=[0,1,2,3,4,5,6,7,8],use_prior_omissions=True,plot_single=True,image_set='novel',title=cre,area=['VISp'])
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre,ymetric=ym,sessions=[0,1,2,3,4,5,6,7,8],use_prior_omissions=True,plot_single=True,image_set='novel',title=cre,area=['VISl'])
+
+    fits=scatter_dataset(results_beh, run_params,sessions=[0,1,2,3], use_prior_omissions=True, ymetric=ym,area=['VISp'],image_set='familiar')
+
+    for cre in cres:
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym,threshold=0, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar')
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym,threshold=0.001, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar',area = ['VISp'])
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym,threshold=0.01, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar',area = ['VISp'])
+
+    for cre in cres:
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym,ymetric_threshold=0, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar')
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym,ymetric_threshold=-0.000001, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar',area = ['VISp'])
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym,ymetric_threshold=-0.001, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar',area = ['VISp'])
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym,ymetric_threshold=-0.01, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar',area = ['VISp'])
+        fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym,ymetric_threshold=-0.1, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar',area = ['VISp'])
+
+
 
 def get_ophys_summary_table():
     '''
@@ -48,7 +77,7 @@ def add_behavior_metrics(df):
     out_df['strategy'] = ['visual' if x else 'timing' for x in out_df['visual_strategy_session']]
     return out_df
 
-def scatter_dataset(results_beh, run_params,threshold=0,ymetric_threshold=0, xmetric='strategy_dropout_index', ymetric='omissions',sessions=[1,3,4,6],use_prior_omissions=False):
+def scatter_dataset(results_beh, run_params,threshold=0,ymetric_threshold=0, xmetric='strategy_dropout_index', ymetric='omissions',sessions=[1,3,4,6],use_prior_omissions=False,image_set='familiar',area=['VISp','VISl'],use_prior_image_set=False):
     fig, ax = plt.subplots(3,len(sessions)+1, figsize=(18,10))
     fits = {}
     cres = ['Slc17a7-IRES2-Cre', 'Vip-IRES-Cre','Sst-IRES-Cre']
@@ -56,22 +85,28 @@ def scatter_dataset(results_beh, run_params,threshold=0,ymetric_threshold=0, xme
     ymaxs =[]
     for dex,cre in enumerate(cres):
         col_start = dex == 0
-        fits[cre] = scatter_by_session(results_beh, run_params, cre_line = cre, threshold=threshold, ymetric_threshold=ymetric_threshold, xmetric=xmetric, ymetric=ymetric, sessions=sessions, ax = ax[dex,:],col_start=col_start,use_prior_omissions=use_prior_omissions)
+        fits[cre] = scatter_by_session(results_beh, run_params, cre_line = cre, threshold=threshold, ymetric_threshold=ymetric_threshold, xmetric=xmetric, ymetric=ymetric, sessions=sessions, ax = ax[dex,:],col_start=col_start,use_prior_omissions=use_prior_omissions,image_set=image_set,area=area,use_prior_image_set=use_prior_image_set)
         ymins.append(fits[cre]['yrange'][0])
         ymaxs.append(fits[cre]['yrange'][1])
     
     for dex, cre in enumerate(cres):
         ax[dex,-1].set_ylim(np.min(ymins),np.max(ymaxs))
+  
+    if use_prior_omissions:
+       filename = xmetric+'_by_'+ymetric+'_dataset_'+'_'.join(area)+'_by_omission_exposures_'+''.join([str(x) for x in sessions])+'_threshold_'+str(threshold)+'_ymetric_threshold_'+str(ymetric_threshold)+'_image_set_'+image_set
+    else:
+        filename = xmetric+'_by_'+ymetric+'_dataset_'+'_'.join(area)+'_by_session_number_'+''.join([str(x) for x in sessions])+'_threshold_'+str(threshold)+'_ymetric_threshold_'+str(ymetric_threshold)
+    save_figure(fig,run_params['version'], ymetric, filename)
     return fits
 
-def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0,ymetric_threshold=0,xmetric='strategy_dropout_index',ymetric='omissions',sessions=[1,3,4,6],ax=None,col_start=False,use_prior_omissions=False):
+def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0,ymetric_threshold=0,xmetric='strategy_dropout_index',ymetric='omissions',sessions=[1,3,4,6],ax=None,col_start=False,use_prior_omissions=False,image_set='familiar',area=['VISp','VISl'],use_prior_image_set=False):
     if ax is None:
         fig, ax = plt.subplots(1,len(sessions)+1, figsize=(18,3.25))
 
     fits = {}
     for dex,s in enumerate(sessions):
         row_start = dex == 0
-        fits[str(s)] = scatter_by_cell(results_beh,cre_line=cre_line,threshold=threshold,ymetric_threshold=ymetric_threshold, xmetric=xmetric, ymetric=ymetric, sessions=[s],title='Session '+str(s),ax=ax[dex],row_start=row_start,col_start=col_start,use_prior_omissions=use_prior_omissions)
+        fits[str(s)] = scatter_by_cell(results_beh,run_params, cre_line=cre_line,threshold=threshold,ymetric_threshold=ymetric_threshold, xmetric=xmetric, ymetric=ymetric, sessions=[s],title='Session '+str(s),ax=ax[dex],row_start=row_start,col_start=col_start,use_prior_omissions=use_prior_omissions,image_set = image_set, area=area,use_prior_image_set=use_prior_image_set)
 
     ax[-1].axhline(0, linestyle='--',color='k',alpha=.25)   
     for s in sessions:
@@ -91,11 +126,13 @@ def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0,ymetr
     fits['glm_version'] = run_params['version'] 
     return fits 
 
-def scatter_by_cell(results_beh, cre_line=None, threshold=0, ymetric_threshold=0, sessions=[1],xmetric='strategy_dropout_index',ymetric='omissions',title='',nbins=10,ax=None,row_start=False,col_start=False,use_prior_omissions = False,plot_single=False):
-    if use_prior_omissions: # need to filter for active, and familiar ?? &(active=="active"), need to filter by area and depth??
-        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_omissions_ophys_table in @sessions)&(familiar == "familiar")').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0, ymetric_threshold=0, sessions=[1],xmetric='strategy_dropout_index',ymetric='omissions',title='',nbins=10,ax=None,row_start=False,col_start=False,use_prior_omissions = False,plot_single=False,image_set='familiar',area=['VISp','VISl'],use_prior_image_set=False):
+    if use_prior_omissions: 
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_omissions_ophys_table in @sessions)&(familiar == @image_set)&(targeted_structure in @area)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+    elif use_prior_image_set:
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_image_set_ophys_table in @sessions)&(familiar == @image_set)&(targeted_structure in @area)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
     else:
-        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(session_number in @sessions)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(session_number in @sessions)&(targeted_structure in @area)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
     if ymetric_threshold != 0:
         print('filtering')
         g = g[g[ymetric] < ymetric_threshold]
@@ -137,6 +174,21 @@ def scatter_by_cell(results_beh, cre_line=None, threshold=0, ymetric_threshold=0
         ax.set_title(title)
         ax.legend()
         plt.tight_layout()
-
+        if use_prior_omissions:
+            filename = run_params['version']+'_'+xmetric+'_by_'+ymetric+'_'+cre_line+'_'+'_'.join(area)+'_by_omission_exposures_'+''.join([str(x) for x in sessions])+'_threshold_'+str(threshold)+'_ymetric_threshold_'+str(ymetric_threshold)+'_image_set_'+image_set
+        elif use_prior_image_set:
+            filename = run_params['version']+'_'+xmetric+'_by_'+ymetric+'_'+cre_line+'_'+'_'.join(area)+'_by_image_exposures_'+''.join([str(x) for x in sessions])+'_threshold_'+str(threshold)+'_ymetric_threshold_'+str(ymetric_threshold)+'_image_set_'+image_set
+        else:
+            filename = run_params['version']+'_'+xmetric+'_by_'+ymetric+'_'+cre_line+'_'+'_'.join(area)+'_by_session_number_'+''.join([str(x) for x in sessions])+'_threshold_'+str(threshold)+'_ymetric_threshold_'+str(ymetric_threshold)
+        save_figure(plt.gcf(),run_params['version'], ymetric, filename)
     return x    
+
+def save_figure(fig,model_version, ymetric, filename):
+    glm_dir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
+    if not os.path.isdir(glm_dir + 'v_'+model_version +'/figures/strategy'):
+        os.mkdir(glm_dir + 'v_'+model_version +'/figures/strategy')
+    if not os.path.isdir(glm_dir + 'v_'+model_version +'/figures/strategy/'+ymetric):
+        os.mkdir(glm_dir + 'v_'+model_version +'/figures/strategy/'+ymetric)
+    plt.savefig(glm_dir + 'v_'+ model_version +'/figures/strategy/'+ymetric+'/'+filename+".svg")
+    plt.savefig(glm_dir + 'v_'+ model_version +'/figures/strategy/'+ymetric+'/'+filename+".png")
 

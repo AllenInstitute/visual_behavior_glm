@@ -27,7 +27,15 @@ def project_colors():
         Defines a color scheme for various conditions
     '''
     tab20= plt.get_cmap("tab20c")
+    set1 = plt.get_cmap('Set1')
     colors = {
+        0:set1(0),
+        1:set1(1),
+        2:set1(2),
+        3:set1(3),
+        4:set1(4),
+        5:set1(5),
+        6:set1(6),
         'Sst-IRES-Cre':(158/255,218/255,229/255),
         'sst':(158/255,218/255,229/255),
         'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
@@ -1645,7 +1653,7 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
     return ax,kernel_means
  
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=True,save_kernels=False):
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=True,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='session_number',image_set=['familiar','novel']):
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1684,13 +1692,13 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     
     # Filter by Cell Type    
     cell_list = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre']     
-    if cell_filter == "sst":
+    if (cell_filter == "sst") or (cell_filter == "Sst-IRES-Cre"):
         cell_list = ['Sst-IRES-Cre']
         filter_string += '_sst'
-    elif cell_filter == "vip":
+    elif (cell_filter == "vip") or (cell_filter == "Vip-IRES-Cre"):
         cell_list = ['Vip-IRES-Cre']
         filter_string += '_vip'
-    elif cell_filter == "slc":
+    elif (cell_filter == "slc") or (cell_filter == "Slc17a7-IRES2-Cre"):
         cell_list = ['Slc17a7-IRES2-Cre']
         filter_string += '_slc'
 
@@ -1704,7 +1712,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.png')
 
     # Applying hard thresholds to dataset
-    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&(session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))
+    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} < @drop_threshold) & (familiar in @image_set)'.format(filter_sessions_on, kernel))
 
     # Set up time vectors.
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
@@ -1713,7 +1721,8 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
 
     #return time_vec, meso_time_vec, weights
     # Plotting settings
-    fig,ax=plt.subplots(figsize=(8,4))
+    if ax is None:
+        fig,ax=plt.subplots(figsize=(8,4))
     
     # Define color scheme for project
     colors = project_colors()
@@ -1756,12 +1765,13 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     # Clean Plot, and add details
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     ax.axvline(0, color='k',linestyle='--',alpha=0.25)
-    ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=18)   
-    ax.set_xlabel('Time (s)',fontsize=18)
+    ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=fs2)   
+    ax.set_xlabel('Time (s)',fontsize=fs1)
     ax.set_xlim(time_vec[0],time_vec[-1])   
     add_stimulus_bars(ax,kernel,alpha=.1)
-    plt.tick_params(axis='both',labelsize=16)
-    plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
+    plt.tick_params(axis='both',labelsize=fs2)
+    if show_legend:
+        ax.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
  
     ## Final Clean up and Save
     plt.tight_layout()
@@ -1777,7 +1787,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         file_temp.close()
     return outputs
 
-def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.1,normalize=True):
+def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.25,normalize=True):
     '''
         Plots the average kernel for the cells in df
         
@@ -1809,7 +1819,7 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_tim
     
     # Plot mean and error bar
     if plot_errors:
-        ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0), df_norm.mean(axis=0)+df_norm.std(axis=0),facecolor=color, alpha=alpha)   
+        ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0)/np.sqrt(df_norm.shape[0]), df_norm.mean(axis=0)+df_norm.std(axis=0)/np.sqrt(df_norm.shape[0]),facecolor=color, alpha=alpha)   
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
@@ -2780,8 +2790,7 @@ def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=
     return fig, ax
 
 
-
-def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,alpha=0.35,dropout_df):
+def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,dropout_df,alpha =0.35):
     ### PROBABLY BROKEN BY RECENT REFACTORING
     '''
     makes a summary figure for cosyne abstract

@@ -34,6 +34,70 @@ def make_strategy_figures(VERSION=None,run_params=None, results=None, results_pi
     scatter_by_session(results_beh, run_params, cre_line ='Slc17a7-IRES2-Cre',ymetric='hits') 
     scatter_by_session(results_beh, run_params, cre_line ='Vip-IRES-Cre',ymetric='omissions')
 
+def plot_kernels_by_strategy(weights_beh, run_params, ym='omissions',cre_line = 'Vip-IRES-Cre',compare=['strategy']):
+    # By Session number
+    sessions = [1,3,4,6]
+    filter_sessions_on ='session_number'
+    image_set = ['familiar','novel']
+    fig, ax = plt.subplots(2,len(sessions),figsize=(len(sessions)*3,6),sharey=True)
+    for dex, session in enumerate(sessions):
+        show_legend = dex == len(sessions) - 1
+        out = gvt.plot_kernel_comparison(weights_beh, run_params, ym, save_results = False,threshold=0, drop_threshold = 0, session_filter = [session], cell_filter = cre_line,area_filter=['VISp'], compare=compare, normalize=False, plot_errors=True,save_kernels=False,ax=ax[0,dex],fs1=14,fs2=12,show_legend=show_legend,filter_sessions_on = filter_sessions_on,image_set=image_set) 
+        out = gvt.plot_kernel_comparison(weights_beh, run_params, ym, save_results = False,threshold=0, drop_threshold = 0, session_filter = [session], cell_filter = cre_line,area_filter=['VISl'], compare=compare, normalize=False, plot_errors=True,save_kernels=False,ax=ax[1,dex],fs1=14,fs2=12,show_legend=False,filter_sessions_on = filter_sessions_on,image_set=image_set) 
+        ax[0,dex].set_title('Session '+str(session))
+        if dex == 0:
+            ax[0,0].set_ylabel('V1\n'+ax[0,0].get_ylabel())
+            ax[1,0].set_ylabel('LM\n'+ax[1,0].get_ylabel())
+    filename = ym+'_by_session_number_'+cre_line
+    save_figure(fig,run_params['version'], ym, filename)
+
+
+    # by omission exposures
+    sessions = [[0,1,2,3],[4,5,6,7],[0],[1,2,3,4]]
+    filter_sessions_on =['prior_exposures_to_omissions_ophys_table','prior_exposures_to_omissions_ophys_table','prior_exposures_to_image_set_ophys_table','prior_exposures_to_image_set_ophys_table']
+    image_set = [['familiar'],['familiar'],['novel'],['novel']]
+    fig, ax = plt.subplots(2,len(sessions),figsize=(len(sessions)*3,6),sharey=True)
+    for dex, session in enumerate(sessions):
+        show_legend = dex == len(sessions) - 1
+        out = gvt.plot_kernel_comparison(weights_beh, run_params, ym, save_results = False,threshold=0, drop_threshold = 0, session_filter = session, cell_filter = cre_line,area_filter=['VISp'], compare=compare, normalize=False, plot_errors=True,save_kernels=False,ax=ax[0,dex],fs1=14,fs2=12,show_legend=show_legend,filter_sessions_on = filter_sessions_on[dex],image_set=image_set[dex]) 
+        out = gvt.plot_kernel_comparison(weights_beh, run_params, ym, save_results = False,threshold=0, drop_threshold = 0, session_filter = session, cell_filter = cre_line,area_filter=['VISl'], compare=compare, normalize=False, plot_errors=True,save_kernels=False,ax=ax[1,dex],fs1=14,fs2=12,show_legend=False,filter_sessions_on = filter_sessions_on[dex],image_set=image_set[dex]) 
+        if dex == 0:
+            ax[0,0].set_ylabel('V1\n'+ax[0,0].get_ylabel())
+            ax[1,0].set_ylabel('LM\n'+ax[1,0].get_ylabel())
+        if dex in [0,1]:
+            ax[0,dex].set_title('Familiar Images\n Omissions Exposures \n'+str(session))
+        elif dex == 2:
+            ax[0,dex].set_title('Novel Images\n Image Set Exposures \n'+str(session))       
+        else:
+            ax[0,dex].set_title('Novel Images\n Image Set Exposures \n'+str(session))
+    if 'binned_strategy' in compare:
+        ax[0,3].legend(labels=['Most Timing','Middle','Most Visual'],loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
+        plt.tight_layout()
+    filename = ym+'_by_exposure_'+cre_line+'_'+'_'.join(compare)
+    save_figure(fig,run_params['version'], ym, filename)
+
+def compare_cre_kernels(weights_beh, run_params, ym='omissions',compare=['strategy']):
+    sessions = [0,1,2,3]
+    filter_sessions_on ='prior_exposures_to_omissions_ophys_table'
+    image_set = 'familiar'
+    cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    fig, ax = plt.subplots(1,len(cres),figsize=(len(sessions)*3,4),sharey=True)
+    for dex, cre in enumerate(cres):
+        show_legend = dex == len(cres) - 1
+        out = gvt.plot_kernel_comparison(weights_beh, run_params, ym, save_results = False,threshold=0, drop_threshold = 0, session_filter = sessions, cell_filter = cre,area_filter=['VISp'], compare=compare, normalize=False, plot_errors=True,save_kernels=False,ax=ax[dex],fs1=14,fs2=12,show_legend=show_legend,filter_sessions_on = filter_sessions_on,image_set=image_set) 
+        ax[dex].set_title(cre)
+
+
+    ax[0].set_ylabel('V1\n'+ax[0].get_ylabel())
+    if 'binned_strategy' in compare:
+        ax[2].legend(labels=['Most Timing','Partial Timing','Partial Visual','Most Visual'],loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
+    plt.tight_layout()
+    filename = ym+'_by_cre_line_'+'_'.join(compare)
+    save_figure(fig,run_params['version'], ym, filename)
+
+
+
+
 def plot_strategy(results_beh, run_params,ym='omissions'):
     cres = ['Vip-IRES-Cre','Slc17a7-IRES2-Cre','Sst-IRES-Cre']
     for cre in cres:

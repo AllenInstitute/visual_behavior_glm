@@ -2466,6 +2466,9 @@ def plot_top_level_dropouts(results_pivoted, filter_cre=False, cre='Slc17a7-IRES
     plt.tight_layout()
 
 def plot_nested_dropouts(results_pivoted,run_params, num_levels=2,size=0.3,force_nesting=True,filter_cre=False, cre='Slc17a7-IRES2-Cre',invert=False,mixing=True,thresh=-.2,savefig=True,force_subsets=True):
+    '''
+        Plots the circle plots of clusterd neurons, not the rainbow plots
+    '''
 
     if filter_cre:
         rsp = results_pivoted.query('(variance_explained_full > 0.01) & (cre_line == @cre)').copy()

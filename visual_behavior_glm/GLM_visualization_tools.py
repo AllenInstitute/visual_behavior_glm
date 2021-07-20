@@ -1641,7 +1641,7 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
     plt.tick_params(axis='both',labelsize=12)
     plt.tight_layout()
     print('Figure Saved to: '+filename1)
-    plt.savefig(filename1) 
+    plt.savefig(filename1)
 
     plt.figure()
     plt.plot(kernel_means['Vip-IRES-Cre']-kernel_means['Sst-IRES-Cre'],kernel_means['Slc17a7-IRES2-Cre'])

@@ -76,7 +76,7 @@ def plot_kernels_by_strategy(weights_beh, run_params, ym='omissions',cre_line = 
     filename = ym+'_by_exposure_'+cre_line+'_'+'_'.join(compare)
     save_figure(fig,run_params['version'], ym, filename)
 
-def compare_cre_kernels(weights_beh, run_params, ym='omissions',compare=['strategy']):
+def compare_cre_kernels(weights_beh, run_params, ym='omissions',compare=['strategy'],equipment_filter='all',title=''):
     sessions = [0,1,2,3]
     filter_sessions_on ='prior_exposures_to_omissions_ophys_table'
     image_set = 'familiar'
@@ -84,15 +84,19 @@ def compare_cre_kernels(weights_beh, run_params, ym='omissions',compare=['strate
     fig, ax = plt.subplots(1,len(cres),figsize=(len(sessions)*3,4),sharey=True)
     for dex, cre in enumerate(cres):
         show_legend = dex == len(cres) - 1
-        out = gvt.plot_kernel_comparison(weights_beh, run_params, ym, save_results = False,threshold=0, drop_threshold = 0, session_filter = sessions, cell_filter = cre,area_filter=['VISp'], compare=compare, normalize=False, plot_errors=True,save_kernels=False,ax=ax[dex],fs1=14,fs2=12,show_legend=show_legend,filter_sessions_on = filter_sessions_on,image_set=image_set) 
+        out = gvt.plot_kernel_comparison(weights_beh, run_params, ym, save_results = False,threshold=0, drop_threshold = 0, session_filter = sessions, cell_filter = cre,area_filter=['VISp'], compare=compare, normalize=False, plot_errors=True,save_kernels=False,ax=ax[dex],fs1=14,fs2=12,show_legend=show_legend,filter_sessions_on = filter_sessions_on,image_set=image_set,equipment_filter=equipment_filter) 
         ax[dex].set_title(cre)
 
-
-    ax[0].set_ylabel('V1\n'+ax[0].get_ylabel())
+    if (equipment_filter == 'all')&(title==""):
+        ax[0].set_ylabel('V1\n'+ax[0].get_ylabel())
+    elif title != '':
+        ax[0].set_ylabel('V1 - '+title+'\n'+ax[0].get_ylabel())
+    else:
+        ax[0].set_ylabel('V1 - '+equipment_filter+'\n'+ax[0].get_ylabel())
     if 'binned_strategy' in compare:
         ax[2].legend(labels=['Most Timing','Partial Timing','Partial Visual','Most Visual'],loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
     plt.tight_layout()
-    filename = ym+'_by_cre_line_'+'_'.join(compare)
+    filename = ym+'_by_cre_line_'+'_'.join(compare)+'_'+equipment_filter
     save_figure(fig,run_params['version'], ym, filename)
 
 
@@ -190,13 +194,13 @@ def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0,ymetr
     fits['glm_version'] = run_params['version'] 
     return fits 
 
-def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0, ymetric_threshold=0, sessions=[1],xmetric='strategy_dropout_index',ymetric='omissions',title='',nbins=10,ax=None,row_start=False,col_start=False,use_prior_omissions = False,plot_single=False,image_set='familiar',area=['VISp','VISl'],use_prior_image_set=False):
+def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0, ymetric_threshold=0, sessions=[1],xmetric='strategy_dropout_index',ymetric='omissions',title='',nbins=10,ax=None,row_start=False,col_start=False,use_prior_omissions = False,plot_single=False,image_set='familiar',area=['VISp','VISl'],use_prior_image_set=False,equipment=['mesoscope','scientifica']):
     if use_prior_omissions: 
-        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_omissions_ophys_table in @sessions)&(familiar == @image_set)&(targeted_structure in @area)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_omissions_ophys_table in @sessions)&(familiar == @image_set)&(targeted_structure in @area)&(equipment in @equipment)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
     elif use_prior_image_set:
-        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_image_set_ophys_table in @sessions)&(familiar == @image_set)&(targeted_structure in @area)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_image_set_ophys_table in @sessions)&(familiar == @image_set)&(targeted_structure in @area)&(equipment in @equipment)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
     else:
-        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(session_number in @sessions)&(targeted_structure in @area)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(session_number in @sessions)&(targeted_structure in @area)&(equipment in @equipment)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
     if ymetric_threshold != 0:
         print('filtering')
         g = g[g[ymetric] < ymetric_threshold]
@@ -244,6 +248,8 @@ def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0, ymetric
             filename = run_params['version']+'_'+xmetric+'_by_'+ymetric+'_'+cre_line+'_'+'_'.join(area)+'_by_image_exposures_'+''.join([str(x) for x in sessions])+'_threshold_'+str(threshold)+'_ymetric_threshold_'+str(ymetric_threshold)+'_image_set_'+image_set
         else:
             filename = run_params['version']+'_'+xmetric+'_by_'+ymetric+'_'+cre_line+'_'+'_'.join(area)+'_by_session_number_'+''.join([str(x) for x in sessions])+'_threshold_'+str(threshold)+'_ymetric_threshold_'+str(ymetric_threshold)
+        if len(equipment) == 1:
+            filename += '_'+equipment[0]
         save_figure(plt.gcf(),run_params['version'], ymetric, filename)
     return x    
 
@@ -255,4 +261,4 @@ def save_figure(fig,model_version, ymetric, filename):
         os.mkdir(glm_dir + 'v_'+model_version +'/figures/strategy/'+ymetric)
     plt.savefig(glm_dir + 'v_'+ model_version +'/figures/strategy/'+ymetric+'/'+filename+".svg")
     plt.savefig(glm_dir + 'v_'+ model_version +'/figures/strategy/'+ymetric+'/'+filename+".png")
-
+    print(filename)

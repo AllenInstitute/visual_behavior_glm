@@ -76,10 +76,7 @@ def plot_kernels_by_strategy(weights_beh, run_params, ym='omissions',cre_line = 
     filename = ym+'_by_exposure_'+cre_line+'_'+'_'.join(compare)
     save_figure(fig,run_params['version'], ym, filename)
 
-def compare_cre_kernels(weights_beh, run_params, ym='omissions',compare=['strategy'],equipment_filter='all',title=''):
-    sessions = [0,1,2,3]
-    filter_sessions_on ='prior_exposures_to_omissions_ophys_table'
-    image_set = 'familiar'
+def compare_cre_kernels(weights_beh, run_params, ym='omissions',compare=['strategy'],equipment_filter='all',title='',sessions=[0,1,2,3],image_set='familiar',filter_sessions_on='prior_exposures_to_omissions_ophys_table'):
     cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
     fig, ax = plt.subplots(1,len(cres),figsize=(len(sessions)*3,4),sharey=True)
     for dex, cre in enumerate(cres):
@@ -98,8 +95,6 @@ def compare_cre_kernels(weights_beh, run_params, ym='omissions',compare=['strate
     plt.tight_layout()
     filename = ym+'_by_cre_line_'+'_'.join(compare)+'_'+equipment_filter
     save_figure(fig,run_params['version'], ym, filename)
-
-
 
 
 def plot_strategy(results_beh, run_params,ym='omissions'):

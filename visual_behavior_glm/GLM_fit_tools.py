@@ -748,7 +748,7 @@ def load_data(oeid, run_params):
             oeid (int) -- ophys_experiment_id
             run_params (dict) -- dictionary of parameters
     '''
-    
+
     if ('include_invalid_rois' in run_params):
         include_invalid_rois = (run_params['include_invalid_rois'])
     else:
@@ -853,7 +853,15 @@ def process_data(session, run_params, TESTING=False):
     # some assert statements to ensure that dimensions are correct
     assert np.sum(timestamps_to_use) == len(fit_trace_arr['fit_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `fit_trace_timestamps` in `fit_trace_arr`'
     assert np.sum(timestamps_to_use) == fit_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `fit_trace_arr`'
-    assert len(session.cell_specimen_table.query('valid_roi == True')) == fit_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `fit_trace_arr`'
+    if ('include_invalid_rois' in run_params):
+        include_invalid_rois = (run_params['include_invalid_rois'])
+    else:
+        include_invalid_rois = False
+
+    if include_invalid_rois:
+        assert len(session.cell_specimen_table) == fit_trace_arr.values.shape[1], 'number of ROIs must match 1st dimension of `fit_trace_arr`'
+    else:
+        assert len(session.cell_specimen_table.query('valid_roi == True')) == fit_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `fit_trace_arr`'
 
     # Clip the array to just the first 6 cells
     if TESTING:

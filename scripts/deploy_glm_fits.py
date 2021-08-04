@@ -73,7 +73,9 @@ if __name__ == "__main__":
     stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
     stdout_location = os.path.join(stdout_basedir, 'job_records_{}'.format(args.version))
     if not os.path.exists(stdout_location):
+        print('making folder {}'.format(stdout_location))
         os.mkdir(stdout_location)
+    print('stdout files will be at {}'.format(stdout_location))
 
     if args.testing:
         experiments_table = gat.select_experiments_for_testing(returns = 'dataframe')

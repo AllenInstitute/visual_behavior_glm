@@ -38,7 +38,12 @@ class GLM(object):
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
         if self.ophys_experiment_id:
-            self.ophys_session_id = db.lims_query('select ophys_session_id from ophys_experiments where id = {}'.format(self.ophys_experiment_id))
+            try:
+                self.ophys_session_id = db.lims_query('select ophys_session_id from ophys_experiments where id = {}'.format(self.ophys_experiment_id))
+            except Exception as e:
+                # if the experiment_id doesn't exist in LIMS, make the session ID None
+                warnings.warn('could not find ophys_experiment ID in LIMS\n{}'.format(e))
+                self.ophys_session_id = None
         else:
             self.ophys_session_id = None
         self.oeid = self.ophys_experiment_id
@@ -47,6 +52,7 @@ class GLM(object):
         self.current_model = 'Full'  #TODO, what does this do?
         self.NO_DROPOUTS=NO_DROPOUTS
         self.TESTING=TESTING
+        self.session = session
 
         if gft_import == 'cached':
             # Import the version's codebase
@@ -136,7 +142,7 @@ class GLM(object):
             Loads existing results. Will crash if file doesn't exist
         '''
         self.session, self.fit, self.design = self.gft.load_fit_experiment(
-            self.oeid, self.run_params)
+            self.oeid, self.run_params, self.session)
 
     def collect_results(self):
         '''

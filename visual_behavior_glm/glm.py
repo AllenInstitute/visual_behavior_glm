@@ -40,7 +40,7 @@ class GLM(object):
         self.oeid = self.ophys_experiment_id
         self.run_params = glm_params.load_run_json(self.version)
         self.kernels = self.run_params['kernels']
-        self.current_model = 'Full'  #TODO, what does this do?
+        self.current_model = 'Full'
         self.NO_DROPOUTS=NO_DROPOUTS
         self.TESTING=TESTING
 

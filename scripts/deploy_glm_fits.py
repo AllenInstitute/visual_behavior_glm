@@ -8,8 +8,7 @@ import numpy as  np
 import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
 
-sys.path.append('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/src/')
-from pbstools import pbstools  # NOQA E402
+from simple_slurm import Slurm
 
 parser = argparse.ArgumentParser(description='deploy glm fits to cluster')
 parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='path to conda environment to use')
@@ -57,16 +56,6 @@ parser.add_argument(
     help='which fraction of all jobs to end on. useful if splitting jobs amongst users. Default = 1.0'
 )
 
-job_dir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/cluster_records_v12"
-
-walltime = '{}:00:00'
-mem = '{}g'
-job_settings = {'queue': 'braintv',
-                'mem': '16g',
-                'walltime': '2:00:00',
-                'ppn': 16,
-                }
-
 def calculate_required_mem(roi_count):
     '''calculate required memory in GB'''
     return 12 + 0.25*roi_count
@@ -80,6 +69,13 @@ if __name__ == "__main__":
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
     python_file = "{}/scripts/fit_glm.py".format(args.src_path)
+
+    stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
+    stdout_location = os.path.join(stdout_basedir, 'job_records_{}'.format(args.version))
+    if not os.path.exists(stdout_location):
+        print('making folder {}'.format(stdout_location))
+        os.mkdir(stdout_location)
+    print('stdout files will be at {}'.format(stdout_location))
 
     if args.testing:
         experiments_table = gat.select_experiments_for_testing(returns = 'dataframe')
@@ -99,23 +95,35 @@ if __name__ == "__main__":
         job_string = "--oeid {} --version {}"
 
     n_experiment_ids = len(experiment_ids)
+
     for experiment_id in experiment_ids[int(n_experiment_ids * args.job_start_fraction): int(n_experiment_ids * args.job_end_fraction)]:
 
         # calculate resource needs based on ROI count
         roi_count = experiments_table.query('ophys_experiment_id == @experiment_id').iloc[0]['roi_count']
-        job_settings['walltime'] = walltime.format(int(np.ceil((calculate_required_walltime(roi_count)))))
-        job_settings['mem'] = mem.format(int(np.ceil((calculate_required_mem(roi_count)))))
 
         if args.force_overwrite or not gat.already_fit(experiment_id, args.version):
             job_count += 1
             print('starting cluster job for {}, job count = {}'.format(experiment_id, job_count))
             job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.version)
-            pbstools.PythonJob(
-                python_file,
-                python_executable,
-                python_args=job_string.format(experiment_id, args.version),
-                jobname=job_title,
-                jobdir=job_dir,
-                **job_settings
-            ).run(dryrun=False)
+
+            walltime = '{}:00:00'
+            mem = '{}gb'
+
+            # instantiate a SLURM object
+            slurm = Slurm(
+                cpus_per_task=16,
+                job_name=job_title,
+                time=walltime.format(int(np.ceil((calculate_required_walltime(roi_count))))),
+                mem=mem.format(int(np.ceil((calculate_required_mem(roi_count))))),
+                output=f'{stdout_location}/{Slurm.JOB_ARRAY_MASTER_ID}_{Slurm.JOB_ARRAY_ID}.out',
+            )
+
+            args_string = job_string.format(experiment_id, args.version)
+            slurm.sbatch('{} {} {}'.format(
+                    python_executable,
+                    python_file,
+                    args_string,
+                )
+            )
+
             time.sleep(0.001)

@@ -33,7 +33,7 @@ def load_fit_experiment(ophys_experiment_id, run_params):
         design      DesignMatrix object for this experiment
     '''
     fit = gat.load_fit_pkl(run_params, ophys_experiment_id)
-    session = load_data(ophys_experiment_id)
+    session = load_data(ophys_experiment_id, run_params)
     design = DesignMatrix(fit)
     design = add_kernels(design, run_params, session,fit)
     # split by engagement
@@ -61,7 +61,7 @@ def check_run_fits(VERSION):
         experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filenamepkl) or os.path.isfile(filenamepbz2)
     return experiment_table
 
-def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
+def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     '''
         Fits the GLM to the ophys_experiment_id
         
@@ -89,7 +89,7 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Load Data
     print('Loading data')
-    session = load_data(oeid)
+    session = load_data(oeid, run_params)
 
     # Processing df/f data
     print('Processing df/f data')
@@ -740,14 +740,21 @@ def L2_report(fit):
     plt.plot([0,1],[0,1],'k--')
     return results
  
-def load_data(oeid):
+def load_data(oeid, run_params):
     '''
         Returns Visual Behavior ResponseAnalysis object
         Allen SDK dataset is an attribute of this object (session)
         Keyword arguments:
             oeid (int) -- ophys_experiment_id
+            run_params (dict) -- dictionary of parameters
     '''
-    dataset = loading.get_ophys_dataset(oeid, include_invalid_rois=False)
+
+    if ('include_invalid_rois' in run_params):
+        include_invalid_rois = (run_params['include_invalid_rois'])
+    else:
+        include_invalid_rois = False
+
+    dataset = loading.get_ophys_dataset(oeid, include_invalid_rois=include_invalid_rois)
 
     return dataset
 
@@ -846,7 +853,15 @@ def process_data(session, run_params, TESTING=False):
     # some assert statements to ensure that dimensions are correct
     assert np.sum(timestamps_to_use) == len(fit_trace_arr['fit_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `fit_trace_timestamps` in `fit_trace_arr`'
     assert np.sum(timestamps_to_use) == fit_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `fit_trace_arr`'
-    assert len(session.cell_specimen_table.query('valid_roi == True')) == fit_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `fit_trace_arr`'
+    if ('include_invalid_rois' in run_params):
+        include_invalid_rois = (run_params['include_invalid_rois'])
+    else:
+        include_invalid_rois = False
+
+    if include_invalid_rois:
+        assert len(session.cell_specimen_table) == fit_trace_arr.values.shape[1], 'number of ROIs must match 1st dimension of `fit_trace_arr`'
+    else:
+        assert len(session.cell_specimen_table.query('valid_roi == True')) == fit_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `fit_trace_arr`'
 
     # Clip the array to just the first 6 cells
     if TESTING:

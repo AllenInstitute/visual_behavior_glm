@@ -49,7 +49,7 @@ class GLM(object):
         self.oeid = self.ophys_experiment_id
         self.run_params = glm_params.load_run_json(self.version)
         self.kernels = self.run_params['kernels']
-        self.current_model = 'Full'  #TODO, what does this do?
+        self.current_model = 'Full'
         self.NO_DROPOUTS=NO_DROPOUTS
         self.TESTING=TESTING
         self.session = session
@@ -196,6 +196,51 @@ class GLM(object):
     def plot_filters(self, cell_specimen_id, n_cols=5):
         '''plots all filters for a given cell'''
         gvt.plot_filters(self, cell_specimen_id, n_cols)
+
+    
+    @cached_property
+    def dropout_models(self):
+        '''
+        returns a list of dropout models
+        these are the models that were fit with a limited subset of regressors
+        '''
+        return list(self.fit['dropouts'].keys())
+    
+
+    def load_alternate_model(self, desired_model):
+        '''
+        by default, the glm object contains the 'Full' model
+        Calling this method will load the appropriate alternate model
+        and will update the following class properties:
+            * current_model
+            * cell_results_df
+            * X
+            * W
+
+        Function returns nothing, but the above cached properties will be updated after this function call
+
+        Parameters:
+        -----------
+        desired_model : str
+            desired model to load. Must be among list of possible dropout models
+            call self.dropout_models to see a full list of possible models
+        
+        Returns:
+        --------
+        None
+        '''
+        assert desired_model in self.dropout_models, 'desired model must be an existing dropout model: {}'.format(self.dropout_models)
+
+        self.current_model = desired_model
+
+        # Iterate through cached properties and delete them if they exist
+        # (keys will not exist if the cached property has not yet been called)
+        # This will force them to repopulate on the next time they are called
+        for property in ['cell_results_df', 'X', 'W']:
+            try:
+                del self.__dict__[property]
+            except KeyError:
+                pass
 
     @cached_property
     def cell_results_df(self):

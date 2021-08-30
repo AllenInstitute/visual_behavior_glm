@@ -81,7 +81,7 @@ if False: # Code snippets for doing basic analyses.
 
     # Make Nested Model plot (rainbow plot)
     # A couple versions with more or less detail
-    schematic_df = gsm.plot_all_dropouts(run_params['version']
+    schematic_df = gsm.plot_all_dropouts(run_params['version'])
     schematic_df = gsm.plot_high_level_dropouts(run_params['version'])
     schematic_df = gsm.plot_nice_dropouts(run_params['version'])
 

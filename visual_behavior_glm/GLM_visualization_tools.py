@@ -1653,7 +1653,7 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
     return ax,kernel_means
  
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=True,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='session_number',image_set=['familiar','novel']):
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='session_number',image_set=['familiar','novel']):
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1787,7 +1787,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         file_temp.close()
     return outputs
 
-def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.25,normalize=True):
+def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.25,normalize=False):
     '''
         Plots the average kernel for the cells in df
         

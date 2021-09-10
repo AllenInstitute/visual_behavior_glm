@@ -209,22 +209,6 @@ def process_data(run_params, weights_df,kernel,normalize='max_by_cre',normalizat
                     bounds_error=False)(sci_time) 
                 for x in nppassive_weights[kernel+'_weights']]
  
-    #    if normalize == 'max_by_cell':
-    #        print('normalizing by cell')
-    #        familiar_weights[kernel+'_weights'] = [x/np.max(np.abs(x)) for x in familiar_weights[kernel +'_weights']]
-    #        if do_passive:
-    #            fpassive_weights[kernel+'_weights'] = [x/np.max(np.abs(x)) for x in fpassive_weights[kernel +'_weights']]
-    #        novel_weights[kernel+'_weights'] = [x/np.max(np.abs(x)) for x in novel_weights[kernel +'_weights']]
-    #        novelp_weights[kernel+'_weights'] = [x/np.max(np.abs(x)) for x in novelp_weights[kernel +'_weights']]
-    #        if do_passive:
-    #            nppassive_weights[kernel+'_weights'] = [x/np.max(np.abs(x)) for x in nppassive_weights[kernel +'_weights']]
-    #    elif normalize == 'none':
-    #        print('not normalizing')
-    #    elif normalize == 'max_by_cre':
-    #        print('normalizing by cre-line')
-    #    elif normalize == 'max_by_kernel':
-    #        print('normalizing by cre-line specific kernels')
- 
     # Make average kernel dictionaries
     f_kernel_dict = {}
     f_kernel_dict['time'] = sci_time
@@ -270,52 +254,6 @@ def process_data(run_params, weights_df,kernel,normalize='max_by_cre',normalizat
             pp_kernel_dict[cre+'_std'] = np.std(np.vstack(temp[kernel+'_weights']),0)
             pp_kernel_dict[cre+'_n'] = len(temp)
             pp_kernel_dict[cre+'_sem'] = pp_kernel_dict[cre+'_std']/np.sqrt(pp_kernel_dict[cre+'_n'])
-    #        if normalize == 'max_by_cre':
-    #            if normalization_amplitude is not None:
-    #                f_kernel_dict[cre] = f_kernel_dict[cre]/normalization_amplitude['f_'+cre]
-    #                if do_passive:
-    #                    fp_kernel_dict[cre] = fp_kernel_dict[cre]/normalization_amplitude['fp_'+cre]
-    #                n_kernel_dict[cre] = n_kernel_dict[cre]/normalization_amplitude['n_'+cre]
-    #                p_kernel_dict[cre] = p_kernel_dict[cre]/normalization_amplitude['p_'+cre]
-    #                if do_passive:
-    #                    pp_kernel_dict[cre] = pp_kernel_dict[cre]/normalization_amplitude['pp_'+cre]
-    #                f_kernel_dict[cre+'_normalization_amplitude'] = normalization_amplitude['f_'+cre]
-    #                if do_passive:
-    #                    fp_kernel_dict[cre+'_normalization_amplitude'] = normalization_amplitude['fp_'+cre]
-    #                n_kernel_dict[cre+'_normalization_amplitude'] = normalization_amplitude['n_'+cre]
-    #                p_kernel_dict[cre+'_normalization_amplitude'] = normalization_amplitude['p_'+cre]
-    #                if do_passive:
-    #                    pp_kernel_dict[cre+'_normalization_amplitude'] = normalization_amplitude['pp_'+cre]
-    #            else:
-    #                f_norm = np.max(np.abs(f_kernel_dict[cre]))
-    #                if do_passive:
-    #                    fp_norm = np.max(np.abs(fp_kernel_dict[cre]))
-    #                n_norm = np.max(np.abs(n_kernel_dict[cre]))
-    #                p_norm = np.max(np.abs(p_kernel_dict[cre]))
-    #                if do_passive:
-    #                    pp_norm = np.max(np.abs(pp_kernel_dict[cre]))
-    #                f_kernel_dict[cre+'_normalization_amplitude'] = f_norm
-    #                if do_passive:
-    #                    fp_kernel_dict[cre+'_normalization_amplitude'] = fp_norm
-    #                n_kernel_dict[cre+'_normalization_amplitude'] = n_norm
-    #                p_kernel_dict[cre+'_normalization_amplitude'] = p_norm
-    #                if do_passive:
-    #                    pp_kernel_dict[cre+'_normalization_amplitude'] = pp_norm
-    #                f_kernel_dict[cre] = f_kernel_dict[cre]/f_norm
-    #                if do_passive:
-    #                    fp_kernel_dict[cre] = fp_kernel_dict[cre]/fp_norm
-    #                n_kernel_dict[cre] = n_kernel_dict[cre]/n_norm              
-    #                p_kernel_dict[cre] = p_kernel_dict[cre]/p_norm              
-    #                if do_passive:
-    #                    pp_kernel_dict[cre] = pp_kernel_dict[cre]/pp_norm              
-    #        elif normalize == 'max_by_kernel':
-    #                f_kernel_dict[cre] = f_kernel_dict[cre]/np.max(np.abs(f_kernel_dict[cre]))
-    #                if do_passive:
-    #                    fp_kernel_dict[cre] = fp_kernel_dict[cre]/np.max(np.abs(fp_kernel_dict[cre]))
-    #                n_kernel_dict[cre] = n_kernel_dict[cre]/np.max(np.abs(n_kernel_dict[cre]))             
-    #                p_kernel_dict[cre] = p_kernel_dict[cre]/np.max(np.abs(p_kernel_dict[cre]))              
-    #                if do_passive:
-    #                    pp_kernel_dict[cre] = pp_kernel_dict[cre]/np.max(np.abs(pp_kernel_dict[cre]))              
 
     # Make metadata dictionary
     meta= {}
@@ -332,17 +270,7 @@ def process_data(run_params, weights_df,kernel,normalize='max_by_cre',normalizat
     n_kernel_dict['meta'] = meta
     p_kernel_dict['meta'] = meta
     pp_kernel_dict['meta'] = meta
-    #if normalize=='max_by_cre':
-    #    normalization_amplitudes = {}
-    #    for cre in cres:
-    #        normalization_amplitudes['f_'+cre] =f_kernel_dict[cre+'_normalization_amplitude']
-    #        if do_passive:
-    #            normalization_amplitudes['fp_'+cre] =fp_kernel_dict[cre+'_normalization_amplitude']
-    #        normalization_amplitudes['n_'+cre] =n_kernel_dict[cre+'_normalization_amplitude']
-    #        normalization_amplitudes['p_'+cre] =p_kernel_dict[cre+'_normalization_amplitude']
-    #        if do_passive:
-    #            normalization_amplitudes['pp_'+cre] =pp_kernel_dict[cre+'_normalization_amplitude']
-    #else:
+
     normalization_amplitudes = {}
 
     # save out dictionaries

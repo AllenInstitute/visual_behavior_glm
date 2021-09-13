@@ -4,7 +4,9 @@ import pandas as pd
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
+
 
 if False: # Code snippets for doing basic analyses. 
 
@@ -78,7 +80,10 @@ if False: # Code snippets for doing basic analyses.
     #####################
 
     # Make Nested Model plot (rainbow plot)
-    gvt.plot_dropouts(run_params)
+    # A couple versions with more or less detail
+    schematic_df = gsm.plot_all_dropouts(run_params['version'])
+    schematic_df = gsm.plot_high_level_dropouts(run_params['version'])
+    schematic_df = gsm.plot_nice_dropouts(run_params['version'])
 
     # Make plot of kernel support
     gvt.plot_kernel_support(g)
@@ -145,15 +150,18 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     gvt.plot_dropouts(run_params)
 
     # Make over-fitting figures
+    print('over fitting figures')
     gat.compute_over_fitting_proportion(full_results, run_params) 
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
 
     # Make Coding Fraction plots
+    print('coding fraction figures')
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction')
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
     
     # Make Kernel figures
+    print('kernel evaluation figures')
     gvt.all_kernels_evaluation(weights_df,run_params)
     gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="mesoscope")
     gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="scientifica")
@@ -165,9 +173,27 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[6])
 
     # Make Kernel Comparison Figures across sessions
+    print('kernel comparison figures')
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='vip',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='sst',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='slc',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, compare=['cre_line'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, compare=['cre_line','layer'],plot_errors=False)
+
+def dev_ignore():
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, compare=['cre_line','strategy'], plot_errors=False) 
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='vip', compare=['strategy'], plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='sst', compare=['strategy'], plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='slc', compare=['strategy'], plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='vip', compare=['strategy','layer'], plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='sst', compare=['strategy','layer'], plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='slc', compare=['strategy','layer'], plot_errors=False)   
+
+    scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[1])
+    scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[3])
+    scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[4])
+    scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
+
+
+     
 

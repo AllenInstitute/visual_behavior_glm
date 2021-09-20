@@ -191,7 +191,7 @@ def bootstrap_model(fit, design, run_params, regularization=50, norm_preserve=Fa
         # iterate over cross validation
         for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Bootstrapping with {} regressors'.format(zero_dex)):
             # Set up training/test splits
-            train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
+            train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
             test_split = fit['ridge_splits'][split_index]
 
             # Make weights 
@@ -352,7 +352,7 @@ def evaluate_ridge(fit, design,run_params):
 
             # Iterate over CV splits
             for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Fitting L2, {}'.format(L2_value)):
-                train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
+                train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
                 X_test  = X[test_split,:]
                 X_train = X[train_split,:]
                 fit_trace_train = fit['fit_trace_arr'][train_split,:]
@@ -463,7 +463,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
             all_prediction[:,cell_index] = X.values @ Wall.values
 
             for index, test_split in enumerate(fit['splits']):
-                train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
+                train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index]))
         
                 # If this is the first cell, stash the design matrix and covariance result
                 if cell_index == 0:
@@ -556,7 +556,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
         cv_weights = np.empty((np.shape(Wall)[0], np.shape(Wall)[1], len(fit['splits'])))
 
         for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
-            train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
+            train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])) 
             X_test = X[test_split,:]
             X_train = X[train_split,:]
             mask_test = mask[test_split]
@@ -1437,6 +1437,8 @@ def split_time(timebase, subsplits_per_split=10, output_splits=6):
         subsplits_this_split = subsplit_inds_per_split[ind_output]
         inds_this_split = np.concatenate([split_inds[sub_ind] for sub_ind in subsplits_this_split])
         output_split_inds.append(inds_this_split)
+
+    output_split_inds = [np.sort(x) for x in output_split_inds]
     return output_split_inds
 
 def toeplitz(events, kernel_length_samples):

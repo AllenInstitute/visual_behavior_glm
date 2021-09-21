@@ -19,19 +19,6 @@ def get_versions(vrange=[10,20]):
         print(v)
     return out_versions
 
-def define_levels():
-    num_levels = 6
-
-    levels={
-        num_levels:['Full'],
-        num_levels-1:['visual','behavioral','cognitive'],
-        num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
-        num_levels-3:['pupil_and_omissions'],
-        num_levels-4:['running_and_omissions'],
-
-    }
-    return levels
-
 def define_kernels():
     kernels = {
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'constant value'},
@@ -196,7 +183,6 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'job_settings':job_settings,
         'kernels':kernels,
         'dropouts':dropouts,
-        'levels':define_levels(),
         'split_on_engagement': False,   # If True, uses 'engagement_preference' to determine what engagement state to use
         'engagement_preference': None,  # Either None, "engaged", or "disengaged". Must be None if split_on_engagement is False
         'min_engaged_duration': 600,    # Minimum time, in seconds, the session needs to be in the preferred engagement state 

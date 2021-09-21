@@ -28,6 +28,7 @@ def define_kernels():
         'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'linear ramp from 0 to 1'},
         'licks':        {'event':'licks',       'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'mouse lick'},
         # 'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'lick bout'},
+        'each-image_change':{'event':'change',  'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'Image specific change'}.
         'hits':         {'event':'hit',         'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick to image change'},
         'misses':       {'event':'miss',        'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick to image change'},
         'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'passive session image change'},
@@ -250,6 +251,11 @@ def process_kernels(kernels):
         for index, val in enumerate(range(0,8)):
             kernels['image'+str(val)] = copy(specs)
             kernels['image'+str(val)]['event'] = 'image'+str(val)
+    if 'each-image_change' in kernels:
+        specs = kernels.pop('each-image_change')
+        for index, val in enumerate(range(0,8)):
+            kernels['image_change'+str(val)] = copy(specs)
+            kernels['image_change'+str(val)]['event'] = 'image_change'+str(val)
     if 'beh_model' in kernels:
         specs = kernels.pop('beh_model')
         weight_names = ['bias','task0','omissions1','timing1D']
@@ -279,6 +285,7 @@ def define_dropouts(kernels):
         'expectation':          ['image_expectation','omissions'],
         'cognitive':            ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
         'task':                 ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards'],
+        'image_change':         ['image_change0','image_change1','image_change2','image_change3','image_change4','image_change5','image_change6','image_change7'],
         'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
         'behavioral':           ['running','pupil','licks','lick_bouts','lick_model','groom_model'],
         'licking':              ['licks','lick_bouts','lick_model','groom_model'],

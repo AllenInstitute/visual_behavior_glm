@@ -1,6 +1,5 @@
 import os
 import bz2
-import pickle
 import _pickle as cPickle
 import xarray as xr
 import numpy as np

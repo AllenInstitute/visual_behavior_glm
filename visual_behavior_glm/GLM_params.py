@@ -30,7 +30,7 @@ def define_kernels():
         'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'passive session image change'},
         'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick on catch trials'},
         'correct_rejects':  {'event':'correct_reject','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick on catch trials'},
-        #'each-image_change':{'event':'change',  'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'Image specific change'},
+        'each-image_change':{'event':'change',  'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'Image specific change'},
         'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'dropout':True, 'text': 'image was omitted'},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.767, 'offset':-0.25, 'dropout':True, 'text': 'image presentation'},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'normalized running speed'},
@@ -177,9 +177,9 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
-        'L2_optimize_by_session': False, # If True, uses the best L2 value for this session #DEV-FIX
-        'L2_use_fixed_value': True,     # If True, uses the hard coded L2_fixed_lambda #DEV-FIX
-        'L2_fixed_lambda':40,           # This value is used if L2_use_fixed_value #DEV-FIX
+        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session 
+        'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda 
+        'L2_fixed_lambda':None,         # This value is used if L2_use_fixed_value 
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'

@@ -777,7 +777,9 @@ def plot_session_summary(glm):
     plt.xlabel('Cells')
 
 def plot_dropout_summary(results_summary, cell_specimen_id, ax, 
-        dropouts_to_show=None, dropouts_to_plot='both', dropouts_to_exclude=[]):
+        dropouts_to_show=None, dropouts_to_plot='both', dropouts_to_exclude=[],
+        ylabel_fontsize=22, ticklabel_fontsize=21, title_fontsize=22, legend_fontsize=18):
+
     '''
     makes bar plots of results summary
     inputs:
@@ -836,10 +838,19 @@ def plot_dropout_summary(results_summary, cell_specimen_id, ax,
         order=yorder,
         palette=['magenta','cyan'] if dropouts_to_plot == 'both' else ['cyan']
     )
-    ax.set_ylabel('', fontsize=22)
+    bar_colors = ['black','gray']
+    for row in ax.get_yticks():
+        ax.axhspan(row - 0.5, row + 0.5, color = bar_colors[row%2], alpha=0.25)
+    ax.set_ylim(ax.get_yticks().max()+0.5, ax.get_yticks().min()-0.5)
+    plt.legend(ncol=1, loc='upper left')
+    plt.setp(ax.get_legend().get_texts(), fontsize=legend_fontsize) # for legend text
+    plt.setp(ax.get_legend().get_title(), fontsize=legend_fontsize) # for legend title
+    
+    
+    ax.set_ylabel('', fontsize=ylabel_fontsize)
     # ax.set_xlabel('Fraction Change in Var Explained', fontsize=22)
-    bp.tick_params(labelsize=21)
-    ax.set_title('Fraction Change\nin Variance Explained', fontsize=22)
+    bp.tick_params(labelsize=ticklabel_fontsize)
+    ax.set_title('Fraction Change\nin Variance Explained', fontsize=title_fontsize)
 
 
 def plot_filters(glm, cell_specimen_id, n_cols=5):

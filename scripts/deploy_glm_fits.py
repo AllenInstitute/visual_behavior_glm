@@ -5,10 +5,9 @@ import time
 import pandas as pd
 import numpy as  np
 
-from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache
-import visual_behavior_glm.GLM_analysis_tools as gat
-
 from simple_slurm import Slurm
+import visual_behavior.database as db
+from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache
 
 parser = argparse.ArgumentParser(description='deploy glm fits to cluster')
 parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='path to conda environment to use')
@@ -64,6 +63,62 @@ def calculate_required_walltime(roi_count):
     '''calculate required walltime in hours'''
     return 10 + 0.125*roi_count
 
+def select_experiments_for_testing(returns = 'experiment_ids'):
+    '''
+    This function will return 10 hand-picked experiment IDs to use for testing purposes.
+    This will allow multiple versions to test against the same small set of experiments.
+
+    Experiments were chosen as follows:
+        2x OPHYS_2_passive
+        2x OPHYS_5_passive
+        2x active w/ fraction engaged < 0.05 (1 @ 0.00, 1 @ 0.02)
+        2x active w/ fraction engaged > 0.99 (1 @ 0.97, 1 @ 0.98)
+        2x active w/ fraction engaged in range (0.4, 0.6) (1 @ 0.44, 1 @ 0.59)
+
+    Parameters:
+    ----------
+    returns : str
+        either 'experiment_ids' or 'dataframe'
+
+    Returns:
+    --------
+    if returns == 'experiment_ids' (default)
+        list of 10 pre-chosen experiment IDs
+    if returns == 'dataframe':
+        experiment table for 10 pre-chosen experiments
+    '''
+
+    test_experiments = pd.read_csv('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/experiments_for_testing.csv')
+
+    if returns == 'experiment_ids':
+        return test_experiments['ophys_experiment_id'].unique()
+    elif returns == 'dataframe':
+        return test_experiments
+
+def get_roi_count(ophys_experiment_id):
+    '''
+    a LIMS query to get the valid ROI count for a given experiment
+    '''
+    query= 'select * from cell_rois where ophys_experiment_id = {}'.format(ophys_experiment_id)
+    df = db.lims_query(query)
+    return df['valid_roi'].sum()
+
+def already_fit(oeid, version):
+    '''
+    check the weight_matrix_lookup_table to see if an oeid/glm_version combination has already been fit
+    returns a boolean
+    '''
+    conn = db.Database('visual_behavior_data')
+    coll = conn['ophys_glm']['weight_matrix_lookup_table']
+    document_count = coll.count_documents({'ophys_experiment_id':int(oeid), 'glm_version':str(version)})
+    conn.close()
+    return document_count > 0
+
+
+
+
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
     python_executable = "{}/bin/python".format(args.env_path)
@@ -78,7 +133,7 @@ if __name__ == "__main__":
     print('stdout files will be at {}'.format(stdout_location))
 
     if args.testing:
-        experiments_table = gat.select_experiments_for_testing(returns = 'dataframe')
+        experiments_table = select_experiments_for_testing(returns = 'dataframe')
     else:
         cache_dir = r'//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_cache'
         cache = VisualBehaviorOphysProjectCache.from_s3_cache(cache_dir=cache_dir)
@@ -87,7 +142,7 @@ if __name__ == "__main__":
     print('experiments table loaded')
 
     # get ROI count for each experiment
-    experiments_table['roi_count'] = experiments_table['ophys_experiment_id'].map(lambda oeid: gat.get_roi_count(oeid))
+    experiments_table['roi_count'] = experiments_table['ophys_experiment_id'].map(lambda oeid: get_roi_count(oeid))
     print('roi counts extracted')
 
     job_count = 0
@@ -105,7 +160,7 @@ if __name__ == "__main__":
         # calculate resource needs based on ROI count
         roi_count = experiments_table.query('ophys_experiment_id == @experiment_id').iloc[0]['roi_count']
 
-        if False:#if args.force_overwrite or not gat.already_fit(experiment_id, args.version):
+        if False:#if args.force_overwrite or not already_fit(experiment_id, args.version):
             job_count += 1
             print('starting cluster job for {}, job count = {}'.format(experiment_id, job_count))
             job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.version)

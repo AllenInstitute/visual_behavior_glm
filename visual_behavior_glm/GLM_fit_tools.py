@@ -1190,8 +1190,10 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = np.concatenate([event_times,[event_times[-1]+.75]])
         elif event == 'omissions':
             event_times = session.stimulus_presentations.query('omitted')['start_time'].values
-        elif (len(event)>5) & (event[0:5] == 'image'):
+        elif (len(event)>5) & (event[0:5] == 'image') & ('change' not in event):
             event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
+        elif (len(event)>5) & (event[0:5] == 'image') & ('change' in event):
+            event_times = session.stimulus_presentations.query('is_change & (image_index == {})'.format(int(event[-1])))['start_time'].values
         else:
             raise Exception('\tCould not resolve kernel label')
 

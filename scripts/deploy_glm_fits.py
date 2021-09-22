@@ -5,7 +5,7 @@ import time
 import pandas as pd
 import numpy as  np
 
-import visual_behavior.data_access.loading as loading
+from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache
 import visual_behavior_glm.GLM_analysis_tools as gat
 
 from simple_slurm import Slurm
@@ -80,20 +80,24 @@ if __name__ == "__main__":
     if args.testing:
         experiments_table = gat.select_experiments_for_testing(returns = 'dataframe')
     else:
-        experiments_table = loading.get_filtered_ophys_experiment_table(release_data_only=True).reset_index()
-
-    job_count = 0
+        cache_dir = r'//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_cache'
+        cache = VisualBehaviorOphysProjectCache.from_s3_cache(cache_dir=cache_dir)
+        experiments_table = cache.get_ophys_experiment_table()
+        experiments_table = experiments_table[(experiments_table.project_code!="VisualBehaviorMultiscope4areasx2d")&(experiments_table.reporter_line!="Ai94(TITL-GCaMP6s)")].reset_index()
+    print('experiments table loaded')
 
     # get ROI count for each experiment
     experiments_table['roi_count'] = experiments_table['ophys_experiment_id'].map(lambda oeid: gat.get_roi_count(oeid))
+    print('roi counts extracted')
 
-    experiment_ids = experiments_table['ophys_experiment_id'].values
+    job_count = 0
 
     if args.use_previous_fit:
         job_string = "--oeid {} --version {} --use-previous-fit"
     else:
         job_string = "--oeid {} --version {}"
 
+    experiment_ids = experiments_table['ophys_experiment_id'].values
     n_experiment_ids = len(experiment_ids)
 
     for experiment_id in experiment_ids[int(n_experiment_ids * args.job_start_fraction): int(n_experiment_ids * args.job_end_fraction)]:
@@ -101,21 +105,24 @@ if __name__ == "__main__":
         # calculate resource needs based on ROI count
         roi_count = experiments_table.query('ophys_experiment_id == @experiment_id').iloc[0]['roi_count']
 
-        if args.force_overwrite or not gat.already_fit(experiment_id, args.version):
+        if False:#if args.force_overwrite or not gat.already_fit(experiment_id, args.version):
             job_count += 1
             print('starting cluster job for {}, job count = {}'.format(experiment_id, job_count))
             job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.version)
 
-            walltime = '{}:00:00'
-            mem = '{}gb'
-
+            walltime = '{}:00:00'.format(int(np.ceil((calculate_required_walltime(roi_count)))))
+            mem = '{}gb'.format(int(np.ceil((calculate_required_mem(roi_count)))))
+            job_id = Slurm.JOB_ARRAY_ID
+            job_array_id = Slurm.JOB_ARRAY_MASTER_ID
+            output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+".out"
+    
             # instantiate a SLURM object
             slurm = Slurm(
                 cpus_per_task=16,
                 job_name=job_title,
-                time=walltime.format(int(np.ceil((calculate_required_walltime(roi_count))))),
-                mem=mem.format(int(np.ceil((calculate_required_mem(roi_count))))),
-                output=f'{stdout_location}/{Slurm.JOB_ARRAY_MASTER_ID}_{Slurm.JOB_ARRAY_ID}.out',
+                time=walltime,
+                mem=mem,
+                output= output,
             )
 
             args_string = job_string.format(experiment_id, args.version)

@@ -9,18 +9,15 @@ import visual_behavior.data_access.loading as loading
 
 OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
 
-def define_levels():
-    num_levels = 6
-
-    levels={
-        num_levels:['Full'],
-        num_levels-1:['visual','behavioral','cognitive'],
-        num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
-        num_levels-3:['pupil_and_omissions'],
-        num_levels-4:['running_and_omissions'],
-
-    }
-    return levels
+def get_versions(vrange=[10,20]):
+    versions = os.listdir(OUTPUT_DIR_BASE)
+    out_versions = []
+    for dex, val in enumerate(np.arange(vrange[0],vrange[1])):
+        out_versions = out_versions + [x for x in versions if x.startswith('v_'+str(val)+'_')]
+    print('Available GLM model versions')
+    for v in out_versions:
+        print(v)
+    return out_versions
 
 def define_kernels():
     kernels = {
@@ -187,7 +184,6 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'job_settings':job_settings,
         'kernels':kernels,
         'dropouts':dropouts,
-        'levels':define_levels(),
         'split_on_engagement': False,   # If True, uses 'engagement_preference' to determine what engagement state to use
         'engagement_preference': None,  # Either None, "engaged", or "disengaged". Must be None if split_on_engagement is False
         'min_engaged_duration': 600,    # Minimum time, in seconds, the session needs to be in the preferred engagement state 

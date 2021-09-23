@@ -915,7 +915,7 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
           
 
 
-def inventory_glm_version(glm_version):
+def inventory_glm_version(glm_version,valid_rois_only=True):
     '''
     checks to see which experiments and cell_roi_ids do not yet exist for a given GLM version
     inputs:
@@ -933,7 +933,10 @@ def inventory_glm_version(glm_version):
         return_list = ['ophys_experiment_id', 'cell_specimen_id', 'cell_roi_id'],
         merge_in_experiment_metadata=False
     )
-    cell_table = loading.get_cell_table(columns_to_return = ['ophys_experiment_id','cell_specimen_id', 'cell_roi_id'])
+    cell_table = loading.get_cell_table(columns_to_return = ['ophys_experiment_id','cell_specimen_id', 'cell_roi_id'],valid_rois_only=valid_rois_only)
+
+    fit_experiments = glm_results['ophys_experiment_id'].unique()
+    fit_rois = glm_results['cell_roi_id'].unique()
 
     missing_experiments = list(
         set(cell_table['ophys_experiment_id'].unique()) - 
@@ -956,7 +959,15 @@ def inventory_glm_version(glm_version):
         # only append an experiment to the incomplete experiments list if it's not already in the list
         incomplete_experiments.append(associated_oeid) if associated_oeid not in incomplete_experiments else None
 
-    return {'missing_experiments': missing_experiments, 'missing_rois': missing_rois, 'incomplete_experiments': incomplete_experiments}
+    inventory = {
+        'fit_experiments': fit_experiments,
+        'missing_experiments': missing_experiments,
+        'fit_rois':fit_rois,
+        'missing_rois': missing_rois, 
+        'incomplete_experiments': incomplete_experiments
+        }
+    
+    return inventory,cell_table
   
   
 def select_experiments_for_testing(returns = 'experiment_ids'):

@@ -937,6 +937,7 @@ def inventories_to_table(inventories):
     for version in summary:
         for value in summary[version]:
             summary[version][value] = len(summary[version][value])
+        summary[version]['Complete'] = (summary[version]['missing_experiments'] == 0 ) & (summary[version]['missing_rois'] == 0)
     table = pd.DataFrame.from_dict(summary,orient='index')
     return table
 

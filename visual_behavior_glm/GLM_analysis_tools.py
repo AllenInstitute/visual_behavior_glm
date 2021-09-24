@@ -958,8 +958,8 @@ def inventories_to_table(inventories):
         for value in summary[version]:
             summary[version][value] = len(summary[version][value])
         summary[version]['Complete'] = (summary[version]['missing_experiments'] == 0 ) & (summary[version]['missing_rois'] == 0)
-        summary[version]['Total Experiments'] = summary[version]['fit_experiments'] + summary[version]['extra_experiments']
-        summary[version]['Total ROIs'] = summary[version]['fit_rois'] + summary[version]['extra_rois']
+        #summary[version]['Total Experiments'] = summary[version]['fit_experiments'] + summary[version]['extra_experiments']
+        #summary[version]['Total ROIs'] = summary[version]['fit_rois'] + summary[version]['extra_rois']
     table = pd.DataFrame.from_dict(summary,orient='index')
     if np.all(table['incomplete_experiments'] == 0):
         table = table.drop(columns=['incomplete_experiments', 'additional_missing_cells'])
@@ -982,18 +982,26 @@ def inventory_glm_version(glm_version,valid_rois_only=True, platform_paper_only=
     glm_results = retrieve_results(
         search_dict = {'glm_version': glm_version},
         return_list = ['ophys_experiment_id', 'cell_specimen_id', 'cell_roi_id'],
-        merge_in_experiment_metadata=False
+        merge_in_experiment_metadata=False,
+        remove_invalid_rois=False
     )
     
     # Get list of cells in the dataset
     cell_table = loading.get_cell_table(columns_to_return = ['ophys_experiment_id','cell_specimen_id', 'cell_roi_id'],valid_rois_only=valid_rois_only,platform_paper_only=platform_paper_only)
 
     # get list of rois and experiments we have fit
-    fit_experiments = glm_results['ophys_experiment_id'].unique()
-    fit_rois = glm_results['cell_roi_id'].unique()
-    
-    # Get list of 4x2 experiments to exclude
+    total_experiments = glm_results['ophys_experiment_id'].unique()
+    total_rois = glm_results['cell_roi_id'].unique()
 
+    # Compute list of rois and experiments that we have fit that are in the dataset
+    fit_experiments = list(
+        set(cell_table['ophys_experiment_id'].unique()) &
+        set(glm_results['ophys_experiment_id'].unique())
+    )
+    fit_rois = list(
+        set(cell_table['cell_roi_id'].unique()) &
+        set(glm_results['cell_roi_id'].unique())
+    )
 
     # get list of missing experiments
     missing_experiments = list(
@@ -1045,7 +1053,9 @@ def inventory_glm_version(glm_version,valid_rois_only=True, platform_paper_only=
         'extra_experiments': extra_experiments,
         'extra_rois': extra_rois,
         'incomplete_experiments': incomplete_experiments,
-        'additional_missing_cells':additional_missing_cells
+        'additional_missing_cells':additional_missing_cells,
+        'Total Experiments':total_experiments,
+        'Total ROIs':total_rois
         }
     
     return inventory

@@ -470,7 +470,7 @@ def get_roi_count(ophys_experiment_id):
     df = db.lims_query(query)
     return df['valid_roi'].sum()
 
-def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True):
+def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False):
     '''
     gets cached results from mongodb
     input:
@@ -485,6 +485,9 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
                 are calculated only on test data, not train data.
         return_list - a list of columns to return. Returning fewer columns speeds queries
         merge_in_experiment_metadata - boolan which, if True, merges in data from experiment table
+        remove_invalid_rois - bool
+            if True, removes invalid rois from the returned results
+            if False, includes the invalid rois in the returned results
     output:
         dataframe of results
     '''
@@ -496,18 +499,25 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
             # don't return `_id` unless it was specifically requested
             return_dict.update({'_id': 0})
 
+    if verbose:
+        print('Pulling from Mongo')
     conn = db.Database('visual_behavior_data')
     database = 'ophys_glm'
     results = pd.DataFrame(list(conn[database]['results_{}'.format(results_type)].find(search_dict, return_dict)))
 
+    if verbose:
+        print('Done Pulling')
     # make 'glm_version' column a string
     if 'glm_version' in results.columns:
         results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
 
     if len(results) > 0 and merge_in_experiment_metadata:
+        if verbose:
+            print('Merging in experiment metadata')
         # get experiment table, merge in details of each experiment
-        experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+        #experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+        experiment_table = loading.get_platform_paper_experiment_table().reset_index()
         results = results.merge(
             experiment_table, 
             left_on='ophys_experiment_id',
@@ -517,7 +527,17 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         )
 
     duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
-    return results.drop(columns=duplicated_cols)
+    results = results.drop(columns=duplicated_cols)
+    
+    if remove_invalid_rois:
+        # get list of rois I like
+        if verbose:
+            print('Loading cell table to remove invalid rois')
+        cell_table = loading.get_cell_table(valid_rois_only=True, platform_paper_only=True) 
+        good_cell_roi_ids = cell_table.cell_roi_id.unique()
+        results = results.query('cell_roi_id in @good_cell_roi_ids')
+
+    return results
 
 def make_identifier(row):
     return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])

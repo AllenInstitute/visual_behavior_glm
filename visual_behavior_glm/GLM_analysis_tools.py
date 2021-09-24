@@ -938,7 +938,11 @@ def inventories_to_table(inventories):
         for value in summary[version]:
             summary[version][value] = len(summary[version][value])
         summary[version]['Complete'] = (summary[version]['missing_experiments'] == 0 ) & (summary[version]['missing_rois'] == 0)
+        summary[version]['Total Experiments'] = summary[version]['fit_experiments'] + summary[version]['extra_experiments']
+        summary[version]['Total ROIs'] = summary[version]['fit_rois'] + summary[version]['extra_rois']
     table = pd.DataFrame.from_dict(summary,orient='index')
+    if np.all(table['incomplete_experiments'] == 0):
+        table = table.drop(columns=['incomplete_experiments', 'additional_missing_cells'])
     return table
 
 def inventory_glm_version(glm_version,valid_rois_only=True, platform_paper_only=True):
@@ -983,6 +987,18 @@ def inventory_glm_version(glm_version,valid_rois_only=True, platform_paper_only=
         set(glm_results['cell_roi_id'].unique())
     )
 
+    # Extra experiments, these could be old experiments that have since been failed, or out of scope experiments
+    extra_experiments = list(
+        set(glm_results['ophys_experiment_id'].unique()) - 
+        set(cell_table['ophys_experiment_id'].unique())
+    )
+
+    # get list of extra rois
+    extra_rois = list(
+        set(glm_results['cell_roi_id'].unique()) - 
+        set(cell_table['cell_roi_id'].unique())
+    )
+
     # get any experiments for which the ROI count is incomplete. These are 'incomplete_experiments'
     if valid_rois_only==True:
         incomplete_experiments = set()
@@ -1006,6 +1022,8 @@ def inventory_glm_version(glm_version,valid_rois_only=True, platform_paper_only=
         'fit_rois':fit_rois,
         'missing_experiments': missing_experiments,
         'missing_rois': missing_rois,
+        'extra_experiments': extra_experiments,
+        'extra_rois': extra_rois,
         'incomplete_experiments': incomplete_experiments,
         'additional_missing_cells':additional_missing_cells
         }

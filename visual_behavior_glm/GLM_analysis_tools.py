@@ -8,6 +8,7 @@ import pandas as pd
 import xarray_mongodb
 from tqdm import tqdm
 
+import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior.data_access.loading as loading
 import visual_behavior.database as db
 
@@ -913,7 +914,20 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
 
     return results_pivoted_var
           
+def build_inventory_table(vrange=[10,20]):
+    versions = glm_params.get_versions(vrange=vrange)
+    inventories ={}
+    for v in versions:
+        inventories[v]=inventory_glm_version(v[2:])
+    return inventories_to_table(inventories),inventories    
 
+def inventories_to_table(inventories):
+    summary = inventories.copy()
+    for version in summary:
+        for value in summary[version]:
+            summary[version][value] = len(summary[version][value])
+    table = pd.DataFrame.from_dict(summary,orient='index')
+    return table
 
 def inventory_glm_version(glm_version,valid_rois_only=True):
     '''
@@ -955,7 +969,7 @@ def inventory_glm_version(glm_version,valid_rois_only=True):
     )
 
     # get any experiments for which the ROI count is incomplete. These are 'incomplete_experiments'
-    if valid_rois_only=True:
+    if valid_rois_only==True:
         incomplete_experiments = set()
         additional_missing_cells = list(
             set(cell_table.query('ophys_experiment_id in {}'.format(list(glm_results['ophys_experiment_id'].unique())))['cell_roi_id']) - 
@@ -965,10 +979,12 @@ def inventory_glm_version(glm_version,valid_rois_only=True):
             associated_oeid = cell_table.query('cell_roi_id == @missing_cell').iloc[0]['ophys_experiment_id']
             incomplete_experiments.add(associated_oeid)
         incomplete_experiments = list(incomplete_experiments)
+        if len(incomplete_experiments) !=0:
+            print('WARNING, incomplete experiments found. This indicates a big data problem, possibly indicating outdated cell segmentation')
     else:
         print('WARNING, ignoring incomplete experiments because valid_rois_only=True')
         incomplete_experiments=[]
-        additional_missing_cels=[]
+        additional_missing_cells=[]
 
     inventory = {
         'fit_experiments': fit_experiments,
@@ -979,7 +995,7 @@ def inventory_glm_version(glm_version,valid_rois_only=True):
         'additional_missing_cells':additional_missing_cells
         }
     
-    return inventory,cell_table
+    return inventory
   
   
 def select_experiments_for_testing(returns = 'experiment_ids'):

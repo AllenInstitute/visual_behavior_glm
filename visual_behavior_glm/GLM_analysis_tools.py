@@ -470,7 +470,7 @@ def get_roi_count(ophys_experiment_id):
     df = db.lims_query(query)
     return df['valid_roi'].sum()
 
-def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True):
+def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False):
     '''
     gets cached results from mongodb
     input:
@@ -485,6 +485,9 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
                 are calculated only on test data, not train data.
         return_list - a list of columns to return. Returning fewer columns speeds queries
         merge_in_experiment_metadata - boolan which, if True, merges in data from experiment table
+        remove_invalid_rois - bool
+            if True, removes invalid rois from the returned results
+            if False, includes the invalid rois in the returned results
     output:
         dataframe of results
     '''
@@ -496,18 +499,25 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
             # don't return `_id` unless it was specifically requested
             return_dict.update({'_id': 0})
 
+    if verbose:
+        print('Pulling from Mongo')
     conn = db.Database('visual_behavior_data')
     database = 'ophys_glm'
     results = pd.DataFrame(list(conn[database]['results_{}'.format(results_type)].find(search_dict, return_dict)))
 
+    if verbose:
+        print('Done Pulling')
     # make 'glm_version' column a string
     if 'glm_version' in results.columns:
         results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
 
     if len(results) > 0 and merge_in_experiment_metadata:
+        if verbose:
+            print('Merging in experiment metadata')
         # get experiment table, merge in details of each experiment
-        experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+        #experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+        experiment_table = loading.get_platform_paper_experiment_table().reset_index()
         results = results.merge(
             experiment_table, 
             left_on='ophys_experiment_id',
@@ -517,7 +527,17 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         )
 
     duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
-    return results.drop(columns=duplicated_cols)
+    results = results.drop(columns=duplicated_cols)
+    
+    if remove_invalid_rois:
+        # get list of rois I like
+        if verbose:
+            print('Loading cell table to remove invalid rois')
+        cell_table = loading.get_cell_table(valid_rois_only=True, platform_paper_only=True) 
+        good_cell_roi_ids = cell_table.cell_roi_id.unique()
+        results = results.query('cell_roi_id in @good_cell_roi_ids')
+
+    return results
 
 def make_identifier(row):
     return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
@@ -591,6 +611,7 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         'adj_variance_explained',
         'adj_variance_explained_full',
         'entry_time_utc',
+        'driver_line'
     ]
     cols_to_drop = [col for col in potential_cols_to_drop if col in results_summary.columns]
     results_summary_pivoted = results_summary_pivoted.merge(
@@ -938,8 +959,8 @@ def inventories_to_table(inventories):
         for value in summary[version]:
             summary[version][value] = len(summary[version][value])
         summary[version]['Complete'] = (summary[version]['missing_experiments'] == 0 ) & (summary[version]['missing_rois'] == 0)
-        summary[version]['Total Experiments'] = summary[version]['fit_experiments'] + summary[version]['extra_experiments']
-        summary[version]['Total ROIs'] = summary[version]['fit_rois'] + summary[version]['extra_rois']
+        #summary[version]['Total Experiments'] = summary[version]['fit_experiments'] + summary[version]['extra_experiments']
+        #summary[version]['Total ROIs'] = summary[version]['fit_rois'] + summary[version]['extra_rois']
     table = pd.DataFrame.from_dict(summary,orient='index')
     if np.all(table['incomplete_experiments'] == 0):
         table = table.drop(columns=['incomplete_experiments', 'additional_missing_cells'])
@@ -962,18 +983,26 @@ def inventory_glm_version(glm_version,valid_rois_only=True, platform_paper_only=
     glm_results = retrieve_results(
         search_dict = {'glm_version': glm_version},
         return_list = ['ophys_experiment_id', 'cell_specimen_id', 'cell_roi_id'],
-        merge_in_experiment_metadata=False
+        merge_in_experiment_metadata=False,
+        remove_invalid_rois=False
     )
     
     # Get list of cells in the dataset
     cell_table = loading.get_cell_table(columns_to_return = ['ophys_experiment_id','cell_specimen_id', 'cell_roi_id'],valid_rois_only=valid_rois_only,platform_paper_only=platform_paper_only)
 
     # get list of rois and experiments we have fit
-    fit_experiments = glm_results['ophys_experiment_id'].unique()
-    fit_rois = glm_results['cell_roi_id'].unique()
-    
-    # Get list of 4x2 experiments to exclude
+    total_experiments = glm_results['ophys_experiment_id'].unique()
+    total_rois = glm_results['cell_roi_id'].unique()
 
+    # Compute list of rois and experiments that we have fit that are in the dataset
+    fit_experiments = list(
+        set(cell_table['ophys_experiment_id'].unique()) &
+        set(glm_results['ophys_experiment_id'].unique())
+    )
+    fit_rois = list(
+        set(cell_table['cell_roi_id'].unique()) &
+        set(glm_results['cell_roi_id'].unique())
+    )
 
     # get list of missing experiments
     missing_experiments = list(
@@ -1025,7 +1054,9 @@ def inventory_glm_version(glm_version,valid_rois_only=True, platform_paper_only=
         'extra_experiments': extra_experiments,
         'extra_rois': extra_rois,
         'incomplete_experiments': incomplete_experiments,
-        'additional_missing_cells':additional_missing_cells
+        'additional_missing_cells':additional_missing_cells,
+        'Total Experiments':total_experiments,
+        'Total ROIs':total_rois
         }
     
     return inventory

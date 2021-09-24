@@ -940,7 +940,7 @@ def inventories_to_table(inventories):
     table = pd.DataFrame.from_dict(summary,orient='index')
     return table
 
-def inventory_glm_version(glm_version,valid_rois_only=True):
+def inventory_glm_version(glm_version,valid_rois_only=True, platform_paper_only=True):
     '''
     checks to see which experiments and cell_roi_ids do not yet exist for a given GLM version
     inputs:
@@ -961,11 +961,14 @@ def inventory_glm_version(glm_version,valid_rois_only=True):
     )
     
     # Get list of cells in the dataset
-    cell_table = loading.get_cell_table(columns_to_return = ['ophys_experiment_id','cell_specimen_id', 'cell_roi_id'],valid_rois_only=valid_rois_only)
+    cell_table = loading.get_cell_table(columns_to_return = ['ophys_experiment_id','cell_specimen_id', 'cell_roi_id'],valid_rois_only=valid_rois_only,platform_paper_only=platform_paper_only)
 
     # get list of rois and experiments we have fit
     fit_experiments = glm_results['ophys_experiment_id'].unique()
     fit_rois = glm_results['cell_roi_id'].unique()
+    
+    # Get list of 4x2 experiments to exclude
+
 
     # get list of missing experiments
     missing_experiments = list(

@@ -928,43 +928,55 @@ def inventory_glm_version(glm_version,valid_rois_only=True):
             'incomplete_experiments': a list of experiments which exist, but for which the cell_roi_id list is incomplete
         }
     '''
+    # Get GLM results
     glm_results = retrieve_results(
         search_dict = {'glm_version': glm_version},
         return_list = ['ophys_experiment_id', 'cell_specimen_id', 'cell_roi_id'],
         merge_in_experiment_metadata=False
     )
+    
+    # Get list of cells in the dataset
     cell_table = loading.get_cell_table(columns_to_return = ['ophys_experiment_id','cell_specimen_id', 'cell_roi_id'],valid_rois_only=valid_rois_only)
 
+    # get list of rois and experiments we have fit
     fit_experiments = glm_results['ophys_experiment_id'].unique()
     fit_rois = glm_results['cell_roi_id'].unique()
 
+    # get list of missing experiments
     missing_experiments = list(
         set(cell_table['ophys_experiment_id'].unique()) - 
         set(glm_results['ophys_experiment_id'].unique())
     )
 
+    # get list of missing rois
     missing_rois = list(
         set(cell_table['cell_roi_id'].unique()) - 
         set(glm_results['cell_roi_id'].unique())
     )
 
     # get any experiments for which the ROI count is incomplete. These are 'incomplete_experiments'
-    incomplete_experiments = []
-    additional_missing_cells = list(
-        set(cell_table.query('ophys_experiment_id in {}'.format(list(glm_results['ophys_experiment_id'].unique())))['cell_roi_id']) - 
-        set(glm_results['cell_roi_id'])
-    )
-    for missing_cell in additional_missing_cells:
-        associated_oeid = cell_table.query('cell_roi_id == @missing_cell_id').iloc[0]['ophys_experiment_id']
-        # only append an experiment to the incomplete experiments list if it's not already in the list
-        incomplete_experiments.append(associated_oeid) if associated_oeid not in incomplete_experiments else None
+    if valid_rois_only=True:
+        incomplete_experiments = set()
+        additional_missing_cells = list(
+            set(cell_table.query('ophys_experiment_id in {}'.format(list(glm_results['ophys_experiment_id'].unique())))['cell_roi_id']) - 
+            set(glm_results['cell_roi_id'])
+        )
+        for missing_cell in additional_missing_cells:
+            associated_oeid = cell_table.query('cell_roi_id == @missing_cell').iloc[0]['ophys_experiment_id']
+            incomplete_experiments.add(associated_oeid)
+        incomplete_experiments = list(incomplete_experiments)
+    else:
+        print('WARNING, ignoring incomplete experiments because valid_rois_only=True')
+        incomplete_experiments=[]
+        additional_missing_cels=[]
 
     inventory = {
         'fit_experiments': fit_experiments,
-        'missing_experiments': missing_experiments,
         'fit_rois':fit_rois,
-        'missing_rois': missing_rois, 
-        'incomplete_experiments': incomplete_experiments
+        'missing_experiments': missing_experiments,
+        'missing_rois': missing_rois,
+        'incomplete_experiments': incomplete_experiments,
+        'additional_missing_cells':additional_missing_cells
         }
     
     return inventory,cell_table

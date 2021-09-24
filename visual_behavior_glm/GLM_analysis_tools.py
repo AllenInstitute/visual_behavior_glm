@@ -914,14 +914,25 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
 
     return results_pivoted_var
           
-def build_inventory_table(vrange=[10,20]):
+def build_inventory_table(vrange=[18,20],return_inventories=False):
+    '''
+        Builds a table of all available GLM versions in the supplied range, and reports how many missing/fit experiments/rois in that version
+        
+        Optionally returns the list of missing experiments and rois
+    '''
     versions = glm_params.get_versions(vrange=vrange)
     inventories ={}
     for v in versions:
         inventories[v]=inventory_glm_version(v[2:])
-    return inventories_to_table(inventories),inventories    
+    if return_inventories:
+        return inventories_to_table(inventories),inventories    
+    else:
+        return inventories_to_table(inventories)
 
 def inventories_to_table(inventories):
+    '''
+        Helper function that takes a dictionary of version inventories and build a summary table
+    '''
     summary = inventories.copy()
     for version in summary:
         for value in summary[version]:

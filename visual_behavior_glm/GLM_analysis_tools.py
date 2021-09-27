@@ -532,7 +532,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         # get list of rois I like
         if verbose:
             print('Loading cell table to remove invalid rois')
-        cell_table = loading.get_cell_table(platform_paper_only=True)
+        cell_table = loading.get_cell_table(platform_paper_only=True).reset_index()
         good_cell_roi_ids = cell_table.cell_roi_id.unique()
         results = results.query('cell_roi_id in @good_cell_roi_ids')
 

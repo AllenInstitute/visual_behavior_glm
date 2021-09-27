@@ -403,7 +403,7 @@ def get_experiment_table(glm_version):
     
     Warning: this takes a couple of minutes to run.
     '''
-    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index() # Need to fix
     dropout_summary = retrieve_results({'glm_version':glm_version}, results_type='summary')
     stdout_summary = get_stdout_summary(glm_version)
 
@@ -516,7 +516,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         if verbose:
             print('Merging in experiment metadata')
         # get experiment table, merge in details of each experiment
-        #experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+        #experiment_table = loading.get_filtered_ophys_experiment_table().reset_index() # Need to fix
         experiment_table = loading.get_platform_paper_experiment_table().reset_index()
         results = results.merge(
             experiment_table, 
@@ -654,7 +654,7 @@ def get_experiment_inventory(results=None):
         results = results_dict['full']
     results = results.set_index(['ophys_experiment_id'])
     
-    experiments_table = loading.get_filtered_ophys_experiment_table()
+    experiments_table = loading.get_filtered_ophys_experiment_table() # Need to fix
 
     for glm_version in results['glm_version'].unique():
         for oeid in experiments_table.index.values:

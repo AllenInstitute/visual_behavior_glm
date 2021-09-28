@@ -57,6 +57,18 @@ if False: # Code snippets for doing basic analyses.
     # Make GLM object
     g = glm.GLM(oeid, VERSION, use_previous_fit=True, log_results=False, log_weights=False)
     
+    
+
+    # Tools for evaluating model versions
+    #####################
+
+    # Get a list of the missing experiments/rois for a specific version
+    inventory17 = gat.inventory_glm_version('17_dff_all_L2_optimize_by_session')
+    
+    # Get a table of fit and missing experiments/rois for GLM versions in the range "vrange"
+    inventory_table = gat.build_inventory_table(vrange=[15,20])
+
+
 
 
     # Analysis Dataframes 

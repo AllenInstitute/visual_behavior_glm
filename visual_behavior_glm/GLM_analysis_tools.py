@@ -403,7 +403,7 @@ def get_experiment_table(glm_version):
     
     Warning: this takes a couple of minutes to run.
     '''
-    experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    experiment_table = loading.get_platform_paper_ophys_experiment_table().reset_index() # Need to fix
     dropout_summary = retrieve_results({'glm_version':glm_version}, results_type='summary')
     stdout_summary = get_stdout_summary(glm_version)
 
@@ -516,7 +516,6 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         if verbose:
             print('Merging in experiment metadata')
         # get experiment table, merge in details of each experiment
-        #experiment_table = loading.get_filtered_ophys_experiment_table().reset_index()
         experiment_table = loading.get_platform_paper_experiment_table().reset_index()
         results = results.merge(
             experiment_table, 
@@ -533,7 +532,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         # get list of rois I like
         if verbose:
             print('Loading cell table to remove invalid rois')
-        cell_table = loading.get_cell_table(valid_rois_only=True, platform_paper_only=True) 
+        cell_table = loading.get_cell_table(platform_paper_only=True).reset_index()
         good_cell_roi_ids = cell_table.cell_roi_id.unique()
         results = results.query('cell_roi_id in @good_cell_roi_ids')
 
@@ -654,7 +653,7 @@ def get_experiment_inventory(results=None):
         results = results_dict['full']
     results = results.set_index(['ophys_experiment_id'])
     
-    experiments_table = loading.get_filtered_ophys_experiment_table()
+    experiments_table = loading.get_platform_paper_experiment_table()
 
     for glm_version in results['glm_version'].unique():
         for oeid in experiments_table.index.values:
@@ -966,12 +965,12 @@ def inventories_to_table(inventories):
         table = table.drop(columns=['incomplete_experiments', 'additional_missing_cells'])
     return table
 
-def inventory_glm_version(glm_version,valid_rois_only=True, platform_paper_only=True):
+def inventory_glm_version(glm_version, valid_rois_only=True, platform_paper_only=True):
     '''
     checks to see which experiments and cell_roi_ids do not yet exist for a given GLM version
     inputs:
         glm_version: string
-        
+        platform_paper_only: bool, if True, only count cells in the platform paper dataset 
     returns: dict
         {
             'missing_experiments': a list of missing experiment IDs
@@ -988,7 +987,7 @@ def inventory_glm_version(glm_version,valid_rois_only=True, platform_paper_only=
     )
     
     # Get list of cells in the dataset
-    cell_table = loading.get_cell_table(columns_to_return = ['ophys_experiment_id','cell_specimen_id', 'cell_roi_id'],valid_rois_only=valid_rois_only,platform_paper_only=platform_paper_only)
+    cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only).reset_index()
 
     # get list of rois and experiments we have fit
     total_experiments = glm_results['ophys_experiment_id'].unique()

@@ -262,6 +262,44 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     plt.xlim(stim.iloc[0].start_time, stim.iloc[-1].start_time+.75)
     plt.tight_layout()
     return
+def plot_glm_version_comparison_scatter(comparison_table=None, results=None, versions_to_compare=None, savefig=True):
+    assert not (comparison_table is None and versions_to_compare is None), 'must pass either a comparison table or a list of two versions to compare'
+    assert not (comparison_table is not None and results is not None), 'must pass either a comparison table or a results dataframe, not both'
+
+    if results is not None:
+        if versions_to_compare is None:
+            versions_to_compare = results['glm_version'].unique()
+        assert len(versions_to_compare) == 2, 'can only compare two glm_versions. Either pass a list of two versions, or pass a results table with two versions'
+
+    if comparison_table is None:
+        comparison_table = gat.get_glm_version_comparison_table(versions_to_compare=versions_to_compare, results=results)
+
+    cre_lines = np.sort(comparison_table['cre_line'].dropna().unique())
+
+    comparison_table['Diff'] = comparison_table[versions_to_compare[0]] -comparison_table[versions_to_compare[1]]
+    plt.figure()
+    jointplot = sns.histplot(
+        comparison_table,
+        x= 'Diff',
+        hue='cre_line',
+        element='step',
+        stat='density',
+        common_norm=False,
+    )
+    plt.xlim(-.1,.1)
+    plt.axvline(0, color='k',alpha=.25, linestyle='--')
+    plt.xlabel(versions_to_compare[0] +'\n minus \n'+ versions_to_compare[1])
+    plt.tight_layout()    
+
+    # Save a figure for each version 
+    if savefig and (versions_to_compare is not None):
+        version_strings = '_'.join([x.split('_')[0] for x in versions_to_compare])
+        for version in versions_to_compare:
+            run_params = glm_params.load_run_json(version)
+            filepath = os.path.join(run_params['figure_dir'], 'version_comparison_scatter_'+version_strings+'.png')
+            plt.savefig(filepath)
+
+    return jointplot
 
 def plot_glm_version_comparison(comparison_table=None, results=None, versions_to_compare=None, savefig=True):
     '''

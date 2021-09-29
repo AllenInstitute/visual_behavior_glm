@@ -74,7 +74,12 @@ if False: # Code snippets for doing basic analyses.
     # Get a table of fit and missing experiments/rois for GLM versions in the range "vrange"
     inventory_table = gat.build_inventory_table(vrange=[15,20])
 
+    # Compare two model versions
+    comparison_table = gat.get_glm_version_comparison_table()
+    gvt.plot_glm_version_comparison()
 
+    # Compare multiple versions
+    gvt.compare_var_explained()
 
 
     # Analysis Dataframes 

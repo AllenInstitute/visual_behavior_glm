@@ -546,12 +546,17 @@ def get_glm_version_comparison_table(versions_to_compare, results=None, metric='
     builds a table that allows to glm versions to be directly compared
     input is list of glm versions to compare (list of strings)
     if results dataframe is not passed, it will be queried from Mongo
+    
+    Returns two items
+        comparison_table, where the <metric> for each version is a column, and rows are cells
+        results, where each row is a (cell x version)
     '''
     if results is None:
-        results = []
+        results_list = []
         for glm_version in versions_to_compare:
-            results.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
-        results = pd.concat(results, sort=True)
+            print(glm_version)
+            results_list.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
+        results = pd.concat(results_list, sort=True)
 
     results['identifier'] = results.apply(make_identifier, axis=1)
     pivoted_results = results.pivot(index='identifier', columns='glm_version',values=metric)
@@ -564,7 +569,7 @@ def get_glm_version_comparison_table(versions_to_compare, results=None, metric='
         how='left'
     )
 
-    return pivoted_results
+    return pivoted_results,pd.concat(results_list, sort=True)
 
 def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None):
     '''

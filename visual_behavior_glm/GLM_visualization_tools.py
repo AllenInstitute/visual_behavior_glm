@@ -262,7 +262,8 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     plt.xlim(stim.iloc[0].start_time, stim.iloc[-1].start_time+.75)
     plt.tight_layout()
     return
-def plot_glm_version_comparison_scatter(comparison_table=None, results=None, versions_to_compare=None, savefig=True):
+
+def plot_glm_version_comparison_histogram(comparison_table=None, results=None, versions_to_compare=None, savefig=True):
     assert not (comparison_table is None and versions_to_compare is None), 'must pass either a comparison table or a list of two versions to compare'
     assert not (comparison_table is not None and results is not None), 'must pass either a comparison table or a results dataframe, not both'
 
@@ -296,7 +297,7 @@ def plot_glm_version_comparison_scatter(comparison_table=None, results=None, ver
         version_strings = '_'.join([x.split('_')[0] for x in versions_to_compare])
         for version in versions_to_compare:
             run_params = glm_params.load_run_json(version)
-            filepath = os.path.join(run_params['figure_dir'], 'version_comparison_scatter_'+version_strings+'.png')
+            filepath = os.path.join(run_params['figure_dir'], 'version_comparison_histogram_'+version_strings+'.png')
             plt.savefig(filepath)
 
     return jointplot
@@ -528,6 +529,13 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
+def compare_var_explained_comparison_table(comparison_table,versions_to_compare):
+    fig,ax = plt.subplots()
+    
+    for index,version in enumerate(versions_to_compare): 
+        plt.plot(index, comparison_table[version].mean(),'ko') 
+
+
 def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outlier_threshold=1.5):
     '''
     make a boxplot comparing variance explained for each version in the database
@@ -553,7 +561,7 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outl
         plot1 = sns.boxplot(
             data=results,
             x='glm_version',
-            y='Full_avg_cv_var_{}'.format(dataset),
+            y='Full__avg_cv_var_{}'.format(dataset),
             order = glm_version_order,
             hue='cre_line',
             hue_order=cre_line_order,
@@ -565,7 +573,7 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outl
         plot2 = sns.boxplot(
             data=results,
             x='cre_line',
-            y='Full_avg_cv_var_{}'.format(dataset),
+            y='Full__avg_cv_var_{}'.format(dataset),
             order = cre_line_order,
             hue='glm_version',
             hue_order=glm_version_order,
@@ -580,7 +588,7 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outl
         ax[row, 1].set_title('{} data full model performance\ngrouped by cre line'.format(dataset))
 
         # calculate interquartile ranges
-        grp = results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_{}'.format(dataset)]
+        grp = results.groupby(['glm_version','cre_line'])['Full__avg_cv_var_{}'.format(dataset)]
         IQR = grp.quantile(0.75) - grp.quantile(0.25)
 
 

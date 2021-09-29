@@ -75,11 +75,13 @@ if False: # Code snippets for doing basic analyses.
     inventory_table = gat.build_inventory_table(vrange=[15,20])
 
     # Compare two model versions
-    comparison_table = gat.get_glm_version_comparison_table()
-    gvt.plot_glm_version_comparison()
+    versions = [x[2:] for x in inventory_table.index.values[-2:]]
+    comparison_table,results_combined = gat.get_glm_version_comparison_table(versions)
+    gvt.plot_glm_version_comparison(comparison_table=comparison_table, versions_to_compare=versions)
+    gvt.plot_glm_version_comparison_scatter(comparison_table=comparison_table, versions_to_compare=versions)
 
     # Compare multiple versions
-    gvt.compare_var_explained()
+    gvt.compare_var_explained(results_combined)
 
 
     # Analysis Dataframes 

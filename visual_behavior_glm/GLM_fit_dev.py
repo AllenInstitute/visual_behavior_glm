@@ -43,10 +43,10 @@ if False: # Code snippets for doing basic analyses.
     session, fit, design = gft.fit_experiment(oeid, run_params)
 
     # Deploy all fits on the cluster
-    conda activate visbeh
-    cd ../scripts/
-    vim deploy_glm_fits.sh     # edit the bash script to use the proper version
-    ./deploy_glm_fits.sh
+    #conda activate visbeh
+    #cd ../scripts/
+    #vim deploy_glm_fits.sh     # edit the bash script to use the proper version
+    #./deploy_glm_fits.sh
 
 
 

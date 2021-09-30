@@ -625,7 +625,7 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
         extra = extra+"_"+cre
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/variance_explained'+extra+'.png')
 
-    return fig, ax,plot1
+    return fig, ax
 
 
 def plot_licks(session, ax, y_loc=0, t_span=None):

@@ -124,8 +124,7 @@ if False: # Code snippets for doing basic analyses.
     gvt.plot_kernel_support(g)
 
     # Make dropout summary figures
-    regressors = ['all-images','omissions','behavioral','task']
-    gvt.plot_dropout_summary_cosyne(results_pivoted, dropouts_to_show=regressors, palette = gvt.project_colors())
+    gvt.plot_dropout_summary_population(results, dropouts_to_show=regressors, palette = gvt.project_colors())
 
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 

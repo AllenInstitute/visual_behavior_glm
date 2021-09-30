@@ -2797,7 +2797,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
         fig = ax.get_figure()
 
     dropouts_to_show = ['visual', 'behavioral', 'cognitive']
-    plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=palette)
+    plot_dropout_summary_cosyne(dropout_summary, ax=ax, dropouts_to_show=dropouts_to_show, palette=palette)
     ax.tick_params(axis='both',labelsize=20)
     ax.set_ylabel('% decrease in variance explained \n when removing sets of kernels',fontsize=24)
     ax.set_xlabel('Sets of Kernels',fontsize=24)
@@ -2810,28 +2810,48 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show =  ['visual','behavioral','cognitive'], threshold = -0.01,palette=None):
+def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-images','omissions','behavioral','task'], threshold = 0,ax=None,palette=None,use_violin=True):
     '''
-    makes bar plots of results summary
-    aesthetics specific to cosyne needs
+       Makes a bar plot that shows the population dropout summary by cre line for different regressors 
 
     '''
+    if ax is None:
+        fig,ax = plt.subplots()
+    
+    if palette is None:
+        palette = project_colors()
 
     cre_lines = np.sort(dropout_summary['cre_line'].unique())
     
     data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
-    sns.boxplot(
-        data = data_to_plot,
-        x='dropout',
-        y='adj_fraction_change_from_full',
-        hue='cre_line',
-        order=dropouts_to_show,
-        hue_order=cre_lines,
-        fliersize=0,
-        ax=ax,
-        palette=palette
-    )
+    if use_violin:
+        sns.violinplot(
+            data = data_to_plot,
+            x='dropout',
+            y='adj_fraction_change_from_full',
+            hue='cre_line',
+            order=dropouts_to_show,
+            hue_order=cre_lines,
+            fliersize=0,
+            ax=ax,
+            inner=None,
+            linewidth=0,
+            palette=palette
+        )
+        plt.axhline(0,color='k',alpha=.25)
+    else:
+        sns.boxplot(
+            data = data_to_plot,
+            x='dropout',
+            y='adj_fraction_change_from_full',
+            hue='cre_line',
+            order=dropouts_to_show,
+            hue_order=cre_lines,
+            fliersize=0,
+            ax=ax,
+            palette=palette
+        )
 
     #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     ax.set_ylabel('Fraction change\nin variance explained')

@@ -545,12 +545,15 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
 def make_identifier(row):
     return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
 
-def get_glm_version_summary(versions_to_compare, compact=True):
+def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=True):
     '''
         Builds a results summary table for comparing variance explained and dropout scores across model versions.
         results_compact = gat.get_glm_version_summary(versions_to_compare)
         gvt.compare_var_explained_by_version(results_compact)
     '''
+    if versions_to_compare is None:
+        versions_to_compare = glm_params.get_versions(vrange)
+        versions_to_compare = [x[2:] for x in versions_to_compare if 'old' not in x]
     if compact:
         dropouts = ['Full','visual','all-images','omissions','behavioral','task']
         return_list = np.concatenate([[x+'__avg_cv_var_test',x+'__avg_cv_var_train'] for x in dropouts])
@@ -969,6 +972,7 @@ def build_inventory_table(vrange=[18,20],return_inventories=False):
         Optionally returns the list of missing experiments and rois
     '''
     versions = glm_params.get_versions(vrange=vrange)
+    versions = [x for x in versions if 'old' not in x]
     inventories ={}
     for v in versions:
         inventories[v]=inventory_glm_version(v[2:])

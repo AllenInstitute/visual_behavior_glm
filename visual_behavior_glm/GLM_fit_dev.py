@@ -82,6 +82,7 @@ if False: # Code snippets for doing basic analyses.
     
     # Faster if loading many versions
     results_combined = gat.get_glm_version_summary(versions)
+    results_combined = gat.get_glm_version_summary(vrange=[15,20])
     
     # Compare multiple versions
     gvt.compare_var_explained_by_version(results_combined,test_data=True)

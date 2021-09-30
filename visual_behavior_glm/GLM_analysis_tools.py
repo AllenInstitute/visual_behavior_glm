@@ -524,9 +524,8 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
             how='left',
             suffixes=['', '_duplicated'],
         )
-
-    duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
-    results = results.drop(columns=duplicated_cols)
+        duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
+        results = results.drop(columns=duplicated_cols)
     
     if remove_invalid_rois:
         # get list of rois I like

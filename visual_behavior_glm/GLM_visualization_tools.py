@@ -529,7 +529,7 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
-def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None):
+def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full'):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:
@@ -567,20 +567,30 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
         plot1 = sns.violinplot(
             data=results,
             y='glm_version',
-            x='Full__avg_cv_var_{}'.format(dataset),
+            x=metric+'__avg_cv_var_{}'.format(dataset),
             order = glm_version_order,
             hue='cre_line',
             hue_order=cre_line_order,
             inner=inner,
-            linewidth=0,
+            linewidth=1,
             ax=ax,
             palette=colors
         )
+        lines = plot1.get_lines()
+        for index, line in enumerate(lines):
+            if np.mod(index,3) == 0:
+                line.set_linewidth(0)
+            elif np.mod(index,3) == 1:
+                line.set_linewidth(1)
+                line.set_color('r')
+                line.set_linestyle('-')
+            elif np.mod(index,3) == 2:
+                line.set_linewidth(0)
     else:
         plot1 = sns.boxplot(
             data=results,
             x='glm_version',
-            y='Full__avg_cv_var_{}'.format(dataset),
+            y=metric+'__avg_cv_var_{}'.format(dataset),
             order = glm_version_order,
             hue='cre_line',
             hue_order=cre_line_order,
@@ -590,14 +600,14 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
         )      
     
     # Label axes and title 
-    ax.set_xlabel('variance explained',fontsize=16)
+    ax.set_xlabel(metric+' Model Variance Explained on {} set'.format(dataset),fontsize=16)
     ax.set_ylabel('GLM version',fontsize=16)
-    ax.set_title('Full Model Variance Explained on {} set'.format(dataset),fontsize=16)
+    #ax.set_title('Full Model Variance Explained on {} set'.format(dataset),fontsize=16)
     ax.set_yticklabels(ax.get_yticklabels(),fontsize=12)
     ax.legend()
 
     # Add gray boxes to separate model versions
-    ax.axvline(0, color='black', linestyle=':')
+    ax.axvline(0, color='black',alpha=.25)
     mids = ax.get_yticks()
     edges = np.diff(mids)*.5 + mids[0:-1]
     orig_ylim = ax.get_ylim()
@@ -610,12 +620,12 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
  
     # Clean up and save
     fig.tight_layout()
-    extra = '_'+dataset
+    extra = '_'+metric+'_'+dataset
     if cre is not None:
         extra = extra+"_"+cre
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/variance_explained'+extra+'.png')
 
-    return fig, ax
+    return fig, ax,plot1
 
 
 def plot_licks(session, ax, y_loc=0, t_span=None):

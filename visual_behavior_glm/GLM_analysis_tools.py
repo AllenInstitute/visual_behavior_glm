@@ -540,6 +540,25 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
 def make_identifier(row):
     return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
 
+def get_glm_version_summary(versions_to_compare, compact=True):
+    '''
+        Builds a results summary table for comparing variance explained and dropout scores across model versions.
+        results_compact = gat.get_glm_version_summary(versions_to_compare)
+        gvt.compare_var_explained_by_version(results_compact)
+    '''
+    if compact:
+        dropouts = ['Full','visual','all-images','omissions','behavioral','task']
+        return_list = np.concatenate([[x+'__avg_cv_var_test',x+'__avg_cv_var_train'] for x in dropouts])
+        return_list = np.concatenate([return_list, ['ophys_experiment_id','cell_roi_id','cre_line','glm_version']])
+    else:
+        return_list = None
+    results_list = []
+    for glm_version in versions_to_compare:
+        print(glm_version)
+        results_list.append(retrieve_results({'glm_version': glm_version},return_list=return_list, results_type='full'))
+    results = pd.concat(results_list, sort=True)
+    return results
+
 def get_glm_version_comparison_table(versions_to_compare, results=None, metric='Full__avg_cv_var_test'):
     '''
     builds a table that allows to glm versions to be directly compared

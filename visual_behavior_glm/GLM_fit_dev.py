@@ -79,7 +79,10 @@ if False: # Code snippets for doing basic analyses.
     comparison_table,results_combined = gat.get_glm_version_comparison_table(versions)
     gvt.plot_glm_version_comparison(comparison_table=comparison_table, versions_to_compare=versions)
     gvt.plot_glm_version_comparison_scatter(comparison_table=comparison_table, versions_to_compare=versions)
-
+    
+    # Faster if loading many versions
+    results_combined = gat.get_glm_version_summary(versions)
+    
     # Compare multiple versions
     gvt.compare_var_explained_by_version(results_combined,test_data=True)
     gvt.compare_var_explained_by_version(results_combined,test_data=False)

@@ -2829,7 +2829,7 @@ def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-i
         sns.violinplot(
             data = data_to_plot,
             x='dropout',
-            y='adj_fraction_change_from_full',
+            y='explained_variance',
             hue='cre_line',
             order=dropouts_to_show,
             hue_order=cre_lines,
@@ -2844,7 +2844,7 @@ def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-i
         sns.boxplot(
             data = data_to_plot,
             x='dropout',
-            y='adj_fraction_change_from_full',
+            y='explained_variance',
             hue='cre_line',
             order=dropouts_to_show,
             hue_order=cre_lines,

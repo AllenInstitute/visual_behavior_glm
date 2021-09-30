@@ -124,7 +124,7 @@ if False: # Code snippets for doing basic analyses.
     gvt.plot_kernel_support(g)
 
     # Make dropout summary figures
-    gvt.plot_dropout_summary_population(results, dropouts_to_show=regressors, palette = gvt.project_colors())
+    gvt.plot_dropout_summary_population(results)
 
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 

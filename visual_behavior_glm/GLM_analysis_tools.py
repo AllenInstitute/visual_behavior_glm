@@ -470,7 +470,7 @@ def get_roi_count(ophys_experiment_id):
     df = db.lims_query(query)
     return df['valid_roi'].sum()
 
-def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False,allow_old_rois=True):
+def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False,allow_old_rois=True,invalid_only=False):
     '''
     gets cached results from mongodb
     input:
@@ -491,6 +491,8 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
     output:
         dataframe of results
     '''
+    assert not (invalid_only & remove_invalid_rois), "Cannot remove invalid rois and only return invalid rois"
+    
     if return_list is None:
         return_dict = {'_id': 0}
     else:
@@ -539,13 +541,24 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
             print('WARNING, cell_roi_id not found in database, I cannot filter for old rois. The returned results could be out of date, or QC failed')
         else:
             raise Exception('cell_roi_id not in database, and allow_old_rois=False')
+    elif invalid_only:
+        if verbose:
+            print('Loading cell table to remove valid rois')
+        if 'cell_roi_id' in results:
+            cell_table = loading.get_cell_table(platform_paper_only=True).reset_index()
+            good_cell_roi_ids = cell_table.cell_roi_id.unique()
+            results = results.query('cell_roi_id not in @good_cell_roi_ids')
+        elif allow_old_rois:
+            print('WARNING, cell_roi_id not found in database, I cannot filter for old rois. The returned results could be out of date, or QC failed')
+        else:
+            raise Exception('cell_roi_id not in database, and allow_old_rois=False') 
     
     return results
 
 def make_identifier(row):
     return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
 
-def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=True):
+def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=True,invalid_only=False,remove_invalid_rois=True,save_results=True):
     '''
         Builds a results summary table for comparing variance explained and dropout scores across model versions.
         results_compact = gat.get_glm_version_summary(versions_to_compare)
@@ -561,10 +574,20 @@ def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=Tru
     else:
         return_list = None
     results_list = []
+    print('Iterating model versions')
     for glm_version in versions_to_compare:
         print(glm_version)
-        results_list.append(retrieve_results({'glm_version': glm_version},return_list=return_list, results_type='full'))
+        results_list.append(retrieve_results({'glm_version': glm_version},return_list=return_list, results_type='full',invalid_only=invalid_only,remove_invalid_rois=remove_invalid_rois))
     results = pd.concat(results_list, sort=True)
+
+    # Display summary statistics
+    summary_table = results.groupby(['cre_line','glm_version'])['Full__avg_cv_var_test'].mean()
+    print(summary_table)
+
+    # Save Summary Table
+    if save_results:
+       summary_table.to_csv('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/summary_table.csv',header=True) 
+
     return results
 
 def get_glm_version_comparison_table(versions_to_compare, results=None, metric='Full__avg_cv_var_test'):

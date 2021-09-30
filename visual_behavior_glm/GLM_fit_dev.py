@@ -88,7 +88,10 @@ if False: # Code snippets for doing basic analyses.
     gvt.compare_var_explained_by_version(results_combined,test_data=True)
     gvt.compare_var_explained_by_version(results_combined,test_data=False)
     gvt.compare_var_explained_by_version(results_combined,cre='Sst-IRES-Cre')
-
+    
+    # Just look at invalid rois
+    results_combined = gat.get_glm_version_summary(vrange=[15,20], remove_invalid_rois=False, invalid_only=True)
+    gvt.compare_var_explained_by_version(results_combined)
 
 
     # Analysis Dataframes 

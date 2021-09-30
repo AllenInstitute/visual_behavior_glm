@@ -81,7 +81,10 @@ if False: # Code snippets for doing basic analyses.
     gvt.plot_glm_version_comparison_scatter(comparison_table=comparison_table, versions_to_compare=versions)
 
     # Compare multiple versions
-    gvt.compare_var_explained(results_combined)
+    gvt.compare_var_explained_by_version(results_combined,test_data=True)
+    gvt.compare_var_explained_by_version(results_combined,test_data=False)
+    gvt.compare_var_explained_by_version(results_combined,cre='Sst-IRES-Cre')
+
 
 
     # Analysis Dataframes 
@@ -112,6 +115,10 @@ if False: # Code snippets for doing basic analyses.
 
     # Make plot of kernel support
     gvt.plot_kernel_support(g)
+
+    # Make dropout summary figures
+    regressors = ['all-images','omissions','behavioral','task']
+    gvt.plot_dropout_summary_cosyne(results_pivoted, dropouts_to_show=regressors, palette = gvt.project_colors())
 
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 

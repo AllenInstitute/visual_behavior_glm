@@ -529,14 +529,97 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
-def compare_var_explained_comparison_table(comparison_table,versions_to_compare):
-    fig,ax = plt.subplots()
+def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None):
+    '''
+    make a boxplot comparing variance explained for each version in the database
+    inputs:
+        results: a dataframe of results (if None, will be retreived from database)
+        fig, ax: figure and axis handles. If None, will be created
+        figsize: size of figure
+        outlier_threshold: Proportion of the IQR past the low and high quartiles to extend the plot whiskers. Points outside this range will be identified as outliers. (from seaborn docs)
+
+    returns:
+        figure and axis handles (tuple)
+    '''
+    # set up figure axis
+    if results is None:
+        results_dict = gat.retrieve_results()
+        results = results_dict['full']
+    if fig is None and ax is None:
+        fig, ax = plt.subplots(figsize=figsize, sharey=True, sharex='col')
+
+    # determine what data to plot
+    if cre is not None:
+        results = results.query('cre_line == @cre')
+        inner = 'quartile'
+    else:
+        inner= None
+    colors = project_colors() 
+    cre_line_order = np.sort(results['cre_line'].unique())
+    glm_version_order = np.sort(results['glm_version'].unique())
+    if test_data:
+        dataset = 'test'
+    else:
+        dataset = 'train'
+
+    # plot main data
+    if use_violin:
+        plot1 = sns.violinplot(
+            data=results,
+            y='glm_version',
+            x='Full__avg_cv_var_{}'.format(dataset),
+            order = glm_version_order,
+            hue='cre_line',
+            hue_order=cre_line_order,
+            inner=inner,
+            linewidth=0,
+            ax=ax,
+            palette=colors
+        )
+    else:
+        plot1 = sns.boxplot(
+            data=results,
+            x='glm_version',
+            y='Full__avg_cv_var_{}'.format(dataset),
+            order = glm_version_order,
+            hue='cre_line',
+            hue_order=cre_line_order,
+            fliersize=0,
+            whis=1.5,
+            ax=ax,
+        )      
     
-    for index,version in enumerate(versions_to_compare): 
-        plt.plot(index, comparison_table[version].mean(),'ko') 
+    # Label axes and title 
+    ax.set_xlabel('variance explained',fontsize=16)
+    ax.set_ylabel('GLM version',fontsize=16)
+    ax.set_title('Full Model Variance Explained on {} set'.format(dataset),fontsize=16)
+    ax.set_yticklabels(ax.get_yticklabels(),fontsize=12)
+    ax.legend()
+
+    # Add gray boxes to separate model versions
+    ax.axvline(0, color='black', linestyle=':')
+    mids = ax.get_yticks()
+    edges = np.diff(mids)*.5 + mids[0:-1]
+    orig_ylim = ax.get_ylim()
+    ylim = sorted(list(orig_ylim))
+    edges = [ylim[0]]+list(edges)+[ylim[1]]
+    for dex, edge in enumerate(edges[:-1]):
+        if np.mod(dex,2) == 0:
+            plt.axhspan(edges[dex], edges[dex+1], color='k',alpha=.1)
+    ax.set_ylim(orig_ylim)
+ 
+    # Clean up and save
+    fig.tight_layout()
+    extra = '_'+dataset
+    if cre is not None:
+        extra = extra+"_"+cre
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/variance_explained'+extra+'.png')
+
+    return fig, ax
 
 
-def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outlier_threshold=1.5):
+
+def compare_var_explained_old(results=None, fig=None, ax=None, figsize=(15,12), outlier_threshold=1.5,use_violin=True):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:
@@ -558,30 +641,56 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outl
     glm_version_order = np.sort(results['glm_version'].unique())
 
     for row,dataset in enumerate(['train','test']):
-        plot1 = sns.boxplot(
-            data=results,
-            x='glm_version',
-            y='Full__avg_cv_var_{}'.format(dataset),
-            order = glm_version_order,
-            hue='cre_line',
-            hue_order=cre_line_order,
-            fliersize=0,
-            whis=outlier_threshold,
-            ax=ax[row,0],
-        )
-
-        plot2 = sns.boxplot(
-            data=results,
-            x='cre_line',
-            y='Full__avg_cv_var_{}'.format(dataset),
-            order = cre_line_order,
-            hue='glm_version',
-            hue_order=glm_version_order,
-            fliersize=0,
-            whis=outlier_threshold,
-            ax=ax[row,1],
-            palette='brg',
-        )
+        if use_violin:
+            plot1 = sns.violinplot(
+                data=results,
+                x='glm_version',
+                y='Full__avg_cv_var_{}'.format(dataset),
+                order = glm_version_order,
+                hue='cre_line',
+                hue_order=cre_line_order,
+                inner=None,
+                linewidth=0,
+                #fliersize=0,
+                #whis=outlier_threshold,
+                ax=ax[row,0],
+            )
+            plot2 = sns.violinplot(
+                data=results,
+                x='cre_line',
+                y='Full__avg_cv_var_{}'.format(dataset),
+                order = cre_line_order,
+                hue='glm_version',
+                hue_order=glm_version_order,
+                inner=None,
+                linewidth=0,
+                ax=ax[row,1],
+                palette='brg',
+            )
+        else:
+            plot1 = sns.boxplot(
+                data=results,
+                x='glm_version',
+                y='Full__avg_cv_var_{}'.format(dataset),
+                order = glm_version_order,
+                hue='cre_line',
+                hue_order=cre_line_order,
+                fliersize=0,
+                whis=outlier_threshold,
+                ax=ax[row,0],
+            )       
+            plot2 = sns.boxplot(
+                data=results,
+                x='cre_line',
+                y='Full__avg_cv_var_{}'.format(dataset),
+                order = cre_line_order,
+                hue='glm_version',
+                hue_order=glm_version_order,
+                fliersize=0,
+                whis=outlier_threshold,
+                ax=ax[row,1],
+                palette='brg',
+            )
         ax[row, 0].set_ylabel('variance explained')
         ax[row, 0].set_xlabel('GLM version')
         ax[row, 0].set_title('{} data full model performance\ngrouped by version'.format(dataset))
@@ -597,7 +706,7 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outl
 
         for i in range(2):
             ax[row, i].legend(loc='upper left',bbox_to_anchor=(1.01, 1),borderaxespad=0)
-            ax[row, i].set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
+            #    ax[row, i].set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
             ax[row, i].axhline(0, color='black', linestyle=':')
             ax[row, i].set_xticklabels(ax[row, i].get_xticklabels(),rotation=30, ha='right')
 

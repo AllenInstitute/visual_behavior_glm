@@ -470,7 +470,7 @@ def get_roi_count(ophys_experiment_id):
     df = db.lims_query(query)
     return df['valid_roi'].sum()
 
-def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False):
+def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False,allow_old_rois=True):
     '''
     gets cached results from mongodb
     input:
@@ -531,10 +531,15 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         # get list of rois I like
         if verbose:
             print('Loading cell table to remove invalid rois')
-        cell_table = loading.get_cell_table(platform_paper_only=True).reset_index()
-        good_cell_roi_ids = cell_table.cell_roi_id.unique()
-        results = results.query('cell_roi_id in @good_cell_roi_ids')
-
+        if 'cell_roi_id' in results:
+            cell_table = loading.get_cell_table(platform_paper_only=True).reset_index()
+            good_cell_roi_ids = cell_table.cell_roi_id.unique()
+            results = results.query('cell_roi_id in @good_cell_roi_ids')
+        elif allow_old_rois:
+            print('WARNING, cell_roi_id not found in database, I cannot filter for old rois. The returned results could be out of date, or QC failed')
+        else:
+            raise Exception('cell_roi_id not in database, and allow_old_rois=False')
+    
     return results
 
 def make_identifier(row):

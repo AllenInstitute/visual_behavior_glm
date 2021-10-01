@@ -574,7 +574,8 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
             inner=inner,
             linewidth=1,
             ax=ax,
-            palette=colors
+            palette=colors,
+            cut=0
         )
         lines = plot1.get_lines()
         for index, line in enumerate(lines):
@@ -2837,7 +2838,8 @@ def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-i
             ax=ax,
             inner=None,
             linewidth=0,
-            palette=palette
+            palette=palette,
+            cut = 0
         )
         plt.axhline(0,color='k',alpha=.25)
     else:

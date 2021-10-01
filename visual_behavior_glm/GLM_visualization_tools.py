@@ -2811,7 +2811,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-images','omissions','behavioral','task'], threshold = 0,ax=None,palette=None,use_violin=True):
+def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-images','omissions','behavioral','task'], threshold = 0,ax=None,palette=None,use_violin=True,add_median=True):
     '''
        Makes a bar plot that shows the population dropout summary by cre line for different regressors 
 
@@ -2827,7 +2827,7 @@ def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-i
     data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     if use_violin:
-        sns.violinplot(
+        plot1= sns.violinplot(
             data = data_to_plot,
             x='dropout',
             y='explained_variance',
@@ -2836,12 +2836,24 @@ def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-i
             hue_order=cre_lines,
             fliersize=0,
             ax=ax,
-            inner=None,
+            inner='quartile',
             linewidth=0,
             palette=palette,
             cut = 0
         )
+        if add_median:
+            lines = plot1.get_lines()
+            for index, line in enumerate(lines):
+                if np.mod(index,3) == 0:
+                    line.set_linewidth(0)
+                elif np.mod(index,3) == 1:
+                    line.set_linewidth(1)
+                    line.set_color('r')
+                    line.set_linestyle('-')
+                elif np.mod(index,3) == 2:
+                    line.set_linewidth(0)
         plt.axhline(0,color='k',alpha=.25)
+
     else:
         sns.boxplot(
             data = data_to_plot,

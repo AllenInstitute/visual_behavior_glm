@@ -42,6 +42,12 @@ if False: # Code snippets for doing basic analyses.
     # Fit results
     session, fit, design = gft.fit_experiment(oeid, run_params)
 
+    # Deploy all fits on the cluster
+    #conda activate visbeh
+    #cd ../scripts/
+    #vim deploy_glm_fits.sh     # edit the bash script to use the proper version
+    #./deploy_glm_fits.sh
+
 
 
     # Load basic results
@@ -57,6 +63,35 @@ if False: # Code snippets for doing basic analyses.
     # Make GLM object
     g = glm.GLM(oeid, VERSION, use_previous_fit=True, log_results=False, log_weights=False)
     
+    
+
+    # Tools for evaluating model versions
+    #####################
+
+    # Get a list of the missing experiments/rois for a specific version
+    inventory17 = gat.inventory_glm_version('17_dff_all_L2_optimize_by_session')
+    
+    # Get a table of fit and missing experiments/rois for GLM versions in the range "vrange"
+    inventory_table = gat.build_inventory_table(vrange=[15,20])
+
+    # Compare two model versions
+    versions = [x[2:] for x in inventory_table.index.values[-2:]]
+    comparison_table,results_combined = gat.get_glm_version_comparison_table(versions)
+    gvt.plot_glm_version_comparison(comparison_table=comparison_table, versions_to_compare=versions)
+    gvt.plot_glm_version_comparison_scatter(comparison_table=comparison_table, versions_to_compare=versions)
+    
+    # Faster if loading many versions
+    results_combined = gat.get_glm_version_summary(versions)
+    results_combined = gat.get_glm_version_summary(vrange=[15,20])
+    
+    # Compare multiple versions
+    gvt.compare_var_explained_by_version(results_combined,test_data=True)
+    gvt.compare_var_explained_by_version(results_combined,test_data=False)
+    gvt.compare_var_explained_by_version(results_combined,cre='Sst-IRES-Cre')
+    
+    # Just look at invalid rois
+    results_combined = gat.get_glm_version_summary(vrange=[15,20], remove_invalid_rois=False, invalid_only=True)
+    gvt.compare_var_explained_by_version(results_combined)
 
 
     # Analysis Dataframes 
@@ -87,6 +122,9 @@ if False: # Code snippets for doing basic analyses.
 
     # Make plot of kernel support
     gvt.plot_kernel_support(g)
+
+    # Make dropout summary figures
+    gvt.plot_dropout_summary_population(results)
 
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 

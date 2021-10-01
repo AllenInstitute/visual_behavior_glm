@@ -263,6 +263,45 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     plt.tight_layout()
     return
 
+def plot_glm_version_comparison_histogram(comparison_table=None, results=None, versions_to_compare=None, savefig=True):
+    assert not (comparison_table is None and versions_to_compare is None), 'must pass either a comparison table or a list of two versions to compare'
+    assert not (comparison_table is not None and results is not None), 'must pass either a comparison table or a results dataframe, not both'
+
+    if results is not None:
+        if versions_to_compare is None:
+            versions_to_compare = results['glm_version'].unique()
+        assert len(versions_to_compare) == 2, 'can only compare two glm_versions. Either pass a list of two versions, or pass a results table with two versions'
+
+    if comparison_table is None:
+        comparison_table = gat.get_glm_version_comparison_table(versions_to_compare=versions_to_compare, results=results)
+
+    cre_lines = np.sort(comparison_table['cre_line'].dropna().unique())
+
+    comparison_table['Diff'] = comparison_table[versions_to_compare[0]] -comparison_table[versions_to_compare[1]]
+    plt.figure()
+    jointplot = sns.histplot(
+        comparison_table,
+        x= 'Diff',
+        hue='cre_line',
+        element='step',
+        stat='density',
+        common_norm=False,
+    )
+    plt.xlim(-.1,.1)
+    plt.axvline(0, color='k',alpha=.25, linestyle='--')
+    plt.xlabel(versions_to_compare[0] +'\n minus \n'+ versions_to_compare[1])
+    plt.tight_layout()    
+
+    # Save a figure for each version 
+    if savefig and (versions_to_compare is not None):
+        version_strings = '_'.join([x.split('_')[0] for x in versions_to_compare])
+        for version in versions_to_compare:
+            run_params = glm_params.load_run_json(version)
+            filepath = os.path.join(run_params['figure_dir'], 'version_comparison_histogram_'+version_strings+'.png')
+            plt.savefig(filepath)
+
+    return jointplot
+
 def plot_glm_version_comparison(comparison_table=None, results=None, versions_to_compare=None, savefig=True):
     '''
     makes a scatterplot comparing cellwise performance on two GLM versions
@@ -490,7 +529,7 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
-def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outlier_threshold=1.5):
+def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full'):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:
@@ -502,62 +541,90 @@ def compare_var_explained(results=None, fig=None, ax=None, figsize=(15,12), outl
     returns:
         figure and axis handles (tuple)
     '''
+    # set up figure axis
     if results is None:
         results_dict = gat.retrieve_results()
         results = results_dict['full']
     if fig is None and ax is None:
-        fig, ax = plt.subplots(2, 2, figsize=figsize, sharey=True, sharex='col')
+        fig, ax = plt.subplots(figsize=figsize, sharey=True, sharex='col')
 
+    # determine what data to plot
+    if cre is not None:
+        results = results.query('cre_line == @cre')
+        inner = 'quartile'
+    else:
+        inner= None
+    colors = project_colors() 
     cre_line_order = np.sort(results['cre_line'].unique())
     glm_version_order = np.sort(results['glm_version'].unique())
+    if test_data:
+        dataset = 'test'
+    else:
+        dataset = 'train'
 
-    for row,dataset in enumerate(['train','test']):
+    # plot main data
+    if use_violin:
+        plot1 = sns.violinplot(
+            data=results,
+            y='glm_version',
+            x=metric+'__avg_cv_var_{}'.format(dataset),
+            order = glm_version_order,
+            hue='cre_line',
+            hue_order=cre_line_order,
+            inner=inner,
+            linewidth=1,
+            ax=ax,
+            palette=colors,
+            cut=0
+        )
+        lines = plot1.get_lines()
+        for index, line in enumerate(lines):
+            if np.mod(index,3) == 0:
+                line.set_linewidth(0)
+            elif np.mod(index,3) == 1:
+                line.set_linewidth(1)
+                line.set_color('r')
+                line.set_linestyle('-')
+            elif np.mod(index,3) == 2:
+                line.set_linewidth(0)
+    else:
         plot1 = sns.boxplot(
             data=results,
             x='glm_version',
-            y='Full_avg_cv_var_{}'.format(dataset),
+            y=metric+'__avg_cv_var_{}'.format(dataset),
             order = glm_version_order,
             hue='cre_line',
             hue_order=cre_line_order,
             fliersize=0,
-            whis=outlier_threshold,
-            ax=ax[row,0],
-        )
+            whis=1.5,
+            ax=ax,
+        )      
+    
+    # Label axes and title 
+    ax.set_xlabel(metric+' Model Variance Explained on {} set'.format(dataset),fontsize=16)
+    ax.set_ylabel('GLM version',fontsize=16)
+    #ax.set_title('Full Model Variance Explained on {} set'.format(dataset),fontsize=16)
+    ax.set_yticklabels(ax.get_yticklabels(),fontsize=12)
+    ax.legend()
 
-        plot2 = sns.boxplot(
-            data=results,
-            x='cre_line',
-            y='Full_avg_cv_var_{}'.format(dataset),
-            order = cre_line_order,
-            hue='glm_version',
-            hue_order=glm_version_order,
-            fliersize=0,
-            whis=outlier_threshold,
-            ax=ax[row,1],
-            palette='brg',
-        )
-        ax[row, 0].set_ylabel('variance explained')
-        ax[row, 0].set_xlabel('GLM version')
-        ax[row, 0].set_title('{} data full model performance\ngrouped by version'.format(dataset))
-        ax[row, 1].set_title('{} data full model performance\ngrouped by cre line'.format(dataset))
-
-        # calculate interquartile ranges
-        grp = results.groupby(['glm_version','cre_line'])['Full_avg_cv_var_{}'.format(dataset)]
-        IQR = grp.quantile(0.75) - grp.quantile(0.25)
-
-
-        lower_bounds = grp.quantile(0.25) - 1.5*IQR
-        upper_bounds = grp.quantile(0.75) + 1.5*IQR
-
-        for i in range(2):
-            ax[row, i].legend(loc='upper left',bbox_to_anchor=(1.01, 1),borderaxespad=0)
-            ax[row, i].set_ylim(lower_bounds.min()-0.05 ,upper_bounds.max()+0.05)
-            ax[row, i].axhline(0, color='black', linestyle=':')
-            ax[row, i].set_xticklabels(ax[row, i].get_xticklabels(),rotation=30, ha='right')
-
+    # Add gray boxes to separate model versions
+    ax.axvline(0, color='black',alpha=.25)
+    mids = ax.get_yticks()
+    edges = np.diff(mids)*.5 + mids[0:-1]
+    orig_ylim = ax.get_ylim()
+    ylim = sorted(list(orig_ylim))
+    edges = [ylim[0]]+list(edges)+[ylim[1]]
+    for dex, edge in enumerate(edges[:-1]):
+        if np.mod(dex,2) == 0:
+            plt.axhspan(edges[dex], edges[dex+1], color='k',alpha=.1)
+    ax.set_ylim(orig_ylim)
+ 
+    # Clean up and save
     fig.tight_layout()
-    plt.subplots_adjust(top=0.9)
-    fig.suptitle('variance explained by GLM version and cre_line (outliers removed from visualization)')
+    extra = '_'+metric+'_'+dataset
+    if cre is not None:
+        extra = extra+"_"+cre
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/variance_explained'+extra+'.png')
 
     return fig, ax
 
@@ -2731,7 +2798,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
         fig = ax.get_figure()
 
     dropouts_to_show = ['visual', 'behavioral', 'cognitive']
-    plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show, palette=palette)
+    plot_dropout_summary_cosyne(dropout_summary, ax=ax, dropouts_to_show=dropouts_to_show, palette=palette)
     ax.tick_params(axis='both',labelsize=20)
     ax.set_ylabel('% decrease in variance explained \n when removing sets of kernels',fontsize=24)
     ax.set_xlabel('Sets of Kernels',fontsize=24)
@@ -2744,28 +2811,61 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_dropout_summary_cosyne(dropout_summary, ax, dropouts_to_show =  ['visual','behavioral','cognitive'], threshold = -0.01,palette=None):
+def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-images','omissions','behavioral','task'], threshold = 0,ax=None,palette=None,use_violin=True,add_median=True):
     '''
-    makes bar plots of results summary
-    aesthetics specific to cosyne needs
+       Makes a bar plot that shows the population dropout summary by cre line for different regressors 
 
     '''
+    if ax is None:
+        fig,ax = plt.subplots()
+    
+    if palette is None:
+        palette = project_colors()
 
     cre_lines = np.sort(dropout_summary['cre_line'].unique())
     
     data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
-    sns.boxplot(
-        data = data_to_plot,
-        x='dropout',
-        y='adj_fraction_change_from_full',
-        hue='cre_line',
-        order=dropouts_to_show,
-        hue_order=cre_lines,
-        fliersize=0,
-        ax=ax,
-        palette=palette
-    )
+    if use_violin:
+        plot1= sns.violinplot(
+            data = data_to_plot,
+            x='dropout',
+            y='explained_variance',
+            hue='cre_line',
+            order=dropouts_to_show,
+            hue_order=cre_lines,
+            fliersize=0,
+            ax=ax,
+            inner='quartile',
+            linewidth=0,
+            palette=palette,
+            cut = 0
+        )
+        if add_median:
+            lines = plot1.get_lines()
+            for index, line in enumerate(lines):
+                if np.mod(index,3) == 0:
+                    line.set_linewidth(0)
+                elif np.mod(index,3) == 1:
+                    line.set_linewidth(1)
+                    line.set_color('r')
+                    line.set_linestyle('-')
+                elif np.mod(index,3) == 2:
+                    line.set_linewidth(0)
+        plt.axhline(0,color='k',alpha=.25)
+
+    else:
+        sns.boxplot(
+            data = data_to_plot,
+            x='dropout',
+            y='explained_variance',
+            hue='cre_line',
+            order=dropouts_to_show,
+            hue_order=cre_lines,
+            fliersize=0,
+            ax=ax,
+            palette=palette
+        )
 
     #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     ax.set_ylabel('Fraction change\nin variance explained')

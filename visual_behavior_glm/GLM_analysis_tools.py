@@ -271,8 +271,6 @@ def log_results_to_mongo(glm):
     logs full results and results summary to mongo
     Ensures that there is only one entry per cell/experiment (overwrites if entry already exists)
     '''
-    # TODO, update to include adjusted dropouts
-    # TODO, arent the full_results and results_summary already in the glm object by this point? is it redundant to compute them again?
     full_results = glm.results.reset_index()
     results_summary = glm.dropout_summary
 
@@ -470,7 +468,7 @@ def get_roi_count(ophys_experiment_id):
     df = db.lims_query(query)
     return df['valid_roi'].sum()
 
-def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False):
+def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False,allow_old_rois=True,invalid_only=False):
     '''
     gets cached results from mongodb
     input:
@@ -491,6 +489,8 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
     output:
         dataframe of results
     '''
+    assert not (invalid_only & remove_invalid_rois), "Cannot remove invalid rois and only return invalid rois"
+    
     if return_list is None:
         return_dict = {'_id': 0}
     else:
@@ -516,7 +516,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         if verbose:
             print('Merging in experiment metadata')
         # get experiment table, merge in details of each experiment
-        experiment_table = loading.get_platform_paper_experiment_table().reset_index()
+        experiment_table = loading.get_platform_paper_experiment_table(add_extra_columns=False).reset_index()
         results = results.merge(
             experiment_table, 
             left_on='ophys_experiment_id',
@@ -524,34 +524,86 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
             how='left',
             suffixes=['', '_duplicated'],
         )
-
-    duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
-    results = results.drop(columns=duplicated_cols)
+        duplicated_cols = [col for col in results.columns if col.endswith('_duplicated')]
+        results = results.drop(columns=duplicated_cols)
     
     if remove_invalid_rois:
         # get list of rois I like
         if verbose:
             print('Loading cell table to remove invalid rois')
-        cell_table = loading.get_cell_table(platform_paper_only=True).reset_index()
-        good_cell_roi_ids = cell_table.cell_roi_id.unique()
-        results = results.query('cell_roi_id in @good_cell_roi_ids')
-
+        if 'cell_roi_id' in results:
+            cell_table = loading.get_cell_table(platform_paper_only=True,add_extra_columns=False).reset_index()
+            good_cell_roi_ids = cell_table.cell_roi_id.unique()
+            results = results.query('cell_roi_id in @good_cell_roi_ids')
+        elif allow_old_rois:
+            print('WARNING, cell_roi_id not found in database, I cannot filter for old rois. The returned results could be out of date, or QC failed')
+        else:
+            raise Exception('cell_roi_id not in database, and allow_old_rois=False')
+    elif invalid_only:
+        if verbose:
+            print('Loading cell table to remove valid rois')
+        if 'cell_roi_id' in results:
+            cell_table = loading.get_cell_table(platform_paper_only=True,add_extra_columns=False).reset_index()
+            good_cell_roi_ids = cell_table.cell_roi_id.unique()
+            results = results.query('cell_roi_id not in @good_cell_roi_ids')
+        elif allow_old_rois:
+            print('WARNING, cell_roi_id not found in database, I cannot filter for old rois. The returned results could be out of date, or QC failed')
+        else:
+            raise Exception('cell_roi_id not in database, and allow_old_rois=False') 
+    
     return results
 
 def make_identifier(row):
     return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
+
+def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=True,invalid_only=False,remove_invalid_rois=True,save_results=True):
+    '''
+        Builds a results summary table for comparing variance explained and dropout scores across model versions.
+        results_compact = gat.get_glm_version_summary(versions_to_compare)
+        gvt.compare_var_explained_by_version(results_compact)
+    '''
+    if versions_to_compare is None:
+        versions_to_compare = glm_params.get_versions(vrange)
+        versions_to_compare = [x[2:] for x in versions_to_compare if 'old' not in x]
+    if compact:
+        dropouts = ['Full','visual','all-images','omissions','behavioral','task']
+        return_list = np.concatenate([[x+'__avg_cv_var_test',x+'__avg_cv_var_train'] for x in dropouts])
+        return_list = np.concatenate([return_list, ['ophys_experiment_id','cell_roi_id','cre_line','glm_version']])
+    else:
+        return_list = None
+    results_list = []
+    print('Iterating model versions')
+    for glm_version in versions_to_compare:
+        print(glm_version)
+        results_list.append(retrieve_results({'glm_version': glm_version},return_list=return_list, results_type='full',invalid_only=invalid_only,remove_invalid_rois=remove_invalid_rois))
+    results = pd.concat(results_list, sort=True)
+
+    # Display summary statistics
+    summary_table = results.groupby(['cre_line','glm_version'])['Full__avg_cv_var_test'].mean()
+    print(summary_table)
+
+    # Save Summary Table
+    if save_results:
+       summary_table.to_csv('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/summary_table.csv',header=True) 
+
+    return results
 
 def get_glm_version_comparison_table(versions_to_compare, results=None, metric='Full__avg_cv_var_test'):
     '''
     builds a table that allows to glm versions to be directly compared
     input is list of glm versions to compare (list of strings)
     if results dataframe is not passed, it will be queried from Mongo
+    
+    Returns two items
+        comparison_table, where the <metric> for each version is a column, and rows are cells
+        results, where each row is a (cell x version)
     '''
     if results is None:
-        results = []
+        results_list = []
         for glm_version in versions_to_compare:
-            results.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
-        results = pd.concat(results, sort=True)
+            print(glm_version)
+            results_list.append(retrieve_results({'glm_version': glm_version}, results_type='full'))
+        results = pd.concat(results_list, sort=True)
 
     results['identifier'] = results.apply(make_identifier, axis=1)
     pivoted_results = results.pivot(index='identifier', columns='glm_version',values=metric)
@@ -564,7 +616,7 @@ def get_glm_version_comparison_table(versions_to_compare, results=None, metric='
         how='left'
     )
 
-    return pivoted_results
+    return pivoted_results,pd.concat(results_list, sort=True)
 
 def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None):
     '''
@@ -653,7 +705,7 @@ def get_experiment_inventory(results=None):
         results = results_dict['full']
     results = results.set_index(['ophys_experiment_id'])
     
-    experiments_table = loading.get_platform_paper_experiment_table()
+    experiments_table = loading.get_platform_paper_experiment_table(add_extra_columns=False)
 
     for glm_version in results['glm_version'].unique():
         for oeid in experiments_table.index.values:
@@ -941,6 +993,7 @@ def build_inventory_table(vrange=[18,20],return_inventories=False):
         Optionally returns the list of missing experiments and rois
     '''
     versions = glm_params.get_versions(vrange=vrange)
+    versions = [x for x in versions if 'old' not in x]
     inventories ={}
     for v in versions:
         inventories[v]=inventory_glm_version(v[2:])
@@ -987,7 +1040,7 @@ def inventory_glm_version(glm_version, valid_rois_only=True, platform_paper_only
     )
     
     # Get list of cells in the dataset
-    cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only).reset_index()
+    cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only,add_extra_columns=False).reset_index()
 
     # get list of rois and experiments we have fit
     total_experiments = glm_results['ophys_experiment_id'].unique()
@@ -1136,325 +1189,3 @@ def get_kernel_weights(glm, kernel_name, cell_specimen_id):
     return t_kernel, w_kernel
 
 
-# NOTE:
-# Everything below this point is carried over from Nick P.'s old repo. Commenting it out to keep it as a resource.
-#dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_lambda_70/'
-#dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/20200102_reward_filter_dev/'
-#dff_dirc = '/allen/programs/braintv/workgroups/nc-ophys/nick.ponvert/ophys_glm_dev_dff_traces/'
-#global_dir = dirc
-
-# def moving_mean(values, window):
-#     weights = np.repeat(1.0, window)/window
-#     mm = np.convolve(values, weights, 'valid')
-#     return mm
-
-
-# def compute_full_mean(experiment_ids):
-#     x = []
-#     for exp_dex, exp_id in enumerate(tqdm(experiment_ids)):
-#         try:
-#             fit_data = compute_response(exp_id)
-#             x = x + compute_mean_error(fit_data)
-#         except:
-#             pass
-#     return x
-
-
-# def compute_mean_error(fit_data, threshold=0.02):
-#     x = []
-#     for cell_dex, cell_id in enumerate(fit_data['w'].keys()):
-#         if fit_data['cv_var_explained'][cell_id] > threshold:
-#             x.append(fit_data['model_err'][cell_id])
-#     return x
-
-
-# def plot_errors(fit_data, threshold=0.02, plot_each=False, smoothing_window=50):
-#     plt.figure(figsize=(12, 4))
-#     x = []
-#     for cell_dex, cell_id in enumerate(fit_data['w'].keys()):
-#         if fit_data['cv_var_explained'][cell_id] > threshold:
-#             if plot_each:
-#                 plt.plot(fit_data['model_err'][cell_id], 'k', alpha=0.2)
-#             x.append(fit_data['model_err'][cell_id])
-#     plt.plot(moving_mean(np.mean(np.vstack(x), 0), 31*smoothing_window), 'r')
-#     plt.axhline(0, color='k', ls='--')
-
-
-# def plot_cell(fit_data, cell_id):
-#     plt.figure(figsize=(12, 4))
-#     plt.plot(fit_data['data_dff'][cell_id], 'r', label='Cell')
-#     plt.plot(fit_data['model_dff'][cell_id], 'b', label='Model')
-#     plt.ylabel('dff')
-#     plt.xlabel('time in experiment')
-
-
-# def get_experiment_design_matrix_temp(oeid, model_dir):
-#     return np.load(model_dir+'X_sparse_csc_'+str(oeid)+'.npz')
-
-
-# def get_experiment_design_matrix(oeid, model_dir):
-#     return sparse.load_npz(model_dir+'X_sparse_csc_'+str(oeid)+'.npz').todense()
-
-
-# def get_experiment_fit(oeid, model_dir):
-#     filepath = 'oeid_'+str(oeid)+'.json'
-#     with open(model_dir+'/'+filepath) as json_file:
-#         data = json.load(json_file)
-#     return data
-
-
-# def get_experiment_dff(oeid):
-#     filepath = dff_dirc+str(oeid)+'_dff_array.cd'
-#     return xr.open_dataarray(filepath)
-
-
-# def compute_response(oeid, model_dir):
-#     design_matrix = get_experiment_design_matrix(oeid, model_dir)
-#     fit_data = get_experiment_fit(oeid)
-#     dff_data = get_experiment_dff(oeid)
-#     model_dff, model_err, data_dff = compute_response_inner(
-#         design_matrix, fit_data, dff_data)
-#     fit_data['model_dff'] = model_dff
-#     fit_data['model_err'] = model_err
-#     fit_data['data_dff'] = data_dff
-#     return fit_data
-
-
-# def compute_response_inner(design_matrix, fit_data, dff_data):
-#     model_dff = {}
-#     model_err = {}
-#     data_dff = {}
-#     for cell_dex, cell_id in enumerate(fit_data['w'].keys()):
-#         W = np.mean(fit_data['w'][cell_id], 1)
-#         model_dff[cell_id] = np.squeeze(np.asarray(design_matrix @ W))
-#         model_err[cell_id] = model_dff[cell_id] - \
-#             np.array(dff_data.sel(cell_specimen_id=int(cell_id)))
-#         data_dff[cell_id] = np.array(
-#             dff_data.sel(cell_specimen_id=int(cell_id)))
-#     return model_dff, model_err, data_dff
-
-# # Filter for cells tracked on both A1 and A3
-
-
-# def get_cells_in(df, stage1, stage2):
-#     s1 = []
-#     s2 = []
-#     cell_ids = df['cell_specimen_id'].unique()
-#     for cell_dex, cell_id in enumerate(cell_ids):
-#         hass1 = len(
-#             df.query('cell_specimen_id == @cell_id & stage_name == @stage1')) == 1
-#         hass2 = len(
-#             df.query('cell_specimen_id == @cell_id & stage_name == @stage2')) == 1
-#         if hass1 & hass2:
-#             s1.append(df.query('cell_specimen_id == @cell_id & stage_name == @stage1')[
-#                       'cv_var_explained'].iloc[0])
-#             s2.append(df.query('cell_specimen_id == @cell_id & stage_name == @stage2')[
-#                       'cv_var_explained'].iloc[0])
-#     return np.array(s1), np.array(s2)
-
-
-# def plot_session_comparison(s1, s2, label1, label2):
-#     plt.figure()
-#     plt.plot(s1, s2, 'ko')
-#     plt.plot([0, 1], [0, 1], 'k--')
-#     plt.xlabel(label1+' Var Explained')
-#     plt.ylabel(label2+' Var Explained')
-#     plt.xlim(-.1, 1)
-#     plt.ylim(-.1, 1)
-#     plt.savefig(
-#         '/home/alex.piet/codebase/GLM/figs/var_explained_scatter_'+label1+'_'+label2+'.png')
-#     plt.figure()
-#     plt.hist(s2-s1, 100)
-#     plt.axvline(0, color='k', ls='--')
-#     mean_val = np.mean(s2-s1)
-#     mean_sem = sem(s2-s1)
-#     yval = plt.ylim()[1]
-#     plt.plot(mean_val, yval, 'rv')
-#     plt.plot([mean_val-1.96*mean_sem, mean_val +
-#               1.96*mean_sem], [yval, yval], 'r-')
-#     plt.xlim(-0.4, 0.4)
-#     plt.savefig(
-#         '/home/alex.piet/codebase/GLM/figs/var_explained_histogram_'+label1+'_'+label2+'.png')
-
-
-# def get_ophys_timestamps(session):
-#     ophys_frames_to_use = (
-#         session.ophys_timestamps > session.stimulus_presentations.iloc[0]['start_time']
-#     ) & (
-#         session.ophys_timestamps < session.stimulus_presentations.iloc[-1]['stop_time']+0.5
-#     )
-#     timestamps = session.ophys_timestamps[ophys_frames_to_use]
-#     return timestamps[:-1]
-
-
-# def compute_variance_explained(df):
-#     var_expl = [(np.var(x[0]) - np.var(x[1]))/np.var(x[0])
-#                 for x in zip(df['data_dff'], df['model_err'])]
-#     df['var_expl'] = var_expl
-
-
-# def process_to_flashes(fit_data, session):
-#     ''' 
-#         Is now fast
-#     '''
-#     cells = list(fit_data['w'].keys())
-#     timestamps = get_ophys_timestamps(session)
-#     df = pd.DataFrame()
-#     cell_specimen_id = []
-#     stimulus_presentations_id = []
-#     model_dff = []
-#     model_err = []
-#     data_dff = []
-#     image_index = []
-
-#     for dex, row in session.stimulus_presentations.iterrows():
-#         sdex = np.where(timestamps > row.start_time)[0][0]
-#         edex = np.where(timestamps < row.start_time + 0.75)[0][-1]
-#         edex = sdex + 21  # due to aliasing, im hard coding this for now
-#         for cell_dex, cell_id in enumerate(cells):
-#             cell_specimen_id.append(cell_id)
-#             stimulus_presentations_id.append(int(dex))
-#             model_dff.append(fit_data['model_dff'][cell_id][sdex:edex])
-#             model_err.append(fit_data['model_err'][cell_id][sdex:edex])
-#             data_dff.append(fit_data['data_dff'][cell_id][sdex:edex])
-#             image_index.append(row.image_index)
-#     df['cell_specimen_id'] = cell_specimen_id
-#     df['stimulus_presentations_id'] = stimulus_presentations_id
-#     df['model_dff'] = model_dff
-#     df['model_err'] = model_err
-#     df['data_dff'] = data_dff
-#     df['image_index'] = image_index
-#     return df
-
-
-# def process_to_trials(fit_data, session):
-#     ''' 
-#         Takes Forever
-#     '''
-#     cells = list(fit_data['w'].keys())
-#     timestamps = get_ophys_timestamps(session)
-#     df = pd.DataFrame()
-#     for dex, row in session.trials.iterrows():
-#         if not np.isnan(row.change_time):
-#             sdex = np.where(timestamps > row.change_time-2)[0][0]
-#             edex = np.where(timestamps < row.change_time+2)[0][-1]
-#             edex = sdex + 124  # due to aliasing, im hard coding this for now
-#             for cell_dex, cell_id in enumerate(cells):
-#                 d = {'cell_specimen_id': cell_id, 'stimulus_presentations_id': int(dex),
-#                      'model_dff': fit_data['model_dff'][cell_id][sdex:edex],
-#                      'model_err': fit_data['model_err'][cell_id][sdex:edex],
-#                      'data_dff': fit_data['data_dff'][cell_id][sdex:edex]}
-#                 df = df.append(d, ignore_index=True)
-#     return df
-
-
-# def compute_shuffle(flash_df):
-#     cells = flash_df['cell_specimen_id'].unique()
-#     cv_d = {}
-#     cv_shuf_d = {}
-#     for dex, cellid in enumerate(cells):
-#         cv, cv_shuf = compute_shuffle_var_explained(flash_df, cellid)
-#         cv_d[cellid] = cv
-#         cv_shuf_d[cellid] = cv_shuf
-#     return cv_d, cv_shuf_d
-
-
-# def compute_shuffle_var_explained(flash_df, cell_id):
-#     '''
-#         Computes the variance explained in a shuffle distribution
-#         NOTE: this variance explained is going to be different from the full thing because im being a little hacky. buts I think its ok for the purpose of this analysis 
-#     '''
-#     cell_df = flash_df.query('cell_specimen_id == @cell_id').reset_index()
-#     cell_df['model_dff_shuffle'] = cell_df.sample(
-#         frac=1).reset_index()['model_dff']
-#     model_dff_shuf = np.hstack(cell_df['model_dff_shuffle'].values)
-#     model_dff = np.hstack(cell_df['model_dff'].values)
-#     data_dff = np.hstack(cell_df['data_dff'].values)
-#     model_err = model_dff - data_dff
-#     shuf_err = model_dff_shuf - data_dff
-#     var_total = np.var(data_dff)
-#     var_resid = np.var(model_err)
-#     var_shuf = np.var(shuf_err)
-#     cv = (var_total - var_resid) / var_total
-#     cv_shuf = (var_total - var_shuf) / var_total
-#     return cv, cv_shuf
-
-
-# def strip_dict(d):
-#     value_list = []
-#     for dex, key in enumerate(list(d.keys())):
-#         value_list.append(d[key])
-#     return value_list
-
-
-# def plot_shuffle_analysis(cv_list, cv_shuf_list, alpha=0.05):
-#     plt.figure()
-#     nbins = round(len(cv_list)/5)
-#     plt.hist(cv_list*100, nbins, alpha=0.5, label='Data')
-#     plt.hist(cv_shuf_list*100, nbins, color='k', alpha=0.5, label='Shuffle')
-#     plt.axvline(0, ls='--', color='k')
-#     plt.legend()
-#     threshold = find_threshold(cv_shuf_list, alpha=alpha)
-#     plt.axvline(threshold*100, ls='--', color='r')
-#     plt.xlabel('Variance Explained')
-#     plt.ylabel('count')
-#     return threshold
-
-
-# def find_threshold(cv_shuf_list, alpha=0.05):
-#     dex = round(len(cv_shuf_list)*alpha)
-#     threshold = np.sort(cv_shuf_list)[-dex]
-#     if threshold < 0:
-#         return 0
-#     else:
-#         return threshold
-
-
-# def shuffle_session(fit_data, session):
-#     flash_df = process_to_flashes(fit_data, session)
-#     compute_variance_explained(flash_df)
-#     cv_df, cv_shuf_df = compute_shuffle(flash_df)
-#     threshold = plot_shuffle_analysis(
-#         strip_dict(cv_df), strip_dict(cv_shuf_df))
-#     return cv_df, cv_shuf_df, threshold
-
-# # Need a function for concatenating cv_df, and cv_shuf_df across sessions
-
-
-# def shuffle_across_sessions(experiment_list, cache, model_dir=None):
-#     if type(model_dir) == type(None):
-#         model_dir = global_dir
-#     all_cv = []
-#     all_shuf = []
-#     ophys_experiments = cache.get_experiment_table()
-#     for dex, oeid in enumerate(tqdm(experiment_list)):
-#         fit_data = compute_response(oeid, model_dir)
-#         oeid = ophys_experiments.loc[oeid]['ophys_experiment_id'][0]
-#         experiment = cache.get_experiment_data(oeid)
-#         flash_df = process_to_flashes(fit_data, experiment)
-#         compute_variance_explained(flash_df)
-#         cv_df, cv_shuf_df = compute_shuffle(flash_df)
-#         all_cv.append(strip_dict(cv_df))
-#         all_shuf.append(strip_dict(cv_shuf_df))
-#     threshold = plot_shuffle_analysis(np.hstack(all_cv), np.hstack(all_shuf))
-#     return all_cv, all_shuf, threshold
-
-
-# def analyze_threshold(all_cv, all_shuf, threshold):
-#     cells_above_threshold = round(
-#         np.sum(np.hstack(all_cv) > threshold)/len(np.hstack(all_cv))*100, 2)
-#     false_positive_with_zero_threshold = round(
-#         np.sum(np.hstack(all_shuf) > 0)/len(np.hstack(all_shuf)), 2)
-#     false_positive_with_2_threshold = round(
-#         np.sum(np.hstack(all_shuf) > 0.02)/len(np.hstack(all_shuf)), 2)
-#     steinmetz_threshold = find_threshold(np.hstack(all_shuf), alpha=0.0033)
-#     print("Variance Explained % threshold:       " +
-#           str(round(100*threshold, 2)) + " %")
-#     print("Percent of cells above threshold:    " +
-#           str(cells_above_threshold) + " %")
-#     print("False positive if using 0% threshold: " +
-#           str(false_positive_with_zero_threshold))
-#     print("False positive if using 2% threshold: " +
-#           str(false_positive_with_2_threshold))
-#     print("Threshold needed for Steinmetz level: " +
-#           str(round(100*steinmetz_threshold, 2)) + " %")

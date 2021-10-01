@@ -160,7 +160,7 @@ if __name__ == "__main__":
         # calculate resource needs based on ROI count
         roi_count = experiments_table.query('ophys_experiment_id == @experiment_id').iloc[0]['roi_count']
 
-        if False:#if args.force_overwrite or not already_fit(experiment_id, args.version):
+        if args.force_overwrite or not already_fit(experiment_id, args.version):
             job_count += 1
             print('starting cluster job for {}, job count = {}'.format(experiment_id, job_count))
             job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.version)

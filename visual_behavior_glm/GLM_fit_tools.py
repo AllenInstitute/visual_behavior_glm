@@ -886,13 +886,25 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
     fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
-    
+
+    fit = interpolate_to_stimulus(fit, run_params)   
+ 
     # If we are splitting on engagement, then determine the engagement timepoints
     if run_params['split_on_engagement']:
         print('Adding Engagement labels. Preferred engagement state: '+run_params['engagement_preference'])
         fit = add_engagement_labels(fit, session, run_params)
     else:
         fit['ok_to_fit_preferred_engagement'] = True
+    return fit
+
+def interpolate_to_stimulus(fit, run_params):
+    if not run_params['interpolate_to_stimulus']:
+        return fit
+    print('Interpolating neural signal onto stimulus aligned timestamps')
+
+    # Make new timestamps
+    # interpolate onto them
+    # Save everything
     return fit
 
 def add_engagement_labels(fit, session, run_params):

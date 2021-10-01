@@ -518,7 +518,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         if verbose:
             print('Merging in experiment metadata')
         # get experiment table, merge in details of each experiment
-        experiment_table = loading.get_platform_paper_experiment_table().reset_index()
+        experiment_table = loading.get_platform_paper_experiment_table(add_extra_columns=False).reset_index()
         results = results.merge(
             experiment_table, 
             left_on='ophys_experiment_id',
@@ -534,7 +534,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         if verbose:
             print('Loading cell table to remove invalid rois')
         if 'cell_roi_id' in results:
-            cell_table = loading.get_cell_table(platform_paper_only=True).reset_index()
+            cell_table = loading.get_cell_table(platform_paper_only=True,add_extra_columns=False).reset_index()
             good_cell_roi_ids = cell_table.cell_roi_id.unique()
             results = results.query('cell_roi_id in @good_cell_roi_ids')
         elif allow_old_rois:
@@ -545,7 +545,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         if verbose:
             print('Loading cell table to remove valid rois')
         if 'cell_roi_id' in results:
-            cell_table = loading.get_cell_table(platform_paper_only=True).reset_index()
+            cell_table = loading.get_cell_table(platform_paper_only=True,add_extra_columns=False).reset_index()
             good_cell_roi_ids = cell_table.cell_roi_id.unique()
             results = results.query('cell_roi_id not in @good_cell_roi_ids')
         elif allow_old_rois:
@@ -707,7 +707,7 @@ def get_experiment_inventory(results=None):
         results = results_dict['full']
     results = results.set_index(['ophys_experiment_id'])
     
-    experiments_table = loading.get_platform_paper_experiment_table()
+    experiments_table = loading.get_platform_paper_experiment_table(add_extra_columns=False)
 
     for glm_version in results['glm_version'].unique():
         for oeid in experiments_table.index.values:
@@ -1042,7 +1042,7 @@ def inventory_glm_version(glm_version, valid_rois_only=True, platform_paper_only
     )
     
     # Get list of cells in the dataset
-    cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only).reset_index()
+    cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only,add_extra_columns=False).reset_index()
 
     # get list of rois and experiments we have fit
     total_experiments = glm_results['ophys_experiment_id'].unique()

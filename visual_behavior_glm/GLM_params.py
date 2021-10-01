@@ -27,7 +27,7 @@ def define_kernels():
         'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'passive session image change'},
         'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick on catch trials'},
         'correct_rejects':  {'event':'correct_reject','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick on catch trials'},
-        'each-image_change':{'event':'change',  'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'Image specific change'},
+        #'each-image_change':{'event':'change',  'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'Image specific change'},
         'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'dropout':True, 'text': 'image was omitted'},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.767, 'offset':-0.25, 'dropout':True, 'text': 'image presentation'},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'normalized running speed'},
@@ -199,6 +199,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'max_run_speed': 100,           # If 1, has no effect. Scales running speed to be O(1). 
         'use_events': False,            # If True, use detected events. If False, use raw deltaF/F 
         'include_invalid_rois': False   # If True, will fit to ROIs deemed invalid by the SDK. Note that the SDK provides dff traces, but not events, for invalid ROISs
+        'interpolate_to_stimulus':True  # If True, interpolates the cell activity trace onto stimulus aligned timestamps
     } 
     # Regularization parameter checks 
     a = run_params['L2_optimize_by_cell'] 

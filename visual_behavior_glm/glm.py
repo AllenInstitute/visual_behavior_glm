@@ -138,10 +138,6 @@ class GLM(object):
             self.adj_dropout_summary uses the adjusted dropout and variance explained 
         '''
         self.results = self.gft.build_dataframe_from_dropouts(self.fit)
-        # dropout_summary = gat.generate_results_summary(self)
-        # adj_dropout_summary = gat.generate_results_summary_adj(self)
-        # self.dropout_summary = pd.merge(dropout_summary, adj_dropout_summary,on=['dropout', 'cell_specimen_id']).reset_index()
-        # self.dropout_summary.columns.name = None
         self.dropout_summary = gat.generate_results_summary(self)
 
         # add roi_ids

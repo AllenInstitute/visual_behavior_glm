@@ -898,6 +898,13 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     return fit
 
 def interpolate_to_stimulus(fit, run_params):
+    '''
+        This function interpolates the neural signal (either dff or events) onto timestamps that are aligned to the stimulus.
+        
+        The new timestamps are aligned to the onset of each image presentation (or omission), and the last timebin in each 750ms image
+        cycle is allowed to be variable to account for variability in image presentation start times, and the ophys timestamps not perfect
+        dividing the image cycle. 
+    '''
     if not run_params['interpolate_to_stimulus']:
         return fit
     print('Interpolating neural signal onto stimulus aligned timestamps')

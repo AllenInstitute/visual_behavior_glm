@@ -55,7 +55,7 @@ def get_experiment_table(require_model_outputs = False):
     Keyword arguments:
     require_model_outputs (bool) -- if True, limits returned experiments to those that have been fit with behavior model
     """
-    experiments_table = loading.get_platform_paper_ophys_experiment_table().reset_index()
+    experiments_table = loading.get_platform_paper_experiment_table()
     if require_model_outputs:
         return experiments_table.query('model_outputs_available == True')
     else:

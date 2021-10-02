@@ -886,6 +886,7 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
     fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
+    return fit
 
     fit = interpolate_to_stimulus(fit, run_params)   
  
@@ -897,7 +898,7 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
         fit['ok_to_fit_preferred_engagement'] = True
     return fit
 
-def interpolate_to_stimulus(fit, run_params):
+def interpolate_to_stimulus(fit, session, run_params):
     '''
         This function interpolates the neural signal (either dff or events) onto timestamps that are aligned to the stimulus.
         
@@ -908,9 +909,45 @@ def interpolate_to_stimulus(fit, run_params):
     if not run_params['interpolate_to_stimulus']:
         return fit
     print('Interpolating neural signal onto stimulus aligned timestamps')
-
+    
     # Make new timestamps
+    start_times = session.stimulus_presentations.start_time.values
+    mean_step = np.mean(np.diff(fit['fit_trace_timestamps']))
+    sets = []
+    for index, start in enumerate(start_times[0:-1]):
+        sets.append(np.arange(start_times[index], start_times[index+1]-mean_step*.5,mean_step)[0:23]) # Need to do something smarter than [0:23]
+    new_timestamps = np.concatenate(sets)
+
     # interpolate onto them
+    f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,0],bounds_error=False)
+    new_trace_arr = f(new_timestamps)
+
+
+    # Check to make sure we always have the same number of timestamps per stimulus
+    lens = [len(x) for x in sets]
+    if len(np.unique(lens)) > 1:
+        print('Warning!!! uneven number of steps per stimulus interval')
+
+    fit['debug_step'] = mean_step
+    fit['debug_start_times'] = start_times
+    fit['debug_timestamps'] = new_timestamps
+    fit['debug_trace_arr'] = new_trace_arr
+    time_df = pd.DataFrame()
+    time_df['debug_timestamps'] = new_timestamps
+    time_df['step'] = time_df['debug_timestamps'].diff()
+    fit['time_df'] = time_df
+    fit['min_step'] = time_df.loc[time_df['step'].idxmin()]
+    fit['max_step'] = time_df.loc[time_df['step'].idxmax()]
+    fit['lens'] = lens
+    if True:
+        plt.figure()
+        plt.plot(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,0], 'ko',markerfacecolor='None')
+        plt.plot(fit['debug_timestamps'],fit['debug_trace_arr'], 'bo',markerfacecolor='None')
+        for dex in range(0,len(session.stimulus_presentations)):
+            plt.axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+        plt.xlim(fit['min_step'].debug_timestamps-.5, fit['min_step'].debug_timestamps+.5)
+        plt.plot(fit['min_step'].debug_timestamps,0,'rx')
+
     # Save everything
     return fit
 
@@ -1495,8 +1532,8 @@ def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
         filtered_stimulus_presentations = filtered_stimulus_presentations.iloc[1:]
     
     ophys_frames_to_use = (
-        (session.ophys_timestamps > filtered_stimulus_presentations.iloc[0]['start_time']) 
-        & (session.ophys_timestamps < filtered_stimulus_presentations.iloc[-1]['start_time'] +stim_dur+ end_buffer)
+        (session.ophys_timestamps >= filtered_stimulus_presentations.iloc[0]['start_time']) 
+        & (session.ophys_timestamps <= filtered_stimulus_presentations.iloc[-1]['start_time'] +stim_dur+ end_buffer)
     )
     return ophys_frames_to_use
 

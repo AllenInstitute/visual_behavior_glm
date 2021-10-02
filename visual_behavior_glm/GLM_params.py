@@ -55,7 +55,7 @@ def get_experiment_table(require_model_outputs = False):
     Keyword arguments:
     require_model_outputs (bool) -- if True, limits returned experiments to those that have been fit with behavior model
     """
-    experiments_table = loading.get_filtered_ophys_experiment_table()
+    experiments_table = loading.get_platform_paper_ophys_experiment_table().reset_index()
     if require_model_outputs:
         return experiments_table.query('model_outputs_available == True')
     else:
@@ -137,7 +137,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     # Define list of experiments to fit
     experiment_table = get_experiment_table()
     if TESTING:
-        experiment_table = experiment_table.query('project_code == "VisualBehavior"').tail(5)
+        experiment_table = experiment_table.tail(5)
     experiment_table.to_csv(experiment_table_path)
     
     # Define job settings
@@ -198,7 +198,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100,           # If 1, has no effect. Scales running speed to be O(1). 
         'use_events': False,            # If True, use detected events. If False, use raw deltaF/F 
-        'include_invalid_rois': False   # If True, will fit to ROIs deemed invalid by the SDK. Note that the SDK provides dff traces, but not events, for invalid ROISs
+        'include_invalid_rois': False,  # If True, will fit to ROIs deemed invalid by the SDK. Note that the SDK provides dff traces, but not events, for invalid ROISs
         'interpolate_to_stimulus':True  # If True, interpolates the cell activity trace onto stimulus aligned timestamps
     } 
     # Regularization parameter checks 

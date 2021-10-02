@@ -909,24 +909,46 @@ def interpolate_to_stimulus(fit, session, run_params):
     if not run_params['interpolate_to_stimulus']:
         return fit
     print('Interpolating neural signal onto stimulus aligned timestamps')
-    
+   
+    # TODO
+    # Compare with start/end of original timestamps
+    # Compare with start/end of stimulus
+    # make sure we check for freak early stimulus
+    # Check to make sure lens are consistent
+    # Need to set up fit_trace_bins as well
+    # do events get binned on to closest bin? Should I always return minimum?
+ 
     # Make new timestamps
     start_times = session.stimulus_presentations.start_time.values
+    start_times = np.concatenate([start_times,[start_times[-1]+.75]]) 
     mean_step = np.mean(np.diff(fit['fit_trace_timestamps']))
-    sets = []
+    sets_of_stimulus_timestamps = []
     for index, start in enumerate(start_times[0:-1]):
-        sets.append(np.arange(start_times[index], start_times[index+1]-mean_step*.5,mean_step)[0:23]) # Need to do something smarter than [0:23]
-    new_timestamps = np.concatenate(sets)
-
-    # interpolate onto them
-    f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,0],bounds_error=False)
-    new_trace_arr = f(new_timestamps)
-
+        sets_of_stimulus_timestamps.append(np.arange(start_times[index], start_times[index+1]- mean_step*.5,mean_step)) 
 
     # Check to make sure we always have the same number of timestamps per stimulus
-    lens = [len(x) for x in sets]
+    lens = [len(x) for x in sets_of_stimulus_timestamps]
     if len(np.unique(lens)) > 1:
-        print('Warning!!! uneven number of steps per stimulus interval')
+        mode = scipy.stats.mode(lens)[0][0]
+        sets_of_stimulus_timestamps = [x[0:mode] for x in sets_of_stimulus_timestamps]
+        lens = [len(x) for x in sets_of_stimulus_timestamps]
+        if len(np.unique(lens)) > 1:
+            # Note this can still fail if the stimulus duration is less than 750
+            print('Warning!!! uneven number of steps per stimulus interval')
+            u,c = np.unique(lens, return_counts=True)
+            print(c)
+
+    # Make new timestamps
+    new_timestamps = np.concatenate(sets_of_stimulus_timestamps)
+
+    # interpolate onto them
+    num_cells = np.size(fit['fit_trace_arr'],1)
+    new_trace_arr = np.empty((len(new_timestamps),num_cells))
+    new_trace_arr[:] = 0
+    for index in range(0,num_cells):
+        f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,index],bounds_error=False)
+        new_trace_arr[:,index] = f(new_timestamps)
+
 
     fit['debug_step'] = mean_step
     fit['debug_start_times'] = start_times
@@ -935,18 +957,18 @@ def interpolate_to_stimulus(fit, session, run_params):
     time_df = pd.DataFrame()
     time_df['debug_timestamps'] = new_timestamps
     time_df['step'] = time_df['debug_timestamps'].diff()
-    fit['time_df'] = time_df
-    fit['min_step'] = time_df.loc[time_df['step'].idxmin()]
-    fit['max_step'] = time_df.loc[time_df['step'].idxmax()]
-    fit['lens'] = lens
+    fit['debug_time_df'] = time_df
+    fit['debug_min_step'] = time_df.loc[time_df['step'].idxmin()]
+    fit['debug_max_step'] = time_df.loc[time_df['step'].idxmax()]
+    fit['debug_lens'] = lens
     if True:
         plt.figure()
         plt.plot(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,0], 'ko',markerfacecolor='None')
-        plt.plot(fit['debug_timestamps'],fit['debug_trace_arr'], 'bo',markerfacecolor='None')
+        plt.plot(fit['debug_timestamps'],fit['debug_trace_arr'][:,0], 'bo',markerfacecolor='None')
         for dex in range(0,len(session.stimulus_presentations)):
             plt.axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
-        plt.xlim(fit['min_step'].debug_timestamps-.5, fit['min_step'].debug_timestamps+.5)
-        plt.plot(fit['min_step'].debug_timestamps,0,'rx')
+        plt.xlim(fit['debug_min_step'].debug_timestamps-.5, fit['debug_min_step'].debug_timestamps+.5)
+        plt.plot(fit['debug_min_step'].debug_timestamps,0,'rx')
 
     # Save everything
     return fit

@@ -616,7 +616,8 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
     # Label axes and title 
     ax.set_xlabel(metric+' Model Variance Explained on {} set'.format(dataset),fontsize=16)
     ax.set_ylabel('GLM version',fontsize=16)
-    #ax.set_title('Full Model Variance Explained on {} set'.format(dataset),fontsize=16)
+    if cre is not None:
+        ax.set_title(cre,fontsize=16)
     ax.set_yticklabels(ax.get_yticklabels(),fontsize=12)
     ax.legend()
 

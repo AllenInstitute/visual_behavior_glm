@@ -109,7 +109,9 @@ def project_colors():
         'image5':color_interpolate(tab20(1), tab20(3),8,5),
         'image6':color_interpolate(tab20(1), tab20(3),8,6),
         'image7':color_interpolate(tab20(1), tab20(3),8,7),
-        'omissions':color_interpolate(tab20(1), tab20(3),8,8)
+        'omissions':color_interpolate(tab20(1), tab20(3),8,8),
+        'Mesoscope':'c',
+        'Scientifica':'y'
         } 
     return colors
 
@@ -529,7 +531,7 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
-def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full'):
+def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=False,zoom_xlim=True):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:
@@ -549,18 +551,28 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
         fig, ax = plt.subplots(figsize=figsize, sharey=True, sharex='col')
 
     # determine what data to plot
+    hue = 'cre_line'
+    split=False
+    inner= None
+
     if cre is not None:
-        results = results.query('cre_line == @cre')
+        results = results.query('cre_line == @cre').copy()
+        hue_order = np.sort(results['cre_line'].unique())
         inner = 'quartile'
-    else:
-        inner= None
+        if show_equipment:
+            hue = 'meso'
+            results['meso'] = ['Mesoscope' if "MESO" in x else 'Scientifica' for x in results['equipment_name']]
+            hue_order = np.sort(results['meso'].unique())
+            split=True
+
     colors = project_colors() 
-    cre_line_order = np.sort(results['cre_line'].unique())
     glm_version_order = np.sort(results['glm_version'].unique())
     if test_data:
         dataset = 'test'
     else:
         dataset = 'train'
+
+
 
     # plot main data
     if use_violin:
@@ -569,13 +581,14 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
             y='glm_version',
             x=metric+'__avg_cv_var_{}'.format(dataset),
             order = glm_version_order,
-            hue='cre_line',
-            hue_order=cre_line_order,
+            hue=hue,
+            hue_order=hue_order,
             inner=inner,
             linewidth=1,
             ax=ax,
             palette=colors,
-            cut=0
+            cut=0,
+            split=split
         )
         lines = plot1.get_lines()
         for index, line in enumerate(lines):
@@ -618,12 +631,17 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
         if np.mod(dex,2) == 0:
             plt.axhspan(edges[dex], edges[dex+1], color='k',alpha=.1)
     ax.set_ylim(orig_ylim)
+    
+    if zoom_xlim & show_equipment:
+        ax.set_xlim(-0.05,.2)
  
     # Clean up and save
     fig.tight_layout()
     extra = '_'+metric+'_'+dataset
     if cre is not None:
         extra = extra+"_"+cre
+        if show_equipment:
+            extra = extra+"_equipment"
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/variance_explained'+extra+'.png')
 
     return fig, ax

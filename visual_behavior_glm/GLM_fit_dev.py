@@ -7,6 +7,11 @@ import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
 
+if False: # Interpolation debugging code
+    session = gft.load_data(oeid, run_params)
+    fit = gft.extract_and_annotate_ophys(session, run_params)
+    fit = gft.interpolate_to_stimulus(fit, run_params)
+    gft.plot_interpolation_debug(fit,session)
 
 if False: # Code snippets for doing basic analyses. 
 

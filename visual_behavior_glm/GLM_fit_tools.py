@@ -888,7 +888,7 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
     return fit
 
-    fit = interpolate_to_stimulus(fit, run_params)   
+    fit = interpolate_to_stimulus(fit, session, run_params)   
  
     # If we are splitting on engagement, then determine the engagement timepoints
     if run_params['split_on_engagement']:
@@ -911,9 +911,6 @@ def interpolate_to_stimulus(fit, session, run_params):
     print('Interpolating neural signal onto stimulus aligned timestamps')
    
     # TODO
-    # Compare with start/end of original timestamps
-    # Compare with start/end of stimulus
-    # make sure we check for freak early stimulus
     # Check to make sure lens are consistent
     # Need to set up fit_trace_bins as well
     # do events get binned on to closest bin? Should I always return minimum?
@@ -949,7 +946,7 @@ def interpolate_to_stimulus(fit, session, run_params):
         f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,index],bounds_error=False)
         new_trace_arr[:,index] = f(new_timestamps)
 
-
+    # Save everything
     fit['debug_step'] = mean_step
     fit['debug_start_times'] = start_times
     fit['debug_timestamps'] = new_timestamps
@@ -961,17 +958,40 @@ def interpolate_to_stimulus(fit, session, run_params):
     fit['debug_min_step'] = time_df.loc[time_df['step'].idxmin()]
     fit['debug_max_step'] = time_df.loc[time_df['step'].idxmax()]
     fit['debug_lens'] = lens
-    if True:
-        plt.figure()
-        plt.plot(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,0], 'ko',markerfacecolor='None')
-        plt.plot(fit['debug_timestamps'],fit['debug_trace_arr'][:,0], 'bo',markerfacecolor='None')
-        for dex in range(0,len(session.stimulus_presentations)):
-            plt.axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
-        plt.xlim(fit['debug_min_step'].debug_timestamps-.5, fit['debug_min_step'].debug_timestamps+.5)
-        plt.plot(fit['debug_min_step'].debug_timestamps,0,'rx')
-
-    # Save everything
     return fit
+
+def plot_interpolation_debug(fit,session):
+    fig, ax = plt.subplots(2,1)
+    #ax[0].plot(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,0], 'ko',markerfacecolor='None')
+    #ax[0].plot(fit['debug_timestamps'],fit['debug_trace_arr'][:,0], 'bo',markerfacecolor='None')
+    #for dex in range(0,len(session.stimulus_presentations)):
+    #    ax[0].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    #ax[0].set_xlim(fit['debug_min_step'].debug_timestamps-.5, fit['debug_min_step'].debug_timestamps+.5)
+    #ax[0].plot(fit['debug_min_step'].debug_timestamps,0,'rx')
+    #ax[0].set_title('Smallest timestep')
+    
+    # Stim start
+    ax[0].plot(fit['fit_trace_timestamps'][0:50],fit['fit_trace_arr'][0:50,0], 'ko',markerfacecolor='None',label='Original')
+    ax[0].plot(fit['debug_timestamps'][0:50],fit['debug_trace_arr'][0:50,0], 'bo',markerfacecolor='None',label='Stimulus Aligned')
+    for dex in range(0,len(session.stimulus_presentations)):
+        if session.stimulus_presentations.loc[dex].start_time > fit['fit_trace_timestamps'][50]:
+            break
+        ax[0].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    ax[0].set_title('Stimulus Start')
+    ax[0].set_xlim(ax[0].get_xlim()[0]-.25,ax[0].get_xlim()[1])
+    ax[0].set_ylim( -.5,.5)
+    ax[0].legend()
+
+    # Stim end
+    ax[1].plot(fit['fit_trace_timestamps'][-50:],fit['fit_trace_arr'][-50:,0], 'ko',markerfacecolor='None')
+    ax[1].plot(fit['debug_timestamps'][-50:],fit['debug_trace_arr'][-50:,0], 'bo',markerfacecolor='None')
+    for dex in range(0,len(session.stimulus_presentations)):
+        if session.stimulus_presentations.loc[dex].start_time > fit['fit_trace_timestamps'][-50]:
+            ax[1].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    ax[1].set_title('Stimulus End')
+    ax[1].set_xlim(ax[1].get_xlim()[0],ax[1].get_xlim()[1]+.25)
+    ax[1].set_ylim( -.5,.5)
+    plt.tight_layout()
 
 def add_engagement_labels(fit, session, run_params):
     '''
@@ -1554,7 +1574,7 @@ def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
         filtered_stimulus_presentations = filtered_stimulus_presentations.iloc[1:]
     
     ophys_frames_to_use = (
-        (session.ophys_timestamps >= filtered_stimulus_presentations.iloc[0]['start_time']) 
+        (session.ophys_timestamps >= filtered_stimulus_presentations.iloc[0]['start_time']-end_buffer) 
         & (session.ophys_timestamps <= filtered_stimulus_presentations.iloc[-1]['start_time'] +stim_dur+ end_buffer)
     )
     return ophys_frames_to_use

@@ -14,8 +14,10 @@ if False: # Interpolation debugging code
     oeid3 = experiment_table.index.values[-1]
     session = gft.load_data(oeid, run_params)
     fit = gft.extract_and_annotate_ophys(session, run_params)
-    fit = gft.interpolate_to_stimulus(fit, session, run_params)
     gft.plot_interpolation_debug(fit,session)
+    gft.check_interpolation_to_stimulus(fit,session)
+    design = gft.DesignMatrix(fit)
+    design = gft.add_kernels(design, run_params, session, fit)
 
 if False: # Code snippets for doing basic analyses. 
 

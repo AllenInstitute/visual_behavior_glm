@@ -976,15 +976,43 @@ def interpolate_to_stimulus(fit, session, run_params):
             f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['events_trace_arr'][:,index],bounds_error=False)
             new_events_trace_arr[:,index] = f(new_timestamps)
 
+
+    # Convert into xarrays
+    new_trace_arr = xr.DataArray(
+        new_trace_arr, 
+        dims = ('fit_trace_timestamps','cell_specimen_id'), 
+        coords = {
+            'fit_trace_timestamps':new_timestamps,
+            'cell_specimen_id':fit['fit_trace_arr']['cell_specimen_id'].values
+        }
+    )
+    new_dff_trace_arr = xr.DataArray(
+        new_dff_trace_arr, 
+        dims = ('fit_trace_timestamps','cell_specimen_id'), 
+        coords = {
+            'fit_trace_timestamps':new_timestamps,
+            'cell_specimen_id':fit['fit_trace_arr']['cell_specimen_id'].values
+        }
+    )
+    if ('use_events' in run_params) and (run_params['use_events']):
+        new_events_trace_arr = xr.DataArray(
+            new_events_trace_arr, 
+            dims = ('fit_trace_timestamps','cell_specimen_id'), 
+            coords = {
+                'fit_trace_timestamps':new_timestamps,
+                'cell_specimen_id':fit['fit_trace_arr']['cell_specimen_id'].values
+            }
+        )       
+
     # Save everything
     fit['stimulus_interpolation'] ={
         'mean_step':mean_step,
         'timesteps_per_stimulus':np.unique(lens)[0],
-        'original_fit_arr':'fit_trace_arr',
-        'original_dff_arr':'dff_trace_arr',
-        'original_events_arr':'events_trace_arr',
-        'original_timestamps':'fit_trace_timestamps',
-        'original_bins':'fit_trace_bins'
+        'original_fit_arr':fit['fit_trace_arr'],
+        'original_dff_arr':fit['dff_trace_arr'],
+        'original_events_arr':fit['events_trace_arr'],
+        'original_timestamps':fit['fit_trace_timestamps'],
+        'original_bins':fit['fit_trace_bins']
     }
     fit['fit_trace_arr']    = new_trace_arr
     fit['dff_trace_arr']    = new_dff_trace_arr

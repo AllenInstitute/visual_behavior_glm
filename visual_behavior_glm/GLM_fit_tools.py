@@ -911,7 +911,6 @@ def interpolate_to_stimulus(fit, session, run_params):
     print('Interpolating neural signal onto stimulus aligned timestamps')
    
     # TODO
-    # Check to make sure lens are consistent
     # Need to set up fit_trace_bins as well
     # do events get binned on to closest bin? Should I always return minimum?
  
@@ -938,9 +937,11 @@ def interpolate_to_stimulus(fit, session, run_params):
             # Note this can still fail if the stimulus duration is less than 750
             print('Warning!!! uneven number of steps per stimulus interval')
             print('   This happens when the stimulus duration is much less than 750ms')
+            print('   I will need to check for this happening when kernels are added to the design matrix')
             u,c = np.unique(lens, return_counts=True)
             for index, val in enumerate(u):
                 print('Stimuli with {} timestamps: {}'.format(u[index], c[index]))
+            raise Exception('Uneven number of steps per stimulus interval')
 
     # Make new timestamps
     new_timestamps = np.concatenate(sets_of_stimulus_timestamps)
@@ -965,9 +966,21 @@ def interpolate_to_stimulus(fit, session, run_params):
     fit['debug_min_step'] = time_df.loc[time_df['step'].idxmin()]
     fit['debug_max_step'] = time_df.loc[time_df['step'].idxmax()]
     fit['debug_lens'] = lens
+    fit['debug_stamps_per_stimulus'] = np.unique(lens)[0]
     return fit
 
-def plot_interpolation_debug(fit,session):
+def check_interpolation_to_stimulus(fit, session): ## DEBUG CODEa
+    # Checks to make sure we always have the same number of timestamps between each stimulus
+    lens = []
+    temp = session.stimulus_presentations.copy()
+    temp['next_start'] = temp.shift(-1)['start_time']
+    temp.at[temp.index.values[-1],'next_start'] = temp.iloc[-1]['start_time']+0.75
+    for index, row in temp.iterrows():
+        stamps = np.sum((fit['debug_timestamps'] >= row.start_time) & (fit['debug_timestamps'] < row.next_start))
+        lens.append(stamps)
+    print(np.unique(lens,return_counts=True))    
+
+def plot_interpolation_debug(fit,session): ## DEBUG CODE
     fig, ax = plt.subplots(2,1)
     #ax[0].plot(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,0], 'ko',markerfacecolor='None')
     #ax[0].plot(fit['debug_timestamps'],fit['debug_trace_arr'][:,0], 'bo',markerfacecolor='None')

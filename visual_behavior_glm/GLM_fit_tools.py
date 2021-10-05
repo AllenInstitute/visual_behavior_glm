@@ -959,6 +959,7 @@ def interpolate_to_stimulus(fit, session, run_params):
     fit['debug_start_times'] = start_times
     fit['debug_timestamps'] = new_timestamps
     fit['debug_trace_arr'] = new_trace_arr
+    fit['debug_trace_bins'] = np.concatenate([fit['debug_timestamps'],[fit['debug_timestamps'][-1]+mean_step]])-mean_step*.5  
     time_df = pd.DataFrame()
     time_df['debug_timestamps'] = new_timestamps
     time_df['step'] = time_df['debug_timestamps'].diff()
@@ -997,6 +998,10 @@ def plot_interpolation_debug(fit,session): ## DEBUG CODE
         if session.stimulus_presentations.loc[dex].start_time > fit['fit_trace_timestamps'][50]:
             break
         ax[0].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    for dex, val in enumerate(fit['fit_trace_arr'][0:50,0]):
+        ax[0].plot([fit['fit_trace_bins'][dex],fit['fit_trace_bins'][dex+1]],[val,val],'k-',alpha=.5)
+    for dex, val in enumerate(fit['debug_trace_arr'][0:50,0]):
+        ax[0].plot([fit['debug_trace_bins'][dex],fit['debug_trace_bins'][dex+1]],[val,val],'b-',alpha=.5)
     ax[0].set_title('Stimulus Start')
     ax[0].set_xlim(ax[0].get_xlim()[0]-.25,ax[0].get_xlim()[1])
     ax[0].set_ylim( -.5,.5)
@@ -1008,6 +1013,10 @@ def plot_interpolation_debug(fit,session): ## DEBUG CODE
     for dex in range(0,len(session.stimulus_presentations)):
         if session.stimulus_presentations.loc[dex].start_time > fit['fit_trace_timestamps'][-50]:
             ax[1].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    for dex, val in enumerate(fit['fit_trace_arr'][-50:,0]):
+        ax[1].plot([fit['fit_trace_bins'][-51+dex],fit['fit_trace_bins'][-50+dex]],[val,val],'k-',alpha=.5)
+    for dex, val in enumerate(fit['debug_trace_arr'][-50:,0]):
+        ax[1].plot([fit['debug_trace_bins'][-51+dex],fit['debug_trace_bins'][-50+dex]],[val,val],'b-',alpha=.5)
     ax[1].set_title('Stimulus End')
     ax[1].set_xlim(ax[1].get_xlim()[0],ax[1].get_xlim()[1]+.25)
     ax[1].set_ylim( -.5,.5)

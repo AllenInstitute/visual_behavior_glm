@@ -884,7 +884,8 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['dff_trace_arr'] = trace_tuple[1]
     fit['events_trace_arr'] = trace_tuple[2]
     fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
-    fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
+    step = np.mean(np.diff(fit['fit_trace_timestamps']))
+    fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+step]])-step*.5  
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
     return fit ##DEBUG CODE
 

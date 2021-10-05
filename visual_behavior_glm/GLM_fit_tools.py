@@ -887,8 +887,8 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     step = np.mean(np.diff(fit['fit_trace_timestamps']))
     fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+step]])-step*.5  
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
-    return fit ##DEBUG CODE
-
+   
+    # Interpolate onto stimulus 
     fit = interpolate_to_stimulus(fit, session, run_params)   
  
     # If we are splitting on engagement, then determine the engagement timepoints
@@ -908,14 +908,11 @@ def interpolate_to_stimulus(fit, session, run_params):
         dividing the image cycle. 
     '''
     if not run_params['interpolate_to_stimulus']:
+        print('Not interpolating onto stimulus aligned timestamps')
         return fit
     print('Interpolating neural signal onto stimulus aligned timestamps')
    
-    # TODO
-    # Need to set up fit_trace_bins as well
-    # do events get binned on to closest bin? Should I always return minimum?
- 
-    # Make new timestamps
+    # Make new timestamps by starting with each stimulus start time, and adding time points until we hit the next stimulus
     start_times = session.stimulus_presentations.start_time.values
     start_times = np.concatenate([start_times,[start_times[-1]+.75]]) 
     mean_step = np.mean(np.diff(fit['fit_trace_timestamps']))
@@ -927,16 +924,20 @@ def interpolate_to_stimulus(fit, session, run_params):
     lens = [len(x) for x in sets_of_stimulus_timestamps]
     if len(np.unique(lens)) > 1:
         u,c = np.unique(lens, return_counts=True)
-        for index, val in enumerate(u): ## DEBUG CODE
-            print('Stimuli with {} timestamps: {}'.format(u[index], c[index])) ## DEBUG CODE
-        print('This happens when the following stimulus is delayed creating a greater than 750ms duration')
-        print('I will truncate extra timestamps so that all stimuli have the same number of following timestamps')
+        for index, val in enumerate(u):
+            print('   Stimuli with {} timestamps: {}'.format(u[index], c[index]))
+        print('   This happens when the following stimulus is delayed creating a greater than 750ms duration')
+        print('   I will truncate extra timestamps so that all stimuli have the same number of following timestamps')
+    
+        # Determine how many timestamps each stimuli most commonly has and trim off the extra
         mode = scipy.stats.mode(lens)[0][0]
         sets_of_stimulus_timestamps = [x[0:mode] for x in sets_of_stimulus_timestamps]
+
+        # Check again to make sure we always have the same number of timestamps
+        # Note this can still fail if the stimulus duration is less than 750
         lens = [len(x) for x in sets_of_stimulus_timestamps]
         if len(np.unique(lens)) > 1:
-            # Note this can still fail if the stimulus duration is less than 750
-            print('Warning!!! uneven number of steps per stimulus interval')
+            print('   Warning!!! uneven number of steps per stimulus interval')
             print('   This happens when the stimulus duration is much less than 750ms')
             print('   I will need to check for this happening when kernels are added to the design matrix')
             u,c = np.unique(lens, return_counts=True)
@@ -944,34 +945,55 @@ def interpolate_to_stimulus(fit, session, run_params):
                 print('Stimuli with {} timestamps: {}'.format(u[index], c[index]))
             raise Exception('Uneven number of steps per stimulus interval')
 
-    # Make new timestamps
+    # Combine all the timestamps together
     new_timestamps = np.concatenate(sets_of_stimulus_timestamps)
+    new_bins = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+mean_step]])-mean_step*.5
 
-    # interpolate onto them
+    # Setup new variables 
     num_cells = np.size(fit['fit_trace_arr'],1)
     new_trace_arr = np.empty((len(new_timestamps),num_cells))
     new_trace_arr[:] = 0
+    new_dff_trace_arr = np.empty((len(new_timestamps),num_cells))
+    new_dff_trace_arr[:] = 0
+    if ('use_events' in run_params) and (run_params['use_events']):
+        new_events_trace_arr = np.empty((len(new_timestamps),num_cells))
+        new_events_trace_arr[:] = 0
+    else:
+        new_events_trace_arr = None
+
+    # Interpolate onto new timestamps
     for index in range(0,num_cells):
+        # Fit array
         f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,index],bounds_error=False)
         new_trace_arr[:,index] = f(new_timestamps)
 
+        # dff array
+        f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['dff_trace_arr'][:,index],bounds_error=False)
+        new_dff_trace_arr[:,index] = f(new_timestamps)
+        
+        # events array, if we are using it
+        if ('use_events' in run_params) and (run_params['use_events']):
+            f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['events_trace_arr'][:,index],bounds_error=False)
+            new_events_trace_arr[:,index] = f(new_timestamps)
+
     # Save everything
-    fit['debug_step'] = mean_step
-    fit['debug_start_times'] = start_times
-    fit['debug_timestamps'] = new_timestamps
-    fit['debug_trace_arr'] = new_trace_arr
-    fit['debug_trace_bins'] = np.concatenate([fit['debug_timestamps'],[fit['debug_timestamps'][-1]+mean_step]])-mean_step*.5  
-    time_df = pd.DataFrame()
-    time_df['debug_timestamps'] = new_timestamps
-    time_df['step'] = time_df['debug_timestamps'].diff()
-    fit['debug_time_df'] = time_df
-    fit['debug_min_step'] = time_df.loc[time_df['step'].idxmin()]
-    fit['debug_max_step'] = time_df.loc[time_df['step'].idxmax()]
-    fit['debug_lens'] = lens
-    fit['debug_stamps_per_stimulus'] = np.unique(lens)[0]
+    fit['stimulus_interpolation'] ={
+        'mean_step':mean_step,
+        'timesteps_per_stimulus':np.unique(lens)[0],
+        'original_fit_arr':'fit_trace_arr',
+        'original_dff_arr':'dff_trace_arr',
+        'original_events_arr':'events_trace_arr',
+        'original_timestamps':'fit_trace_timestamps',
+        'original_bins':'fit_trace_bins'
+    }
+    fit['fit_trace_arr']    = new_trace_arr
+    fit['dff_trace_arr']    = new_dff_trace_arr
+    fit['events_trace_arr'] = new_events_trace_arr
+    fit['fit_trace_timestamps'] = new_timestamps
+    fit['fit_trace_bins']   = new_bins
     return fit
 
-def check_interpolation_to_stimulus(fit, session): ## DEBUG CODEa
+def check_interpolation_to_stimulus(fit, session): ## DEBUG CODE
     # Checks to make sure we always have the same number of timestamps between each stimulus
     lens = []
     temp = session.stimulus_presentations.copy()
@@ -984,40 +1006,33 @@ def check_interpolation_to_stimulus(fit, session): ## DEBUG CODEa
 
 def plot_interpolation_debug(fit,session): ## DEBUG CODE
     fig, ax = plt.subplots(2,1)
-    #ax[0].plot(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,0], 'ko',markerfacecolor='None')
-    #ax[0].plot(fit['debug_timestamps'],fit['debug_trace_arr'][:,0], 'bo',markerfacecolor='None')
-    #for dex in range(0,len(session.stimulus_presentations)):
-    #    ax[0].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
-    #ax[0].set_xlim(fit['debug_min_step'].debug_timestamps-.5, fit['debug_min_step'].debug_timestamps+.5)
-    #ax[0].plot(fit['debug_min_step'].debug_timestamps,0,'rx')
-    #ax[0].set_title('Smallest timestep')
     
     # Stim start
-    ax[0].plot(fit['fit_trace_timestamps'][0:50],fit['fit_trace_arr'][0:50,0], 'ko',markerfacecolor='None',label='Original')
-    ax[0].plot(fit['debug_timestamps'][0:50],fit['debug_trace_arr'][0:50,0], 'bo',markerfacecolor='None',label='Stimulus Aligned')
+    ax[0].plot(fit['original_timestamps'][0:50],fit['original_fit_arr'][0:50,0], 'ko',markerfacecolor='None',label='Original')
+    ax[0].plot(fit['fit_trace_timestamps'][0:50],fit['fit_trace_arr'][0:50,0], 'bo',markerfacecolor='None',label='Stimulus Aligned')
     for dex in range(0,len(session.stimulus_presentations)):
-        if session.stimulus_presentations.loc[dex].start_time > fit['fit_trace_timestamps'][50]:
+        if session.stimulus_presentations.loc[dex].start_time > fit['original_timestamps'][50]:
             break
         ax[0].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    for dex, val in enumerate(fit['original_fit_arr'][0:50,0]):
+        ax[0].plot([fit['original_bins'][dex],fit['original_bins'][dex+1]],[val,val],'k-',alpha=.5)
     for dex, val in enumerate(fit['fit_trace_arr'][0:50,0]):
-        ax[0].plot([fit['fit_trace_bins'][dex],fit['fit_trace_bins'][dex+1]],[val,val],'k-',alpha=.5)
-    for dex, val in enumerate(fit['debug_trace_arr'][0:50,0]):
-        ax[0].plot([fit['debug_trace_bins'][dex],fit['debug_trace_bins'][dex+1]],[val,val],'b-',alpha=.5)
+        ax[0].plot([fit['fit_trace_bins'][dex],fit['fit_trace_bins'][dex+1]],[val,val],'b-',alpha=.5)
     ax[0].set_title('Stimulus Start')
     ax[0].set_xlim(ax[0].get_xlim()[0]-.25,ax[0].get_xlim()[1])
     ax[0].set_ylim( -.5,.5)
     ax[0].legend()
 
     # Stim end
-    ax[1].plot(fit['fit_trace_timestamps'][-50:],fit['fit_trace_arr'][-50:,0], 'ko',markerfacecolor='None')
-    ax[1].plot(fit['debug_timestamps'][-50:],fit['debug_trace_arr'][-50:,0], 'bo',markerfacecolor='None')
+    ax[1].plot(fit['original_timestamps'][-50:],fit['original_fit_arr'][-50:,0], 'ko',markerfacecolor='None')
+    ax[1].plot(fit['fit_trace_timestamps'][-50:],fit['fit_trace_arr'][-50:,0], 'bo',markerfacecolor='None')
     for dex in range(0,len(session.stimulus_presentations)):
-        if session.stimulus_presentations.loc[dex].start_time > fit['fit_trace_timestamps'][-50]:
+        if session.stimulus_presentations.loc[dex].start_time > fit['original_timestamps'][-50]:
             ax[1].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    for dex, val in enumerate(fit['original_fit_arr'][-50:,0]):
+        ax[1].plot([fit['original_bins'][-51+dex],fit['original_bins'][-50+dex]],[val,val],'k-',alpha=.5)
     for dex, val in enumerate(fit['fit_trace_arr'][-50:,0]):
-        ax[1].plot([fit['fit_trace_bins'][-51+dex],fit['fit_trace_bins'][-50+dex]],[val,val],'k-',alpha=.5)
-    for dex, val in enumerate(fit['debug_trace_arr'][-50:,0]):
-        ax[1].plot([fit['debug_trace_bins'][-51+dex],fit['debug_trace_bins'][-50+dex]],[val,val],'b-',alpha=.5)
+        ax[1].plot([fit['fit_trace_bins'][-51+dex],fit['fit_trace_bins'][-50+dex]],[val,val],'b-',alpha=.5)
     ax[1].set_title('Stimulus End')
     ax[1].set_xlim(ax[1].get_xlim()[0],ax[1].get_xlim()[1]+.25)
     ax[1].set_ylim( -.5,.5)

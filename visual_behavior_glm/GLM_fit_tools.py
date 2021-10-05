@@ -886,7 +886,7 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
     fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
-    return fit
+    return fit ##DEBUG CODE
 
     fit = interpolate_to_stimulus(fit, session, run_params)   
  
@@ -926,14 +926,21 @@ def interpolate_to_stimulus(fit, session, run_params):
     # Check to make sure we always have the same number of timestamps per stimulus
     lens = [len(x) for x in sets_of_stimulus_timestamps]
     if len(np.unique(lens)) > 1:
+        u,c = np.unique(lens, return_counts=True)
+        for index, val in enumerate(u): ## DEBUG CODE
+            print('Stimuli with {} timestamps: {}'.format(u[index], c[index])) ## DEBUG CODE
+        print('This happens when the following stimulus is delayed creating a greater than 750ms duration')
+        print('I will truncate extra timestamps so that all stimuli have the same number of following timestamps')
         mode = scipy.stats.mode(lens)[0][0]
         sets_of_stimulus_timestamps = [x[0:mode] for x in sets_of_stimulus_timestamps]
         lens = [len(x) for x in sets_of_stimulus_timestamps]
         if len(np.unique(lens)) > 1:
             # Note this can still fail if the stimulus duration is less than 750
             print('Warning!!! uneven number of steps per stimulus interval')
+            print('   This happens when the stimulus duration is much less than 750ms')
             u,c = np.unique(lens, return_counts=True)
-            print(c)
+            for index, val in enumerate(u):
+                print('Stimuli with {} timestamps: {}'.format(u[index], c[index]))
 
     # Make new timestamps
     new_timestamps = np.concatenate(sets_of_stimulus_timestamps)

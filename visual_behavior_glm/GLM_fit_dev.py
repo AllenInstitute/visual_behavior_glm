@@ -8,9 +8,13 @@ import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
 
 if False: # Interpolation debugging code
+    oeid  = experiment_table.index.values[754]
+    oeid1 = experiment_table.index.values[0]
+    oeid2 = experiment_table.index.values[154]
+    oeid3 = experiment_table.index.values[-1]
     session = gft.load_data(oeid, run_params)
     fit = gft.extract_and_annotate_ophys(session, run_params)
-    fit = gft.interpolate_to_stimulus(fit, run_params)
+    fit = gft.interpolate_to_stimulus(fit, session, run_params)
     gft.plot_interpolation_debug(fit,session)
 
 if False: # Code snippets for doing basic analyses. 

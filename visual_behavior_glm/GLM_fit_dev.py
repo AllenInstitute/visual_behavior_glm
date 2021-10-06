@@ -7,17 +7,17 @@ import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
 
-def check_change_times(session):
-    stim = session.stimulus_presentations.query('is_change').start_time.reset_index(drop=True)
-    trials = session.trials.query('not aborted').query('go or auto_rewarded')['change_time'].reset_index(drop=True)
-    if len(stim) != len(trials):
-        print('DIFFERENT NUMBER OF CHANGES')
-    
-    times = pd.DataFrame()
-    times['stim'] = stim
-    times['trials'] = trials
-    times['diff'] = times['trials'] - times['stim']
-    return times
+class glm_quick:
+    name='dummy object'
+
+def make_dummy_glm(fit, run_params, design,session):
+    g = type('glm_quick',(object,), dict())
+    g.run_params = run_params
+    g.fit = fit
+    g.design = design
+    g.session = session
+    return g
+
 
 if False: # Interpolation debugging code
     oeid  = experiment_table.index.values[754]
@@ -30,7 +30,7 @@ if False: # Interpolation debugging code
     gft.check_interpolation_to_stimulus(fit,session)
     design = gft.DesignMatrix(fit)
     design = gft.add_kernels(design, run_params, session, fit)
-
+    gft.check_image_kernel_alignment(design)
     gvt.plot_kernel_support(glm)
 
 if False: # Code snippets for doing basic analyses. 

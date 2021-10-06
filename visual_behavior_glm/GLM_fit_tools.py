@@ -92,7 +92,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Processing df/f data
     print('Processing df/f data')
-    fit = extract_and_annotate_ophys(session,run_params, TESTING=TESTING)
+    fit,run_params = extract_and_annotate_ophys(session,run_params, TESTING=TESTING)
 
     # Make Design Matrix
     print('Build Design Matrix')
@@ -889,7 +889,7 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
    
     # Interpolate onto stimulus 
-    fit = interpolate_to_stimulus(fit, session, run_params)   
+    fit,run_params = interpolate_to_stimulus(fit, session, run_params)   
  
     # If we are splitting on engagement, then determine the engagement timepoints
     if run_params['split_on_engagement']:
@@ -897,7 +897,7 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
         fit = add_engagement_labels(fit, session, run_params)
     else:
         fit['ok_to_fit_preferred_engagement'] = True
-    return fit
+    return fit, run_params
 
 def interpolate_to_stimulus(fit, session, run_params):
     '''
@@ -947,7 +947,7 @@ def interpolate_to_stimulus(fit, session, run_params):
 
     # Combine all the timestamps together
     new_timestamps = np.concatenate(sets_of_stimulus_timestamps)
-    new_bins = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+mean_step]])-mean_step*.5
+    new_bins = np.concatenate([new_timestamps,[new_timestamps[-1]+mean_step]])-mean_step*.5
 
     # Setup new variables 
     num_cells = np.size(fit['fit_trace_arr'],1)
@@ -1019,7 +1019,20 @@ def interpolate_to_stimulus(fit, session, run_params):
     fit['events_trace_arr'] = new_events_trace_arr
     fit['fit_trace_timestamps'] = new_timestamps
     fit['fit_trace_bins']   = new_bins
-    return fit
+   
+    # Use the number of timesteps per stimulus to define the image kernel length so we get no overlap 
+    kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    for k in kernels_to_limit_per_image_cycle:
+        if k in run_params['kernels']:
+            run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    
+
+    return fit,run_params
+
+def check_image_kernel_alignment(design):
+    for i in range(0,8):
+        X = design.get_X(kernels=['image{}'.format(i)])
+        if np.max(np.sum(X.values, axis=1)) > 1:
+            print('Design Matrix has overlapping kernels for image {}'.format(i))
 
 def check_interpolation_to_stimulus(fit, session): ## DEBUG CODE
     # Checks to make sure we always have the same number of timestamps between each stimulus
@@ -1028,7 +1041,7 @@ def check_interpolation_to_stimulus(fit, session): ## DEBUG CODE
     temp['next_start'] = temp.shift(-1)['start_time']
     temp.at[temp.index.values[-1],'next_start'] = temp.iloc[-1]['start_time']+0.75
     for index, row in temp.iterrows():
-        stamps = np.sum((fit['debug_timestamps'] >= row.start_time) & (fit['debug_timestamps'] < row.next_start))
+        stamps = np.sum((fit['fit_trace_timestamps'] >= row.start_time) & (fit['fit_trace_timestamps'] < row.next_start))
         lens.append(stamps)
     print(np.unique(lens,return_counts=True))    
 
@@ -1036,14 +1049,14 @@ def plot_interpolation_debug(fit,session): ## DEBUG CODE
     fig, ax = plt.subplots(2,1)
     
     # Stim start
-    ax[0].plot(fit['original_timestamps'][0:50],fit['original_fit_arr'][0:50,0], 'ko',markerfacecolor='None',label='Original')
+    ax[0].plot(fit['stimulus_interpolation']['original_timestamps'][0:50],fit['stimulus_interpolation']['original_fit_arr'][0:50,0], 'ko',markerfacecolor='None',label='Original')
     ax[0].plot(fit['fit_trace_timestamps'][0:50],fit['fit_trace_arr'][0:50,0], 'bo',markerfacecolor='None',label='Stimulus Aligned')
     for dex in range(0,len(session.stimulus_presentations)):
-        if session.stimulus_presentations.loc[dex].start_time > fit['original_timestamps'][50]:
+        if session.stimulus_presentations.loc[dex].start_time > fit['stimulus_interpolation']['original_timestamps'][50]:
             break
         ax[0].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
-    for dex, val in enumerate(fit['original_fit_arr'][0:50,0]):
-        ax[0].plot([fit['original_bins'][dex],fit['original_bins'][dex+1]],[val,val],'k-',alpha=.5)
+    for dex, val in enumerate(fit['stimulus_interpolation']['original_fit_arr'][0:50,0]):
+        ax[0].plot([fit['stimulus_interpolation']['original_bins'][dex],fit['stimulus_interpolation']['original_bins'][dex+1]],[val,val],'k-',alpha=.5)
     for dex, val in enumerate(fit['fit_trace_arr'][0:50,0]):
         ax[0].plot([fit['fit_trace_bins'][dex],fit['fit_trace_bins'][dex+1]],[val,val],'b-',alpha=.5)
     ax[0].set_title('Stimulus Start')
@@ -1052,13 +1065,13 @@ def plot_interpolation_debug(fit,session): ## DEBUG CODE
     ax[0].legend()
 
     # Stim end
-    ax[1].plot(fit['original_timestamps'][-50:],fit['original_fit_arr'][-50:,0], 'ko',markerfacecolor='None')
+    ax[1].plot(fit['stimulus_interpolation']['original_timestamps'][-50:],fit['stimulus_interpolation']['original_fit_arr'][-50:,0], 'ko',markerfacecolor='None')
     ax[1].plot(fit['fit_trace_timestamps'][-50:],fit['fit_trace_arr'][-50:,0], 'bo',markerfacecolor='None')
     for dex in range(0,len(session.stimulus_presentations)):
-        if session.stimulus_presentations.loc[dex].start_time > fit['original_timestamps'][-50]:
+        if session.stimulus_presentations.loc[dex].start_time > fit['stimulus_interpolation']['original_timestamps'][-50]:
             ax[1].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
-    for dex, val in enumerate(fit['original_fit_arr'][-50:,0]):
-        ax[1].plot([fit['original_bins'][-51+dex],fit['original_bins'][-50+dex]],[val,val],'k-',alpha=.5)
+    for dex, val in enumerate(fit['stimulus_interpolation']['original_fit_arr'][-50:,0]):
+        ax[1].plot([fit['stimulus_interpolation']['original_bins'][-51+dex],fit['stimulus_interpolation']['original_bins'][-50+dex]],[val,val],'k-',alpha=.5)
     for dex, val in enumerate(fit['fit_trace_arr'][-50:,0]):
         ax[1].plot([fit['fit_trace_bins'][-51+dex],fit['fit_trace_bins'][-50+dex]],[val,val],'b-',alpha=.5)
     ax[1].set_title('Stimulus End')
@@ -1273,7 +1286,13 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         assert len(timeseries) == fit['fit_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of fit_trace_timestamps'
 
         # Add to design matrix
-        design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
+        design.add_kernel(
+            timeseries, 
+            run_params['kernels'][kernel_name]['length'], 
+            kernel_name, 
+            offset=run_params['kernels'][kernel_name]['offset'],
+            num_weights=run_params['kernels'][kernel_name]['num_weights']
+        )   
         return design
 
 
@@ -1399,7 +1418,14 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             # Force this to be 0 or 1, since we purposefully over-tiled the space. 
             events_vec[events_vec > 1] = 1
 
-        design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
+        design.add_kernel(
+            events_vec, 
+            run_params['kernels'][kernel_name]['length'], 
+            kernel_name, 
+            offset=run_params['kernels'][kernel_name]['offset'],
+            num_weights=run_params['kernels'][kernel_name]['num_weights']
+        )   
+
         return design
 
 def check_by_engagement_state(run_params, fit,event_times,event):
@@ -1504,7 +1530,7 @@ class DesignMatrix(object):
             )
         return X_array.T
 
-    def add_kernel(self, events, kernel_length, label, offset=0):
+    def add_kernel(self, events, kernel_length, label, offset=0,num_weights=None):
         '''
         Add a temporal kernel. 
 
@@ -1522,10 +1548,14 @@ class DesignMatrix(object):
         self.events[label] = events
 
         # CONVERT kernel_length to kernel_length_samples
-        if kernel_length == 0:
-            kernel_length_samples = 1
+        if num_weights is None:
+            if kernel_length == 0:
+                kernel_length_samples = 1
+            else:
+                kernel_length_samples = int(np.ceil(self.ophys_frame_rate*kernel_length)) 
         else:
-            kernel_length_samples = int(np.ceil(self.ophys_frame_rate*kernel_length)) 
+            # Some kernels are hard-coded by number of weights
+            kernel_length_samples = num_weights
 
         # CONVERT offset to offset_samples
         offset_samples = int(np.floor(self.ophys_frame_rate*offset))

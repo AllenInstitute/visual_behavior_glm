@@ -201,7 +201,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
             plt.plot(image, image_dex*np.ones(np.shape(image)),'k|')
 
     # Stimulus Changes
-    change = glm.session.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & change')
+    change = glm.session.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & is_change')
     if plot_ticks:
         if 'change' in glm.run_params['kernels']:
             change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*31)
@@ -252,12 +252,13 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         ks = ['hits','misses','false_alarms','correct_rejects']
         trials = glm.session.trials.query('change_time < @end_t & change_time > @start_t')
         for index, t in enumerate(types):
-            try:
-                change_time = trials[trials[t]]['change_time'] 
-                trial_dex = stim_points[ks[index]][0] + dt*np.ceil(np.abs(glm.run_params['kernels'][ks[index]]['offset'])*31)
-                plt.plot(change_time, trial_dex*np.ones(np.shape(change_time)),'k|')
-            except:
-                print('error plotting - '+t)
+            if t in glm.run_params['kernels']:
+                try:
+                    change_time = trials[trials[t]]['change_time'] 
+                    trial_dex = stim_points[ks[index]][0] + dt*np.ceil(np.abs(glm.run_params['kernels'][ks[index]]['offset'])*31)
+                    plt.plot(change_time, trial_dex*np.ones(np.shape(change_time)),'k|')
+                except:
+                    print('error plotting - '+t)
 
     plt.xlabel('Time (s)')
     plt.yticks(ticks,all_k)

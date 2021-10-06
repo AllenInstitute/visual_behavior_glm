@@ -188,7 +188,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         reward_dex += -.4
     if plot_ticks:
         rewards =glm.session.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
-        plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'k|')
+        plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'ro')
     
     # Stimulus Presentations
     stim = glm.session.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & not omitted')
@@ -252,7 +252,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         ks = ['hits','misses','false_alarms','correct_rejects']
         trials = glm.session.trials.query('change_time < @end_t & change_time > @start_t')
         for index, t in enumerate(types):
-            if t in glm.run_params['kernels']:
+            if ks[index] in glm.run_params['kernels']:
                 try:
                     change_time = trials[trials[t]]['change_time'] 
                     trial_dex = stim_points[ks[index]][0] + dt*np.ceil(np.abs(glm.run_params['kernels'][ks[index]]['offset'])*31)

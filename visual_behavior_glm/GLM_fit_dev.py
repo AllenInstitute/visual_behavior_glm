@@ -18,7 +18,6 @@ def make_dummy_glm(fit, run_params, design,session):
     g.session = session
     return g
 
-
 if False: # Interpolation debugging code
     oeid  = experiment_table.index.values[754]
     oeid1 = experiment_table.index.values[0]

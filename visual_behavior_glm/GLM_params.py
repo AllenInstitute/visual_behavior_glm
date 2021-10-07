@@ -278,16 +278,16 @@ def define_dropouts(kernels):
     dropout_definitions={
         'visual':               ['image0','image1','image2','image3','image4','image5','image6','image7','omissions','image_expectation'],
         'all-images':           ['image0','image1','image2','image3','image4','image5','image6','image7'],
-        'expectation':          ['image_expectation','omissions'],
-        'cognitive':            ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
+        #'expectation':          ['image_expectation','omissions'],
+        #'cognitive':            ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
         'task':                 ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards'],
-        'image_change':         ['image_change0','image_change1','image_change2','image_change3','image_change4','image_change5','image_change6','image_change7'],
-        'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
+        #'image_change':         ['image_change0','image_change1','image_change2','image_change3','image_change4','image_change5','image_change6','image_change7'],
+        #'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
         'behavioral':           ['running','pupil','licks','lick_bouts','lick_model','groom_model'],
-        'licking':              ['licks','lick_bouts','lick_model','groom_model'],
-        'pupil_and_running':    ['pupil','running'],
-        'pupil_and_omissions':  ['pupil','omissions'],
-        'running_and_omissions':['running','omissions']
+        'licking':              ['licks','lick_bouts','lick_model','groom_model']
+        #'pupil_and_running':    ['pupil','running'],
+        #'pupil_and_omissions':  ['pupil','omissions'],
+        #'running_and_omissions':['running','omissions']
         }
 
     # Add all face_motion_energy individual kernels to behavioral, and as a group model

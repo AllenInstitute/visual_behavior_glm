@@ -1426,10 +1426,13 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         return design       
     else:
         events_vec, timestamps = np.histogram(event_times, bins=fit['fit_trace_bins'])
-
-        if event == 'lick_bouts': 
+    
+        if (event == 'lick_bouts') or (event == 'licks'): 
             # Force this to be 0 or 1, since we purposefully over-tiled the space. 
             events_vec[events_vec > 1] = 1
+
+        if np.max(events_vec) > 1:
+            raise Exception('Had multiple events in the same timebin, {}'.format(kernel_name))
 
         design.add_kernel(
             events_vec, 

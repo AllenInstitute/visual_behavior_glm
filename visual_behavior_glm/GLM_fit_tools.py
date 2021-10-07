@@ -102,7 +102,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     design = add_kernels(design, run_params, session, fit) 
 
     # Check Interpolation onto stimulus timestamps
-    if run_params['interpolate_to_stimulus']:
+    if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
         print('Checking stimulus interpolation')
         check_image_kernel_alignment(design)
         check_interpolation_to_stimulus(fit,session)
@@ -795,7 +795,7 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     '''    
 
     # Set parameters for blink detection, and load data
-    session.set_params(eye_tracking_z_threshold=run_params['eye_blink_z'])
+    #session.set_params(eye_tracking_z_threshold=run_params['eye_blink_z'])
     eye = session.eye_tracking.copy(deep=True)
 
     # Compute pupil radius
@@ -806,10 +806,10 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     eye = eye.interpolate()   
 
     # Do a second transient removal step
-    x = scipy.stats.zscore(eye['pupil_radius'],nan_policy='omit')
-    d_mask = np.abs(np.diff(x,append=x[-1])) > run_params['eye_transient_threshold']
-    eye.loc[d_mask,:]=np.nan
-    eye = eye.interpolate()
+    #x = scipy.stats.zscore(eye['pupil_radius'],nan_policy='omit')
+    #d_mask = np.abs(np.diff(x,append=x[-1])) > run_params['eye_transient_threshold']
+    #eye.loc[d_mask,:]=np.nan
+    #eye = eye.interpolate()
 
     # Interpolate everything onto ophys_timestamps
     ophys_eye = pd.DataFrame({'timestamps':ophys_timestamps})
@@ -914,9 +914,9 @@ def interpolate_to_stimulus(fit, session, run_params):
         cycle is allowed to be variable to account for variability in image presentation start times, and the ophys timestamps not perfect
         dividing the image cycle. 
     '''
-    if not run_params['interpolate_to_stimulus']:
+    if ('interpolate_to_stimulus' not in run_params) or (not run_params['interpolate_to_stimulus']):
         print('Not interpolating onto stimulus aligned timestamps')
-        return fit
+        return fit, run_params
     print('Interpolating neural signal onto stimulus aligned timestamps')
    
     # Make new timestamps by starting with each stimulus start time, and adding time points until we hit the next stimulus
@@ -1159,6 +1159,8 @@ def add_kernels(design, run_params,session, fit):
     run_params['failed_dropouts']=set()
     run_params['kernel_error_dict'] = dict()
     for kernel_name in run_params['kernels']:          
+        if 'num_weights' not in run_params['kernels'][kernel_name]:
+            run_params['kernels'][kernel_name]['num_weights'] = None
         if run_params['kernels'][kernel_name]['type'] == 'discrete':
             design = add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit)
         else:

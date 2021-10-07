@@ -7,15 +7,8 @@ import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
 
-class glm_quick:
-    name='dummy object'
-
-def make_dummy_glm(fit, run_params, design,session):
-    g = type('glm_quick',(object,), dict())
-    g.run_params = run_params
-    g.fit = fit
-    g.design = design
-    g.session = session
+def make_glm(fit, run_params, design, session):
+    g = GLM(session.metadata['ophys_experiment_id'],run_params['version'], log_results=False, log_weights=False, recompute=False, use_inputs=True, inputs=[session, fit, design])
     return g
 
 if False: # Interpolation debugging code

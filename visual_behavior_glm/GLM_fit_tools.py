@@ -1058,7 +1058,7 @@ def check_interpolation_to_stimulus(fit, session):
     if len(np.unique(lens)) > 1:
         raise Exception('Uneven number of timestamps per stimulus presentation')
 
-def plot_interpolation_debug(fit,session): ## DEBUG CODE
+def plot_interpolation_debug(fit,session): 
     fig, ax = plt.subplots(2,1)
     
     # Stim start
@@ -1557,6 +1557,7 @@ class DesignMatrix(object):
             offset (int) :offset relative to the events. Negative offsets cause the kernel
                           to overhang before the event (in SECONDS)
         '''
+    
         #Enforce unique labels
         if label in self.kernel_dict.keys():
             raise ValueError('Labels must be unique')
@@ -1577,7 +1578,7 @@ class DesignMatrix(object):
         offset_samples = int(np.floor(self.ophys_frame_rate*offset))
 
         this_kernel = toeplitz(events, kernel_length_samples)
-
+    
         #Pad with zeros, roll offset_samples, and truncate to length
         if offset_samples < 0:
             this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset_samples))), this_kernel], axis=1)

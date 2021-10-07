@@ -101,6 +101,13 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
 
+    # Check Interpolation onto stimulus timestamps
+    if run_params['interpolate_to_stimulus']:
+        print('Checking stimulus interpolation')
+        check_image_kernel_alignment(design)
+        check_interpolation_to_stimulus(fit,session)
+        print('Passed all interpolation checks')
+
     # split by engagement
     design,fit = split_by_engagement(design, run_params, session, fit)
 
@@ -1029,13 +1036,18 @@ def interpolate_to_stimulus(fit, session, run_params):
     return fit,run_params
 
 def check_image_kernel_alignment(design):
-    for i in range(0,8):
-        X = design.get_X(kernels=['image{}'.format(i)])
-        if np.max(np.sum(X.values, axis=1)) > 1:
-            print('Design Matrix has overlapping kernels for image {}'.format(i))
+    '''
+        Checks to see if any of the image kernels overlap
+    '''
+    kernels = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    X = design.get_X(kernels=kernels)
+    if np.max(np.sum(X.values, axis=1)) > 1:
+        raise Exception('Image kernels overlap')
 
-def check_interpolation_to_stimulus(fit, session): ## DEBUG CODE
-    # Checks to make sure we always have the same number of timestamps between each stimulus
+def check_interpolation_to_stimulus(fit, session): 
+    '''
+        Checks to see if we have the same number of timestamps per stimulus presentation
+    '''
     lens = []
     temp = session.stimulus_presentations.copy()
     temp['next_start'] = temp.shift(-1)['start_time']
@@ -1043,7 +1055,8 @@ def check_interpolation_to_stimulus(fit, session): ## DEBUG CODE
     for index, row in temp.iterrows():
         stamps = np.sum((fit['fit_trace_timestamps'] >= row.start_time) & (fit['fit_trace_timestamps'] < row.next_start))
         lens.append(stamps)
-    print(np.unique(lens,return_counts=True))    
+    if len(np.unique(lens)) > 1:
+        raise Exception('Uneven number of timestamps per stimulus presentation')
 
 def plot_interpolation_debug(fit,session): ## DEBUG CODE
     fig, ax = plt.subplots(2,1)

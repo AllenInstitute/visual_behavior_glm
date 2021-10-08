@@ -4,6 +4,7 @@ import visual_behavior.data_access.loading as loading
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import os
 import seaborn as sns
 from sklearn.linear_model import LinearRegression
 import visual_behavior_glm.GLM_params as glm_params
@@ -12,6 +13,12 @@ def make_main(results_pivoted, run_params):
     metrics_df, label = get_metrics()
     results_metrics = merge_cell_metrics_table(metrics_df, results_pivoted)
     evaluate_against_metrics(results_metrics,savefig=True, version=run_params['version'], label=label)
+
+def make_dropout(results,run_params,dropout):
+    metrics_df,label=get_metrics()
+    results_metrics = merge_cell_metrics_table(metrics_df, results.query('dropout ==@dropout'))
+    results_metrics = results_metrics[~results_metrics['variance_explained'].isnull()]
+    evaluate_against_metrics(results_metrics,ymetric='variance_explained',title='All-images dropout vs. images reliability')
 
 def get_metrics():
     experiments_table = loading.get_platform_paper_experiment_table()
@@ -25,7 +32,7 @@ def merge_cell_metrics_table(metrics_df, results_pivoted):
     results_metrics = pd.merge(results_pivoted, metrics_df, on='identifier')
     return results_metrics
 
-def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',xmetric='reliability',savefig=False,version=None,label=''):
+def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',xmetric='reliability',savefig=False,version=None,label='',title=None,ylim=(0,1)):
     fig,ax = plt.subplots()
     cre_lines = np.sort(results_metrics['cre_line'].dropna().unique())
     jointplot = sns.scatterplot(
@@ -48,9 +55,11 @@ def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',
        
     plt.ylabel(ymetric,fontsize=14)
     plt.xlabel(xmetric,fontsize=14)
-    plt.ylim(0,1)
-    plt.xlim(left=0) 
+    plt.ylim(ylim[0],ylim[1])
+    #plt.xlim(left=0) 
     plt.legend()
+    if title is not None:
+        plt.title(title)
 
     if savefig:
         run_params = glm_params.load_run_json(version)

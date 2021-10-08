@@ -288,13 +288,15 @@ def plot_glm_version_comparison_histogram(comparison_table=None, results=None, v
         comparison_table,
         x= 'Diff',
         hue='cre_line',
+        hue_order = cre_lines, 
+        palette = [project_colors()[cre_line] for cre_line in cre_lines],
         element='step',
         stat='density',
         common_norm=False,
     )
     plt.xlim(-.1,.1)
     plt.axvline(0, color='k',alpha=.25, linestyle='--')
-    plt.xlabel(versions_to_compare[0] +'\n minus \n'+ versions_to_compare[1])
+    plt.xlabel(versions_to_compare[0] +'\n minus \n'+ versions_to_compare[1] +'\n Variance Explained')
     plt.tight_layout()    
 
     # Save a figure for each version 

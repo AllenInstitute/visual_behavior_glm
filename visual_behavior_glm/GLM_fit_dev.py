@@ -95,7 +95,7 @@ if False: # Code snippets for doing basic analyses.
     versions = [x[2:] for x in inventory_table.index.values[-2:]]
     comparison_table,results_combined = gat.get_glm_version_comparison_table(versions)
     gvt.plot_glm_version_comparison(comparison_table=comparison_table, versions_to_compare=versions)
-    gvt.plot_glm_version_comparison_scatter(comparison_table=comparison_table, versions_to_compare=versions)
+    gvt.plot_glm_version_comparison_histogram(comparison_table=comparison_table, versions_to_compare=versions)
     
     # Faster if loading many versions
     results_combined = gat.get_glm_version_summary(versions)

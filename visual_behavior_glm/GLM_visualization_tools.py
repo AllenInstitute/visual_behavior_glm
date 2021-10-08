@@ -342,7 +342,7 @@ def plot_glm_version_comparison(comparison_table=None, results=None, versions_to
         hue = 'cre_line',
         hue_order = cre_lines,
         alpha = 0.15,
-        marginal_kws = {'common_norm':False},
+        marginal_kws = {'common_norm':False}
         palette = [project_colors()[cre_line] for cre_line in cre_lines],
         height = 10,
     )

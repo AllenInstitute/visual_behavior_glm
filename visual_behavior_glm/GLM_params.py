@@ -198,7 +198,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'max_run_speed': 100,           # If 1, has no effect. Scales running speed to be O(1). 
         'use_events': False,            # If True, use detected events. If False, use raw deltaF/F 
         'include_invalid_rois': False,  # If True, will fit to ROIs deemed invalid by the SDK. Note that the SDK provides dff traces, but not events, for invalid ROISs
-        'interpolate_to_stimulus':True  # If True, interpolates the cell activity trace onto stimulus aligned timestamps
+        'interpolate_to_stimulus':True, # If True, interpolates the cell activity trace onto stimulus aligned timestamps
+        'image_kernel_overlap_tol':5    # Number of timesteps image kernels are allowed to overlap during entire session. 
     } 
     # Regularization parameter checks 
     a = run_params['L2_optimize_by_cell'] 

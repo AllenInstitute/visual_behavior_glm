@@ -1670,10 +1670,11 @@ def toeplitz(events, kernel_length_samples,offset_samples):
     arrays_list = [events]
     for i in range(kernel_length_samples-1):
         arrays_list.append(np.roll(events, i+1))
-    #this_kernel= np.vstack(arrays_list)[:,:total_len]
+    #this_kernel= np.vstack(arrays_list)[:,:total_len] ##DEBUG
     this_kernel= np.vstack(arrays_list)
 
     #Pad with zeros, roll offset_samples, and truncate to length ### DEBUG
+    print('        length samples {}'.format(kernel_length_samples)) 
     print('        offset samples {}'.format(offset_samples)) 
     if isinstance(np.shape(this_kernel),int):
         print('        length this_kernel: {}'.format(np.shape(this_kernel)))

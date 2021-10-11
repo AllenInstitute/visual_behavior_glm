@@ -1565,7 +1565,6 @@ class DesignMatrix(object):
             raise ValueError('Labels must be unique')
 
         self.events[label] = events
-        print(np.shape(events)) ##DEBUG
 
         # CONVERT kernel_length to kernel_length_samples
         if num_weights is None:
@@ -1671,17 +1670,9 @@ def toeplitz(events, kernel_length_samples,offset_samples):
     arrays_list = [events]
     for i in range(kernel_length_samples-1):
         arrays_list.append(np.roll(events, i+1))
-    #this_kernel= np.vstack(arrays_list)[:,:total_len] ##DEBUG
     this_kernel= np.vstack(arrays_list)
 
-    #Pad with zeros, roll offset_samples, and truncate to length ### DEBUG
-    print('        length samples {}'.format(kernel_length_samples)) 
-    print('        offset samples {}'.format(offset_samples)) 
-    if isinstance(np.shape(this_kernel),int):
-        print('        length this_kernel: {}'.format(np.shape(this_kernel)))
-    else:
-        print('        length this_kernel: {},{}'.format(np.shape(this_kernel)[0],np.shape(this_kernel)[1]))
-
+    #Pad with zeros, roll offset_samples, and truncate to length
     if offset_samples < 0:
         this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset_samples))), this_kernel], axis=1)
         this_kernel = np.roll(this_kernel, offset_samples)[:, np.abs(offset_samples):]

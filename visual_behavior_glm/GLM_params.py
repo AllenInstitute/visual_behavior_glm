@@ -173,9 +173,9 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
-        'L2_optimize_by_session': False, # If True, uses the best L2 value for this session ##DEBUG
-        'L2_use_fixed_value': True,    # If True, uses the hard coded L2_fixed_lambda  ##DEBUG
-        'L2_fixed_lambda':70,         # This value is used if L2_use_fixed_value ##DEBUG 
+        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session 
+        'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda  
+        'L2_fixed_lambda': None,        # This value is used if L2_use_fixed_value  
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'

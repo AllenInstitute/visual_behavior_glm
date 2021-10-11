@@ -564,6 +564,7 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
     hue = 'cre_line'
     split=False
     inner= None
+    hue_order = np.sort(results['cre_line'].unique())
 
     if cre is not None:
         results = results.query('cre_line == @cre').copy()

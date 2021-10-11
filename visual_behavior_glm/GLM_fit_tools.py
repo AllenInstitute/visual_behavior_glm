@@ -1565,6 +1565,7 @@ class DesignMatrix(object):
             raise ValueError('Labels must be unique')
 
         self.events[label] = events
+        print(np.shape(events)) ##DEBUG
 
         # CONVERT kernel_length to kernel_length_samples
         if num_weights is None:

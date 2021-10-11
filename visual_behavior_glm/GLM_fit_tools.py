@@ -1581,13 +1581,14 @@ class DesignMatrix(object):
 
         this_kernel = toeplitz(events, kernel_length_samples)
     
-        #Pad with zeros, roll offset_samples, and truncate to length
-        if offset_samples < 0:
-            this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset_samples))), this_kernel], axis=1)
-            this_kernel = np.roll(this_kernel, offset_samples)[:, np.abs(offset_samples):]
-        elif offset_samples > 0:
-            this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
-            this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
+        #Pad with zeros, roll offset_samples, and truncate to length ### DEBUG
+        print('not padding') # I have no idea what this does
+        #if offset_samples < 0:
+        #    this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset_samples))), this_kernel], axis=1)
+        #    this_kernel = np.roll(this_kernel, offset_samples)[:, np.abs(offset_samples):]
+        #elif offset_samples > 0:
+        #    this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
+        #    this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
 
         self.kernel_dict[label] = {
             'kernel':this_kernel,

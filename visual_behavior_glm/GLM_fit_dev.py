@@ -9,6 +9,7 @@ from visual_behavior_glm.glm import GLM
 
 def make_glm(fit, run_params, design, session):
     g = GLM(session.metadata['ophys_experiment_id'],run_params['version'], log_results=False, log_weights=False, recompute=False, use_inputs=True, inputs=[session, fit, design])
+    g.run_params = run_params
     return g
 
 if False: # Interpolation debugging code

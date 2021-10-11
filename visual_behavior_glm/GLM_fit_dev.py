@@ -13,7 +13,7 @@ def debug_toeplitz(oeid, session,run_params):
     design = gft.DesignMatrix(fit)
     design = gft.add_kernels(design, run_params, session, fit)
     g = make_dummy_glm(fit,run_params,design, session)
-    #gvt.plot_kernel_support(g,start=0, end=400)   
+    gvt.plot_kernel_support(g,start=0, end=400)   
     gvt.plot_kernel_support(g,start=-400, end=-1)   
     return g
 

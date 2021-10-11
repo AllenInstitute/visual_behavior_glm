@@ -1670,7 +1670,8 @@ def toeplitz(events, kernel_length_samples,offset_samples):
     arrays_list = [events]
     for i in range(kernel_length_samples-1):
         arrays_list.append(np.roll(events, i+1))
-    this_kernel= np.vstack(arrays_list)[:,:total_len]
+    #this_kernel= np.vstack(arrays_list)[:,:total_len]
+    this_kernel= np.vstack(arrays_list)
 
     #Pad with zeros, roll offset_samples, and truncate to length ### DEBUG
     print('        offset samples {}'.format(offset_samples)) 
@@ -1685,7 +1686,7 @@ def toeplitz(events, kernel_length_samples,offset_samples):
     elif offset_samples > 0:
         this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
         this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
-    return this_kernel
+    return this_kernel[:,:total_len]
 
 
 def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):

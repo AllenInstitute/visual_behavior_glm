@@ -401,7 +401,7 @@ def get_experiment_table(glm_version):
     
     Warning: this takes a couple of minutes to run.
     '''
-    experiment_table = loading.get_platform_paper_ophys_experiment_table().reset_index() # Need to fix
+    experiment_table = loading.get_platform_paper_experiment_table().reset_index() # Need to fix
     dropout_summary = retrieve_results({'glm_version':glm_version}, results_type='summary')
     stdout_summary = get_stdout_summary(glm_version)
 

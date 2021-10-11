@@ -7,6 +7,23 @@ import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
 
+def make_glm(fit, run_params, design, session):
+    g = GLM(session.metadata['ophys_experiment_id'],run_params['version'], log_results=False, log_weights=False, recompute=False, use_inputs=True, inputs=[session, fit, design])
+    return g
+
+if False: # Interpolation debugging code
+    oeid  = experiment_table.index.values[754]
+    oeid1 = experiment_table.index.values[0]
+    oeid2 = experiment_table.index.values[154]
+    oeid3 = experiment_table.index.values[-1]
+    session = gft.load_data(oeid, run_params)
+    fit = gft.extract_and_annotate_ophys(session, run_params)
+    gft.plot_interpolation_debug(fit,session)
+    gft.check_interpolation_to_stimulus(fit,session)
+    design = gft.DesignMatrix(fit)
+    design = gft.add_kernels(design, run_params, session, fit)
+    gft.check_image_kernel_alignment(design)
+    gvt.plot_kernel_support(glm)
 
 if False: # Code snippets for doing basic analyses. 
 

@@ -21,24 +21,23 @@ def get_versions(vrange=[10,20]):
 
 def define_kernels():
     kernels = {
-        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'constant value'},
-        'hits':         {'event':'hit',         'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick to image change'},
-        'misses':       {'event':'miss',        'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick to image change'},
-        'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'passive session image change'},
-        'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick on catch trials'},
-        'correct_rejects':  {'event':'correct_reject','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick on catch trials'},
-        'each-image_change':{'event':'change',  'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'Image specific change'},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'dropout':True, 'text': 'image was omitted'},
-        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.767, 'offset':-0.25, 'dropout':True, 'text': 'image presentation'},
-        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'normalized running speed'},
-        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'Z-scored pupil diameter'},
-        'licks':        {'event':'licks',       'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'mouse lick'},
-        #'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'linear ramp from 0 to 1'},
-        #'image_expectation':   {'event':'image_expectation','type':'discrete','length':0.767, 'offset':-0.767,'dropout':True, 'text': '750ms from last image'},
-        #'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25,  'dropout':True, 'text': 'behavioral model weights'},
-        #'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'lick bout'},
-        #'lick_model':   {'event':'lick_model',  'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'lick probability from video'},
-        #'groom_model':  {'event':'groom_model', 'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'groom probability from video'},
+        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'num_weights':None, 'dropout':True, 'text': 'constant value'},
+        'hits':         {'event':'hit',         'type':'discrete',      'length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
+        'misses':       {'event':'miss',        'type':'discrete',      'length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
+        'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
+        'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'lick on catch trials'},
+        'correct_rejects':  {'event':'correct_reject','type':'discrete','length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'no lick on catch trials'},
+        #'each-image_change':{'event':'change',  'type':'discrete',      'length':5.5,   'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'Image specific change'},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.75,  'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image presentation'},
+        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'normalized running speed'},
+        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'Z-scored pupil diameter'},
+        'licks':        {'event':'licks',       'type':'discrete',      'length':4,     'offset':-2,    'num_weights':None, 'dropout':True, 'text': 'mouse lick'},
+        #'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,    'num_weights':None,  'dropout':True, 'text': 'linear ramp from 0 to 1'},
+        #'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'num_weights':None,  'dropout':True, 'text': 'behavioral model weights'},
+        #'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,   'num_weights':None,  'dropout':True, 'text': 'lick bout'},
+        #'lick_model':   {'event':'lick_model',  'type':'continuous',    'length':2,     'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'lick probability from video'},
+        #'groom_model':  {'event':'groom_model', 'type':'continuous',    'length':2,     'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'groom probability from video'},
     }
     ## add face motion energy PCs
     # for PC in range(5):
@@ -55,7 +54,7 @@ def get_experiment_table(require_model_outputs = False):
     Keyword arguments:
     require_model_outputs (bool) -- if True, limits returned experiments to those that have been fit with behavior model
     """
-    experiments_table = loading.get_filtered_ophys_experiment_table()
+    experiments_table = loading.get_platform_paper_experiment_table()
     if require_model_outputs:
         return experiments_table.query('model_outputs_available == True')
     else:
@@ -137,7 +136,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     # Define list of experiments to fit
     experiment_table = get_experiment_table()
     if TESTING:
-        experiment_table = experiment_table.query('project_code == "VisualBehavior"').tail(5)
+        experiment_table = experiment_table.tail(5)
     experiment_table.to_csv(experiment_table_path)
     
     # Define job settings
@@ -175,8 +174,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'fit_script':python_fit_script,
         'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
         'L2_optimize_by_session': True, # If True, uses the best L2 value for this session 
-        'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda 
-        'L2_fixed_lambda':None,         # This value is used if L2_use_fixed_value 
+        'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda  
+        'L2_fixed_lambda':None,         # This value is used if L2_use_fixed_value  
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'
@@ -198,7 +197,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100,           # If 1, has no effect. Scales running speed to be O(1). 
         'use_events': False,            # If True, use detected events. If False, use raw deltaF/F 
-        'include_invalid_rois': False   # If True, will fit to ROIs deemed invalid by the SDK. Note that the SDK provides dff traces, but not events, for invalid ROISs
+        'include_invalid_rois': False,  # If True, will fit to ROIs deemed invalid by the SDK. Note that the SDK provides dff traces, but not events, for invalid ROISs
+        'interpolate_to_stimulus':True  # If True, interpolates the cell activity trace onto stimulus aligned timestamps
     } 
     # Regularization parameter checks 
     a = run_params['L2_optimize_by_cell'] 
@@ -278,16 +278,16 @@ def define_dropouts(kernels):
     dropout_definitions={
         'visual':               ['image0','image1','image2','image3','image4','image5','image6','image7','omissions','image_expectation'],
         'all-images':           ['image0','image1','image2','image3','image4','image5','image6','image7'],
-        'expectation':          ['image_expectation','omissions'],
-        'cognitive':            ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
+        #'expectation':          ['image_expectation','omissions'],
+        #'cognitive':            ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
         'task':                 ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards'],
-        'image_change':         ['image_change0','image_change1','image_change2','image_change3','image_change4','image_change5','image_change6','image_change7'],
-        'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
+        #'image_change':         ['image_change0','image_change1','image_change2','image_change3','image_change4','image_change5','image_change6','image_change7'],
+        #'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
         'behavioral':           ['running','pupil','licks','lick_bouts','lick_model','groom_model'],
-        'licking':              ['licks','lick_bouts','lick_model','groom_model'],
-        'pupil_and_running':    ['pupil','running'],
-        'pupil_and_omissions':  ['pupil','omissions'],
-        'running_and_omissions':['running','omissions']
+        'licking':              ['licks','lick_bouts','lick_model','groom_model']
+        #'pupil_and_running':    ['pupil','running'],
+        #'pupil_and_omissions':  ['pupil','omissions'],
+        #'running_and_omissions':['running','omissions']
         }
 
     # Add all face_motion_energy individual kernels to behavioral, and as a group model

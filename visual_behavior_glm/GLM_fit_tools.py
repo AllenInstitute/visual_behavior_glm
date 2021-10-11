@@ -92,7 +92,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Processing df/f data
     print('Processing df/f data')
-    fit = extract_and_annotate_ophys(session,run_params, TESTING=TESTING)
+    fit,run_params = extract_and_annotate_ophys(session,run_params, TESTING=TESTING)
 
     # Make Design Matrix
     print('Build Design Matrix')
@@ -100,6 +100,13 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
+
+    # Check Interpolation onto stimulus timestamps
+    if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
+        print('Checking stimulus interpolation')
+        check_image_kernel_alignment(design)
+        check_interpolation_to_stimulus(fit,session)
+        print('Passed all interpolation checks')
 
     # split by engagement
     design,fit = split_by_engagement(design, run_params, session, fit)
@@ -788,7 +795,7 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     '''    
 
     # Set parameters for blink detection, and load data
-    session.set_params(eye_tracking_z_threshold=run_params['eye_blink_z'])
+    #session.set_params(eye_tracking_z_threshold=run_params['eye_blink_z'])
     eye = session.eye_tracking.copy(deep=True)
 
     # Compute pupil radius
@@ -799,10 +806,10 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     eye = eye.interpolate()   
 
     # Do a second transient removal step
-    x = scipy.stats.zscore(eye['pupil_radius'],nan_policy='omit')
-    d_mask = np.abs(np.diff(x,append=x[-1])) > run_params['eye_transient_threshold']
-    eye.loc[d_mask,:]=np.nan
-    eye = eye.interpolate()
+    #x = scipy.stats.zscore(eye['pupil_radius'],nan_policy='omit')
+    #d_mask = np.abs(np.diff(x,append=x[-1])) > run_params['eye_transient_threshold']
+    #eye.loc[d_mask,:]=np.nan
+    #eye = eye.interpolate()
 
     # Interpolate everything onto ophys_timestamps
     ophys_eye = pd.DataFrame({'timestamps':ophys_timestamps})
@@ -884,16 +891,206 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['dff_trace_arr'] = trace_tuple[1]
     fit['events_trace_arr'] = trace_tuple[2]
     fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
-    fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
+    step = np.mean(np.diff(fit['fit_trace_timestamps']))
+    fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+step]])-step*.5  
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
-    
+   
+    # Interpolate onto stimulus 
+    fit,run_params = interpolate_to_stimulus(fit, session, run_params)   
+ 
     # If we are splitting on engagement, then determine the engagement timepoints
     if run_params['split_on_engagement']:
         print('Adding Engagement labels. Preferred engagement state: '+run_params['engagement_preference'])
         fit = add_engagement_labels(fit, session, run_params)
     else:
         fit['ok_to_fit_preferred_engagement'] = True
-    return fit
+    return fit, run_params
+
+def interpolate_to_stimulus(fit, session, run_params):
+    '''
+        This function interpolates the neural signal (either dff or events) onto timestamps that are aligned to the stimulus.
+        
+        The new timestamps are aligned to the onset of each image presentation (or omission), and the last timebin in each 750ms image
+        cycle is allowed to be variable to account for variability in image presentation start times, and the ophys timestamps not perfect
+        dividing the image cycle. 
+    '''
+    if ('interpolate_to_stimulus' not in run_params) or (not run_params['interpolate_to_stimulus']):
+        print('Not interpolating onto stimulus aligned timestamps')
+        return fit, run_params
+    print('Interpolating neural signal onto stimulus aligned timestamps')
+   
+    # Make new timestamps by starting with each stimulus start time, and adding time points until we hit the next stimulus
+    start_times = session.stimulus_presentations.start_time.values
+    start_times = np.concatenate([start_times,[start_times[-1]+.75]]) 
+    mean_step = np.mean(np.diff(fit['fit_trace_timestamps']))
+    sets_of_stimulus_timestamps = []
+    for index, start in enumerate(start_times[0:-1]):
+        sets_of_stimulus_timestamps.append(np.arange(start_times[index], start_times[index+1]- mean_step*.5,mean_step)) 
+
+    # Check to make sure we always have the same number of timestamps per stimulus
+    lens = [len(x) for x in sets_of_stimulus_timestamps]
+    if len(np.unique(lens)) > 1:
+        u,c = np.unique(lens, return_counts=True)
+        for index, val in enumerate(u):
+            print('   Stimuli with {} timestamps: {}'.format(u[index], c[index]))
+        print('   This happens when the following stimulus is delayed creating a greater than 750ms duration')
+        print('   I will truncate extra timestamps so that all stimuli have the same number of following timestamps')
+    
+        # Determine how many timestamps each stimuli most commonly has and trim off the extra
+        mode = scipy.stats.mode(lens)[0][0]
+        sets_of_stimulus_timestamps = [x[0:mode] for x in sets_of_stimulus_timestamps]
+
+        # Check again to make sure we always have the same number of timestamps
+        # Note this can still fail if the stimulus duration is less than 750
+        lens = [len(x) for x in sets_of_stimulus_timestamps]
+        if len(np.unique(lens)) > 1:
+            print('   Warning!!! uneven number of steps per stimulus interval')
+            print('   This happens when the stimulus duration is much less than 750ms')
+            print('   I will need to check for this happening when kernels are added to the design matrix')
+            u,c = np.unique(lens, return_counts=True)
+            for index, val in enumerate(u):
+                print('Stimuli with {} timestamps: {}'.format(u[index], c[index]))
+            raise Exception('Uneven number of steps per stimulus interval')
+
+    # Combine all the timestamps together
+    new_timestamps = np.concatenate(sets_of_stimulus_timestamps)
+    new_bins = np.concatenate([new_timestamps,[new_timestamps[-1]+mean_step]])-mean_step*.5
+
+    # Setup new variables 
+    num_cells = np.size(fit['fit_trace_arr'],1)
+    new_trace_arr = np.empty((len(new_timestamps),num_cells))
+    new_trace_arr[:] = 0
+    new_dff_trace_arr = np.empty((len(new_timestamps),num_cells))
+    new_dff_trace_arr[:] = 0
+    if ('use_events' in run_params) and (run_params['use_events']):
+        new_events_trace_arr = np.empty((len(new_timestamps),num_cells))
+        new_events_trace_arr[:] = 0
+    else:
+        new_events_trace_arr = None
+
+    # Interpolate onto new timestamps
+    for index in range(0,num_cells):
+        # Fit array
+        f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,index],bounds_error=False)
+        new_trace_arr[:,index] = f(new_timestamps)
+
+        # dff array
+        f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['dff_trace_arr'][:,index],bounds_error=False)
+        new_dff_trace_arr[:,index] = f(new_timestamps)
+        
+        # events array, if we are using it
+        if ('use_events' in run_params) and (run_params['use_events']):
+            f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['events_trace_arr'][:,index],bounds_error=False)
+            new_events_trace_arr[:,index] = f(new_timestamps)
+
+
+    # Convert into xarrays
+    new_trace_arr = xr.DataArray(
+        new_trace_arr, 
+        dims = ('fit_trace_timestamps','cell_specimen_id'), 
+        coords = {
+            'fit_trace_timestamps':new_timestamps,
+            'cell_specimen_id':fit['fit_trace_arr']['cell_specimen_id'].values
+        }
+    )
+    new_dff_trace_arr = xr.DataArray(
+        new_dff_trace_arr, 
+        dims = ('fit_trace_timestamps','cell_specimen_id'), 
+        coords = {
+            'fit_trace_timestamps':new_timestamps,
+            'cell_specimen_id':fit['fit_trace_arr']['cell_specimen_id'].values
+        }
+    )
+    if ('use_events' in run_params) and (run_params['use_events']):
+        new_events_trace_arr = xr.DataArray(
+            new_events_trace_arr, 
+            dims = ('fit_trace_timestamps','cell_specimen_id'), 
+            coords = {
+                'fit_trace_timestamps':new_timestamps,
+                'cell_specimen_id':fit['fit_trace_arr']['cell_specimen_id'].values
+            }
+        )       
+
+    # Save everything
+    fit['stimulus_interpolation'] ={
+        'mean_step':mean_step,
+        'timesteps_per_stimulus':np.unique(lens)[0],
+        'original_fit_arr':fit['fit_trace_arr'],
+        'original_dff_arr':fit['dff_trace_arr'],
+        'original_events_arr':fit['events_trace_arr'],
+        'original_timestamps':fit['fit_trace_timestamps'],
+        'original_bins':fit['fit_trace_bins']
+    }
+    fit['fit_trace_arr']    = new_trace_arr
+    fit['dff_trace_arr']    = new_dff_trace_arr
+    fit['events_trace_arr'] = new_events_trace_arr
+    fit['fit_trace_timestamps'] = new_timestamps
+    fit['fit_trace_bins']   = new_bins
+   
+    # Use the number of timesteps per stimulus to define the image kernel length so we get no overlap 
+    kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    for k in kernels_to_limit_per_image_cycle:
+        if k in run_params['kernels']:
+            run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    
+
+    return fit,run_params
+
+def check_image_kernel_alignment(design):
+    '''
+        Checks to see if any of the image kernels overlap
+    '''
+    kernels = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    X = design.get_X(kernels=kernels)
+    if np.max(np.sum(X.values, axis=1)) > 1:
+        raise Exception('Image kernels overlap')
+
+def check_interpolation_to_stimulus(fit, session): 
+    '''
+        Checks to see if we have the same number of timestamps per stimulus presentation
+    '''
+    lens = []
+    temp = session.stimulus_presentations.copy()
+    temp['next_start'] = temp.shift(-1)['start_time']
+    temp.at[temp.index.values[-1],'next_start'] = temp.iloc[-1]['start_time']+0.75
+    for index, row in temp.iterrows():
+        stamps = np.sum((fit['fit_trace_timestamps'] >= row.start_time) & (fit['fit_trace_timestamps'] < row.next_start))
+        lens.append(stamps)
+    if len(np.unique(lens)) > 1:
+        raise Exception('Uneven number of timestamps per stimulus presentation')
+
+def plot_interpolation_debug(fit,session): 
+    fig, ax = plt.subplots(2,1)
+    
+    # Stim start
+    ax[0].plot(fit['stimulus_interpolation']['original_timestamps'][0:50],fit['stimulus_interpolation']['original_fit_arr'][0:50,0], 'ko',markerfacecolor='None',label='Original')
+    ax[0].plot(fit['fit_trace_timestamps'][0:50],fit['fit_trace_arr'][0:50,0], 'bo',markerfacecolor='None',label='Stimulus Aligned')
+    for dex in range(0,len(session.stimulus_presentations)):
+        if session.stimulus_presentations.loc[dex].start_time > fit['stimulus_interpolation']['original_timestamps'][50]:
+            break
+        ax[0].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    for dex, val in enumerate(fit['stimulus_interpolation']['original_fit_arr'][0:50,0]):
+        ax[0].plot([fit['stimulus_interpolation']['original_bins'][dex],fit['stimulus_interpolation']['original_bins'][dex+1]],[val,val],'k-',alpha=.5)
+    for dex, val in enumerate(fit['fit_trace_arr'][0:50,0]):
+        ax[0].plot([fit['fit_trace_bins'][dex],fit['fit_trace_bins'][dex+1]],[val,val],'b-',alpha=.5)
+    ax[0].set_title('Stimulus Start')
+    ax[0].set_xlim(ax[0].get_xlim()[0]-.25,ax[0].get_xlim()[1])
+    ax[0].set_ylim( -.5,.5)
+    ax[0].legend()
+
+    # Stim end
+    ax[1].plot(fit['stimulus_interpolation']['original_timestamps'][-50:],fit['stimulus_interpolation']['original_fit_arr'][-50:,0], 'ko',markerfacecolor='None')
+    ax[1].plot(fit['fit_trace_timestamps'][-50:],fit['fit_trace_arr'][-50:,0], 'bo',markerfacecolor='None')
+    for dex in range(0,len(session.stimulus_presentations)):
+        if session.stimulus_presentations.loc[dex].start_time > fit['stimulus_interpolation']['original_timestamps'][-50]:
+            ax[1].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    for dex, val in enumerate(fit['stimulus_interpolation']['original_fit_arr'][-50:,0]):
+        ax[1].plot([fit['stimulus_interpolation']['original_bins'][-51+dex],fit['stimulus_interpolation']['original_bins'][-50+dex]],[val,val],'k-',alpha=.5)
+    for dex, val in enumerate(fit['fit_trace_arr'][-50:,0]):
+        ax[1].plot([fit['fit_trace_bins'][-51+dex],fit['fit_trace_bins'][-50+dex]],[val,val],'b-',alpha=.5)
+    ax[1].set_title('Stimulus End')
+    ax[1].set_xlim(ax[1].get_xlim()[0],ax[1].get_xlim()[1]+.25)
+    ax[1].set_ylim( -.5,.5)
+    plt.tight_layout()
 
 def add_engagement_labels(fit, session, run_params):
     '''
@@ -962,6 +1159,8 @@ def add_kernels(design, run_params,session, fit):
     run_params['failed_dropouts']=set()
     run_params['kernel_error_dict'] = dict()
     for kernel_name in run_params['kernels']:          
+        if 'num_weights' not in run_params['kernels'][kernel_name]:
+            run_params['kernels'][kernel_name]['num_weights'] = None
         if run_params['kernels'][kernel_name]['type'] == 'discrete':
             design = add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit)
         else:
@@ -1102,7 +1301,13 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         assert len(timeseries) == fit['fit_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of fit_trace_timestamps'
 
         # Add to design matrix
-        design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
+        design.add_kernel(
+            timeseries, 
+            run_params['kernels'][kernel_name]['length'], 
+            kernel_name, 
+            offset=run_params['kernels'][kernel_name]['offset'],
+            num_weights=run_params['kernels'][kernel_name]['num_weights']
+        )   
         return design
 
 
@@ -1223,12 +1428,22 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         return design       
     else:
         events_vec, timestamps = np.histogram(event_times, bins=fit['fit_trace_bins'])
-
-        if event == 'lick_bouts': 
+    
+        if (event == 'lick_bouts') or (event == 'licks'): 
             # Force this to be 0 or 1, since we purposefully over-tiled the space. 
             events_vec[events_vec > 1] = 1
 
-        design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
+        if np.max(events_vec) > 1:
+            raise Exception('Had multiple events in the same timebin, {}'.format(kernel_name))
+
+        design.add_kernel(
+            events_vec, 
+            run_params['kernels'][kernel_name]['length'], 
+            kernel_name, 
+            offset=run_params['kernels'][kernel_name]['offset'],
+            num_weights=run_params['kernels'][kernel_name]['num_weights']
+        )   
+
         return design
 
 def check_by_engagement_state(run_params, fit,event_times,event):
@@ -1333,7 +1548,7 @@ class DesignMatrix(object):
             )
         return X_array.T
 
-    def add_kernel(self, events, kernel_length, label, offset=0):
+    def add_kernel(self, events, kernel_length, label, offset=0,num_weights=None):
         '''
         Add a temporal kernel. 
 
@@ -1344,6 +1559,7 @@ class DesignMatrix(object):
             offset (int) :offset relative to the events. Negative offsets cause the kernel
                           to overhang before the event (in SECONDS)
         '''
+    
         #Enforce unique labels
         if label in self.kernel_dict.keys():
             raise ValueError('Labels must be unique')
@@ -1351,16 +1567,20 @@ class DesignMatrix(object):
         self.events[label] = events
 
         # CONVERT kernel_length to kernel_length_samples
-        if kernel_length == 0:
-            kernel_length_samples = 1
+        if num_weights is None:
+            if kernel_length == 0:
+                kernel_length_samples = 1
+            else:
+                kernel_length_samples = int(np.ceil(self.ophys_frame_rate*kernel_length)) 
         else:
-            kernel_length_samples = int(np.ceil(self.ophys_frame_rate*kernel_length)) 
+            # Some kernels are hard-coded by number of weights
+            kernel_length_samples = num_weights
 
         # CONVERT offset to offset_samples
         offset_samples = int(np.floor(self.ophys_frame_rate*offset))
 
         this_kernel = toeplitz(events, kernel_length_samples)
-
+    
         #Pad with zeros, roll offset_samples, and truncate to length
         if offset_samples < 0:
             this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset_samples))), this_kernel], axis=1)
@@ -1476,8 +1696,8 @@ def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
         filtered_stimulus_presentations = filtered_stimulus_presentations.iloc[1:]
     
     ophys_frames_to_use = (
-        (session.ophys_timestamps > filtered_stimulus_presentations.iloc[0]['start_time']) 
-        & (session.ophys_timestamps < filtered_stimulus_presentations.iloc[-1]['start_time'] +stim_dur+ end_buffer)
+        (session.ophys_timestamps >= filtered_stimulus_presentations.iloc[0]['start_time']-end_buffer) 
+        & (session.ophys_timestamps <= filtered_stimulus_presentations.iloc[-1]['start_time'] +stim_dur+ end_buffer)
     )
     return ophys_frames_to_use
 

@@ -216,9 +216,10 @@ def plot_kernel_support(glm,include_cont = True,plot_bands=True,plot_ticks=True,
 
     # Stimulus Omissions
     if plot_ticks:
-        omitted = glm.session.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & omitted')['start_time']
-        omitted_dex = stim_points['omissions'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['omissions']['offset'])*frame_rate)
-        plt.plot(omitted, omitted_dex*np.ones(np.shape(omitted)),'k|')
+        if 'omissions' in glm.run_params['kernels']:
+            omitted = glm.session.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & omitted')['start_time']
+            omitted_dex = stim_points['omissions'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['omissions']['offset'])*frame_rate)
+            plt.plot(omitted, omitted_dex*np.ones(np.shape(omitted)),'k|')
 
     # Image Expectation
     if plot_ticks & ('image_expectation' in glm.run_params['kernels']):

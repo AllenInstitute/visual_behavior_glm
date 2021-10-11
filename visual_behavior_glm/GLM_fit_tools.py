@@ -1582,7 +1582,7 @@ class DesignMatrix(object):
         this_kernel = toeplitz(events, kernel_length_samples)
     
         #Pad with zeros, roll offset_samples, and truncate to length ### DEBUG
-        print('        not padding {}'.format(offset_samples)) # I have no idea what this does
+        print('        not padding {}'.format(offset_samples)) 
         if isinstance(np.shape(this_kernel),int):
             print('        length this_kernel: {}'.format(np.shape(this_kernel)))
         else:

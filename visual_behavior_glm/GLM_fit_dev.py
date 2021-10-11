@@ -6,6 +6,27 @@ import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
+import visual_behavior_glm.GLM_fit_tools as gft
+
+def debug_toeplitz(oeid, session,run_params):
+    fit, run_params = gft.extract_and_annotate_ophys(session,run_params)
+    design = gft.DesignMatrix(fit)
+    design = gft.add_kernels(design, run_params, session, fit)
+    g = make_dummy_glm(fit,run_params,design, session)
+    gvt.plot_kernel_support(g,start=0, end=400)   
+    gvt.plot_kernel_support(g,start=-400, end=-1)   
+    return g
+
+class dummy_glm:
+    a = 'dummy glm'
+
+def make_dummy_glm(fit, run_params, design, session):
+    g = type('dummy_glm',(object,),dict(a='dummy glm'))
+    g.fit=fit
+    g.run_params=run_params
+    g.design=design
+    g.session=session
+    return g
 
 def make_glm(fit, run_params, design, session):
     g = GLM(session.metadata['ophys_experiment_id'],run_params['version'], log_results=False, log_weights=False, recompute=False, use_inputs=True, inputs=[session, fit, design])

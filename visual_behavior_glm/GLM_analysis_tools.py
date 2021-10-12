@@ -468,7 +468,7 @@ def get_roi_count(ophys_experiment_id):
     df = db.lims_query(query)
     return df['valid_roi'].sum()
 
-def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False,allow_old_rois=True,invalid_only=False):
+def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False,allow_old_rois=True,invalid_only=False,add_extra_columns=False):
     '''
     gets cached results from mongodb
     input:
@@ -516,7 +516,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         if verbose:
             print('Merging in experiment metadata')
         # get experiment table, merge in details of each experiment
-        experiment_table = loading.get_platform_paper_experiment_table(add_extra_columns=False).reset_index()
+        experiment_table = loading.get_platform_paper_experiment_table(add_extra_columns=add_extra_columns).reset_index()
         results = results.merge(
             experiment_table, 
             left_on='ophys_experiment_id',
@@ -618,7 +618,7 @@ def get_glm_version_comparison_table(versions_to_compare, results=None, metric='
 
     return pivoted_results,pd.concat(results_list, sort=True)
 
-def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None):
+def build_pivoted_results_summary(value_to_use, results_summary=None, glm_version=None, cutoff=None,add_extra_columns=False):
     '''
     pivots the results_summary dataframe to give a dataframe with dropout scores as unique columns
     inputs:
@@ -638,7 +638,7 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         
     # get results summary if none was passed
     if results_summary is None:
-        results_summary = retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary')
+        results_summary = retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary',add_extra_columns=add_extra_columns)
         
     results_summary['identifier'] = results_summary['ophys_experiment_id'].astype(str) + '_' +  results_summary['cell_specimen_id'].astype(str)
     

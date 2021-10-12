@@ -7,9 +7,9 @@ import shutil
 
 import visual_behavior.data_access.loading as loading
 
-OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
+OUTPUT_DIR_BASE = r'//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
 
-def get_versions(vrange=[10,20]):
+def get_versions(vrange=[15,20]):
     versions = os.listdir(OUTPUT_DIR_BASE)
     out_versions = []
     for dex, val in enumerate(np.arange(vrange[0],vrange[1])):

@@ -928,6 +928,7 @@ def interpolate_to_stimulus(fit, session, run_params):
 
     # Check to make sure we always have the same number of timestamps per stimulus
     lens = [len(x) for x in sets_of_stimulus_timestamps]
+    mode = scipy.stats.mode(lens)[0][0]
     if len(np.unique(lens)) > 1:
         u,c = np.unique(lens, return_counts=True)
         for index, val in enumerate(u):
@@ -936,7 +937,6 @@ def interpolate_to_stimulus(fit, session, run_params):
         print('   I will truncate extra timestamps so that all stimuli have the same number of following timestamps')
     
         # Determine how many timestamps each stimuli most commonly has and trim off the extra
-        mode = scipy.stats.mode(lens)[0][0]
         sets_of_stimulus_timestamps = [x[0:mode] for x in sets_of_stimulus_timestamps]
 
         # Check again to make sure we always have the same number of timestamps
@@ -1022,7 +1022,7 @@ def interpolate_to_stimulus(fit, session, run_params):
     # Save everything
     fit['stimulus_interpolation'] ={
         'mean_step':mean_step,
-        'timesteps_per_stimulus':np.unique(lens)[0],
+        'timesteps_per_stimulus':mode,
         'original_fit_arr':fit['fit_trace_arr'],
         'original_dff_arr':fit['dff_trace_arr'],
         'original_events_arr':fit['events_trace_arr'],
@@ -1046,17 +1046,21 @@ def interpolate_to_stimulus(fit, session, run_params):
 def check_image_kernel_alignment(design,run_params):
     '''
         Checks to see if any of the image kernels overlap
+        Note this fails if the early image is omitted, but I can't check the omission kernels directly because they overlap on purpose with images
     '''
     kernels = ['image0','image1','image2','image3','image4','image5','image6','image7']
     X = design.get_X(kernels=kernels)
     if ('image_kernel_overlap_tol' in run_params):
         tolerance = run_params['image_kernel_overlap_tol']
     else:
-        tolerance = 0
-    if np.max(np.sum(X.values, axis=1)) > tolerance:
-        raise Exception('Image kernels overlap')
-    elif np.max(np.sum(X.values, axis=1)) > 0:
-        print('Image kernels overlap, but within tolerance')
+        tolerance = 1
+    overlap = np.max(np.sum(X.values, axis=1))
+    if overlap > tolerance:
+        raise Exception('Image kernels overlap beyond tolerance: {}, {}'.format(overlap, tolerance))
+    elif overlap > 1:
+        print('Image kernels overlap, but within tolerance: {}, {}'.format(overlap, tolerance))
+    else:
+        print('No Image kernel overlap: {}'.format(overlap))
 
 def check_interpolation_to_stimulus(fit, session): 
     '''
@@ -1069,7 +1073,11 @@ def check_interpolation_to_stimulus(fit, session):
     for index, row in temp.iterrows():
         stamps = np.sum((fit['fit_trace_timestamps'] >= row.start_time) & (fit['fit_trace_timestamps'] < row.next_start))
         lens.append(stamps)
+    return temp, lens
     if len(np.unique(lens)) > 1:
+        u,c = np.unique(lens, return_counts=True)
+        for index, val in enumerate(u):
+            print('   Stimuli with {} timestamps: {}'.format(u[index], c[index]))
         raise Exception('Uneven number of timestamps per stimulus presentation')
 
 def plot_interpolation_debug(fit,session): 

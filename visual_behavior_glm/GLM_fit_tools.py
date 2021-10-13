@@ -105,7 +105,6 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
         print('Checking stimulus interpolation')
         check_image_kernel_alignment(design,run_params)
-        #check_interpolation_to_stimulus(fit,session) ##DEBUG I think this is redundant now
         print('Passed all interpolation checks')
 
     # split by engagement

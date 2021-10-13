@@ -104,8 +104,8 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     # Check Interpolation onto stimulus timestamps
     if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
         print('Checking stimulus interpolation')
-        check_image_kernel_alignment(design)
-        check_interpolation_to_stimulus(fit,session)
+        check_image_kernel_alignment(design,run_params)
+        #check_interpolation_to_stimulus(fit,session) ##DEBUG I think this is redundant now
         print('Passed all interpolation checks')
 
     # split by engagement
@@ -948,9 +948,18 @@ def interpolate_to_stimulus(fit, session, run_params):
             print('   This happens when the stimulus duration is much less than 750ms')
             print('   I will need to check for this happening when kernels are added to the design matrix')
             u,c = np.unique(lens, return_counts=True)
+            overlaps = 0
             for index, val in enumerate(u):
                 print('Stimuli with {} timestamps: {}'.format(u[index], c[index]))
-            raise Exception('Uneven number of steps per stimulus interval')
+                if u[index] < mode:
+                    overlaps += (mode-u[index])*c[index]
+            if ('image_kernel_overlap_tol' in run_params) & (run_params['image_kernel_overlap_tol'] > 0):
+                print('checking to see if image kernel overlap is within tolerance ({})'.format(run_params['image_kernel_overlap_tol']))
+                print('overlapping timestamps: {}'.format(overlaps))
+                if overlaps > run_params['image_kernel_overlap_tol']:
+                    raise Exception('Uneven number of steps per stimulus interval')
+                else:
+                    print('I think I am under the tolerance, continuing')
 
     # Combine all the timestamps together
     new_timestamps = np.concatenate(sets_of_stimulus_timestamps)
@@ -1035,14 +1044,20 @@ def interpolate_to_stimulus(fit, session, run_params):
 
     return fit,run_params
 
-def check_image_kernel_alignment(design):
+def check_image_kernel_alignment(design,run_params):
     '''
         Checks to see if any of the image kernels overlap
     '''
     kernels = ['image0','image1','image2','image3','image4','image5','image6','image7']
     X = design.get_X(kernels=kernels)
-    if np.max(np.sum(X.values, axis=1)) > 1:
+    if ('image_kernel_overlap_tol' in run_params):
+        tolerance = run_params['image_kernel_overlap_tol']
+    else:
+        tolerance = 0
+    if np.max(np.sum(X.values, axis=1)) > tolerance:
         raise Exception('Image kernels overlap')
+    elif np.max(np.sum(X.values, axis=1)) > 0:
+        print('Image kernels overlap, but within tolerance')
 
 def check_interpolation_to_stimulus(fit, session): 
     '''

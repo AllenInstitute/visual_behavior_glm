@@ -8,15 +8,6 @@ import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
 import visual_behavior_glm.GLM_fit_tools as gft
 
-def debug_toeplitz(oeid, session,run_params):
-    fit, run_params = gft.extract_and_annotate_ophys(session,run_params)
-    design = gft.DesignMatrix(fit)
-    design = gft.add_kernels(design, run_params, session, fit)
-    g = make_dummy_glm(fit,run_params,design, session)
-    gvt.plot_kernel_support(g,start=0, end=400)   
-    gvt.plot_kernel_support(g,start=-400, end=-1)   
-    return g
-
 class dummy_glm:
     a = 'dummy glm'
 
@@ -33,19 +24,11 @@ def make_glm(fit, run_params, design, session):
     g.run_params = run_params
     return g
 
-if False: # Interpolation debugging code
+if False:  
     oeid  = experiment_table.index.values[754]
     oeid1 = experiment_table.index.values[0]
     oeid2 = experiment_table.index.values[154]
     oeid3 = experiment_table.index.values[-1]
-    session = gft.load_data(oeid, run_params)
-    fit,run_params = gft.extract_and_annotate_ophys(session, run_params)
-    gft.plot_interpolation_debug(fit,session)
-    gft.check_interpolation_to_stimulus(fit,session)
-    design = gft.DesignMatrix(fit)
-    design = gft.add_kernels(design, run_params, session, fit)
-    gft.check_image_kernel_alignment(design)
-    gvt.plot_kernel_support(glm)
 
 if False: # Code snippets for doing basic analyses. 
 

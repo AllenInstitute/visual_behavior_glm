@@ -128,7 +128,7 @@ def get_problem_sessions():
     problem_sessions = [873720614, 962045676, 1048363441,1049240847, 1050231786,1050597678, 1051107431,1051319542,1052096166,1052330675, 1052512524,1056065360, 1056238781, 1052752249,1049240847,1050929040,1052330675]
     return problem_sessions
 
-def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True,start=10000,end=11000):
+def plot_kernel_support(glm,include_cont = True,plot_bands=True,plot_ticks=True,start=10000,end=11000):
     '''
         Plots the time points where each kernel has support 
         INPUTS:
@@ -140,6 +140,10 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     '''  
     discrete = [x for x in glm.run_params['kernels'] if (glm.run_params['kernels'][x]['type']=='discrete') or (x == 'lick_model') or (x == 'groom_model')]
     continuous = [x for x in glm.run_params['kernels'] if glm.run_params['kernels'][x]['type']=='continuous']
+    if include_cont:
+        kernels = continuous + discrete
+    else:
+        kernels = discrete
 
     # Basic figure set up
     if plot_bands:
@@ -152,7 +156,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     ones = np.ones(np.shape(time_vec))
     colors = sns.color_palette('hls', len(discrete)+len(continuous)) 
 
-    # Plot the kernels
+    # Set up visualization parameters
     dk = 5
     dt = .4
     ms = 2
@@ -163,8 +167,10 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
     count = 0
     starts = []
     ends = []
-    stim_points = {}
-    for index, d in enumerate(discrete):
+    stim_points = {} # Create a dictionary of vertical position of each kernel
+
+    # Plot the kernels
+    for index, d in enumerate(kernels):
         starts.append(count)
         X = glm.design.get_X(kernels = [d])
         for dex in range(0,np.shape(X)[1]): 
@@ -175,7 +181,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         count+=dk
         stim_points[d] = (starts[-1],ends[-1])
     ticks = [np.mean([x,y]) for (x,y) in zip(starts,ends)]
-    all_k = discrete
+    all_k = kernels
     frame_rate = glm.fit['ophys_frame_rate']
 
     # Plot Rewards
@@ -185,8 +191,6 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
         reward_dex = stim_points['hits'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['hits']['offset'])*frame_rate)
     else:
         reward_dex = 0
-    if plot_bands:
-        reward_dex += -.4
     if plot_ticks:
         rewards =glm.session.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
         plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'ro')
@@ -212,9 +216,10 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
 
     # Stimulus Omissions
     if plot_ticks:
-        omitted = glm.session.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & omitted')['start_time']
-        omitted_dex = stim_points['omissions'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['omissions']['offset'])*frame_rate)
-        plt.plot(omitted, omitted_dex*np.ones(np.shape(omitted)),'k|')
+        if 'omissions' in glm.run_params['kernels']:
+            omitted = glm.session.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & omitted')['start_time']
+            omitted_dex = stim_points['omissions'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['omissions']['offset'])*frame_rate)
+            plt.plot(omitted, omitted_dex*np.ones(np.shape(omitted)),'k|')
 
     # Image Expectation
     if plot_ticks & ('image_expectation' in glm.run_params['kernels']):
@@ -261,6 +266,7 @@ def plot_kernel_support(glm,include_cont = False,plot_bands=True,plot_ticks=True
                 except:
                     print('error plotting - '+t)
 
+    # Clean up the plot
     plt.xlabel('Time (s)')
     plt.yticks(ticks,all_k)
     plt.xlim(stim.iloc[0].start_time, stim.iloc[-1].start_time+.75)
@@ -288,13 +294,15 @@ def plot_glm_version_comparison_histogram(comparison_table=None, results=None, v
         comparison_table,
         x= 'Diff',
         hue='cre_line',
+        hue_order = cre_lines, 
+        palette = [project_colors()[cre_line] for cre_line in cre_lines],
         element='step',
         stat='density',
         common_norm=False,
     )
     plt.xlim(-.1,.1)
     plt.axvline(0, color='k',alpha=.25, linestyle='--')
-    plt.xlabel(versions_to_compare[0] +'\n minus \n'+ versions_to_compare[1])
+    plt.xlabel(versions_to_compare[0] +'\n minus \n'+ versions_to_compare[1] +'\n Variance Explained')
     plt.tight_layout()    
 
     # Save a figure for each version 
@@ -557,6 +565,7 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
     hue = 'cre_line'
     split=False
     inner= None
+    hue_order = np.sort(results['cre_line'].unique())
 
     if cre is not None:
         results = results.query('cre_line == @cre').copy()

@@ -1579,16 +1579,8 @@ class DesignMatrix(object):
         # CONVERT offset to offset_samples
         offset_samples = int(np.floor(self.ophys_frame_rate*offset))
 
-        this_kernel = toeplitz(events, kernel_length_samples)
+        this_kernel = toeplitz(events, kernel_length_samples, offset_samples)
     
-        #Pad with zeros, roll offset_samples, and truncate to length
-        if offset_samples < 0:
-            this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset_samples))), this_kernel], axis=1)
-            this_kernel = np.roll(this_kernel, offset_samples)[:, np.abs(offset_samples):]
-        elif offset_samples > 0:
-            this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
-            this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
-
         self.kernel_dict[label] = {
             'kernel':this_kernel,
             'kernel_length_samples':kernel_length_samples,
@@ -1662,7 +1654,7 @@ def split_time(timebase, subsplits_per_split=10, output_splits=6):
     output_split_inds = [np.sort(x) for x in output_split_inds]
     return output_split_inds
 
-def toeplitz(events, kernel_length_samples):
+def toeplitz(events, kernel_length_samples,offset_samples):
     '''
     Build a toeplitz matrix aligned to events.
 
@@ -1678,7 +1670,17 @@ def toeplitz(events, kernel_length_samples):
     arrays_list = [events]
     for i in range(kernel_length_samples-1):
         arrays_list.append(np.roll(events, i+1))
-    return np.vstack(arrays_list)[:,:total_len]
+    this_kernel= np.vstack(arrays_list)
+
+    #Pad with zeros, roll offset_samples, and truncate to length
+    if offset_samples < 0:
+        this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset_samples))), this_kernel], axis=1)
+        this_kernel = np.roll(this_kernel, offset_samples)[:, np.abs(offset_samples):]
+    elif offset_samples > 0:
+        this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
+        this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
+    return this_kernel[:,:total_len]
+
 
 def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
     '''

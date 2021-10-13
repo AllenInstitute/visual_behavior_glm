@@ -60,10 +60,10 @@ def get_experiment_table(require_model_outputs = False):
     else:
         return experiments_table
 
-def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
+def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,update_version=False):
     '''
         Freezes model files, parameters, and ophys experiment ids
-        If the model iteration already exists, throws an error
+        If the model iteration already exists, throws an error unless (update_version=True)
         root directory is global OUTPUT_DIR_BASE
 
         v_<VERSION>             contains the model iteration
@@ -96,32 +96,34 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     experiment_table_path   = os.path.join(output_dir, 'experiment_table_v_'+str(VERSION)+'.csv')
     beh_model_dir           = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/model_output/'
 
-    os.mkdir(output_dir)
-    os.mkdir(figure_dir)
-    os.mkdir(fig_coding_dir)
-    os.mkdir(fig_kernels_dir)
-    os.mkdir(fig_overfitting_dir)
-    os.mkdir(fig_clustering_dir)
-    os.mkdir(model_freeze_dir)
-    os.mkdir(experiment_output_dir)
-    os.mkdir(job_dir)
-    os.mkdir(manifest_dir)
+    if not update_version:
+        os.mkdir(output_dir)
+        os.mkdir(figure_dir)
+        os.mkdir(fig_coding_dir)
+        os.mkdir(fig_kernels_dir)
+        os.mkdir(fig_overfitting_dir)
+        os.mkdir(fig_clustering_dir)
+        os.mkdir(model_freeze_dir)
+        os.mkdir(experiment_output_dir)
+        os.mkdir(job_dir)
+        os.mkdir(manifest_dir)
     
     # Add a readme file with information about when the model was created
-    if username is None:
-        try:
-            username = pwd.getpwuid(os.getuid())[0]
-        except:
-            username = 'unknown'
-    readme_file = os.path.join(output_dir, 'README.txt')
-
-    readme = open(readme_file,'w')
-    readme.writelines([ 'OPHYS GLM  v',str(VERSION),
-                        '\nCreated on ',str(datetime.datetime.now()), 
-                        '\nCreated by ',username,
-                        '\nComment    ',label,'\n\n'])
-
-    readme.close()
+    if not update_version:
+        if username is None:
+            try:
+                username = pwd.getpwuid(os.getuid())[0]
+            except:
+                username = 'unknown'
+        readme_file = os.path.join(output_dir, 'README.txt')
+    
+        readme = open(readme_file,'w')
+        readme.writelines([ 'OPHYS GLM  v',str(VERSION),
+                            '\nCreated on ',str(datetime.datetime.now()), 
+                            '\nCreated by ',username,
+                            '\nComment    ',label,'\n\n'])
+    
+        readme.close()
 
     # Copy model files to frozen directory
     python_file_full_path = os.path.join(model_freeze_dir, 'GLM_fit_tools.py')

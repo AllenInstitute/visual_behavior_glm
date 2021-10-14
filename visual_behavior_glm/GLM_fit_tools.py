@@ -670,7 +670,7 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
             results[model_label+"__dropout"] = -results[model_label+"__avg_cv_var_test"]/results[model_label+"__avg_cv_var_test_full_comparison"]
             results[model_label+"__adj_dropout"] = -results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]
 
-            # Cleaning Steps, careful eye here! TODO
+            # Cleaning Steps, careful eye here! 
             # If the single-dropout explained more variance than the full_comparison, clip dropout to -1
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = -1 
             results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < results[model_label+"__avg_cv_var_test"], model_label+"__dropout"] = -1
@@ -683,13 +683,12 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
             # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0.
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
             results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0 
-            #results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__absolute_change_from_full"] = 0 
         else:
             # Compute the dropout
             results[model_label+"__adj_dropout"] = -(1-results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]) 
             results[model_label+"__dropout"] = -(1-results[model_label+"__avg_cv_var_test"]/results[model_label+"__avg_cv_var_test_full_comparison"]) 
    
-            # Cleaning Steps, careful eye here! TODO            
+            # Cleaning Steps, careful eye here!             
             # If the dropout explained more variance than the full_comparison, clip the dropout to 0
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = 0
             results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < results[model_label+"__avg_cv_var_test"], model_label+"__dropout"] = 0
@@ -697,28 +696,7 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
             # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
             results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0
-            #results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__absolute_change_from_full"] = 0
 
-            # OLD STEPS TO BE REMOVED TODO
-            # Removing the requirement that there is a minimum amount of difference between the dropout and the full
-            # Compute the difference between the dropout and the full model comparison
-            #results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_adjvar_test"] - results[model_label+"__avg_cv_adjvar_test_full_comparison"]
-        
-            # If the dropout didnt decrease the variance explained by at least THRESHOLD amount, clip dropout to 0
-            #results.loc[results[model_label+"__absolute_change_from_full"] > -threshold, model_label+"__adj_dropout"] = 0
-
-
-        # Not removing the code because I want to document things first TODO
-        #d = copy(fit['dropouts'][model_label]['cv_adjvar_test'])
-        #F = copy(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'])
-        #if fit['dropouts'][model_label]['is_single']:
-        #    #results[model_label+"__adj_dropout"] = np.mean(-d/F,axis=1) # Average over cross validations before or after computing dropout?
-        #    # This way is way more noisy, so averaging first
-        #    
-        #    results[model_label+"__adj_dropout"] = -np.mean(d,axis=1)/np.mean(F,axis=1) 
-        #else:
-        #    #results[model_label+"__adj_dropout"] = np.mean(-(1-d/F),axis=1) # Average over cross validations before or after computing dropout?
-        #    results[model_label+"__adj_dropout"] = -(1-np.mean(d,axis=1)/np.mean(F,axis=1)) 
     return results
 
 def L2_report(fit):

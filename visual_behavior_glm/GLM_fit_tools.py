@@ -678,7 +678,6 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
             # If the single-dropout explained less than THRESHOLD variance, clip dropout to 0            
             results.loc[results[model_label+"__avg_cv_adjvar_test"] < threshold, model_label+"__adj_dropout"] = 0
             results.loc[results[model_label+"__avg_cv_var_test"] < threshold, model_label+"__dropout"] = 0
-            results.loc[results[model_label+"__avg_cv_var_test"] < threshold, model_label+"__dropout"] = 0
     
             # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0.
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0

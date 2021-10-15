@@ -640,13 +640,14 @@ def build_dataframe_from_dropouts(fit,threshold=0.005): ## TODO, DEBUG, THRESHOL
         
     cellids = fit['fit_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
-
+    
     # Iterate over models
     for model_label in fit['dropouts'].keys():
         # For each model, average over CV splits for variance explained on train/test
         results[model_label+"__avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) 
         results[model_label+"__avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
         results[model_label+"__avg_cv_var_test_full_comparison"] = np.mean(fit['dropouts']['Full']['cv_var_test'],1)
+        results[model_label+"__avg_cv_var_test_sem"] = np.std(fit['dropouts'][model_label]['cv_var_test'],1)/np.sqrt(np.shape(fit['dropouts'][model_label]['cv_var_test'])[1])
 
         # For each model, average over CV splits for adjusted variance explained on train/test, and the full model comparison
         # If a CV split did not have an event in a test split, so the kernel has no support, the CV is NAN. Here we use nanmean to

@@ -155,7 +155,7 @@ class GLM(object):
             how='left'
         )
  
-    def get_cells_above_threshold(self, threshold=0.01):
+    def get_cells_above_threshold(self, threshold=0.01): ## TODO, DEBUG, THRESHOLD
         '''
             Returns a list of cells whose full model variance explained is above some threshold
         '''

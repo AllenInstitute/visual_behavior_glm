@@ -628,7 +628,7 @@ def get_mask(dropout,design):
     # Get mask from design matrix object 
     return design.get_mask(kernels=kernels)
 
-def build_dataframe_from_dropouts(fit,threshold=0.005):
+def build_dataframe_from_dropouts(fit,threshold=0.005): ## TODO, DEBUG, THRESHOLD
     '''
         INPUTS:
         threshold (0.005 default) is the minimum amount of variance explained by the full model. The minimum amount of variance explained by a dropout model        

@@ -957,7 +957,7 @@ def get_matched_mouse_ids(results_pivoted, session_numbers):
     return mouse_ids
 
 
-def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers=None):
+def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers=None): ## TODO, DEBUG, THRESHOLD
     '''
         Selects only neurons what are explained above threshold var. 
         In_session_numbers allows you specify with sessions to check. 

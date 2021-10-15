@@ -542,7 +542,7 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
-def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=False,zoom_xlim=True,sort_by_signal=False):
+def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=False,zoom_xlim=True,sort_by_signal=True):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:

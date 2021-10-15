@@ -542,7 +542,7 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
-def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=False,zoom_xlim=True):
+def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=False,zoom_xlim=True,sort_by_signal=False):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:
@@ -560,7 +560,6 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
         results = results_dict['full']
     if fig is None and ax is None:
         fig, ax = plt.subplots(figsize=figsize, sharey=True, sharex='col')
-
     # determine what data to plot
     hue = 'cre_line'
     split=False
@@ -578,7 +577,13 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
             split=True
 
     colors = project_colors() 
-    glm_version_order = np.sort(results['glm_version'].unique())
+
+    if sort_by_signal:
+        results['dff'] = ['dff' in x for x in results['glm_version']]
+        glm_version_order = np.concatenate([np.sort(results.query('dff')['glm_version'].unique()),[''],np.sort(results.query('not dff')['glm_version'].unique())])
+    else:
+        glm_version_order = np.sort(results['glm_version'].unique())
+    
     if test_data:
         dataset = 'test'
     else:
@@ -655,6 +660,8 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
         extra = extra+"_"+cre
         if show_equipment:
             extra = extra+"_equipment"
+        if sort_by_signal:
+            extra = extra+"_by_dff"
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/variance_explained'+extra+'.png')
 
     return fig, ax

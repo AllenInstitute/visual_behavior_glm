@@ -993,7 +993,7 @@ def build_inventory_table(vrange=[18,20],return_inventories=False):
         Optionally returns the list of missing experiments and rois
     '''
     versions = glm_params.get_versions(vrange=vrange)
-    versions = [x for x in versions if 'old' not in x]
+    #versions = [x for x in versions if 'old' not in x]
     inventories ={}
     for v in versions:
         inventories[v]=inventory_glm_version(v[2:])

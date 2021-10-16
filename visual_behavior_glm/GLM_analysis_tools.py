@@ -564,7 +564,8 @@ def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=Tru
     '''
     if versions_to_compare is None:
         versions_to_compare = glm_params.get_versions(vrange)
-        versions_to_compare = [x[2:] for x in versions_to_compare if 'old' not in x]
+        #versions_to_compare = [x[2:] for x in versions_to_compare if 'old' not in x]
+        versions_to_compare = [x[2:] for x in versions_to_compare]
     if compact:
         dropouts = ['Full','visual','all-images','omissions','behavioral','task']
         return_list = np.concatenate([[x+'__avg_cv_var_test',x+'__avg_cv_var_train'] for x in dropouts])

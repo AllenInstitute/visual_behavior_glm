@@ -1198,24 +1198,42 @@ def get_kernel_weights(glm, kernel_name, cell_specimen_id):
 
     return t_kernel, w_kernel
 
-def plot_sem_distribution(results, cre=None):
-
-    # Plot histograms
-    # Determine threshold
-    thresholds = get_sem_thresholds(results, cre)
-    # plot threshold
-
-def get_sem_threshold(results, cre=None,alpha=0.05):
+def get_sem_thresholds(results_pivoted, alpha=0.05,metric='SEM'):
     # Determine thresholds based on either:
     # just overall SEM
     # or whether mean > SEM
     # determine counts of how many cells excluded, etc    
-
-    thresholds = 0 
+    
+    cres = results_pivoted.cre_line.unique()
+    thresholds={}
+    for cre in cres:
+        thresholds[cre] = results_pivoted.query('cre_line ==@cre')['variance_explained_full_sem'].quantile(1-alpha)
     return thresholds
 
+def compare_sem_thresholds(results_pivoted):
+    cres = results_pivoted.cre_line.unique()
+    
+    print('Current, MEAN > 0.005')
+    print('Fraction of cells to be set to 0')
+    for cre in cres:
+        cre_slice = results_pivoted.query('cre_line == @cre')
+        frac = (cre_slice['variance_explained_full']< 0.005).astype(int).mean()
+        print('{}: {}'.format(cre[0:3], np.round(frac,3)))
 
+    print("\n")
+    print('Forcing SEM < MEAN')
+    print('Fraction of cells to be set to 0')
+    for cre in cres:
+        cre_slice = results_pivoted.query('cre_line == @cre')
+        frac = (cre_slice['variance_explained_full_sem']>cre_slice['variance_explained_full']).astype(int).mean()
+        print('{}: {}'.format(cre[0:3], np.round(frac,3)))
 
+    print("\n")   
+    print('Fraction of cells with SEM > 0.005')
+    for cre in cres:
+        cre_slice = results_pivoted.query('cre_line == @cre')
+        frac = (cre_slice['variance_explained_full_sem']> 0.005).astype(int).mean()
+        print('{}: {}'.format(cre[0:3], np.round(frac,3)))
 
 
 

@@ -3565,3 +3565,36 @@ def plot_sample_cells(glm, cell_specimen_ids, t0, t1, figwidth=8, height_per_cel
 
     return fig, ax
 
+def plot_sem_distribution(results_pivoted, cres=None):
+
+    if cres is None:
+        cres = results_pivoted.cre_line.unique()
+
+    # Determine threshold
+    thresholds = gat.get_sem_thresholds(results_pivoted)
+
+
+    # Plot histograms
+    plt.figure()
+    plt.axvline(0.005, color='r',linestyle='--',label='Current Threshold')
+    for cre in cres:
+        plt.hist(results_pivoted.query('cre_line == @cre')['variance_explained_full_sem'], bins=100,alpha=.25,range=(0,.1),density=True,label=cre,color=project_colors()[cre])
+        plt.axvline(thresholds[cre], color=project_colors()[cre],linestyle='--',label='95% Threshold')
+    
+    plt.ylabel('Density',fontsize=14)
+    plt.xlabel('SEM: Full Model VE',fontsize=14)
+    plt.legend()
+
+def plot_sem_comparison(results_pivoted):
+    plt.figure(figsize=(8,4))
+    cres = results_pivoted.cre_line.unique()
+    for cre in cres:
+        cre_slice = results_pivoted.query('cre_line ==@cre')
+        plt.plot(cre_slice['variance_explained_full'], cre_slice['variance_explained_full_sem'],'o', alpha=.1,color=project_colors()[cre])
+    plt.ylabel('SEM')
+    plt.xlabel('Full Model VE')
+    plt.plot([0,0.1],[0,0.1], color='r',linestyle='--')
+    plt.axvline(0.005, color='c', linestyle='--')
+    plt.ylim(0,.1)
+    plt.xlim(0,1)
+

@@ -635,7 +635,7 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
     assert results_summary is not None or glm_version is not None, 'must pass either a results_summary or a glm_version'
     assert not (results_summary is not None and glm_version is not None), 'cannot pass both a results summary and a glm_version'
     if results_summary is not None:
-        assert len(results_summary['glm_version'].unique()) == 1, 'number of glm_versions in the results summary caannot exceed 1'
+        assert len(results_summary['glm_version'].unique()) == 1, 'number of glm_versions in the results summary cannot exceed 1'
         
     # get results summary if none was passed
     if results_summary is None:
@@ -1188,5 +1188,26 @@ def get_kernel_weights(glm, kernel_name, cell_specimen_id):
     t_kernel = (np.arange(len(w_kernel)) + offset_int) * timestep
 
     return t_kernel, w_kernel
+
+def plot_sem_distribution(results, cre=None):
+
+    # Plot histograms
+    # Determine threshold
+    thresholds = get_sem_thresholds(results, cre)
+    # plot threshold
+
+def get_sem_threshold(results, cre=None,alpha=0.05):
+    # Determine thresholds based on either:
+    # just overall SEM
+    # or whether mean > SEM
+    # determine counts of how many cells excluded, etc    
+
+    thresholds = 0 
+    return thresholds
+
+
+
+
+
 
 

@@ -256,5 +256,33 @@ def dev_ignore():
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
 
 
-     
+def compare_dropout_thresholds(results_in):
+    results = results_in.copy()
 
+    fig,ax = plt.subplots(3,2,figsize=(12,10))
+    gvt.plot_dropout_summary_population(results,ax=ax[0,0])
+    ax[0,0].set_title('VE < 0.5% set dropout = 0 ')
+    ax[0,0].get_legend().remove()
+
+    gvt.plot_dropout_summary_population(results.query('variance_explained_full > 0.005'),ax=ax[0,1])
+    ax[0,1].set_title('VE < 0.5% removed')        
+    ax[0,1].get_legend().remove()
+
+    gvt.plot_dropout_summary_population(results.query('variance_explained_full > 0.01'),ax=ax[1,1])
+    ax[1,1].set_title('VE < 1.0% removed')        
+    ax[1,1].get_legend().remove()
+
+    gvt.plot_dropout_summary_population(results.query('variance_explained_full > 0.02'),ax=ax[2,1])
+    ax[2,1].set_title('VE < 2.0% removed')        
+    ax[2,1].get_legend().remove()
+
+    results.loc[results['variance_explained_full'] <0.01,'adj_fraction_change_from_full'] = 0
+    gvt.plot_dropout_summary_population(results,ax=ax[1,0])
+    ax[1,0].set_title('VE < 1.0% set dropout = 0')        
+    ax[1,0].get_legend().remove()
+
+    results.loc[results['variance_explained_full'] <0.02,'adj_fraction_change_from_full'] = 0
+    gvt.plot_dropout_summary_population(results,ax=ax[2,0])
+    ax[2,0].set_title('VE < 2.0% set dropout = 0')        
+    ax[2,0].get_legend().remove()
+    plt.tight_layout()

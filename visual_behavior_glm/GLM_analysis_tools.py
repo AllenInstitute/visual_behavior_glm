@@ -640,23 +640,24 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
     # get results summary if none was passed
     if results_summary is None:
         results_summary = retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary',add_extra_columns=add_extra_columns)
-        
+
     results_summary['identifier'] = results_summary['ophys_experiment_id'].astype(str) + '_' +  results_summary['cell_specimen_id'].astype(str)
-    
+ 
     # apply cutoff. Set to -inf if not specified
     if cutoff is None:
         cutoff = -np.inf
     cells_to_keep = list(results_summary.query('dropout == "Full" and variance_explained >= @cutoff')['identifier'].unique())
-    
+ 
     # pivot the results summary so that dropout scores become columns
     results_summary_pivoted = results_summary.query('identifier in @cells_to_keep').pivot(index='identifier',columns='dropout',values=value_to_use).reset_index()
-    
+
     # merge in other identifying columns, leaving out those that will have more than one unique value per cell
     potential_cols_to_drop = [
         '_id', 
         'index',
         'dropout', 
-        'variance_explained', 
+        'variance_explained',
+        'avg_cv_var_test_sem', 
         'fraction_change_from_full', 
         'absolute_change_from_full',
         'adj_fraction_change_from_full',
@@ -672,7 +673,15 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         right_on='identifier',
         how='left'
     )
-    
+    if 'avg_cv_var_test_sem' in results_summary.columns:
+        results_summary_pivoted = results_summary_pivoted.merge(
+            results_summary.query('dropout == "Full" and variance_explained >=@cutoff')[['identifier','avg_cv_var_test_sem']],
+            left_on='identifier',
+            right_on='identifier',
+            how='left'
+        )
+        results_summary_pivoted = results_summary_pivoted.rename(columns={'avg_cv_var_test_sem':'variance_explained_full_sem'})
+ 
     return results_summary_pivoted
 
 

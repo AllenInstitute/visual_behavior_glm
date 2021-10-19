@@ -896,8 +896,14 @@ def interpolate_to_stimulus(fit, session, run_params):
         return fit, run_params
     print('Interpolating neural signal onto stimulus aligned timestamps')
    
+
+    # Find first non omitted stimulus
+    filtered_stimulus_presentations = session.stimulus_presentations
+    while filtered_stimulus_presentations.iloc[0]['omitted'] == True:
+        filtered_stimulus_presentations = filtered_stimulus_presentations.iloc[1:]
+
     # Make new timestamps by starting with each stimulus start time, and adding time points until we hit the next stimulus
-    start_times = session.stimulus_presentations.start_time.values
+    start_times = filtered_stimulus_presentations.start_time.values
     start_times = np.concatenate([start_times,[start_times[-1]+.75]]) 
     mean_step = np.mean(np.diff(fit['fit_trace_timestamps']))
     sets_of_stimulus_timestamps = []
@@ -1018,6 +1024,9 @@ def interpolate_to_stimulus(fit, session, run_params):
     for k in kernels_to_limit_per_image_cycle:
         if k in run_params['kernels']:
             run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    
+
+    # Check to make sure there are no NaNs in the fit_trace
+    assert np.isnan(fit['fit_trace_arr']).sum() == 0, "Have NaNs in fit_trace_arr"
 
     return fit,run_params
 

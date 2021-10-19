@@ -542,7 +542,7 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
-def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=False,zoom_xlim=True,sort_by_signal=True):
+def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=True,zoom_xlim=True,sort_by_signal=True):
     '''
     make a boxplot comparing variance explained for each version in the database
     inputs:
@@ -554,17 +554,21 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
     returns:
         figure and axis handles (tuple)
     '''
+
     # set up figure axis
     if results is None:
         results_dict = gat.retrieve_results()
         results = results_dict['full']
     if fig is None and ax is None:
         fig, ax = plt.subplots(figsize=figsize, sharey=True, sharex='col')
+
     # determine what data to plot
     hue = 'cre_line'
     split=False
     inner= None
     hue_order = np.sort(results['cre_line'].unique())
+    colors = project_colors() 
+    num_versions = len(results['glm_version'].unique())   
 
     if cre is not None:
         results = results.query('cre_line == @cre').copy()
@@ -575,12 +579,19 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
             results['meso'] = ['Mesoscope' if "MESO" in x else 'Scientifica' for x in results['equipment_name']]
             hue_order = np.sort(results['meso'].unique())
             split=True
+    else:
+        results = results.copy()
 
-    colors = project_colors() 
+    if num_versions < 3:
+        inner = 'quartile'    
 
     if sort_by_signal:
         results['dff'] = ['dff' in x for x in results['glm_version']]
-        glm_version_order = np.concatenate([np.sort(results.query('dff')['glm_version'].unique()),[''],np.sort(results.query('not dff')['glm_version'].unique())])
+
+        if num_versions > 1:
+            glm_version_order = np.concatenate([np.sort(results.query('dff')['glm_version'].unique()),[''],np.sort(results.query('not dff')['glm_version'].unique())])
+        else:
+            glm_version_order = np.concatenate([np.sort(results.query('dff')['glm_version'].unique()),np.sort(results.query('not dff')['glm_version'].unique())])
     else:
         glm_version_order = np.sort(results['glm_version'].unique())
     
@@ -588,8 +599,6 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
         dataset = 'test'
     else:
         dataset = 'train'
-
-
 
     # plot main data
     if use_violin:
@@ -1881,7 +1890,10 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
     # Clean Plot, and add details
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     ax.axvline(0, color='k',linestyle='--',alpha=0.25)
-    ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=fs2)   
+    if normalize:
+        ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=fs2)   
+    else:
+        ax.set_ylabel('Kernel Weights',fontsize=fs2)      
     ax.set_xlabel('Time (s)',fontsize=fs1)
     ax.set_xlim(time_vec[0],time_vec[-1])   
     add_stimulus_bars(ax,kernel,alpha=.1)

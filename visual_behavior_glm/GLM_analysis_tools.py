@@ -550,9 +550,12 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
             print('WARNING, cell_roi_id not found in database, I cannot filter for old rois. The returned results could be out of date, or QC failed')
         else:
             raise Exception('cell_roi_id not in database, and allow_old_rois=False') 
-   
-    if np.sum(results['variance_explained'].isnull()) > 0:
+    
+    if ('variance_explained' in results) and (np.sum(results['variance_explained'].isnull()) > 0):
         print('Warning! Dropout models with NaN variance explained. This shouldn\'t happen')
+    elif ('Full__avg_cv_var_test' in results) and (np.sum(results['Full__avg_cv_var_test'].isnull()) > 0):
+        print('Warning! Dropout models with NaN variance explained. This shouldn\'t happen')
+
  
     return results
 

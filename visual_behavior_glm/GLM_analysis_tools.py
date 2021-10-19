@@ -587,6 +587,7 @@ def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=Tru
 
     # Display summary statistics
     summary_table = results.groupby(['cre_line','glm_version'])['Full__avg_cv_var_test'].mean()
+    print('')
     print(summary_table)
 
     # Save Summary Table

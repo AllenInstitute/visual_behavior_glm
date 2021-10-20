@@ -137,7 +137,7 @@ class GLM(object):
             self.dropout_summary is the original dropout summary doug implemented, using the non-adjusted variance explained/dropout
             self.adj_dropout_summary uses the adjusted dropout and variance explained 
         '''
-        self.results = self.gft.build_dataframe_from_dropouts(self.fit)
+        self.results = self.gft.build_dataframe_from_dropouts(self.fit,self.run_params)
         self.dropout_summary = gat.generate_results_summary(self)
 
         # add roi_ids
@@ -155,10 +155,15 @@ class GLM(object):
             how='left'
         )
  
-    def get_cells_above_threshold(self, threshold=0.01):
+    def get_cells_above_threshold(self, threshold=None): 
         '''
             Returns a list of cells whose full model variance explained is above some threshold
         '''
+        if threshold is None:
+            if 'dropout_threshold' in self.run_params:
+                threshold = self.run_params['dropout_threshold']
+            else:
+                threshold = 0.005
         return self.dropout_summary.query('dropout=="Full" & variance_explained > @threshold')['cell_specimen_id'].unique()
 
     def plot_dropout_summary(self, cell_specimen_id, ax=None):

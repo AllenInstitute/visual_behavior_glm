@@ -551,6 +551,12 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         else:
             raise Exception('cell_roi_id not in database, and allow_old_rois=False') 
     
+    if ('variance_explained' in results) and (np.sum(results['variance_explained'].isnull()) > 0):
+        print('Warning! Dropout models with NaN variance explained. This shouldn\'t happen')
+    elif ('Full__avg_cv_var_test' in results) and (np.sum(results['Full__avg_cv_var_test'].isnull()) > 0):
+        print('Warning! Dropout models with NaN variance explained. This shouldn\'t happen')
+
+ 
     return results
 
 def make_identifier(row):
@@ -564,7 +570,8 @@ def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=Tru
     '''
     if versions_to_compare is None:
         versions_to_compare = glm_params.get_versions(vrange)
-        versions_to_compare = [x[2:] for x in versions_to_compare if 'old' not in x]
+        #versions_to_compare = [x[2:] for x in versions_to_compare if 'old' not in x]
+        versions_to_compare = [x[2:] for x in versions_to_compare]
     if compact:
         dropouts = ['Full','visual','all-images','omissions','behavioral','task']
         return_list = np.concatenate([[x+'__avg_cv_var_test',x+'__avg_cv_var_train'] for x in dropouts])
@@ -580,6 +587,7 @@ def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=Tru
 
     # Display summary statistics
     summary_table = results.groupby(['cre_line','glm_version'])['Full__avg_cv_var_test'].mean()
+    print('')
     print(summary_table)
 
     # Save Summary Table
@@ -634,28 +642,29 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
     assert results_summary is not None or glm_version is not None, 'must pass either a results_summary or a glm_version'
     assert not (results_summary is not None and glm_version is not None), 'cannot pass both a results summary and a glm_version'
     if results_summary is not None:
-        assert len(results_summary['glm_version'].unique()) == 1, 'number of glm_versions in the results summary caannot exceed 1'
+        assert len(results_summary['glm_version'].unique()) == 1, 'number of glm_versions in the results summary cannot exceed 1'
         
     # get results summary if none was passed
     if results_summary is None:
         results_summary = retrieve_results(search_dict = {'glm_version': glm_version}, results_type='summary',add_extra_columns=add_extra_columns)
-        
+
     results_summary['identifier'] = results_summary['ophys_experiment_id'].astype(str) + '_' +  results_summary['cell_specimen_id'].astype(str)
-    
+ 
     # apply cutoff. Set to -inf if not specified
     if cutoff is None:
         cutoff = -np.inf
     cells_to_keep = list(results_summary.query('dropout == "Full" and variance_explained >= @cutoff')['identifier'].unique())
-    
+ 
     # pivot the results summary so that dropout scores become columns
     results_summary_pivoted = results_summary.query('identifier in @cells_to_keep').pivot(index='identifier',columns='dropout',values=value_to_use).reset_index()
-    
+
     # merge in other identifying columns, leaving out those that will have more than one unique value per cell
     potential_cols_to_drop = [
         '_id', 
         'index',
         'dropout', 
-        'variance_explained', 
+        'variance_explained',
+        'avg_cv_var_test_sem', 
         'fraction_change_from_full', 
         'absolute_change_from_full',
         'adj_fraction_change_from_full',
@@ -671,7 +680,15 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         right_on='identifier',
         how='left'
     )
-    
+    if 'avg_cv_var_test_sem' in results_summary.columns:
+        results_summary_pivoted = results_summary_pivoted.merge(
+            results_summary.query('dropout == "Full" and variance_explained >=@cutoff')[['identifier','avg_cv_var_test_sem']],
+            left_on='identifier',
+            right_on='identifier',
+            how='left'
+        )
+        results_summary_pivoted = results_summary_pivoted.rename(columns={'avg_cv_var_test_sem':'variance_explained_full_sem'})
+ 
     return results_summary_pivoted
 
 
@@ -957,7 +974,7 @@ def get_matched_mouse_ids(results_pivoted, session_numbers):
     return mouse_ids
 
 
-def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers=None):
+def clean_glm_dropout_scores(results_pivoted, run_params, in_session_numbers=None): 
     '''
         Selects only neurons what are explained above threshold var. 
         In_session_numbers allows you specify with sessions to check. 
@@ -969,6 +986,11 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
         RETURNS:
         results_pivoted_var glm output with cells above threshold of var explained, unmatched cells
     '''
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']
+    else:
+        threshold = 0.005
+
     good_cell_ids = results_pivoted[results_pivoted['variance_explained_full']
                        > threshold]['cell_specimen_id'].unique()
 
@@ -993,7 +1015,7 @@ def build_inventory_table(vrange=[18,20],return_inventories=False):
         Optionally returns the list of missing experiments and rois
     '''
     versions = glm_params.get_versions(vrange=vrange)
-    versions = [x for x in versions if 'old' not in x]
+    #versions = [x for x in versions if 'old' not in x]
     inventories ={}
     for v in versions:
         inventories[v]=inventory_glm_version(v[2:])
@@ -1187,5 +1209,44 @@ def get_kernel_weights(glm, kernel_name, cell_specimen_id):
     t_kernel = (np.arange(len(w_kernel)) + offset_int) * timestep
 
     return t_kernel, w_kernel
+
+def get_sem_thresholds(results_pivoted, alpha=0.05,metric='SEM'):
+    # Determine thresholds based on either:
+    # just overall SEM
+    # or whether mean > SEM
+    # determine counts of how many cells excluded, etc    
+    
+    cres = results_pivoted.cre_line.unique()
+    thresholds={}
+    for cre in cres:
+        thresholds[cre] = results_pivoted.query('cre_line ==@cre')['variance_explained_full_sem'].quantile(1-alpha)
+    return thresholds
+
+def compare_sem_thresholds(results_pivoted):
+    cres = results_pivoted.cre_line.unique()
+    
+    print('Current, MEAN > 0.005')
+    print('Fraction of cells to be set to 0')
+    for cre in cres:
+        cre_slice = results_pivoted.query('cre_line == @cre')
+        frac = (cre_slice['variance_explained_full']< 0.005).astype(int).mean()
+        print('{}: {}'.format(cre[0:3], np.round(frac,3)))
+
+    print("\n")
+    print('Forcing SEM < MEAN')
+    print('Fraction of cells to be set to 0')
+    for cre in cres:
+        cre_slice = results_pivoted.query('cre_line == @cre')
+        frac = (cre_slice['variance_explained_full_sem']>cre_slice['variance_explained_full']).astype(int).mean()
+        print('{}: {}'.format(cre[0:3], np.round(frac,3)))
+
+    print("\n")   
+    print('Fraction of cells with SEM > 0.005')
+    for cre in cres:
+        cre_slice = results_pivoted.query('cre_line == @cre')
+        frac = (cre_slice['variance_explained_full_sem']> 0.005).astype(int).mean()
+        print('{}: {}'.format(cre[0:3], np.round(frac,3)))
+
+
 
 

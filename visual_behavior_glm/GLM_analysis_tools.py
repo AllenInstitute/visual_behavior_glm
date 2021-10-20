@@ -974,7 +974,7 @@ def get_matched_mouse_ids(results_pivoted, session_numbers):
     return mouse_ids
 
 
-def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers=None): ## TODO, DEBUG, THRESHOLD
+def clean_glm_dropout_scores(results_pivoted, run_params, in_session_numbers=None): 
     '''
         Selects only neurons what are explained above threshold var. 
         In_session_numbers allows you specify with sessions to check. 
@@ -986,6 +986,11 @@ def clean_glm_dropout_scores(results_pivoted, threshold=0.01, in_session_numbers
         RETURNS:
         results_pivoted_var glm output with cells above threshold of var explained, unmatched cells
     '''
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']
+    else:
+        threshold = 0.005
+
     good_cell_ids = results_pivoted[results_pivoted['variance_explained_full']
                        > threshold]['cell_specimen_id'].unique()
 

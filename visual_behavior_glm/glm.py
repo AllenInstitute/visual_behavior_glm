@@ -137,7 +137,7 @@ class GLM(object):
             self.dropout_summary is the original dropout summary doug implemented, using the non-adjusted variance explained/dropout
             self.adj_dropout_summary uses the adjusted dropout and variance explained 
         '''
-        self.results = self.gft.build_dataframe_from_dropouts(self.fit)
+        self.results = self.gft.build_dataframe_from_dropouts(self.fit,self.run_params)
         self.dropout_summary = gat.generate_results_summary(self)
 
         # add roi_ids

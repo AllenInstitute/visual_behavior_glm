@@ -628,7 +628,7 @@ def get_mask(dropout,design):
     # Get mask from design matrix object 
     return design.get_mask(kernels=kernels)
 
-def build_dataframe_from_dropouts(fit,threshold=0.005): ## TODO, DEBUG, THRESHOLD
+def build_dataframe_from_dropouts(fit,run_params): #threshold=0.005): ## TODO, DEBUG, THRESHOLD
     '''
         INPUTS:
         threshold (0.005 default) is the minimum amount of variance explained by the full model. The minimum amount of variance explained by a dropout model        
@@ -640,7 +640,8 @@ def build_dataframe_from_dropouts(fit,threshold=0.005): ## TODO, DEBUG, THRESHOL
         
     cellids = fit['fit_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
-    
+    threshold = run_params['dropout_threshold']   
+ 
     # Iterate over models
     for model_label in fit['dropouts'].keys():
         # For each model, average over CV splits for variance explained on train/test

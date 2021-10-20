@@ -34,6 +34,13 @@ parser.add_argument(
     help='If this flag is called, only 10 test sessions will be deployed'
 )
 parser.add_argument(
+    '--targeted-restart',
+    action='store_true',
+    default=False,
+    dest='targeted_restart',
+    help='Loads a list of ophys_experiment_ids to start'
+)
+parser.add_argument(
     '--use-previous-fit', 
     action='store_true',
     default=False,
@@ -135,6 +142,12 @@ if __name__ == "__main__":
 
     if args.testing:
         experiments_table = select_experiments_for_testing(returns = 'dataframe')
+    elif args.targeted_restart:
+        print('Using targeted restart list')
+        restart_table = r'//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+args.version+'/restart_table.csv'
+        print('Using experiments from: '+restart_table)
+        experiments_table = pd.read_csv(restart_table)
+        print('{} experiments to restart'.format(len(experiments_table)))
     else:
         cache_dir = r'//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_cache'
         cache = VisualBehaviorOphysProjectCache.from_s3_cache(cache_dir=cache_dir)

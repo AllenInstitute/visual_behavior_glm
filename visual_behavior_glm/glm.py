@@ -155,10 +155,15 @@ class GLM(object):
             how='left'
         )
  
-    def get_cells_above_threshold(self, threshold=0.01): ## TODO, DEBUG, THRESHOLD
+    def get_cells_above_threshold(self, threshold=None): 
         '''
             Returns a list of cells whose full model variance explained is above some threshold
         '''
+        if threshold is None:
+            if 'dropout_threshold' in self.run_params:
+                threshold = self.run_params['dropout_threshold']
+            else:
+                threshold = 0.005
         return self.dropout_summary.query('dropout=="Full" & variance_explained > @threshold')['cell_specimen_id'].unique()
 
     def plot_dropout_summary(self, cell_specimen_id, ax=None):

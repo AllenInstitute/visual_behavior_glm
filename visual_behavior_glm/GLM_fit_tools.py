@@ -640,7 +640,10 @@ def build_dataframe_from_dropouts(fit,run_params):
         
     cellids = fit['fit_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
-    threshold = run_params['dropout_threshold']   
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']   
+    else:
+        threshold = 0.005
  
     # Iterate over models
     for model_label in fit['dropouts'].keys():

@@ -157,7 +157,7 @@ if False: # Code snippets for doing basic analyses.
 
     # Make Coding Fraction plots
     # You may need to `mkdir coding` 
-    gvt.plot_coding_fraction(results_pivoted, 'omissions') # Example
+    gvt.plot_coding_fraction(results_pivoted, run_params, 'omissions') # Example
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction') # Make them all
 
     # Make Kernel figures

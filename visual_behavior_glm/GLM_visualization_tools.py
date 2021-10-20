@@ -368,7 +368,7 @@ def plot_glm_version_comparison(comparison_table=None, results=None, versions_to
 
     return jointplot
 
-def plot_significant_cells(results_pivoted,dropout, dropout_threshold=-0.10,save_fig=False,filename=None): ## TODO, DEBUG, THRESHOLD
+def plot_significant_cells(results_pivoted,dropout, dropout_threshold=0,save_fig=False,filename=None):
     sessions = np.array([1,2,3,4,5,6])
     cre = ["Sst-IRES-Cre", "Vip-IRES-Cre","Slc17a7-IRES2-Cre"]
     colors=['C0','C1','C2']
@@ -1461,7 +1461,7 @@ class GLM_Movie(object):
 
 
 
-def plot_all_kernel_comparison(weights_df, run_params, threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False): ## TODO, DEBUG, THRESHOLD
+def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False): 
     '''
         Generated kernel comparison plots for all dropouts
         weights_df, dataframe of kernels
@@ -1474,7 +1474,7 @@ def plot_all_kernel_comparison(weights_df, run_params, threshold=0.01, drop_thre
     # Set up which sessions to plot
     active_only  = ['licks','hits','misses','false_alarms','correct_rejects', 'model_bias','model_task0','model_omissions1','model_timing1D','beh_model','licking']
     passive_only = ['passive_change']
-    
+ 
     # Iterate over list of dropouts
     for kernel in run_params['kernels']:
         if kernel in ['intercept','time']:
@@ -1491,7 +1491,7 @@ def plot_all_kernel_comparison(weights_df, run_params, threshold=0.01, drop_thre
         try:
             # plot the coding fraction
             filepath = run_params['fig_kernels_dir']
-            plot_kernel_comparison(weights_df, run_params, kernel, threshold=threshold, drop_threshold=drop_threshold, session_filter=session_filter, equipment_filter=equipment_filter, depth_filter=depth_filter, cell_filter=cell_filter, area_filter=area_filter, compare=compare, plot_errors=plot_errors)
+            plot_kernel_comparison(weights_df, run_params, kernel, drop_threshold=drop_threshold, session_filter=session_filter, equipment_filter=equipment_filter, depth_filter=depth_filter, cell_filter=cell_filter, area_filter=area_filter, compare=compare, plot_errors=plot_errors)
         except Exception as e:
             print(e)
             # Track failures
@@ -1505,7 +1505,13 @@ def plot_all_kernel_comparison(weights_df, run_params, threshold=0.01, drop_thre
         print('The following kernels failed')
         print(fail) 
 
-def plot_compare_across_kernels(weights_df, run_params, kernels, threshold = 0.01,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None,normalize=True): #TODO, DEBUG, THRESHOLD
+def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None,normalize=True): 
+
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']
+    else:
+        threshold = 0.005
+
     version = run_params['version']
     filter_string = ''
     problem_sessions = get_problem_sessions() 
@@ -1641,7 +1647,13 @@ def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time
     for dex,k in enumerate(kernels):
         ax.plot(time_vec, df[k].mean(axis=0),linestyle=linestyles[dex],color=color,label=group+' '+k,linewidth=linewidth)
 
-def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],normalize=True,CMAP='Blues',in_ax=None): ## TODO, DEBUG, THRESHOLD
+def plot_perturbation(weights_df, run_params, kernel, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],normalize=True,CMAP='Blues',in_ax=None):
+
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']
+    else:
+        threshold = 0.005
+
     filter_string = ''
     problem_sessions = get_problem_sessions()
  
@@ -1778,7 +1790,7 @@ def plot_perturbation(weights_df, run_params, kernel,threshold=0.01, drop_thresh
     return ax,kernel_means
  
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='session_number',image_set=['familiar','novel']): ##TODO, DEBUG, THRESHOLD
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='session_number',image_set=['familiar','novel']):
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1789,7 +1801,6 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         weights_df              = gat.build_weights_df(run_params, results_pivoted)
         kernel                  The name of the kernel to be plotted
         save_results            if True, saves a figure to the directory in run_params['output_dir']
-        threshold,              the minimum variance explained by the full model
         drop_threshold,         the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
         session_filter,         The list of session numbers to include
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both 
@@ -1800,11 +1811,14 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True,thr
         plot_errors (bool)      if True, plots a shaded error bar for each group of cells
     
     '''
-
-    # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
     filter_string = ''
     problem_sessions = get_problem_sessions()   
+
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']
+    else:
+        threshold = 0.005
  
     # Filter by Equipment
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
@@ -1951,7 +1965,7 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_tim
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshold=0.01, drop_threshold=-0.10,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):  ## TODO, DEBUG, THRESHOLD
+def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_threshold=0,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):  
     '''
         Plots the average kernel for each cell line. 
         Plots the heatmap of the kernels sorted by time. 
@@ -1964,7 +1978,6 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         weights_df              = gat.build_weights_df(run_params, results_pivoted)
         kernel                  The name of the kernel to be plotted
         save_results            if True, saves a figure to the directory in run_params['output_dir']
-        threshold,              the minimum variance explained by the full model
         drop_threshold,         the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
         normalize,              if True, normalizes each cell to np.max(np.abs(x))
         drop_threshold_single,  if True, applies drop_threshold to single-<kernel> instead of <kernel> dropout model
@@ -1976,10 +1989,14 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
     '''
 
     # Filter out Mesoscope and make time basis 
-    # Filtering out that one session because something is wrong with it, need to follow up TODO
     version = run_params['version']
     filter_string = ''
     problem_sessions = get_problem_sessions()
+
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']
+    else:
+        threshold = 0.005
 
     if equipment_filter == "scientifica": 
         weights = weights_df.query('(equipment_name in ["CAM2P.3","CAM2P.4","CAM2P.5"]) & (session_number in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0]) ')
@@ -2393,7 +2410,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True,threshol
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
 
-def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold=-0.10,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',depth_filter=[0,1000]): ##TODO, DEBUG, THRESHOLD
+def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',depth_filter=[0,1000]): 
     '''
         Makes the analysis plots for all kernels in this model version. Excludes intercept and time kernels
                 
@@ -2410,8 +2427,7 @@ def all_kernels_evaluation(weights_df, run_params,threshold=0.01, drop_threshold
     crashed = set()
     for k in kernels:
         try:
-            kernel_evaluation(weights_df, run_params, k, save_results=True,
-                threshold=threshold, drop_threshold=drop_threshold,
+            kernel_evaluation(weights_df, run_params, k, save_results=True, drop_threshold=drop_threshold,
                 normalize=normalize,drop_threshold_single=drop_threshold_single,
                 session_filter=session_filter, equipment_filter=equipment_filter,mode=mode,depth_filter=depth_filter)
             plt.close(plt.gcf().number)
@@ -2861,7 +2877,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-images','omissions','behavioral','task'], threshold = 0,ax=None,palette=None,use_violin=True,add_median=True):  ##TODO, DEBUG, THRESHOLD
+def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True): 
     '''
        Makes a bar plot that shows the population dropout summary by cre line for different regressors 
 
@@ -2871,6 +2887,11 @@ def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-i
     
     if palette is None:
         palette = project_colors()
+
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']
+    else:
+        threshold = 0.005
 
     cre_lines = np.sort(dropout_summary['cre_line'].unique())
     
@@ -3055,7 +3076,7 @@ def make_cosyne_summary_figure(glm, cell_specimen_id, t_span,dropout_df,alpha =0
     return fig, ax
 
 
-def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='fraction',compare=['cre_line']): ## TODO, DEBUG, THRESHOLD
+def plot_all_coding_fraction(results_pivoted, run_params,drop_threshold=0,metric='fraction',compare=['cre_line']):
     '''
         Generated coding fraction plots for all dropouts
         results_pivoted, dataframe of dropout scores
@@ -3087,7 +3108,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
 
             # plot the coding fraction
             filepath = run_params['fig_coding_dir']
-            plot_coding_fraction(results_pivoted, dropout,drop_threshold=threshold,savefile=filepath,session_filter=session,metric=metric,compare=compare)
+            plot_coding_fraction(results_pivoted, run_params,dropout,drop_threshold=drop_threshold,savefile=filepath,session_filter=session,metric=metric,compare=compare)
         except Exception as e:
             print(e)
             # Track failures
@@ -3101,7 +3122,7 @@ def plot_all_coding_fraction(results_pivoted, run_params,threshold=-.1,metric='f
         print('The following kernels failed')
         print(fail)
 
-def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=True,savefile='',metric='fraction',compare=['cre_line'],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6],threshold=0.01):  ##TODO, DEBUG, THRESHOLD
+def plot_coding_fraction(results_pivoted_in, run_params, dropout,drop_threshold=0,savefig=True,savefile='',metric='fraction',compare=['cre_line'],area_filter=['VISp','VISl'], cell_filter='all',equipment_filter='all',depth_filter=[0,1000],session_filter=[1,2,3,4,5,6]): 
     '''
         Plots coding fraction across session for each cre-line
         Applies hard filters, then uses "compare" to split data categorically and plot each group
@@ -3122,6 +3143,10 @@ def plot_coding_fraction(results_pivoted_in, dropout,drop_threshold=-.1,savefig=
  
         returns summary dataframe about coding fraction for this dropout
     '''   
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']
+    else:
+        threshold = 0.005
  
     # Dumb stability thing because pandas doesnt like '-' in column names
     if '-' in dropout:

@@ -192,6 +192,7 @@ if __name__ == "__main__":
                 time=walltime,
                 mem=mem,
                 output= output,
+                partition="braintv"
             )
 
             args_string = job_string.format(experiment_id, args.version)

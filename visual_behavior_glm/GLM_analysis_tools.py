@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import xarray_mongodb
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior.data_access.loading as loading
@@ -1248,7 +1249,11 @@ def compare_sem_thresholds(results_pivoted):
         print('{}: {}'.format(cre[0:3], np.round(frac,3)))
 
 def save_targeted_restart_table(run_params, results,save_table=True):
-    
+    '''
+        Saves a table of experiments to restart. 
+        Determines experiments to restart based on the presence of NaN variance explained
+    '''    
+
     # get list of experiments to restart
     nan_oeids = results[results['variance_explained'].isnull()]['ophys_experiment_id'].unique()
     print('{} Experiments with NaN variance explained'.format(len(nan_oeids))) 
@@ -1260,6 +1265,28 @@ def save_targeted_restart_table(run_params, results,save_table=True):
         restart_table.to_csv(table_path,index=False)
     return nan_oeids 
 
+def make_table_of_nan_cells(run_params, results,save_table=True):
+    '''
+        Generates a table of cells for which the variance explained is NaN.
+        In general, this should not happen
+    '''
+    nan_cells = results[results['variance_explained'].isnull()].query('dropout=="Full"').copy()
+    if save_table:
+        table_path = run_params['output_dir']+'/nan_cells_table.csv'
+        nan_cells.to_csv(table_path,index=False)
+    return nan_cells
 
+def check_nan_cells(fit):
+    nan_cells = np.where(np.isnan(fit['dropouts']['Full']['cv_var_test']).any(axis=1))[0]
+    for c in nan_cells:
+        plt.figure()
+        plt.plot(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,c],'r',label='Interpolated events')
+        plt.plot(fit['stimulus_interpolation']['original_timestamps'], fit['stimulus_interpolation']['original_fit_arr'][:,c],'b--', label='Original Events')
+        plt.plot(fit['stimulus_interpolation']['original_timestamps'], fit['stimulus_interpolation']['original_dff_arr'][:,c],'g--', label='Original df/f',alpha=.2)
+        plt.legend()
+        plt.ylabel('Neural Trace')
+        plt.xlabel('Time')
+        plt.title(fit['fit_trace_arr'].cell_specimen_id.values[c])
+   
 
 

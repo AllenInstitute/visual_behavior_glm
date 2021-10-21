@@ -1277,6 +1277,9 @@ def make_table_of_nan_cells(run_params, results,save_table=True):
     return nan_cells
 
 def check_nan_cells(fit):
+    '''
+        Plots the df/f, events, and interpolated events for all cells with exactly 0 activity
+    '''
     nan_cells = np.where(np.all(fit['fit_trace_arr'] == 0, axis=0))[0]
     for c in nan_cells:
         plt.figure()

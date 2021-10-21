@@ -24,10 +24,11 @@ def make_dropout(results,run_params,dropout):
     evaluate_against_metrics(results_metrics,ymetric='variance_explained',title='All-images dropout vs. images reliability')
 
 def get_metrics():
-    experiments_table = loading.get_platform_paper_experiment_table()
-    oeids = experiments_table.index.values
-    metrics_df = cell_metrics.load_cell_metrics_table_for_experiments(oeids,'images','all_images','full_session',use_events=False, filter_events=False)
-    label='images_all_full_dff'
+    #experiments_table = loading.get_platform_paper_experiment_table()
+    #oeids = experiments_table.index.values
+    #metrics_df = cell_metrics.load_cell_metrics_table_for_experiments(oeids,'images','all_images','full_session',use_events=False, filter_events=False)
+    metrics_df = cell_metrics.load_metrics_table_for_experiments('all_experiments','traces','full_session','full_session',use_events=True,filter_events=True)
+    label='full_trace'
     return metrics_df,label
 
 def merge_cell_metrics_table(metrics_df, results_pivoted):
@@ -35,7 +36,7 @@ def merge_cell_metrics_table(metrics_df, results_pivoted):
     results_metrics = pd.merge(results_pivoted, metrics_df, on='identifier')
     return results_metrics
 
-def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',xmetric='reliability',savefig=False,version=None,label='',title=None,ylim=(0,1)):
+def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=False,version=None,label='',title=None,ylim=(0,1)):
     fig,ax = plt.subplots()
     cre_lines = np.sort(results_metrics['cre_line'].dropna().unique())
     jointplot = sns.scatterplot(

@@ -1247,16 +1247,17 @@ def compare_sem_thresholds(results_pivoted):
         frac = (cre_slice['variance_explained_full_sem']> 0.005).astype(int).mean()
         print('{}: {}'.format(cre[0:3], np.round(frac,3)))
 
-def save_targeted_restart_table(run_params, results):
+def save_targeted_restart_table(run_params, results,save_table=True):
     
     # get list of experiments to restart
     nan_oeids = results[results['variance_explained'].isnull()]['ophys_experiment_id'].unique()
     print('{} Experiments with NaN variance explained'.format(len(nan_oeids))) 
     if len(nan_oeids) == 0:
         return
-    restart_table = pd.DataFrame({'ophys_experiment_id':nan_oeids})
-    table_path = run_params['output_dir']+'/restart_table.csv'
-    restart_table.to_csv(table_path,index=False)
+    if save_table:
+        restart_table = pd.DataFrame({'ophys_experiment_id':nan_oeids})
+        table_path = run_params['output_dir']+'/restart_table.csv'
+        restart_table.to_csv(table_path,index=False)
     
 
 

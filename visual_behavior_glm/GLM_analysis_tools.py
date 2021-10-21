@@ -1258,7 +1258,7 @@ def save_targeted_restart_table(run_params, results,save_table=True):
         restart_table = pd.DataFrame({'ophys_experiment_id':nan_oeids})
         table_path = run_params['output_dir']+'/restart_table.csv'
         restart_table.to_csv(table_path,index=False)
-    
+    return nan_oeids 
 
 
 

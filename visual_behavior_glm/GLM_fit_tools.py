@@ -644,10 +644,29 @@ def build_dataframe_from_dropouts(fit,run_params):
         threshold = run_params['dropout_threshold']   
     else:
         threshold = 0.005
+
+    nan_cells = np.where(np.all(fit['fit_trace_arr'] == 0, axis=0))[0]
+    if len(nan_cells) > 0:
+        print('I found {} cells with all 0 in the fit_trace_arr'.format(len(nan_cells)))
+        if not run_params['use_events']:
+            raise Exception('All 0 in df/f trace')
+        else:
+            print('Setting Variance Explained to 0')
+            fit['nan_cell_ids'] = fit['fit_trace_arr'].cell_specimen_id.values[nan_cells]
  
     # Iterate over models
     for model_label in fit['dropouts'].keys():
+        # Screen for cells with all 0, and set their variance explained to 0
+        if len(nan_cells) > 0:
+            fit['dropouts'][model_label]['cv_var_train'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_var_test'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_adjvar_train'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_adjvar_test'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'][nan_cells,:] = 0     
+
         # For each model, average over CV splits for variance explained on train/test
+        # The CV splits can have NaN for variance explained on the training set if the cell had no detected events in that split
+        # Similarly, the test set will have negative infinity
         results[model_label+"__avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) 
         results[model_label+"__avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
         results[model_label+"__avg_cv_var_test_full_comparison"] = np.mean(fit['dropouts']['Full']['cv_var_test'],1)
@@ -659,16 +678,16 @@ def build_dataframe_from_dropouts(fit,run_params):
         results[model_label+"__avg_cv_adjvar_train"] = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_train'],1) 
         results[model_label+"__avg_cv_adjvar_test"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test'],1) 
         results[model_label+"__avg_cv_adjvar_test_full_comparison"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'],1) 
-    
+        
         # Clip the variance explained values to >= 0
         results.loc[results[model_label+"__avg_cv_var_test"] < 0,model_label+"__avg_cv_var_test"] = 0
         results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < 0,model_label+"__avg_cv_var_test_full_comparison"] = 0
         results.loc[results[model_label+"__avg_cv_adjvar_test"] < 0,model_label+"__avg_cv_adjvar_test"] = 0
         results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < 0,model_label+"__avg_cv_adjvar_test_full_comparison"] = 0
-        
+
         # Compute the absolute change in variance
         results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_var_test"] - results[model_label+"__avg_cv_var_test_full_comparison"] 
- 
+
         # Compute the dropout scores, which is dependent on whether this was a single-dropout or not
         if fit['dropouts'][model_label]['is_single']:  
             # Compute the dropout
@@ -700,6 +719,9 @@ def build_dataframe_from_dropouts(fit,run_params):
             # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
             results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0
+
+    ## Check for NaNs in any column 
+    assert results['Full__avg_cv_var_test'].isnull().sum() == 0, "NaNs in variance explained"  
 
     return results
 

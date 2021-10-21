@@ -667,8 +667,8 @@ def build_dataframe_from_dropouts(fit,run_params):
         # For each model, average over CV splits for variance explained on train/test
         # The CV splits can have NaN for variance explained on the training set if the cell had no detected events in that split
         # Similarly, the test set will have negative infinity
-        results[model_label+"__avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) 
-        results[model_label+"__avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
+        results[model_label+"__avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) ## DEBUG, should this be nanmean? 
+        results[model_label+"__avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1)  ## DEBUG, should this be "inf"mean?
         results[model_label+"__avg_cv_var_test_full_comparison"] = np.mean(fit['dropouts']['Full']['cv_var_test'],1)
         results[model_label+"__avg_cv_var_test_sem"] = np.std(fit['dropouts'][model_label]['cv_var_test'],1)/np.sqrt(np.shape(fit['dropouts'][model_label]['cv_var_test'])[1])
 

@@ -9,6 +9,8 @@ import seaborn as sns
 from sklearn.linear_model import LinearRegression
 import visual_behavior_glm.GLM_params as glm_params
 
+## TODO, document this, use updated metrics
+
 def make_main(results_pivoted, run_params):
     metrics_df, label = get_metrics()
     results_metrics = merge_cell_metrics_table(metrics_df, results_pivoted)

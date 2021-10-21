@@ -877,7 +877,7 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
    
     # Interpolate onto stimulus 
-    fit,run_params = interpolate_to_stimulus(fit, session, run_params)   
+    fit,run_params = interpolate_to_stimulus(fit, session, run_params)
  
     # If we are splitting on engagement, then determine the engagement timepoints
     if run_params['split_on_engagement']:
@@ -967,18 +967,17 @@ def interpolate_to_stimulus(fit, session, run_params):
     # Interpolate onto new timestamps
     for index in range(0,num_cells):
         # Fit array
-        f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,index],bounds_error=False)
+        f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,index],bounds_error=False,fill_value='extrapolate')
         new_trace_arr[:,index] = f(new_timestamps)
 
         # dff array
-        f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['dff_trace_arr'][:,index],bounds_error=False)
+        f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['dff_trace_arr'][:,index],bounds_error=False,fill_value='extrapolate')
         new_dff_trace_arr[:,index] = f(new_timestamps)
         
         # events array, if we are using it
         if ('use_events' in run_params) and (run_params['use_events']):
-            f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['events_trace_arr'][:,index],bounds_error=False)
+            f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['events_trace_arr'][:,index],bounds_error=False,fill_value='extrapolate')
             new_events_trace_arr[:,index] = f(new_timestamps)
-
 
     # Convert into xarrays
     new_trace_arr = xr.DataArray(
@@ -1087,7 +1086,7 @@ def plot_interpolation_debug(fit,session):
         ax[0].plot([fit['fit_trace_bins'][dex],fit['fit_trace_bins'][dex+1]],[val,val],'b-',alpha=.5)
     ax[0].set_title('Stimulus Start')
     ax[0].set_xlim(ax[0].get_xlim()[0]-.25,ax[0].get_xlim()[1])
-    ax[0].set_ylim( -.5,.5)
+    #ax[0].set_ylim( -.5,.5)
     ax[0].legend()
 
     # Stim end
@@ -1102,7 +1101,7 @@ def plot_interpolation_debug(fit,session):
         ax[1].plot([fit['fit_trace_bins'][-51+dex],fit['fit_trace_bins'][-50+dex]],[val,val],'b-',alpha=.5)
     ax[1].set_title('Stimulus End')
     ax[1].set_xlim(ax[1].get_xlim()[0],ax[1].get_xlim()[1]+.25)
-    ax[1].set_ylim( -.5,.5)
+    #ax[1].set_ylim( -.5,.5)
     plt.tight_layout()
 
 def add_engagement_labels(fit, session, run_params):

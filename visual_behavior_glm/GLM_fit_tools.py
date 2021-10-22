@@ -668,21 +668,43 @@ def build_dataframe_from_dropouts(fit,run_params):
         # The CV splits can have NaN for variance explained on the training set if the cell had no detected events in that split
         # Similarly, the test set will have negative infinity
         results[model_label+"__avg_cv_var_train"] = np.nanmean(fit['dropouts'][model_label]['cv_var_train'],1) 
-        results[model_label+"__avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1)  ## DEBUG, should this be "inf"mean?
-        results[model_label+"__avg_cv_var_test_full_comparison"] = np.mean(fit['dropouts']['Full']['cv_var_test'],1)
-        results[model_label+"__avg_cv_var_test_sem"] = np.std(fit['dropouts'][model_label]['cv_var_test'],1)/np.sqrt(np.shape(fit['dropouts'][model_label]['cv_var_test'])[1])
+        results[model_label+"__avg_cv_var_test_raw"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
+        
+        # Screen for -Inf values in dropout model
+        temp = fit['dropouts'][model_label]['cv_var_test']
+        temp[np.isinf(temp)] = 0 
+        results[model_label+"__avg_cv_var_test"]  = np.nanmean(temp,1)
+        results[model_label+"__avg_cv_var_test_sem"] = np.std(temp,1)/np.sqrt(np.shape(temp)[1])
+    
+        # Screen for -Inf values in full model
+        full_temp = fit['dropouts']['Full']['cv_var_test']
+        full_temp[np.isinf(full_temp)] = 0 
+        results[model_label+"__avg_cv_var_test_full_comparison"] = np.mean(full_temp,1)
+
+
 
         # For each model, average over CV splits for adjusted variance explained on train/test, and the full model comparison
         # If a CV split did not have an event in a test split, so the kernel has no support, the CV is NAN. Here we use nanmean to
         # ignore those CV splits without information
         results[model_label+"__avg_cv_adjvar_train"] = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_train'],1) 
-        results[model_label+"__avg_cv_adjvar_test"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test'],1) 
-        results[model_label+"__avg_cv_adjvar_test_full_comparison"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'],1) 
+        results[model_label+"__avg_cv_adjvar_test_raw"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test'],1)
+    
+        # Screen for -Inf values in dropout model
+        temp = fit['dropouts'][model_label]['cv_adjvar_test']
+        temp[np.isinf(temp)] = 0 
+        results[model_label+"__avg_cv_adjvar_test"]  = np.nanmean(temp,1) 
+
+        # Screen for -Inf values in dropout model
+        full_temp = fit['dropouts']['Full']['cv_adjvar_test']
+        full_temp[np.isinf(full_temp)] = 0 
+        results[model_label+"__avg_cv_adjvar_test_full_comparison"]  = np.nanmean(full_temp,1) 
         
         # Clip the variance explained values to >= 0
         results.loc[results[model_label+"__avg_cv_var_test"] < 0,model_label+"__avg_cv_var_test"] = 0
+        results.loc[results[model_label+"__avg_cv_var_test_raw"] < 0,model_label+"__avg_cv_var_test_raw"] = 0
         results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < 0,model_label+"__avg_cv_var_test_full_comparison"] = 0
         results.loc[results[model_label+"__avg_cv_adjvar_test"] < 0,model_label+"__avg_cv_adjvar_test"] = 0
+        results.loc[results[model_label+"__avg_cv_adjvar_test_raw"] < 0,model_label+"__avg_cv_adjvar_test_raw"] = 0
         results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < 0,model_label+"__avg_cv_adjvar_test_full_comparison"] = 0
 
         # Compute the absolute change in variance
@@ -722,6 +744,7 @@ def build_dataframe_from_dropouts(fit,run_params):
 
     ## Check for NaNs in any column 
     assert results['Full__avg_cv_var_test'].isnull().sum() == 0, "NaNs in variance explained"  
+    assert results['Full__avg_cv_var_train'].isnull().sum() == 0, "NaNs in variance explained"  
 
     return results
 

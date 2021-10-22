@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import xarray_mongodb
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior.data_access.loading as loading
@@ -1247,18 +1248,48 @@ def compare_sem_thresholds(results_pivoted):
         frac = (cre_slice['variance_explained_full_sem']> 0.005).astype(int).mean()
         print('{}: {}'.format(cre[0:3], np.round(frac,3)))
 
-def save_targeted_restart_table(run_params, results):
-    
+def save_targeted_restart_table(run_params, results,save_table=True):
+    '''
+        Saves a table of experiments to restart. 
+        Determines experiments to restart based on the presence of NaN variance explained
+    '''    
+
     # get list of experiments to restart
     nan_oeids = results[results['variance_explained'].isnull()]['ophys_experiment_id'].unique()
     print('{} Experiments with NaN variance explained'.format(len(nan_oeids))) 
     if len(nan_oeids) == 0:
         return
-    restart_table = pd.DataFrame({'ophys_experiment_id':nan_oeids})
-    table_path = run_params['output_dir']+'/restart_table.csv'
-    restart_table.to_csv(table_path,index=False)
-    
+    if save_table:
+        restart_table = pd.DataFrame({'ophys_experiment_id':nan_oeids})
+        table_path = run_params['output_dir']+'/restart_table.csv'
+        restart_table.to_csv(table_path,index=False)
+    return nan_oeids 
 
+def make_table_of_nan_cells(run_params, results,save_table=True):
+    '''
+        Generates a table of cells for which the variance explained is NaN.
+        In general, this should not happen
+    '''
+    nan_cells = results[results['variance_explained'].isnull()].query('dropout=="Full"').copy()
+    if save_table:
+        table_path = run_params['output_dir']+'/nan_cells_table.csv'
+        nan_cells.to_csv(table_path,index=False)
+    return nan_cells
 
+def check_nan_cells(fit):
+    '''
+        Plots the df/f, events, and interpolated events for all cells with exactly 0 activity
+    '''
+    nan_cells = np.where(np.all(fit['fit_trace_arr'] == 0, axis=0))[0]
+    for c in nan_cells:
+        plt.figure()
+        plt.plot(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,c],'r',label='Interpolated events')
+        plt.plot(fit['stimulus_interpolation']['original_timestamps'], fit['stimulus_interpolation']['original_fit_arr'][:,c],'b--', label='Original Events')
+        plt.plot(fit['stimulus_interpolation']['original_timestamps'], fit['stimulus_interpolation']['original_dff_arr'][:,c],'g--', label='Original df/f',alpha=.2)
+        plt.legend()
+        plt.ylabel('Neural Trace')
+        plt.xlabel('Time')
+        plt.title(fit['fit_trace_arr'].cell_specimen_id.values[c])
+   
 
 

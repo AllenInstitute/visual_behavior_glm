@@ -1291,19 +1291,22 @@ def check_nan_cells(fit):
         plt.xlabel('Time')
         plt.title(fit['fit_trace_arr'].cell_specimen_id.values[c])
 
-def reshape_rspm(model_output_type='adj_fraction_change_from_full',
+def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fraction_change_from_full',
                  glm_version='19_events_all_L2_optimize_by_session',
                  cutoff=None, features=None, single=False, save_df=False,
                  path=None):
 
     '''
     Loads and reshapes pivoted GLM results, groups by cell and experience level,
-    cleans them (drops NaNs and duplicates), and returns reshaped df = n cells by n features
+    cleans them (drops NaNs and duplicates), picks chronologically first session if multiple retakes
+    for familiar or novel >1 exist. Returns reshaped df = n cells by n features
 
     Inputes:
+        results_pivoted: default = None, you can provide output from build_pivoted_results_summary.
+                        Will load it if none provided.
         model_output_type: default = 'adj_fraction_change_from_full'
         glm_version: default = '19_events_all_L2_optimize_by_session'
-        cutoff: default = None, cutoff for total variance explaine din glm results
+        cutoff: default = None, cutoff for total variance explained in glm results
         features: an array of regressors to use, default =[allimages, behavioral, omissions, task
         single: default = False, whether to get single dropout scores too
         save_df: default = False, whether to save df
@@ -1314,8 +1317,12 @@ def reshape_rspm(model_output_type='adj_fraction_change_from_full',
     '''
     assert save_df is True and path is not None, 'must provide path when saving file'
 
-    results_pivoted = build_pivoted_results_summary(value_to_use=model_output_type, results_summary=None,
+    if results_pivoted is None:
+        results_pivoted = build_pivoted_results_summary(value_to_use=model_output_type, results_summary=None,
                                              glm_version=glm_version, cutoff=cutoff)
+    elif cutoff is not None:
+        results_pivoted = results_pivoted[results_pivoted['variance_explained_full']>cutoff]
+
     print('loaded glm results')
     if features is None:
         features  = get_default_features(single=single)
@@ -1340,7 +1347,7 @@ def reshape_rspm(model_output_type='adj_fraction_change_from_full',
     print('dropped duplicated cells, keeping first, now N = {}'.format(len(df)))
 
     if save_df is True:
-        filename = 'glm_output_v{}.h5'.format(glm_version[:9])
+        filename = 'glm_output_v{}.h5'.format(glm_version)
         full_path = os.path.join(path,filename)
         df.to_hdf(full_path, key='df', mode='w')
         print('saved df file')

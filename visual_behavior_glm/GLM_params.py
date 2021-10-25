@@ -7,44 +7,42 @@ import shutil
 
 import visual_behavior.data_access.loading as loading
 
-OUTPUT_DIR_BASE = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
+OUTPUT_DIR_BASE = r'//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
 
-def define_levels():
-    num_levels = 6
-
-    levels={
-        num_levels:['Full'],
-        num_levels-1:['visual','behavioral','cognitive'],
-        num_levels-2:['licking','task','face_motion_energy','pupil_and_running','all-images','beh_model','expectation'],
-        num_levels-3:['pupil_and_omissions'],
-        num_levels-4:['running_and_omissions'],
-
-    }
-    return levels
+def get_versions(vrange=[15,20]):
+    versions = os.listdir(OUTPUT_DIR_BASE)
+    out_versions = []
+    for dex, val in enumerate(np.arange(vrange[0],vrange[1])):
+        out_versions = out_versions + [x for x in versions if x.startswith('v_'+str(val)+'_')]
+    print('Available GLM model versions')
+    for v in out_versions:
+        print(v)
+    print('')
+    return out_versions
 
 def define_kernels():
     kernels = {
-        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'constant value'},
-        'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,     'dropout':True, 'text': 'linear ramp from 0 to 1'},
-        'licks':        {'event':'licks',       'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'mouse lick'},
-        # 'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,    'dropout':True, 'text': 'lick bout'},
-        'hits':         {'event':'hit',         'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick to image change'},
-        'misses':       {'event':'miss',        'type':'discrete',      'length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick to image change'},
-        'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'passive session image change'},
-        'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'lick on catch trials'},
-        'correct_rejects':  {'event':'correct_reject','type':'discrete','length':5.5,   'offset':-1,    'dropout':True, 'text': 'no lick on catch trials'},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'dropout':True, 'text': 'image was omitted'},
-        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.767, 'offset':-0.25,     'dropout':True, 'text': 'image presentation'},
-        # 'image_expectation':   {'event':'image_expectation','type':'discrete','length':0.767, 'offset':-0.767,'dropout':True, 'text': '750ms from last image'},
-        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'normalized running speed'},
-        'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25,  'dropout':True, 'text': 'behavioral model weights'},
-        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'Z-scored pupil diameter'},
-        # 'lick_model':        {'event':'lick_model',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'lick probability from video'},
-        # 'groom_model':        {'event':'groom_model',       'type':'continuous',    'length':2,     'offset':-1,    'dropout':True, 'text': 'groom probability from video'},
+        'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'num_weights':None, 'dropout':True, 'text': 'constant value'},
+        'hits':         {'event':'hit',         'type':'discrete',      'length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
+        'misses':       {'event':'miss',        'type':'discrete',      'length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
+        'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
+        'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'lick on catch trials'},
+        'correct_rejects':  {'event':'correct_reject','type':'discrete','length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'no lick on catch trials'},
+        #'each-image_change':{'event':'change',  'type':'discrete',      'length':5.5,   'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'Image specific change'},
+        'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
+        'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.75,  'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image presentation'},
+        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'normalized running speed'},
+        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'Z-scored pupil diameter'},
+        'licks':        {'event':'licks',       'type':'discrete',      'length':4,     'offset':-2,    'num_weights':None, 'dropout':True, 'text': 'mouse lick'},
+        #'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,    'num_weights':None,  'dropout':True, 'text': 'linear ramp from 0 to 1'},
+        #'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'num_weights':None,  'dropout':True, 'text': 'behavioral model weights'},
+        #'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,   'num_weights':None,  'dropout':True, 'text': 'lick bout'},
+        #'lick_model':   {'event':'lick_model',  'type':'continuous',    'length':2,     'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'lick probability from video'},
+        #'groom_model':  {'event':'groom_model', 'type':'continuous',    'length':2,     'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'groom probability from video'},
     }
     ## add face motion energy PCs
-    for PC in range(5):
-        kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':True, 'text':'PCA from face motion videos'}
+    # for PC in range(5):
+    #     kernels['face_motion_PC_{}'.format(PC)] = {'event':'face_motion_PC_{}'.format(PC), 'type':'continuous', 'length':2, 'offset':-1, 'dropout':True, 'text':'PCA from face motion videos'}
 
     return kernels
 
@@ -57,16 +55,16 @@ def get_experiment_table(require_model_outputs = False):
     Keyword arguments:
     require_model_outputs (bool) -- if True, limits returned experiments to those that have been fit with behavior model
     """
-    experiments_table = loading.get_filtered_ophys_experiment_table()
+    experiments_table = loading.get_platform_paper_experiment_table()
     if require_model_outputs:
         return experiments_table.query('model_outputs_available == True')
     else:
         return experiments_table
 
-def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
+def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,update_version=False):
     '''
         Freezes model files, parameters, and ophys experiment ids
-        If the model iteration already exists, throws an error
+        If the model iteration already exists, throws an error unless (update_version=True)
         root directory is global OUTPUT_DIR_BASE
 
         v_<VERSION>             contains the model iteration
@@ -99,32 +97,34 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     experiment_table_path   = os.path.join(output_dir, 'experiment_table_v_'+str(VERSION)+'.csv')
     beh_model_dir           = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/model_output/'
 
-    os.mkdir(output_dir)
-    os.mkdir(figure_dir)
-    os.mkdir(fig_coding_dir)
-    os.mkdir(fig_kernels_dir)
-    os.mkdir(fig_overfitting_dir)
-    os.mkdir(fig_clustering_dir)
-    os.mkdir(model_freeze_dir)
-    os.mkdir(experiment_output_dir)
-    os.mkdir(job_dir)
-    os.mkdir(manifest_dir)
+    if not update_version:
+        os.mkdir(output_dir)
+        os.mkdir(figure_dir)
+        os.mkdir(fig_coding_dir)
+        os.mkdir(fig_kernels_dir)
+        os.mkdir(fig_overfitting_dir)
+        os.mkdir(fig_clustering_dir)
+        os.mkdir(model_freeze_dir)
+        os.mkdir(experiment_output_dir)
+        os.mkdir(job_dir)
+        os.mkdir(manifest_dir)
     
     # Add a readme file with information about when the model was created
-    if username is None:
-        try:
-            username = pwd.getpwuid(os.getuid())[0]
-        except:
-            username = 'unknown'
-    readme_file = os.path.join(output_dir, 'README.txt')
-
-    readme = open(readme_file,'w')
-    readme.writelines([ 'OPHYS GLM  v',str(VERSION),
-                        '\nCreated on ',str(datetime.datetime.now()), 
-                        '\nCreated by ',username,
-                        '\nComment    ',label,'\n\n'])
-
-    readme.close()
+    if not update_version:
+        if username is None:
+            try:
+                username = pwd.getpwuid(os.getuid())[0]
+            except:
+                username = 'unknown'
+        readme_file = os.path.join(output_dir, 'README.txt')
+    
+        readme = open(readme_file,'w')
+        readme.writelines([ 'OPHYS GLM  v',str(VERSION),
+                            '\nCreated on ',str(datetime.datetime.now()), 
+                            '\nCreated by ',username,
+                            '\nComment    ',label,'\n\n'])
+    
+        readme.close()
 
     # Copy model files to frozen directory
     python_file_full_path = os.path.join(model_freeze_dir, 'GLM_fit_tools.py')
@@ -139,7 +139,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
     # Define list of experiments to fit
     experiment_table = get_experiment_table()
     if TESTING:
-        experiment_table = experiment_table.query('project_code == "VisualBehavior"').tail(5)
+        experiment_table = experiment_table.tail(5)
     experiment_table.to_csv(experiment_table_path)
     
     # Define job settings
@@ -176,9 +176,9 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
-        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session
-        'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda
-        'L2_fixed_lambda':None,           # This value is used if L2_use_fixed_value
+        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session 
+        'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda  
+        'L2_fixed_lambda': None,        # This value is used if L2_use_fixed_value  
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'
@@ -186,7 +186,6 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'job_settings':job_settings,
         'kernels':kernels,
         'dropouts':dropouts,
-        'levels':define_levels(),
         'split_on_engagement': False,   # If True, uses 'engagement_preference' to determine what engagement state to use
         'engagement_preference': None,  # Either None, "engaged", or "disengaged". Must be None if split_on_engagement is False
         'min_engaged_duration': 600,    # Minimum time, in seconds, the session needs to be in the preferred engagement state 
@@ -200,7 +199,11 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False):
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100,           # If 1, has no effect. Scales running speed to be O(1). 
-        'use_events': True             # If True, use detected events. If False, use raw deltaF/F 
+        'use_events': False,             # If True, use detected events. If False, use raw deltaF/F 
+        'include_invalid_rois': False,  # If True, will fit to ROIs deemed invalid by the SDK. Note that the SDK provides dff traces, but not events, for invalid ROISs
+        'interpolate_to_stimulus':True, # If True, interpolates the cell activity trace onto stimulus aligned timestamps
+        'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
+        'dropout_threshold':0.005       # Minimum variance explained by full model
     } 
     # Regularization parameter checks 
     a = run_params['L2_optimize_by_cell'] 
@@ -249,6 +252,11 @@ def process_kernels(kernels):
         for index, val in enumerate(range(0,8)):
             kernels['image'+str(val)] = copy(specs)
             kernels['image'+str(val)]['event'] = 'image'+str(val)
+    if 'each-image_change' in kernels:
+        specs = kernels.pop('each-image_change')
+        for index, val in enumerate(range(0,8)):
+            kernels['image_change'+str(val)] = copy(specs)
+            kernels['image_change'+str(val)]['event'] = 'image_change'+str(val)
     if 'beh_model' in kernels:
         specs = kernels.pop('beh_model')
         weight_names = ['bias','task0','omissions1','timing1D']
@@ -275,15 +283,16 @@ def define_dropouts(kernels):
     dropout_definitions={
         'visual':               ['image0','image1','image2','image3','image4','image5','image6','image7','omissions','image_expectation'],
         'all-images':           ['image0','image1','image2','image3','image4','image5','image6','image7'],
-        'expectation':          ['image_expectation','omissions'],
-        'cognitive':            ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
+        #'expectation':          ['image_expectation','omissions'],
+        #'cognitive':            ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
         'task':                 ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards'],
-        'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
+        #'image_change':         ['image_change0','image_change1','image_change2','image_change3','image_change4','image_change5','image_change6','image_change7'],
+        #'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
         'behavioral':           ['running','pupil','licks','lick_bouts','lick_model','groom_model'],
-        'licking':              ['licks','lick_bouts','lick_model','groom_model'],
-        'pupil_and_running':    ['pupil','running'],
-        'pupil_and_omissions':  ['pupil','omissions'],
-        'running_and_omissions':['running','omissions']
+        'licking':              ['licks','lick_bouts','lick_model','groom_model']
+        #'pupil_and_running':    ['pupil','running'],
+        #'pupil_and_omissions':  ['pupil','omissions'],
+        #'running_and_omissions':['running','omissions']
         }
 
     # Add all face_motion_energy individual kernels to behavioral, and as a group model

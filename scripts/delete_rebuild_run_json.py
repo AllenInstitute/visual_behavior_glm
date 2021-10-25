@@ -14,14 +14,14 @@ if __name__ == '__main__':
     parser.add_argument(
         '--version', 
         type=str, 
-        default='16_events_all_L2_optimize_by_session',
+        default='17_dff_all_L2_optimize_by_session',
         metavar='model_version',
         help='model version'
     )
     parser.add_argument(
         '--label', 
         type=str, 
-        default='disengaged portions of sessions only',
+        default='dff fit to all cells, including invalid',
         metavar='model_label',
         help='model label'
     )

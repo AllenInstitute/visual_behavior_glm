@@ -1,6 +1,5 @@
 import os
 import bz2
-import pickle
 import _pickle as cPickle
 import xarray as xr
 import numpy as np
@@ -33,7 +32,7 @@ def load_fit_experiment(ophys_experiment_id, run_params):
         design      DesignMatrix object for this experiment
     '''
     fit = gat.load_fit_pkl(run_params, ophys_experiment_id)
-    session = load_data(ophys_experiment_id)
+    session = load_data(ophys_experiment_id, run_params)
     design = DesignMatrix(fit)
     design = add_kernels(design, run_params, session,fit)
     # split by engagement
@@ -61,7 +60,7 @@ def check_run_fits(VERSION):
         experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filenamepkl) or os.path.isfile(filenamepbz2)
     return experiment_table
 
-def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
+def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     '''
         Fits the GLM to the ophys_experiment_id
         
@@ -89,11 +88,11 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Load Data
     print('Loading data')
-    session = load_data(oeid)
+    session = load_data(oeid, run_params)
 
     # Processing df/f data
     print('Processing df/f data')
-    fit = extract_and_annotate_ophys(session,run_params, TESTING=TESTING)
+    fit,run_params = extract_and_annotate_ophys(session,run_params, TESTING=TESTING)
 
     # Make Design Matrix
     print('Build Design Matrix')
@@ -101,6 +100,12 @@ def fit_experiment(oeid, run_params,NO_DROPOUTS=False,TESTING=False):
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
+
+    # Check Interpolation onto stimulus timestamps
+    if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
+        print('Checking stimulus interpolation')
+        check_image_kernel_alignment(design,run_params)
+        print('Passed all interpolation checks')
 
     # split by engagement
     design,fit = split_by_engagement(design, run_params, session, fit)
@@ -191,7 +196,7 @@ def bootstrap_model(fit, design, run_params, regularization=50, norm_preserve=Fa
         # iterate over cross validation
         for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Bootstrapping with {} regressors'.format(zero_dex)):
             # Set up training/test splits
-            train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
+            train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
             test_split = fit['ridge_splits'][split_index]
 
             # Make weights 
@@ -352,7 +357,7 @@ def evaluate_ridge(fit, design,run_params):
 
             # Iterate over CV splits
             for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Fitting L2, {}'.format(L2_value)):
-                train_split = np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index])
+                train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
                 X_test  = X[test_split,:]
                 X_train = X[train_split,:]
                 fit_trace_train = fit['fit_trace_arr'][train_split,:]
@@ -463,7 +468,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
             all_prediction[:,cell_index] = X.values @ Wall.values
 
             for index, test_split in enumerate(fit['splits']):
-                train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
+                train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index]))
         
                 # If this is the first cell, stash the design matrix and covariance result
                 if cell_index == 0:
@@ -556,7 +561,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
         cv_weights = np.empty((np.shape(Wall)[0], np.shape(Wall)[1], len(fit['splits'])))
 
         for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
-            train_split = np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])
+            train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])) 
             X_test = X[test_split,:]
             X_train = X[train_split,:]
             mask_test = mask[test_split]
@@ -623,7 +628,7 @@ def get_mask(dropout,design):
     # Get mask from design matrix object 
     return design.get_mask(kernels=kernels)
 
-def build_dataframe_from_dropouts(fit,threshold=0.005):
+def build_dataframe_from_dropouts(fit,run_params):
     '''
         INPUTS:
         threshold (0.005 default) is the minimum amount of variance explained by the full model. The minimum amount of variance explained by a dropout model        
@@ -635,13 +640,37 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
         
     cellids = fit['fit_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']   
+    else:
+        threshold = 0.005
 
+    nan_cells = np.where(np.all(fit['fit_trace_arr'] == 0, axis=0))[0]
+    if len(nan_cells) > 0:
+        print('I found {} cells with all 0 in the fit_trace_arr'.format(len(nan_cells)))
+        if not run_params['use_events']:
+            raise Exception('All 0 in df/f trace')
+        else:
+            print('Setting Variance Explained to 0')
+            fit['nan_cell_ids'] = fit['fit_trace_arr'].cell_specimen_id.values[nan_cells]
+ 
     # Iterate over models
     for model_label in fit['dropouts'].keys():
+        # Screen for cells with all 0, and set their variance explained to 0
+        if len(nan_cells) > 0:
+            fit['dropouts'][model_label]['cv_var_train'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_var_test'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_adjvar_train'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_adjvar_test'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'][nan_cells,:] = 0     
+
         # For each model, average over CV splits for variance explained on train/test
+        # The CV splits can have NaN for variance explained on the training set if the cell had no detected events in that split
+        # Similarly, the test set will have negative infinity
         results[model_label+"__avg_cv_var_train"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1) 
         results[model_label+"__avg_cv_var_test"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
         results[model_label+"__avg_cv_var_test_full_comparison"] = np.mean(fit['dropouts']['Full']['cv_var_test'],1)
+        results[model_label+"__avg_cv_var_test_sem"] = np.std(fit['dropouts'][model_label]['cv_var_test'],1)/np.sqrt(np.shape(fit['dropouts'][model_label]['cv_var_test'])[1])
 
         # For each model, average over CV splits for adjusted variance explained on train/test, and the full model comparison
         # If a CV split did not have an event in a test split, so the kernel has no support, the CV is NAN. Here we use nanmean to
@@ -649,23 +678,23 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
         results[model_label+"__avg_cv_adjvar_train"] = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_train'],1) 
         results[model_label+"__avg_cv_adjvar_test"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test'],1) 
         results[model_label+"__avg_cv_adjvar_test_full_comparison"]  = np.nanmean(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'],1) 
-    
+        
         # Clip the variance explained values to >= 0
         results.loc[results[model_label+"__avg_cv_var_test"] < 0,model_label+"__avg_cv_var_test"] = 0
         results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < 0,model_label+"__avg_cv_var_test_full_comparison"] = 0
         results.loc[results[model_label+"__avg_cv_adjvar_test"] < 0,model_label+"__avg_cv_adjvar_test"] = 0
         results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < 0,model_label+"__avg_cv_adjvar_test_full_comparison"] = 0
-        
+
         # Compute the absolute change in variance
         results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_var_test"] - results[model_label+"__avg_cv_var_test_full_comparison"] 
- 
+
         # Compute the dropout scores, which is dependent on whether this was a single-dropout or not
         if fit['dropouts'][model_label]['is_single']:  
             # Compute the dropout
             results[model_label+"__dropout"] = -results[model_label+"__avg_cv_var_test"]/results[model_label+"__avg_cv_var_test_full_comparison"]
             results[model_label+"__adj_dropout"] = -results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]
 
-            # Cleaning Steps, careful eye here! TODO
+            # Cleaning Steps, careful eye here! 
             # If the single-dropout explained more variance than the full_comparison, clip dropout to -1
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = -1 
             results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < results[model_label+"__avg_cv_var_test"], model_label+"__dropout"] = -1
@@ -673,18 +702,16 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
             # If the single-dropout explained less than THRESHOLD variance, clip dropout to 0            
             results.loc[results[model_label+"__avg_cv_adjvar_test"] < threshold, model_label+"__adj_dropout"] = 0
             results.loc[results[model_label+"__avg_cv_var_test"] < threshold, model_label+"__dropout"] = 0
-            results.loc[results[model_label+"__avg_cv_var_test"] < threshold, model_label+"__dropout"] = 0
     
             # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0.
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
             results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0 
-            #results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__absolute_change_from_full"] = 0 
         else:
             # Compute the dropout
             results[model_label+"__adj_dropout"] = -(1-results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]) 
             results[model_label+"__dropout"] = -(1-results[model_label+"__avg_cv_var_test"]/results[model_label+"__avg_cv_var_test_full_comparison"]) 
    
-            # Cleaning Steps, careful eye here! TODO            
+            # Cleaning Steps, careful eye here!             
             # If the dropout explained more variance than the full_comparison, clip the dropout to 0
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = 0
             results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < results[model_label+"__avg_cv_var_test"], model_label+"__dropout"] = 0
@@ -692,28 +719,10 @@ def build_dataframe_from_dropouts(fit,threshold=0.005):
             # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0
             results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
             results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0
-            #results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__absolute_change_from_full"] = 0
 
-            # OLD STEPS TO BE REMOVED TODO
-            # Removing the requirement that there is a minimum amount of difference between the dropout and the full
-            # Compute the difference between the dropout and the full model comparison
-            #results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_adjvar_test"] - results[model_label+"__avg_cv_adjvar_test_full_comparison"]
-        
-            # If the dropout didnt decrease the variance explained by at least THRESHOLD amount, clip dropout to 0
-            #results.loc[results[model_label+"__absolute_change_from_full"] > -threshold, model_label+"__adj_dropout"] = 0
+    ## Check for NaNs in any column 
+    assert results['Full__avg_cv_var_test'].isnull().sum() == 0, "NaNs in variance explained"  
 
-
-        # Not removing the code because I want to document things first TODO
-        #d = copy(fit['dropouts'][model_label]['cv_adjvar_test'])
-        #F = copy(fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'])
-        #if fit['dropouts'][model_label]['is_single']:
-        #    #results[model_label+"__adj_dropout"] = np.mean(-d/F,axis=1) # Average over cross validations before or after computing dropout?
-        #    # This way is way more noisy, so averaging first
-        #    
-        #    results[model_label+"__adj_dropout"] = -np.mean(d,axis=1)/np.mean(F,axis=1) 
-        #else:
-        #    #results[model_label+"__adj_dropout"] = np.mean(-(1-d/F),axis=1) # Average over cross validations before or after computing dropout?
-        #    results[model_label+"__adj_dropout"] = -(1-np.mean(d,axis=1)/np.mean(F,axis=1)) 
     return results
 
 def L2_report(fit):
@@ -740,14 +749,21 @@ def L2_report(fit):
     plt.plot([0,1],[0,1],'k--')
     return results
  
-def load_data(oeid):
+def load_data(oeid, run_params):
     '''
         Returns Visual Behavior ResponseAnalysis object
         Allen SDK dataset is an attribute of this object (session)
         Keyword arguments:
             oeid (int) -- ophys_experiment_id
+            run_params (dict) -- dictionary of parameters
     '''
-    dataset = loading.get_ophys_dataset(oeid, include_invalid_rois=False)
+
+    if ('include_invalid_rois' in run_params):
+        include_invalid_rois = (run_params['include_invalid_rois'])
+    else:
+        include_invalid_rois = False
+
+    dataset = loading.get_ophys_dataset(oeid, include_invalid_rois=include_invalid_rois)
 
     return dataset
 
@@ -782,7 +798,7 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     '''    
 
     # Set parameters for blink detection, and load data
-    session.set_params(eye_tracking_z_threshold=run_params['eye_blink_z'])
+    #session.set_params(eye_tracking_z_threshold=run_params['eye_blink_z'])
     eye = session.eye_tracking.copy(deep=True)
 
     # Compute pupil radius
@@ -793,10 +809,10 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     eye = eye.interpolate()   
 
     # Do a second transient removal step
-    x = scipy.stats.zscore(eye['pupil_radius'],nan_policy='omit')
-    d_mask = np.abs(np.diff(x,append=x[-1])) > run_params['eye_transient_threshold']
-    eye.loc[d_mask,:]=np.nan
-    eye = eye.interpolate()
+    #x = scipy.stats.zscore(eye['pupil_radius'],nan_policy='omit')
+    #d_mask = np.abs(np.diff(x,append=x[-1])) > run_params['eye_transient_threshold']
+    #eye.loc[d_mask,:]=np.nan
+    #eye = eye.interpolate()
 
     # Interpolate everything onto ophys_timestamps
     ophys_eye = pd.DataFrame({'timestamps':ophys_timestamps})
@@ -846,7 +862,15 @@ def process_data(session, run_params, TESTING=False):
     # some assert statements to ensure that dimensions are correct
     assert np.sum(timestamps_to_use) == len(fit_trace_arr['fit_trace_timestamps'].values), 'length of `timestamps_to_use` must match length of `fit_trace_timestamps` in `fit_trace_arr`'
     assert np.sum(timestamps_to_use) == fit_trace_arr.values.shape[0], 'length of `timestamps_to_use` must match 0th dimension of `fit_trace_arr`'
-    assert len(session.cell_specimen_table.query('valid_roi == True')) == fit_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `fit_trace_arr`'
+    if ('include_invalid_rois' in run_params):
+        include_invalid_rois = (run_params['include_invalid_rois'])
+    else:
+        include_invalid_rois = False
+
+    if include_invalid_rois:
+        assert len(session.cell_specimen_table) == fit_trace_arr.values.shape[1], 'number of ROIs must match 1st dimension of `fit_trace_arr`'
+    else:
+        assert len(session.cell_specimen_table.query('valid_roi == True')) == fit_trace_arr.values.shape[1], 'number of valid ROIs must match 1st dimension of `fit_trace_arr`'
 
     # Clip the array to just the first 6 cells
     if TESTING:
@@ -870,16 +894,237 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     fit['dff_trace_arr'] = trace_tuple[1]
     fit['events_trace_arr'] = trace_tuple[2]
     fit['fit_trace_timestamps'] = fit['fit_trace_arr']['fit_trace_timestamps'].values
-    fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+np.mean(np.diff(fit['fit_trace_timestamps']))]])  
+    step = np.mean(np.diff(fit['fit_trace_timestamps']))
+    fit['fit_trace_bins'] = np.concatenate([fit['fit_trace_timestamps'],[fit['fit_trace_timestamps'][-1]+step]])-step*.5  
     fit['ophys_frame_rate'] = session.metadata['ophys_frame_rate']
-    
+   
+    # Interpolate onto stimulus 
+    fit,run_params = interpolate_to_stimulus(fit, session, run_params)
+ 
     # If we are splitting on engagement, then determine the engagement timepoints
     if run_params['split_on_engagement']:
         print('Adding Engagement labels. Preferred engagement state: '+run_params['engagement_preference'])
         fit = add_engagement_labels(fit, session, run_params)
     else:
         fit['ok_to_fit_preferred_engagement'] = True
-    return fit
+    return fit, run_params
+
+def interpolate_to_stimulus(fit, session, run_params):
+    '''
+        This function interpolates the neural signal (either dff or events) onto timestamps that are aligned to the stimulus.
+        
+        The new timestamps are aligned to the onset of each image presentation (or omission), and the last timebin in each 750ms image
+        cycle is allowed to be variable to account for variability in image presentation start times, and the ophys timestamps not perfect
+        dividing the image cycle. 
+    '''
+    if ('interpolate_to_stimulus' not in run_params) or (not run_params['interpolate_to_stimulus']):
+        print('Not interpolating onto stimulus aligned timestamps')
+        return fit, run_params
+    print('Interpolating neural signal onto stimulus aligned timestamps')
+   
+
+    # Find first non omitted stimulus
+    filtered_stimulus_presentations = session.stimulus_presentations
+    while filtered_stimulus_presentations.iloc[0]['omitted'] == True:
+        filtered_stimulus_presentations = filtered_stimulus_presentations.iloc[1:]
+
+    # Make new timestamps by starting with each stimulus start time, and adding time points until we hit the next stimulus
+    start_times = filtered_stimulus_presentations.start_time.values
+    start_times = np.concatenate([start_times,[start_times[-1]+.75]]) 
+    mean_step = np.mean(np.diff(fit['fit_trace_timestamps']))
+    sets_of_stimulus_timestamps = []
+    for index, start in enumerate(start_times[0:-1]):
+        sets_of_stimulus_timestamps.append(np.arange(start_times[index], start_times[index+1]- mean_step*.5,mean_step)) 
+
+    # Check to make sure we always have the same number of timestamps per stimulus
+    lens = [len(x) for x in sets_of_stimulus_timestamps]
+    mode = scipy.stats.mode(lens)[0][0]
+    if len(np.unique(lens)) > 1:
+        u,c = np.unique(lens, return_counts=True)
+        for index, val in enumerate(u):
+            print('   Stimuli with {} timestamps: {}'.format(u[index], c[index]))
+        print('   This happens when the following stimulus is delayed creating a greater than 750ms duration')
+        print('   I will truncate extra timestamps so that all stimuli have the same number of following timestamps')
+    
+        # Determine how many timestamps each stimuli most commonly has and trim off the extra
+        sets_of_stimulus_timestamps = [x[0:mode] for x in sets_of_stimulus_timestamps]
+
+        # Check again to make sure we always have the same number of timestamps
+        # Note this can still fail if the stimulus duration is less than 750
+        lens = [len(x) for x in sets_of_stimulus_timestamps]
+        if len(np.unique(lens)) > 1:
+            print('   Warning!!! uneven number of steps per stimulus interval')
+            print('   This happens when the stimulus duration is much less than 750ms')
+            print('   I will need to check for this happening when kernels are added to the design matrix')
+            u,c = np.unique(lens, return_counts=True)
+            overlaps = 0
+            for index, val in enumerate(u):
+                print('Stimuli with {} timestamps: {}'.format(u[index], c[index]))
+                if u[index] < mode:
+                    overlaps += (mode-u[index])*c[index]
+            if ('image_kernel_overlap_tol' in run_params) & (run_params['image_kernel_overlap_tol'] > 0):
+                print('checking to see if image kernel overlap is within tolerance ({})'.format(run_params['image_kernel_overlap_tol']))
+                print('overlapping timestamps: {}'.format(overlaps))
+                if overlaps > run_params['image_kernel_overlap_tol']:
+                    raise Exception('Uneven number of steps per stimulus interval')
+                else:
+                    print('I think I am under the tolerance, continuing')
+
+    # Combine all the timestamps together
+    new_timestamps = np.concatenate(sets_of_stimulus_timestamps)
+    new_bins = np.concatenate([new_timestamps,[new_timestamps[-1]+mean_step]])-mean_step*.5
+
+    # Setup new variables 
+    num_cells = np.size(fit['fit_trace_arr'],1)
+    new_trace_arr = np.empty((len(new_timestamps),num_cells))
+    new_trace_arr[:] = 0
+    new_dff_trace_arr = np.empty((len(new_timestamps),num_cells))
+    new_dff_trace_arr[:] = 0
+    if ('use_events' in run_params) and (run_params['use_events']):
+        new_events_trace_arr = np.empty((len(new_timestamps),num_cells))
+        new_events_trace_arr[:] = 0
+    else:
+        new_events_trace_arr = None
+
+    # Interpolate onto new timestamps
+    for index in range(0,num_cells):
+        # Fit array
+        f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['fit_trace_arr'][:,index],bounds_error=False,fill_value='extrapolate')
+        new_trace_arr[:,index] = f(new_timestamps)
+
+        # dff array
+        f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['dff_trace_arr'][:,index],bounds_error=False,fill_value='extrapolate')
+        new_dff_trace_arr[:,index] = f(new_timestamps)
+        
+        # events array, if we are using it
+        if ('use_events' in run_params) and (run_params['use_events']):
+            f = scipy.interpolate.interp1d(fit['fit_trace_timestamps'],fit['events_trace_arr'][:,index],bounds_error=False,fill_value='extrapolate')
+            new_events_trace_arr[:,index] = f(new_timestamps)
+
+    # Convert into xarrays
+    new_trace_arr = xr.DataArray(
+        new_trace_arr, 
+        dims = ('fit_trace_timestamps','cell_specimen_id'), 
+        coords = {
+            'fit_trace_timestamps':new_timestamps,
+            'cell_specimen_id':fit['fit_trace_arr']['cell_specimen_id'].values
+        }
+    )
+    new_dff_trace_arr = xr.DataArray(
+        new_dff_trace_arr, 
+        dims = ('fit_trace_timestamps','cell_specimen_id'), 
+        coords = {
+            'fit_trace_timestamps':new_timestamps,
+            'cell_specimen_id':fit['fit_trace_arr']['cell_specimen_id'].values
+        }
+    )
+    if ('use_events' in run_params) and (run_params['use_events']):
+        new_events_trace_arr = xr.DataArray(
+            new_events_trace_arr, 
+            dims = ('fit_trace_timestamps','cell_specimen_id'), 
+            coords = {
+                'fit_trace_timestamps':new_timestamps,
+                'cell_specimen_id':fit['fit_trace_arr']['cell_specimen_id'].values
+            }
+        )       
+
+    # Save everything
+    fit['stimulus_interpolation'] ={
+        'mean_step':mean_step,
+        'timesteps_per_stimulus':mode,
+        'original_fit_arr':fit['fit_trace_arr'],
+        'original_dff_arr':fit['dff_trace_arr'],
+        'original_events_arr':fit['events_trace_arr'],
+        'original_timestamps':fit['fit_trace_timestamps'],
+        'original_bins':fit['fit_trace_bins']
+    }
+    fit['fit_trace_arr']    = new_trace_arr
+    fit['dff_trace_arr']    = new_dff_trace_arr
+    fit['events_trace_arr'] = new_events_trace_arr
+    fit['fit_trace_timestamps'] = new_timestamps
+    fit['fit_trace_bins']   = new_bins
+   
+    # Use the number of timesteps per stimulus to define the image kernel length so we get no overlap 
+    kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    for k in kernels_to_limit_per_image_cycle:
+        if k in run_params['kernels']:
+            run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    
+
+    # Check to make sure there are no NaNs in the fit_trace
+    assert np.isnan(fit['fit_trace_arr']).sum() == 0, "Have NaNs in fit_trace_arr"
+
+    return fit,run_params
+
+def check_image_kernel_alignment(design,run_params):
+    '''
+        Checks to see if any of the image kernels overlap
+        Note this fails if the early image is omitted, but I can't check the omission kernels directly because they overlap on purpose with images
+    '''
+    kernels = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    X = design.get_X(kernels=kernels)
+    if ('image_kernel_overlap_tol' in run_params):
+        tolerance = run_params['image_kernel_overlap_tol']
+    else:
+        tolerance = 1
+    overlap = np.max(np.sum(X.values, axis=1))
+    if overlap > tolerance:
+        raise Exception('Image kernels overlap beyond tolerance: {}, {}'.format(overlap, tolerance))
+    elif overlap > 1:
+        print('Image kernels overlap, but within tolerance: {}, {}'.format(overlap, tolerance))
+    else:
+        print('No Image kernel overlap: {}'.format(overlap))
+
+def check_interpolation_to_stimulus(fit, session): 
+    '''
+        Checks to see if we have the same number of timestamps per stimulus presentation
+    '''
+    lens = []
+    temp = session.stimulus_presentations.copy()
+    temp['next_start'] = temp.shift(-1)['start_time']
+    temp.at[temp.index.values[-1],'next_start'] = temp.iloc[-1]['start_time']+0.75
+    for index, row in temp.iterrows():
+        stamps = np.sum((fit['fit_trace_timestamps'] >= row.start_time) & (fit['fit_trace_timestamps'] < row.next_start))
+        lens.append(stamps)
+    return temp, lens
+    if len(np.unique(lens)) > 1:
+        u,c = np.unique(lens, return_counts=True)
+        for index, val in enumerate(u):
+            print('   Stimuli with {} timestamps: {}'.format(u[index], c[index]))
+        raise Exception('Uneven number of timestamps per stimulus presentation')
+
+def plot_interpolation_debug(fit,session): 
+    fig, ax = plt.subplots(2,1)
+    
+    # Stim start
+    ax[0].plot(fit['stimulus_interpolation']['original_timestamps'][0:50],fit['stimulus_interpolation']['original_fit_arr'][0:50,0], 'ko',markerfacecolor='None',label='Original')
+    ax[0].plot(fit['fit_trace_timestamps'][0:50],fit['fit_trace_arr'][0:50,0], 'bo',markerfacecolor='None',label='Stimulus Aligned')
+    for dex in range(0,len(session.stimulus_presentations)):
+        if session.stimulus_presentations.loc[dex].start_time > fit['stimulus_interpolation']['original_timestamps'][50]:
+            break
+        ax[0].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    for dex, val in enumerate(fit['stimulus_interpolation']['original_fit_arr'][0:50,0]):
+        ax[0].plot([fit['stimulus_interpolation']['original_bins'][dex],fit['stimulus_interpolation']['original_bins'][dex+1]],[val,val],'k-',alpha=.5)
+    for dex, val in enumerate(fit['fit_trace_arr'][0:50,0]):
+        ax[0].plot([fit['fit_trace_bins'][dex],fit['fit_trace_bins'][dex+1]],[val,val],'b-',alpha=.5)
+    ax[0].set_title('Stimulus Start')
+    ax[0].set_xlim(ax[0].get_xlim()[0]-.25,ax[0].get_xlim()[1])
+    #ax[0].set_ylim( -.5,.5)
+    ax[0].legend()
+
+    # Stim end
+    ax[1].plot(fit['stimulus_interpolation']['original_timestamps'][-50:],fit['stimulus_interpolation']['original_fit_arr'][-50:,0], 'ko',markerfacecolor='None')
+    ax[1].plot(fit['fit_trace_timestamps'][-50:],fit['fit_trace_arr'][-50:,0], 'bo',markerfacecolor='None')
+    for dex in range(0,len(session.stimulus_presentations)):
+        if session.stimulus_presentations.loc[dex].start_time > fit['stimulus_interpolation']['original_timestamps'][-50]:
+            ax[1].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+    for dex, val in enumerate(fit['stimulus_interpolation']['original_fit_arr'][-50:,0]):
+        ax[1].plot([fit['stimulus_interpolation']['original_bins'][-51+dex],fit['stimulus_interpolation']['original_bins'][-50+dex]],[val,val],'k-',alpha=.5)
+    for dex, val in enumerate(fit['fit_trace_arr'][-50:,0]):
+        ax[1].plot([fit['fit_trace_bins'][-51+dex],fit['fit_trace_bins'][-50+dex]],[val,val],'b-',alpha=.5)
+    ax[1].set_title('Stimulus End')
+    ax[1].set_xlim(ax[1].get_xlim()[0],ax[1].get_xlim()[1]+.25)
+    #ax[1].set_ylim( -.5,.5)
+    plt.tight_layout()
 
 def add_engagement_labels(fit, session, run_params):
     '''
@@ -948,6 +1193,8 @@ def add_kernels(design, run_params,session, fit):
     run_params['failed_dropouts']=set()
     run_params['kernel_error_dict'] = dict()
     for kernel_name in run_params['kernels']:          
+        if 'num_weights' not in run_params['kernels'][kernel_name]:
+            run_params['kernels'][kernel_name]['num_weights'] = None
         if run_params['kernels'][kernel_name]['type'] == 'discrete':
             design = add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit)
         else:
@@ -1088,7 +1335,13 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         assert len(timeseries) == fit['fit_trace_arr'].values.shape[0], 'Length of continuous regressor must match length of fit_trace_timestamps'
 
         # Add to design matrix
-        design.add_kernel(timeseries, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
+        design.add_kernel(
+            timeseries, 
+            run_params['kernels'][kernel_name]['length'], 
+            kernel_name, 
+            offset=run_params['kernels'][kernel_name]['offset'],
+            num_weights=run_params['kernels'][kernel_name]['num_weights']
+        )   
         return design
 
 
@@ -1175,8 +1428,10 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = np.concatenate([event_times,[event_times[-1]+.75]])
         elif event == 'omissions':
             event_times = session.stimulus_presentations.query('omitted')['start_time'].values
-        elif (len(event)>5) & (event[0:5] == 'image'):
+        elif (len(event)>5) & (event[0:5] == 'image') & ('change' not in event):
             event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
+        elif (len(event)>5) & (event[0:5] == 'image') & ('change' in event):
+            event_times = session.stimulus_presentations.query('is_change & (image_index == {})'.format(int(event[-1])))['start_time'].values
         else:
             raise Exception('\tCould not resolve kernel label')
 
@@ -1207,12 +1462,22 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         return design       
     else:
         events_vec, timestamps = np.histogram(event_times, bins=fit['fit_trace_bins'])
-
-        if event == 'lick_bouts': 
+    
+        if (event == 'lick_bouts') or (event == 'licks'): 
             # Force this to be 0 or 1, since we purposefully over-tiled the space. 
             events_vec[events_vec > 1] = 1
 
-        design.add_kernel(events_vec, run_params['kernels'][kernel_name]['length'], kernel_name, offset=run_params['kernels'][kernel_name]['offset'])   
+        if np.max(events_vec) > 1:
+            raise Exception('Had multiple events in the same timebin, {}'.format(kernel_name))
+
+        design.add_kernel(
+            events_vec, 
+            run_params['kernels'][kernel_name]['length'], 
+            kernel_name, 
+            offset=run_params['kernels'][kernel_name]['offset'],
+            num_weights=run_params['kernels'][kernel_name]['num_weights']
+        )   
+
         return design
 
 def check_by_engagement_state(run_params, fit,event_times,event):
@@ -1317,7 +1582,7 @@ class DesignMatrix(object):
             )
         return X_array.T
 
-    def add_kernel(self, events, kernel_length, label, offset=0):
+    def add_kernel(self, events, kernel_length, label, offset=0,num_weights=None):
         '''
         Add a temporal kernel. 
 
@@ -1328,6 +1593,7 @@ class DesignMatrix(object):
             offset (int) :offset relative to the events. Negative offsets cause the kernel
                           to overhang before the event (in SECONDS)
         '''
+    
         #Enforce unique labels
         if label in self.kernel_dict.keys():
             raise ValueError('Labels must be unique')
@@ -1335,24 +1601,20 @@ class DesignMatrix(object):
         self.events[label] = events
 
         # CONVERT kernel_length to kernel_length_samples
-        if kernel_length == 0:
-            kernel_length_samples = 1
+        if num_weights is None:
+            if kernel_length == 0:
+                kernel_length_samples = 1
+            else:
+                kernel_length_samples = int(np.ceil(self.ophys_frame_rate*kernel_length)) 
         else:
-            kernel_length_samples = int(np.ceil(self.ophys_frame_rate*kernel_length)) 
+            # Some kernels are hard-coded by number of weights
+            kernel_length_samples = num_weights
 
         # CONVERT offset to offset_samples
         offset_samples = int(np.floor(self.ophys_frame_rate*offset))
 
-        this_kernel = toeplitz(events, kernel_length_samples)
-
-        #Pad with zeros, roll offset_samples, and truncate to length
-        if offset_samples < 0:
-            this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset_samples))), this_kernel], axis=1)
-            this_kernel = np.roll(this_kernel, offset_samples)[:, np.abs(offset_samples):]
-        elif offset_samples > 0:
-            this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
-            this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
-
+        this_kernel = toeplitz(events, kernel_length_samples, offset_samples)
+    
         self.kernel_dict[label] = {
             'kernel':this_kernel,
             'kernel_length_samples':kernel_length_samples,
@@ -1422,9 +1684,11 @@ def split_time(timebase, subsplits_per_split=10, output_splits=6):
         subsplits_this_split = subsplit_inds_per_split[ind_output]
         inds_this_split = np.concatenate([split_inds[sub_ind] for sub_ind in subsplits_this_split])
         output_split_inds.append(inds_this_split)
+
+    output_split_inds = [np.sort(x) for x in output_split_inds]
     return output_split_inds
 
-def toeplitz(events, kernel_length_samples):
+def toeplitz(events, kernel_length_samples,offset_samples):
     '''
     Build a toeplitz matrix aligned to events.
 
@@ -1440,7 +1704,17 @@ def toeplitz(events, kernel_length_samples):
     arrays_list = [events]
     for i in range(kernel_length_samples-1):
         arrays_list.append(np.roll(events, i+1))
-    return np.vstack(arrays_list)[:,:total_len]
+    this_kernel= np.vstack(arrays_list)
+
+    #Pad with zeros, roll offset_samples, and truncate to length
+    if offset_samples < 0:
+        this_kernel = np.concatenate([np.zeros((this_kernel.shape[0], np.abs(offset_samples))), this_kernel], axis=1)
+        this_kernel = np.roll(this_kernel, offset_samples)[:, np.abs(offset_samples):]
+    elif offset_samples > 0:
+        this_kernel = np.concatenate([this_kernel, np.zeros((this_kernel.shape[0], offset_samples))], axis=1)
+        this_kernel = np.roll(this_kernel, offset_samples)[:, :-offset_samples]
+    return this_kernel[:,:total_len]
+
 
 def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
     '''
@@ -1458,8 +1732,8 @@ def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
         filtered_stimulus_presentations = filtered_stimulus_presentations.iloc[1:]
     
     ophys_frames_to_use = (
-        (session.ophys_timestamps > filtered_stimulus_presentations.iloc[0]['start_time']) 
-        & (session.ophys_timestamps < filtered_stimulus_presentations.iloc[-1]['start_time'] +stim_dur+ end_buffer)
+        (session.ophys_timestamps >= filtered_stimulus_presentations.iloc[0]['start_time']-end_buffer) 
+        & (session.ophys_timestamps <= filtered_stimulus_presentations.iloc[-1]['start_time'] +stim_dur+ end_buffer)
     )
     return ophys_frames_to_use
 

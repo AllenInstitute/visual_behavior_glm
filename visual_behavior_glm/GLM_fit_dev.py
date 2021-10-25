@@ -4,7 +4,31 @@ import pandas as pd
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
+import visual_behavior_glm.GLM_fit_tools as gft
+
+class dummy_glm:
+    a = 'dummy glm'
+
+def make_dummy_glm(fit, run_params, design, session):
+    g = type('dummy_glm',(object,),dict(a='dummy glm'))
+    g.fit=fit
+    g.run_params=run_params
+    g.design=design
+    g.session=session
+    return g
+
+def make_glm(fit, run_params, design, session):
+    g = GLM(session.metadata['ophys_experiment_id'],run_params['version'], log_results=False, log_weights=False, recompute=False, use_inputs=True, inputs=[session, fit, design])
+    g.run_params = run_params
+    return g
+
+if False:  
+    oeid  = experiment_table.index.values[754]
+    oeid1 = experiment_table.index.values[0]
+    oeid2 = experiment_table.index.values[154]
+    oeid3 = experiment_table.index.values[-1]
 
 if False: # Code snippets for doing basic analyses. 
 
@@ -40,6 +64,12 @@ if False: # Code snippets for doing basic analyses.
     # Fit results
     session, fit, design = gft.fit_experiment(oeid, run_params)
 
+    # Deploy all fits on the cluster
+    #conda activate visbeh
+    #cd ../scripts/
+    #vim deploy_glm_fits.sh     # edit the bash script to use the proper version
+    #./deploy_glm_fits.sh
+
 
 
     # Load basic results
@@ -55,6 +85,36 @@ if False: # Code snippets for doing basic analyses.
     # Make GLM object
     g = glm.GLM(oeid, VERSION, use_previous_fit=True, log_results=False, log_weights=False)
     
+    
+
+    # Tools for evaluating model versions
+    #####################
+
+    # Get a list of the missing experiments/rois for a specific version
+    inventory17 = gat.inventory_glm_version('17_dff_all_L2_optimize_by_session')
+    
+    # Get a table of fit and missing experiments/rois for GLM versions in the range "vrange"
+    inventory_table = gat.build_inventory_table(vrange=[15,20])
+
+    # Compare two model versions
+    versions = [x[2:] for x in inventory_table.index.values[-2:]]
+    comparison_table,results_combined = gat.get_glm_version_comparison_table(versions)
+    gvt.plot_glm_version_comparison(comparison_table=comparison_table, versions_to_compare=versions)
+    gvt.plot_glm_version_comparison_histogram(comparison_table=comparison_table, versions_to_compare=versions)
+    
+    # Faster if loading many versions
+    results_combined = gat.get_glm_version_summary(versions)
+    results_combined = gat.get_glm_version_summary(vrange=[15,20])
+    
+    # Compare multiple versions
+    gvt.compare_var_explained_by_version(results_combined,test_data=True)
+    gvt.compare_var_explained_by_version(results_combined,test_data=False)
+    gvt.compare_var_explained_by_version(results_combined,cre='Sst-IRES-Cre')
+    gvt.compare_var_explained_by_version(results_combined,cre='Sst-IRES-Cre',show_equipment=True)   
+ 
+    # Just look at invalid rois
+    results_combined = gat.get_glm_version_summary(vrange=[15,20], remove_invalid_rois=False, invalid_only=True)
+    gvt.compare_var_explained_by_version(results_combined)
 
 
     # Analysis Dataframes 
@@ -78,10 +138,16 @@ if False: # Code snippets for doing basic analyses.
     #####################
 
     # Make Nested Model plot (rainbow plot)
-    gvt.plot_dropouts(run_params)
+    # A couple versions with more or less detail
+    schematic_df = gsm.plot_all_dropouts(run_params['version'])
+    schematic_df = gsm.plot_high_level_dropouts(run_params['version'])
+    schematic_df = gsm.plot_nice_dropouts(run_params['version'])
 
     # Make plot of kernel support
     gvt.plot_kernel_support(g)
+
+    # Make dropout summary figures
+    gvt.plot_dropout_summary_population(results)
 
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 
@@ -91,7 +157,7 @@ if False: # Code snippets for doing basic analyses.
 
     # Make Coding Fraction plots
     # You may need to `mkdir coding` 
-    gvt.plot_coding_fraction(results_pivoted, 'omissions') # Example
+    gvt.plot_coding_fraction(results_pivoted, run_params, 'omissions') # Example
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction') # Make them all
 
     # Make Kernel figures
@@ -145,15 +211,18 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     gvt.plot_dropouts(run_params)
 
     # Make over-fitting figures
+    print('over fitting figures')
     gat.compute_over_fitting_proportion(full_results, run_params) 
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
 
     # Make Coding Fraction plots
+    print('coding fraction figures')
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction')
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='magnitude')
     
     # Make Kernel figures
+    print('kernel evaluation figures')
     gvt.all_kernels_evaluation(weights_df,run_params)
     gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="mesoscope")
     gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="scientifica")
@@ -165,9 +234,55 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[6])
 
     # Make Kernel Comparison Figures across sessions
+    print('kernel comparison figures')
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='vip',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='sst',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='slc',compare=['session'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, compare=['cre_line'],plot_errors=False)
     gvt.plot_all_kernel_comparison(weights_df, run_params, compare=['cre_line','layer'],plot_errors=False)
 
+def dev_ignore():
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, compare=['cre_line','strategy'], plot_errors=False) 
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='vip', compare=['strategy'], plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='sst', compare=['strategy'], plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='slc', compare=['strategy'], plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='vip', compare=['strategy','layer'], plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='sst', compare=['strategy','layer'], plot_errors=False)
+    gvt.plot_all_kernel_comparison(weights_beh, run_params, cell_filter='slc', compare=['strategy','layer'], plot_errors=False)   
+
+    scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[1])
+    scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[3])
+    scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[4])
+    scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
+
+
+def compare_dropout_thresholds(results_in):
+    results = results_in.copy()
+
+    fig,ax = plt.subplots(3,2,figsize=(12,10))
+    gvt.plot_dropout_summary_population(results,ax=ax[0,0])
+    ax[0,0].set_title('VE < 0.5% set dropout = 0 ')
+    ax[0,0].get_legend().remove()
+
+    gvt.plot_dropout_summary_population(results.query('variance_explained_full > 0.005'),ax=ax[0,1])
+    ax[0,1].set_title('VE < 0.5% removed')        
+    ax[0,1].get_legend().remove()
+
+    gvt.plot_dropout_summary_population(results.query('variance_explained_full > 0.01'),ax=ax[1,1])
+    ax[1,1].set_title('VE < 1.0% removed')        
+    ax[1,1].get_legend().remove()
+
+    gvt.plot_dropout_summary_population(results.query('variance_explained_full > 0.02'),ax=ax[2,1])
+    ax[2,1].set_title('VE < 2.0% removed')        
+    ax[2,1].get_legend().remove()
+
+    results.loc[results['variance_explained_full'] <0.01,'adj_fraction_change_from_full'] = 0
+    gvt.plot_dropout_summary_population(results,ax=ax[1,0])
+    ax[1,0].set_title('VE < 1.0% set dropout = 0')        
+    ax[1,0].get_legend().remove()
+
+    results.loc[results['variance_explained_full'] <0.02,'adj_fraction_change_from_full'] = 0
+    gvt.plot_dropout_summary_population(results,ax=ax[2,0])
+    ax[2,0].set_title('VE < 2.0% set dropout = 0')        
+    ax[2,0].get_legend().remove()
+    plt.tight_layout()

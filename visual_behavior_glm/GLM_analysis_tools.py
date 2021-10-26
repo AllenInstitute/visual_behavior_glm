@@ -1306,6 +1306,7 @@ def check_nan_cells(fit):
         plt.ylabel('Neural Trace')
         plt.xlabel('Time')
         plt.title(fit['fit_trace_arr'].cell_specimen_id.values[c])
+<<<<<<< HEAD
    
 def check_cv_nans(fit):
     cv_var_test = fit['dropouts']['Full']['cv_var_test'].copy()
@@ -1352,4 +1353,90 @@ def check_cv_nans(fit):
 
     plt.tight_layout()
     return orig_VE, zero_VE, nan_VE
+=======
+
+def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fraction_change_from_full',
+                 glm_version='19_events_all_L2_optimize_by_session',
+                 cutoff=None, features=None, single=False, save_df=False,
+                 path=None):
+
+    '''
+    Loads and reshapes pivoted GLM results, groups by cell and experience level,
+    cleans them (drops NaNs and duplicates), picks chronologically first session if multiple retakes
+    for familiar or novel >1 exist. Returns reshaped df = n cells by n features
+
+    Inputes:
+        results_pivoted: default = None, you can provide output from build_pivoted_results_summary.
+                        Will load it if none provided.
+        model_output_type: default = 'adj_fraction_change_from_full'
+        glm_version: default = '19_events_all_L2_optimize_by_session'
+        cutoff: default = None, cutoff for total variance explained in glm results
+        features: an array of regressors to use, default =[allimages, behavioral, omissions, task
+        single: default = False, whether to get single dropout scores too
+        save_df: default = False, whether to save df
+        path: default=None, if save_df = True, must specify path where to save the file
+
+    Output:
+        df (n cells by n selected features)
+    '''
+    assert save_df is True and path is not None, 'must provide path when saving file'
+
+    if results_pivoted is None:
+        results_pivoted = build_pivoted_results_summary(value_to_use=model_output_type, results_summary=None,
+                                             glm_version=glm_version, cutoff=cutoff)
+    elif cutoff is not None:
+        results_pivoted = results_pivoted[results_pivoted['variance_explained_full']>cutoff]
+
+    print('loaded glm results')
+    if features is None:
+        features  = get_default_features(single=single)
+
+    # sort by date collected,
+    results_pivoted = results_pivoted.sort_values('date_of_acquisition')
+
+    # make cell_specimen_id and experience_level into indices
+    df = results_pivoted.groupby(['cell_specimen_id', 'experience_level']).mean()
+
+    # select regressors to look at
+    df = df[features]
+
+    # turn experience level into a column level,
+    # drop cells that are missing a session,
+    # drop duplicated cells (this needs more investigation)
+    df = df.unstack()
+    print('total N cells = {}'.format(len(df)))
+    df = df.dropna()
+    print('dropped NaN, now N = {}'.format(len(df)))
+    df = df.drop_duplicates()
+    print('dropped duplicated cells, keeping first, now N = {}'.format(len(df)))
+
+    if save_df is True:
+        filename = 'glm_output_v{}.h5'.format(glm_version)
+        full_path = os.path.join(path,filename)
+        df.to_hdf(full_path, key='df', mode='w')
+        print('saved df file')
+
+    return df
+
+def get_default_features(single=False):
+    '''
+    Which regressors to select for clustering;
+    default = ['all-images','omissions','behavioral','task',]
+
+    Input:
+    single: default = False, whether to add 'single' dropout scores, too.
+
+    Output:
+    features, an array of glm regressors to use
+    '''
+
+    features = ['all-images',
+            'omissions',
+            'behavioral',
+            'task', ]
+    if single:
+        features = ['single-' + feature for feature in features]
+
+    return features
+>>>>>>> fd805ab59b81c1b60021604eb12246667aab0941
 

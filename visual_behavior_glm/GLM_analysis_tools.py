@@ -1378,7 +1378,7 @@ def get_default_features(single=False):
 def check_mesoscope(results,filters=['cre_line','targeted_structure','depth','meso']):
     results['meso'] = ['mesoscope' if x == "MESO.1" else 'scientifica' for x in results['equipment_name']]
     results['depth'] = [50 if x < 100 else 150 if x <200 else 250 if x<300 else 350 for x in results['imaging_depth']]
-    summary = pd.DataFrame(results.groupby(filters)['Full__avg_cv_var_test'].median())
+    summary = pd.DataFrame(results.groupby(filters)['Full__avg_cv_var_test'].mean())
     summary['err']=results.groupby(filters)['Full__avg_cv_var_test'].sem()*2
     summary['count']=results.groupby(filters)['Full__avg_cv_var_test'].count()
     return summary

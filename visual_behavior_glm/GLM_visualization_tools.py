@@ -2877,7 +2877,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True): 
+def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True): 
     '''
        Makes a bar plot that shows the population dropout summary by cre line for different regressors 
 
@@ -2895,7 +2895,7 @@ def plot_dropout_summary_population(dropout_summary, dropouts_to_show =  ['all-i
 
     cre_lines = np.sort(dropout_summary['cre_line'].unique())
     
-    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and absolute_change_from_full < {}'.format(threshold)).copy()
+    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     if use_violin:
         plot1= sns.violinplot(

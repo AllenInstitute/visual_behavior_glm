@@ -1306,7 +1306,7 @@ def check_nan_cells(fit):
         plt.ylabel('Neural Trace')
         plt.xlabel('Time')
         plt.title(fit['fit_trace_arr'].cell_specimen_id.values[c])
-<<<<<<< HEAD
+
    
 def check_cv_nans(fit):
     cv_var_test = fit['dropouts']['Full']['cv_var_test'].copy()
@@ -1353,7 +1353,6 @@ def check_cv_nans(fit):
 
     plt.tight_layout()
     return orig_VE, zero_VE, nan_VE
-=======
 
 def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fraction_change_from_full',
                  glm_version='19_events_all_L2_optimize_by_session',
@@ -1438,5 +1437,4 @@ def get_default_features(single=False):
         features = ['single-' + feature for feature in features]
 
     return features
->>>>>>> fd805ab59b81c1b60021604eb12246667aab0941
 

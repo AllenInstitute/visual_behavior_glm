@@ -1354,6 +1354,7 @@ def check_cv_nans(fit):
     plt.tight_layout()
     return orig_VE, zero_VE, nan_VE
 
+
 def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fraction_change_from_full',
                  glm_version='19_events_all_L2_optimize_by_session',
                  cutoff=None, features=None, single=False, save_df=False,
@@ -1437,4 +1438,13 @@ def get_default_features(single=False):
         features = ['single-' + feature for feature in features]
 
     return features
+
+def check_mesoscope(results,filters=['cre_line','targeted_structure','depth','meso']):
+    results['meso'] = ['mesoscope' if x == "MESO.1" else 'scientifica' for x in results['equipment_name']]
+    results['depth'] = [50 if x < 100 else 150 if x <200 else 250 if x<300 else 350 for x in results['imaging_depth']]
+    summary = pd.DataFrame(results.groupby(filters)['Full__avg_cv_var_test'].mean())
+    summary['err']=results.groupby(filters)['Full__avg_cv_var_test'].sem()*2
+    summary['count']=results.groupby(filters)['Full__avg_cv_var_test'].count()
+    return summary
+
 

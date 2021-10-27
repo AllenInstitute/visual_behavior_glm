@@ -3680,6 +3680,21 @@ def compare_events_and_dff(results_pivoted_dff, results_pivoted_events,savefig=F
             print(filepath)
             plt.savefig(filepath)
 
+def compare_weight_index(weights_df, kernel='all-images'):
+    '''
+        Scatter plots the kernel dropout score against the kernel weight index. 
+    '''
+    plt.figure()
+    cres = ['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre']
+    for cre in cres:
+        temp = weights_df.query('cre_line == @cre')
+        plt.plot(temp[kernel], temp[kernel+'_weights_index'], 'o',color=project_colors()[cre],alpha=.2,label=cre)
+    plt.ylabel('Weight Index')
+    plt.xlabel('Dropout Index')
+    plt.ylim(0,weights_df[kernel+'_weights_index'].quantile(q=.995))
+    plt.title(kernel)
+    plt.legend()
+    return None
 
 
 

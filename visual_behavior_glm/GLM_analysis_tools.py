@@ -816,6 +816,22 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Return weights_df
     return weights_df 
 
+def compute_weight_index(weights_df):
+    '''
+        Appends columns to the weight_df. One column for each kernel
+
+        The weight index is just the sum(abs(kernel))
+
+        Additionally creates the sume of the individual image kernels
+    '''
+    kernels = [x for x in weights_df.keys().values if '_weights' in x]
+    for k in kernels:
+        weights_df[k+'_index'] = [np.sum(np.abs(x)) for x in weights_df[k].values]
+    
+    weights_df['all-images_weights_index'] = weights_df['image0_weights_index'] + weights_df['image1_weights_index'] + weights_df['image2_weights_index'] + weights_df['image3_weights_index'] + weights_df['image4_weights_index'] +weights_df['image5_weights_index'] +weights_df['image6_weights_index'] +weights_df['image7_weights_index']
+    return weights_df
+
+
 def compute_over_fitting_proportion(results_full,run_params):
     '''
         Computes the over-fitting proportion for each cell on each dropout model:
@@ -1290,6 +1306,7 @@ def check_nan_cells(fit):
         plt.ylabel('Neural Trace')
         plt.xlabel('Time')
         plt.title(fit['fit_trace_arr'].cell_specimen_id.values[c])
+
    
 def check_cv_nans(fit):
     cv_var_test = fit['dropouts']['Full']['cv_var_test'].copy()
@@ -1429,4 +1446,5 @@ def check_mesoscope(results,filters=['cre_line','targeted_structure','depth','me
     summary['err']=results.groupby(filters)['Full__avg_cv_var_test'].sem()*2
     summary['count']=results.groupby(filters)['Full__avg_cv_var_test'].count()
     return summary
+
 

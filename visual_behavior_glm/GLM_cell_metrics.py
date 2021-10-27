@@ -9,8 +9,10 @@ import seaborn as sns
 from sklearn.linear_model import LinearRegression
 import visual_behavior_glm.GLM_params as glm_params
 
-## TODO, document this, use updated metrics
-## really this time
+def plot_all(results_metrics,version):
+    evaluate_against_metrics(results_metrics,xmetric='trace_mean_over_std',version=version,savefig=True,label='all_events',title='All Cells')
+    evaluate_against_metrics(results_metrics.query('equipment_name == "MESO.1"'),xmetric='trace_mean_over_std',version=version,savefig=True,label='mesoscope_events',title='Mesoscope')
+    evaluate_against_metrics(results_metrics.query('equipment_name != "MESO.!"'),xmetric='trace_mean_over_std',version=version,savefig=True,label='scientifica_events',title='Scientifica')
 
 def make_main(results_pivoted, run_params):
     metrics_df, label = get_metrics()
@@ -67,7 +69,7 @@ def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',
 
     if savefig:
         run_params = glm_params.load_run_json(version)
-        filepath = os.path.join(run_params['figure_dir'], 'performance_vs_'+xmetric+'_'+label+'.png')
+        filepath = os.path.join(run_params['figure_dir'], 'performance_vs_'+xmetric+'_'+label+'.png') 
         plt.savefig(filepath)
 
   

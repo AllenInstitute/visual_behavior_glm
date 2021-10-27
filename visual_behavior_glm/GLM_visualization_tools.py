@@ -3635,3 +3635,51 @@ def plot_sem_comparison(results_pivoted):
     plt.ylim(0,.1)
     plt.xlim(0,1)
 
+def compare_events_and_dff(results_pivoted_dff, results_pivoted_events,savefig=False, versions=None):
+
+    joint = pd.merge(
+        results_pivoted_dff,
+        results_pivoted_events,
+        how='inner',
+        on='identifier',
+        suffixes=("_dff","_events"),
+    )
+    fig,ax = plt.subplots(1,2,figsize=(8,4))
+    cres = np.flip(joint.cre_line_dff.unique())
+    cres = ['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre']
+    for cre in cres:
+        cre_slice = joint.query('cre_line_dff ==@cre')
+        ax[0].plot(cre_slice['variance_explained_full_dff'],cre_slice['variance_explained_full_events'],'o',alpha=.2,color=project_colors()[cre],label=cre)
+    ax[0].set_ylabel('Variance Explained (events)')
+    ax[0].set_xlabel('Variance Explained (df/f)')
+    ax[0].plot([0,1],[0,1],'r--',alpha=.5)
+    ax[0].set_aspect('equal')
+    ax[0].set_xlim(0,1)
+    ax[0].set_ylim(0,1)
+    ax[0].legend()
+    
+    joint['VE (df/f-events)'] = joint['variance_explained_full_dff'] - joint['variance_explained_full_events']
+    ax[1] = sns.histplot(
+        data = joint,
+        x='VE (df/f-events)',
+        hue='cre_line_dff',
+        hue_order = cres, 
+        palette = [project_colors()[cre_line] for cre_line in cres],
+        kde=False,
+        stat='density',
+        common_norm=False,
+        element='step',
+    )
+    ax[1].set_xlim(-.05,.3)
+    plt.tight_layout()
+    if savefig and (versions is not None):
+        version_strings = '_'.join([x.split('_')[0] for x in versions])
+        for v in versions:
+            run_params = glm_params.load_run_json(v)
+            filepath = os.path.join(run_params['figure_dir'], 'dff_events_comparison_'+version_strings+'.png')
+            print(filepath)
+            plt.savefig(filepath)
+
+
+
+

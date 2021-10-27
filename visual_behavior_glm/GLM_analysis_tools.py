@@ -1290,6 +1290,53 @@ def check_nan_cells(fit):
         plt.ylabel('Neural Trace')
         plt.xlabel('Time')
         plt.title(fit['fit_trace_arr'].cell_specimen_id.values[c])
+   
+def check_cv_nans(fit):
+    cv_var_test = fit['dropouts']['Full']['cv_var_test'].copy()
+    orig_VE = np.mean(cv_var_test,1)
+    orig_VE[orig_VE < 0] = 0
+
+    cv_var_test_zero = fit['dropouts']['Full']['cv_var_test'].copy()
+    cv_var_test_zero[np.isinf(cv_var_test_zero)]=0
+    zero_VE = np.mean(cv_var_test_zero,1)
+    zero_VE[zero_VE < 0] = 0
+
+    cv_var_test_nan = fit['dropouts']['Full']['cv_var_test'].copy()
+    cv_var_test_nan[np.isinf(cv_var_test_nan)]=np.nan
+    nan_VE = np.nanmean(cv_var_test_nan,1)
+    nan_VE[nan_VE < 0] = 0
+
+    max_ve = np.nanmax(np.concatenate([orig_VE,zero_VE, nan_VE]))
+    fig, ax = plt.subplots(2,2)
+    
+    ax[0,0].plot(orig_VE, zero_VE, 'ko')
+    ax[0,0].set_ylabel('Set splits to 0')
+    ax[0,0].set_xlabel('Original')
+    ax[0,0].set_ylim(0,max_ve)
+    ax[0,0].set_xlim(0,max_ve)
+    ax[0,0].plot([0,max_ve],[0,max_ve],'r--')
+
+    ax[0,1].plot(orig_VE, nan_VE, 'ko')
+    ax[0,1].set_ylabel('Set splits to NaN')
+    ax[0,1].set_xlabel('Original')
+    ax[0,1].set_ylim(0,max_ve)
+    ax[0,1].set_xlim(0,max_ve)
+    ax[0,1].plot([0,max_ve],[0,max_ve],'r--')
+
+    ax[1,0].plot(nan_VE, zero_VE, 'ko')
+    ax[1,0].set_ylabel('Set splits to 0')
+    ax[1,0].set_xlabel('Set splits to NaN')
+    ax[1,0].set_ylim(0,max_ve)
+    ax[1,0].set_xlim(0,max_ve)
+    ax[1,0].plot([0,max_ve],[0,max_ve],'r--')
+
+    ax[1,1].hist(zero_VE-orig_VE,alpha=.5,label='ZeroVE - Original',bins=20)
+    ax[1,1].hist(nan_VE -orig_VE,alpha=.5,label='NaNVE - Original',bins=20)
+    ax[1,1].legend()
+
+    plt.tight_layout()
+    return orig_VE, zero_VE, nan_VE
+
 
 def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fraction_change_from_full',
                  glm_version='19_events_all_L2_optimize_by_session',

@@ -640,16 +640,20 @@ def build_dataframe_from_dropouts(fit,run_params):
         
     cellids = fit['fit_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
+    
+    # Determines the minimum variance explained for the full model
     if 'dropout_threshold' in run_params:
         threshold = run_params['dropout_threshold']   
     else:
         threshold = 0.005
     
+    # Determines whether to record VE and dropout scores without dealing with -Inf on CV splits with no activity
     if 'compute_with_infs' in run_params:
         compute_with_infs = run_params['compute_with_infs']
     else:
-        compute_with_infs = False
+        compute_with_infs = True
 
+    # Check for cells with no activity in entire trace
     nan_cells = np.where(np.all(fit['fit_trace_arr'] == 0, axis=0))[0]
     if len(nan_cells) > 0:
         print('I found {} cells with all 0 in the fit_trace_arr'.format(len(nan_cells)))

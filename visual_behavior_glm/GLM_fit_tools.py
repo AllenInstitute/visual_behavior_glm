@@ -960,6 +960,11 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
         fit = add_engagement_labels(fit, session, run_params)
     else:
         fit['ok_to_fit_preferred_engagement'] = True
+
+    # If we are smoothing the df/f trace:
+    if ('smooth_trace' in run_params['smooth_trace']) and run_params['smooth_trace']:
+        print('Smoothing trace arr with window {} timestamps'.format(run_params['smoothing_size']))
+        fit = smooth_trace(fit,run_params['smoothing_size'])
     return fit, run_params
 
 def interpolate_to_stimulus(fit, session, run_params):
@@ -1991,4 +1996,19 @@ def error_by_time(fit, design):
     plt.plot(np.abs(diff.mean(axis=1)), 'k-')
     plt.ylabel('Model Error (df/f)')
     
+def smooth_trace(fit,window):
+    fit['unsmoothed_fit_trace_arr'] = fit['fit_trace_arr'].copy()
+    for celldex in range(0,np.shape(fit['fit_trace_arr'])[1]):
+        fit['fit_trace_arr'][:,celldex] = moving_mean(fit['fit_trace_arr'][:,celldex],window)
+    return fit 
+
+def moving_mean(values, window):
+    '''
+        Computes the moving mean of the series in values, with a square window of width window
+    '''
+    weights = np.repeat(1.0, window)/window
+    mm = np.convolve(values, weights, 'same')
+    return mm    
+
+
 

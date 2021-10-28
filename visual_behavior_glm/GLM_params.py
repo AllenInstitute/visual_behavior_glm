@@ -176,9 +176,9 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
-        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session 
-        'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda  
-        'L2_fixed_lambda': None,        # This value is used if L2_use_fixed_value  
+        'L2_optimize_by_session': False, # If True, uses the best L2 value for this session ##DEBUG
+        'L2_use_fixed_value': True,    # If True, uses the hard coded L2_fixed_lambda  ##DEBUG, TODO
+        'L2_fixed_lambda': 40,        # This value is used if L2_use_fixed_value  ## DEBUG
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'
@@ -199,11 +199,13 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100,           # If 1, has no effect. Scales running speed to be O(1). 
-        'use_events': True,             # If True, use detected events. If False, use raw deltaF/F 
+        'use_events': False,            # If True, use detected events. If False, use raw deltaF/F 
         'include_invalid_rois': False,  # If True, will fit to ROIs deemed invalid by the SDK. Note that the SDK provides dff traces, but not events, for invalid ROISs
         'interpolate_to_stimulus':True, # If True, interpolates the cell activity trace onto stimulus aligned timestamps
         'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
-        'dropout_threshold':0.005       # Minimum variance explained by full model
+        'dropout_threshold':0.005,      # Minimum variance explained by full model
+        'smooth_trace': True,           # If True, smooths fit_trace_arr before fitting, should only be used for dF/F
+        'smoothing_size': 5,            # Number of timestamps to use for smoothing. Should be None if smooth_trace=False
     } 
     # Regularization parameter checks 
     a = run_params['L2_optimize_by_cell'] 
@@ -234,6 +236,12 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         assert run_params['engagement_preference'] is None, "Not splitting on engagement, engagement preference must be None"
     assert run_params['min_engaged_duration'] >=0, "Must define a minimum interval for the preferred engagement state"
 
+    # Check Smoothing parameters
+    if run_params['smooth_trace']:
+        assert run_params['smoothing_size'] is not None, "Must provide smoothing window"
+        assert not run_params['use_events'], "You should not use smoothing with use_events=True" 
+    else:
+        assert run_params['smoothing_size'] is None, "Smoothing size must be None if smooth_trace set to False"
 
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)

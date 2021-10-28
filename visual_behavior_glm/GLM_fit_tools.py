@@ -962,7 +962,7 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
         fit['ok_to_fit_preferred_engagement'] = True
 
     # If we are smoothing the df/f trace:
-    if ('smooth_trace' in run_params['smooth_trace']) and run_params['smooth_trace']:
+    if ('smooth_trace' in run_params) and run_params['smooth_trace']:
         print('Smoothing trace arr with window {} timestamps'.format(run_params['smoothing_size']))
         fit = smooth_trace(fit,run_params['smoothing_size'])
     return fit, run_params

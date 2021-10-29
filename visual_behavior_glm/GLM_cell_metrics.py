@@ -9,10 +9,21 @@ import seaborn as sns
 from sklearn.linear_model import LinearRegression
 import visual_behavior_glm.GLM_params as glm_params
 
-def plot_all(results_metrics,version):
-    evaluate_against_metrics(results_metrics,xmetric='trace_mean_over_std',version=version,savefig=True,label='all_events',title='All Cells')
-    evaluate_against_metrics(results_metrics.query('equipment_name == "MESO.1"'),xmetric='trace_mean_over_std',version=version,savefig=True,label='mesoscope_events',title='Mesoscope')
-    evaluate_against_metrics(results_metrics.query('equipment_name != "MESO.!"'),xmetric='trace_mean_over_std',version=version,savefig=True,label='scientifica_events',title='Scientifica')
+def compute_r2(results_metrics,groups=['cre_line']):
+    nlevels = len(groups)
+    results_metrics['equipment'] = ['Mesoscope' if x=="MESO.1" else "Scientifica" for x in results_metrics['equipment_name']]
+    results_metrics['active'] =['Active' if not x else 'Passive' for x in results_metrics['passive']]
+    g = results_metrics.groupby(groups)
+    r2 = g[['variance_explained_full','trace_mean_over_std']].corr().pow(2).round(decimals=3)
+    r2 = r2.drop('trace_mean_over_std',level=nlevels,axis=0).drop(columns=['variance_explained_full']).droplevel(nlevels)
+    r2 = r2.rename(columns={'trace_mean_over_std':'r2'})
+    r2['count'] = g.size()
+    return r2
+
+def plot_all(results_metrics,version,metric='trace_mean_over_std'):
+    evaluate_against_metrics(results_metrics,xmetric=metric,version=version,savefig=True,label='all_events',title='All Cells')
+    evaluate_against_metrics(results_metrics.query('equipment_name == "MESO.1"'),xmetric=metric,version=version,savefig=True,label='mesoscope_events',title='Mesoscope')
+    evaluate_against_metrics(results_metrics.query('equipment_name != "MESO.!"'),xmetric=metric,version=version,savefig=True,label='scientifica_events',title='Scientifica')
 
 def make_main(results_pivoted, run_params):
     metrics_df, label = get_metrics()
@@ -29,7 +40,7 @@ def get_metrics():
     #experiments_table = loading.get_platform_paper_experiment_table()
     #oeids = experiments_table.index.values
     #metrics_df = cell_metrics.load_cell_metrics_table_for_experiments(oeids,'images','all_images','full_session',use_events=False, filter_events=False)
-    metrics_df = cell_metrics.load_metrics_table_for_experiments('all_experiments','traces','full_session','full_session',use_events=True,filter_events=True)
+    metrics_df = cell_metrics.load_metrics_table_for_experiments('all_experiments','traces','full_session','full_session',use_events=False,filter_events=False)
     label='full_trace'
     return metrics_df,label
 

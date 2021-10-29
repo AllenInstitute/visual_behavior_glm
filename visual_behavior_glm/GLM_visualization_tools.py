@@ -3697,4 +3697,25 @@ def compare_weight_index(weights_df, kernel='all-images'):
     return None
 
 
+def compare_smoothing(fits,smoothing,session):
+    plt.figure()
+    plt.ylabel('Smoothed VE')
+    plt.xlabel('Unsmoothed VE')
+    for dex, f in enumerate(fits[1:]):
+        plt.plot(fits[0]['dropouts']['Full']['cv_var_test'].mean(axis=1),f['dropouts']['Full']['cv_var_test'].mean(axis=1),'o',label=smoothing[dex])
+    plt.legend()
+    ylim = plt.ylim()
+    plt.plot(ylim,ylim,'k--',alpha=.5)
 
+    label = str(session.metadata['ophys_experiment_id'])+'_'+session.metadata['cre_line']+'_'+session.metadata['equipment_name']
+    plt.title(label)
+
+
+    plt.figure()
+    for dex, f in enumerate(fits[1:]):
+        diff = f['dropouts']['Full']['cv_var_test'].mean(axis=1) - fits[0]['dropouts']['Full']['cv_var_test'].mean(axis=1)
+        plt.boxplot(diff, positions = [dex], labels=[str(smoothing[dex])])
+    plt.axhline(0, color='k',linestyle='--',alpha=.5)
+    plt.ylabel('Increase in VE')
+    plt.xlabel('Timesteps of smoothing')
+    plt.title(label)

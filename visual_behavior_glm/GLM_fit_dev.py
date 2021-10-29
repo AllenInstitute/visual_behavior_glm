@@ -26,9 +26,11 @@ def make_glm(fit, run_params, design, session):
 
 if False:  
     oeid  = experiment_table.index.values[754]
-    oeid1 = experiment_table.index.values[0]
-    oeid2 = experiment_table.index.values[154]
+    oeid1 = experiment_table.index.values[0]    #sci
+    oeid2 = experiment_table.index.values[154]  #sci
     oeid3 = experiment_table.index.values[-1]
+    oeid4 = experiment_table.index.values[1158] #meso, sst
+    oeid5 = experiment_table.index.values[1226] #sci, sst
 
 if False: # Code snippets for doing basic analyses. 
 

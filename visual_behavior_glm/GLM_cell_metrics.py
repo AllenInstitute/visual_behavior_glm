@@ -1,40 +1,63 @@
+import os
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+
+import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior.ophys.response_analysis.cell_metrics as cell_metrics
-import visual_behavior.data_access.loading as loading
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-import os
-import seaborn as sns
-from sklearn.linear_model import LinearRegression
-import visual_behavior_glm.GLM_params as glm_params
 
-## TODO, document this, use updated metrics
-## really this time
+def compute_all(results_pivoted_dff, results_pivoted_events,groups=['cre_line','equipment','targeted_structure','active']):
+    '''
+        Pass in the results_pivoted dataframes for the model fit to dff and events
+        
+        Returns a table of r2 values for each verison of the model compared against metrics computed on the dff and events traces
+        
+        computes r2 values for each group defined in groups
+    '''
+    metrics_dff = get_metrics(use_events=False)
+    metrics_events = get_metrics(use_events=True)
+    results_dff_dff = merge_cell_metrics_table(metrics_dff,results_pivoted_dff)
+    results_events_dff = merge_cell_metrics_table(metrics_dff,results_pivoted_events)
+    results_events_events = merge_cell_metrics_table(metrics_events,results_pivoted_events)
+    r2_dff_dff = compute_r2(results_dff_dff,groups=groups).rename(columns={'r2':'glm_dff__metrics_dff'})
+    r2_events_dff = compute_r2(results_events_dff,groups=groups).rename(columns={'r2':'glm_events__metrics_dff'})
+    r2_events_events = compute_r2(results_events_events,groups=groups).rename(columns={'r2':'glm_events__metrics_events'})
+    r2_dff_dff['glm_events__metrics_dff'] = r2_events_dff['glm_events__metrics_dff']
+    r2_dff_dff['glm_events__metrics_events'] = r2_events_events['glm_events__metrics_events']
+    return r2_dff_dff
 
-def make_main(results_pivoted, run_params):
-    metrics_df, label = get_metrics()
-    results_metrics = merge_cell_metrics_table(metrics_df, results_pivoted)
-    evaluate_against_metrics(results_metrics,savefig=True, version=run_params['version'], label=label)
+def compute_r2(results_metrics,groups=['cre_line']):
+    '''
+        Computes a table of r2 values for each group defined in groups
+        Computes r2 between the trace_mean_over_std column and variance_explained_full
+        trace_mean_over_std can be computed on either dff or events, and should already be in the results_metrics table
+    '''
+    nlevels = len(groups)
+    g = results_metrics.groupby(groups)
+    r2 = g[['variance_explained_full','trace_mean_over_std']].corr().pow(2).round(decimals=3)
+    r2 = r2.drop('trace_mean_over_std',level=nlevels,axis=0).drop(columns=['variance_explained_full']).droplevel(nlevels)
+    r2 = r2.rename(columns={'trace_mean_over_std':'r2'})
+    r2['count'] = g.size()
+    return r2
 
-def make_dropout(results,run_params,dropout):
-    metrics_df,label=get_metrics()
-    results_metrics = merge_cell_metrics_table(metrics_df, results.query('dropout ==@dropout'))
-    results_metrics = results_metrics[~results_metrics['variance_explained'].isnull()]
-    evaluate_against_metrics(results_metrics,ymetric='variance_explained',title='All-images dropout vs. images reliability')
-
-def get_metrics():
-    #experiments_table = loading.get_platform_paper_experiment_table()
-    #oeids = experiments_table.index.values
-    #metrics_df = cell_metrics.load_cell_metrics_table_for_experiments(oeids,'images','all_images','full_session',use_events=False, filter_events=False)
-    metrics_df = cell_metrics.load_metrics_table_for_experiments('all_experiments','traces','full_session','full_session',use_events=True,filter_events=True)
-    label='full_trace'
-    return metrics_df,label
+def get_metrics(use_events=True,filter_events=False):
+    metrics_df = cell_metrics.load_metrics_table_for_experiments('all_experiments','traces','full_session','full_session',use_events=use_events,filter_events=filter_events)
+    return metrics_df
 
 def merge_cell_metrics_table(metrics_df, results_pivoted):
     metrics_df['identifier'] = [str(x[0])+'_'+str(x[1]) for x in zip(metrics_df['ophys_experiment_id'],metrics_df['cell_specimen_id'])]
     results_metrics = pd.merge(results_pivoted, metrics_df, on='identifier')
+    results_metrics['equipment'] = ['Mesoscope' if x=="MESO.1" else "Scientifica" for x in results_metrics['equipment_name']]
+    results_metrics['active'] =['Active' if not x else 'Passive' for x in results_metrics['passive']]
     return results_metrics
+
+def plot_all(results_metrics,version,metric='trace_mean_over_std',savefig=False):
+    evaluate_against_metrics(results_metrics,xmetric=metric,version=version,savefig=savefig,label='all_events',title='All Cells')
+    evaluate_against_metrics(results_metrics.query('equipment_name == "MESO.1"'),xmetric=metric,version=version,savefig=savefig,label='mesoscope_events',title='Mesoscope')
+    evaluate_against_metrics(results_metrics.query('equipment_name != "MESO.!"'),xmetric=metric,version=version,savefig=savefig,label='scientifica_events',title='Scientifica')
 
 def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=False,version=None,label='',title=None,ylim=(0,1)):
     fig,ax = plt.subplots()
@@ -60,14 +83,14 @@ def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',
     plt.ylabel(ymetric,fontsize=14)
     plt.xlabel(xmetric,fontsize=14)
     plt.ylim(ylim[0],ylim[1])
-    #plt.xlim(left=0) 
+
     plt.legend()
     if title is not None:
         plt.title(title)
 
     if savefig:
         run_params = glm_params.load_run_json(version)
-        filepath = os.path.join(run_params['figure_dir'], 'performance_vs_'+xmetric+'_'+label+'.png')
+        filepath = os.path.join(run_params['figure_dir'], 'performance_vs_'+xmetric+'_'+label+'.png') 
         plt.savefig(filepath)
 
   

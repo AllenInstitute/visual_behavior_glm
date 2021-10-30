@@ -5,6 +5,134 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
+import matplotlib
+
+def plot_glm_example(g,celldex=1,times=[908,918]):
+    #oeid = 775614751
+    style={
+        'fs1':16,
+        'fs2':14,
+        'trace_linewidth':2,
+        'dff':'k',
+        'events':'b',
+        'model':'r',
+        }
+
+    index_times = [np.where(g.fit['fit_trace_timestamps']>=times[0])[0][0],np.where(g.fit['fit_trace_timestamps']>times[1])[0][0]+1]
+    plot_glm_example_trace(g,celldex,times,style)
+    ##gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
+    plot_glm_example_inputs(g,times,style)
+    return 
+
+def plot_glm_example_inputs(g,times,style,ax=None):
+    if ax is None:
+        fig,ax = plt.subplots(figsize=(12,6))
+    
+    time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
+
+    # plot stimulus and change bars
+    stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1]')
+    top =100
+    ticklabels={}
+    for index, image in enumerate(range(0,9)):
+        image_times = stim.query('image_index == @index')['start_time'].values
+        ticklabels[top-index]='Image '+str(image)
+        if index == 8:
+            ticklabels[top-index]='Omission'
+        if len(image_times) > 0:
+            ax.plot(image_times, np.ones(np.shape(image_times))*(top-index),'|',markersize=20)
+    # Hit, miss,CR, FA, pupil, running, licks
+
+    # Running Data
+    run = g.session.running_speed.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
+    run['normalized_speed'] = run['speed'].apply(lambda x: (x - run['speed'].min())/(run['speed'].max() - run['speed'].min()))
+    run['normalized_speed'] = run['normalized_speed'] + top-10
+    ax.plot(run.timestamps,run.normalized_speed,'k')
+    ticklabels[top-9.5]='Running Speed'
+
+    # Pupil
+    # TODO, use width? or diameter?
+    eye = g.session.eye_tracking.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
+    eye['normalized_pupil_width'] = eye['pupil_width'].apply(lambda x: (x - eye['pupil_width'].min())/(eye['pupil_width'].max() - eye['pupil_width'].min()))
+    eye['normalized_pupil_width'] = eye['normalized_pupil_width'] + top-12
+    ax.plot(eye.timestamps,eye.normalized_pupil_width,'k')
+    ticklabels[top-11.5]='Pupil Width'
+
+    # licking
+    licks = g.session.licks.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
+    ax.plot(licks.timestamps, np.ones((len(licks),))*(top-13),'k|',markersize=20)
+    ticklabels[top-13]='Licking'
+
+    # Trials
+    trials = g.session.trials.query('(change_time >= @times[0])&(change_time <=@times[1])').copy()
+    hits = trials.query('hit')
+    ax.plot(hits.change_time, np.ones((len(hits),))*(top-14),'k|',markersize=20)
+    ticklabels[top-14]='Hit'
+
+    miss = trials.query('miss')
+    ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'k|',markersize=20)
+    ticklabels[top-15]='Miss'
+
+    fa = trials.query('false_alarm')
+    ax.plot(fa.change_time, np.ones((len(fa),))*(top-16),'k|',markersize=20)
+    ticklabels[top-16]='False Alarm'
+
+    correct_reject = trials.query('correct_reject')
+    ax.plot(correct_reject.change_time, np.ones((len(correct_reject),))*(top-17),'k|',markersize=20)
+    ticklabels[top-17]='Correct Reject'
+
+    ax.yaxis.set_ticks(list(ticklabels.keys()))
+    ax.yaxis.set_ticklabels(list(ticklabels.values()),fontsize=style['fs2'])
+    ax.set_xlabel('Time (s)',fontsize=style['fs1'])
+    ax.tick_params(axis='x',labelsize=style['fs2'])
+    ax.set_xlim(times)
+    ax.set_ylim(top-17.5,top+.5)
+    plt.tight_layout()
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg')
+
+def plot_glm_example_trace(g,celldex,times,style,include_events=True, include_dff=True,ax=None):
+    if ax is None:
+        fig,ax = plt.subplots(figsize=(12,3))
+
+    time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
+
+    # plot stimulus and change bars
+    stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not omitted')
+    for index, time in enumerate(stim['start_time'].values):
+        plt.axvspan(time, time+0.25, color='k',alpha=.1)
+    change = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & is_change')
+    for index, time in enumerate(change['start_time'].values):
+        plt.axvspan(time, time+0.25, color='b',alpha=.2)
+
+    # Plot df/f
+    if include_dff:
+        ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
+            g.fit['dff_trace_arr'][time_vec,celldex],
+            style['dff'],label='df/f',
+            linewidth=style['trace_linewidth'],alpha=.6)
+
+    # Plot Filtered event trace
+    if include_events:
+        ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
+            g.fit['events_trace_arr'][time_vec,celldex],
+            style['events'],label='Events',
+            linewidth=style['trace_linewidth'])
+
+    # Plot Model
+    ax.plot(g.fit['fit_trace_timestamps'][time_vec],
+        g.fit['dropouts']['Full']['full_model_train_prediction'][time_vec,celldex],
+        style['model'],label='Model',linewidth=style['trace_linewidth'])
+
+    # Clean up plot
+    ax.legend()
+    ax.set_ylabel('Neural activity',fontsize=style['fs1'])
+    ax.set_xlabel('Time (s)',fontsize=style['fs1'])
+    ax.tick_params(axis='x',labelsize=style['fs2'])
+    ax.tick_params(axis='y',labelsize=style['fs2'])
+    ax.set_xlim(times)
+    plt.tight_layout()
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg')
+    return
 
 def plot_all_dropouts(VERSION):
     '''

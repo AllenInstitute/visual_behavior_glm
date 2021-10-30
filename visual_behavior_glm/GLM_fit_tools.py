@@ -776,6 +776,14 @@ def build_dataframe_from_dropouts(fit,run_params):
     assert results['Full__avg_cv_var_test'].isnull().sum() == 0, "NaNs in variance explained"  
     assert results['Full__avg_cv_var_train'].isnull().sum() == 0, "NaNs in variance explained"  
 
+    if 'var_shuffle_cells' in fit:
+        # If the shuffle across cells was computed, record average VE for each cell
+        results['shuffle_cells'] = np.nanmean(fit['var_shuffle_cells'],1) 
+
+    if 'var_shuffle_time' in fit:
+        # If the shuffle across time was computed, record average VE for each cell
+        results['shuffle_time'] = np.nanmean(fit['var_shuffle_time'],1) 
+
     return results
 
 def L2_report(fit):

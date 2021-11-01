@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import matplotlib
@@ -37,11 +38,16 @@ def plot_glm_example_inputs(g,times,style,ax=None):
     for index, image in enumerate(range(0,9)):
         image_times = stim.query('image_index == @index')['start_time'].values
         ticklabels[top-index]='Image '+str(image)
+        ecolor ='k'
+        fcolor ='k'
         if index == 8:
             ticklabels[top-index]='Omission'
+            fcolor='None'
         if len(image_times) > 0:
-            ax.plot(image_times, np.ones(np.shape(image_times))*(top-index),'|',markersize=20)
-    # Hit, miss,CR, FA, pupil, running, licks
+            #ax.plot(image_times, np.ones(np.shape(image_times))*(top-index),'|',markersize=20)
+            for t in image_times:
+                rect =patches.Rectangle((t,top-index-.5),0.25,1,edgecolor=ecolor,facecolor=fcolor,alpha=.5)
+                ax.add_patch(rect)
 
     # Running Data
     run = g.session.running_speed.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
@@ -51,12 +57,12 @@ def plot_glm_example_inputs(g,times,style,ax=None):
     ticklabels[top-9.5]='Running Speed'
 
     # Pupil
-    # TODO, use width? or diameter?
     eye = g.session.eye_tracking.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
-    eye['normalized_pupil_width'] = eye['pupil_width'].apply(lambda x: (x - eye['pupil_width'].min())/(eye['pupil_width'].max() - eye['pupil_width'].min()))
-    eye['normalized_pupil_width'] = eye['normalized_pupil_width'] + top-12
-    ax.plot(eye.timestamps,eye.normalized_pupil_width,'k')
-    ticklabels[top-11.5]='Pupil Width'
+    eye['pupil_radius'] = np.sqrt(eye['pupil_area']*(1/np.pi))
+    eye['normalized_pupil_radius'] = eye['pupil_radius'].apply(lambda x: (x - eye['pupil_radius'].min())/(eye['pupil_radius'].max() - eye['pupil_radius'].min()))
+    eye['normalized_pupil_radius'] = eye['normalized_pupil_radius'] + top-12
+    ax.plot(eye.timestamps,eye.normalized_pupil_radius,'k')
+    ticklabels[top-11.5]='Pupil Radius'
 
     # licking
     licks = g.session.licks.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
@@ -66,19 +72,19 @@ def plot_glm_example_inputs(g,times,style,ax=None):
     # Trials
     trials = g.session.trials.query('(change_time >= @times[0])&(change_time <=@times[1])').copy()
     hits = trials.query('hit')
-    ax.plot(hits.change_time, np.ones((len(hits),))*(top-14),'k|',markersize=20)
+    ax.plot(hits.reward_time, np.ones((len(hits),))*(top-14),'r|',markersize=20)
     ticklabels[top-14]='Hit'
 
     miss = trials.query('miss')
-    ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'k|',markersize=20)
+    ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'r|',markersize=20)
     ticklabels[top-15]='Miss'
 
     fa = trials.query('false_alarm')
-    ax.plot(fa.change_time, np.ones((len(fa),))*(top-16),'k|',markersize=20)
+    ax.plot(fa.change_time, np.ones((len(fa),))*(top-16),'r|',markersize=20)
     ticklabels[top-16]='False Alarm'
 
     correct_reject = trials.query('correct_reject')
-    ax.plot(correct_reject.change_time, np.ones((len(correct_reject),))*(top-17),'k|',markersize=20)
+    ax.plot(correct_reject.change_time, np.ones((len(correct_reject),))*(top-17),'r|',markersize=20)
     ticklabels[top-17]='Correct Reject'
 
     ax.yaxis.set_ticks(list(ticklabels.keys()))

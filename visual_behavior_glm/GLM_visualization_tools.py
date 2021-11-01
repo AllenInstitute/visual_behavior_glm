@@ -843,7 +843,7 @@ def plot_kernels(kernel_df, ax, palette_df, t_span=None, legend=False, annotate=
         ax=ax,
         palette = palette,
         alpha=0.75,
-        legend=False,
+        legend=legend,
         linewidth=3,
     )
     if legend:

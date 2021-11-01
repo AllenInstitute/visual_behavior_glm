@@ -1,13 +1,15 @@
 import os
+import matplotlib
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import visual_behavior_glm.GLM_params as glm_params
-import visual_behavior_glm.GLM_visualization_tools as gvt
-import matplotlib
+import visual_behavior.plotting as vbp
 from mpl_toolkits.axes_grid1 import Divider, Size
+import visual_behavior_glm.GLM_params as glm_params
+import visual_behavior_glm.GLM_analysis_tools as gat
+import visual_behavior_glm.GLM_visualization_tools as gvt
 
 def plot_glm_example(g,celldex=1,times=[908,918]):
     #oeid = 775614751
@@ -22,6 +24,7 @@ def plot_glm_example(g,celldex=1,times=[908,918]):
 
     index_times = [np.where(g.fit['fit_trace_timestamps']>=times[0])[0][0],np.where(g.fit['fit_trace_timestamps']>times[1])[0][0]+1]
     plot_glm_example_trace(g,celldex,times,style)
+    plot_glm_example_components(g,celldex,times,style)
     ##gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
     plot_glm_example_inputs(g,times,style)
     return 
@@ -102,12 +105,53 @@ def plot_glm_example_inputs(g,times,style,ax=None):
     #plt.tight_layout()
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg')
 
+def plot_glm_example_components(g, celldex, times, style):
+    fig = plt.figure(figsize=(12,4))
+    h = [Size.Fixed(2.0),Size.Fixed(9.5)]
+    v = [Size.Fixed(.7),Size.Fixed(3.)]
+    divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+    ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+    plt.xlabel('Time')
+
+    time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
+
+    # plot stimulus and change bars
+    stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not omitted')
+    for index, time in enumerate(stim['start_time'].values):
+        plt.axvspan(time, time+0.25, color='k',alpha=.1)
+    change = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & is_change')
+    for index, time in enumerate(change['start_time'].values):
+        plt.axvspan(time, time+0.25, color='b',alpha=.2)
+
+    # Plot contributions from each kernel
+    cell_specimen_id = g.fit['fit_trace_arr'].cell_specimen_id.values[celldex] 
+    kernel_df = gat.build_kernel_df(g,cell_specimen_id) 
+    palette_df = pd.DataFrame({
+            'kernel_name':kernel_df['kernel_name'].unique(),
+            'kernel_color':vbp.generate_random_colors(
+                len(kernel_df['kernel_name'].unique()), 
+                lightness_range=(0.6,1), 
+                saturation_range=(0.75,1), 
+                random_seed=3, 
+                order_colors=False
+            )
+        })
+    gvt.plot_kernels(kernel_df, ax, palette_df, t_span=times, annotate=False,legend=True)
+
+    ax.set_ylabel('Neural activity',fontsize=style['fs1'])
+    ax.set_xlabel('Time (s)',fontsize=style['fs1'])
+    ax.tick_params(axis='x',labelsize=style['fs2'])
+    ax.tick_params(axis='y',labelsize=style['fs2'])
+    ax.set_xlim(times)
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_components.svg')
+
+
 def plot_glm_example_trace(g,celldex,times,style,include_events=True, include_dff=True,ax=None):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,3))
-        fig = plt.figure(figsize=(12,3))
+        fig = plt.figure(figsize=(12,4))
         h = [Size.Fixed(2.0),Size.Fixed(9.5)]
-        v = [Size.Fixed(.7),Size.Fixed(2.25)]
+        v = [Size.Fixed(.7),Size.Fixed(3.)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
 

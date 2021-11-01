@@ -83,9 +83,14 @@ def build_kernel_df(glm, cell_specimen_id):
         kernel = glm.design.kernel_dict[kernel_name]['kernel']
 
         # get the weight matrix for the weights associated with this kernel and cell (dims = 1 x n_weights)
-        kernel_weight_names = [w for w in all_weight_names if w.startswith(kernel_name)]
+        kernel_weight_names = [w for w in glm.W.weights.values if w.startswith(kernel_name)]
         w_kernel = np.expand_dims(glm.W.loc[dict(
             weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)], axis=0)
+
+        # TODO, HACK, DEBUG       
+        if kernel_name.startswith('image') &(np.shape(kernel)[0] != len(w_kernel)):
+            print('Hack, need to fix bug')
+            kernel = kernel[0:-1,:]
 
         # calculate kernel output as w_kernel * kernel (dims = 1 x n_timestamps)
         # add to list of dataframes with cols: timestamps, kernel_outputs, kernel_name

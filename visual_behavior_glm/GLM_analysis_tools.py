@@ -1037,7 +1037,6 @@ def build_inventory_table(vrange=[18,20],return_inventories=False):
         Optionally returns the list of missing experiments and rois
     '''
     versions = glm_params.get_versions(vrange=vrange)
-    #versions = [x for x in versions if 'old' not in x]
     inventories ={}
     for v in versions:
         inventories[v]=inventory_glm_version(v[2:])
@@ -1082,6 +1081,10 @@ def inventory_glm_version(glm_version, valid_rois_only=True, platform_paper_only
         merge_in_experiment_metadata=False,
         remove_invalid_rois=False
     )
+    if len(glm_results) == 0:
+        glm_results['ophys_experiment_id'] = [] 
+        glm_results['cell_specimen_id'] = [] 
+        glm_results['cell_roi_id'] = [] 
     
     # Get list of cells in the dataset
     cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only,add_extra_columns=False).reset_index()

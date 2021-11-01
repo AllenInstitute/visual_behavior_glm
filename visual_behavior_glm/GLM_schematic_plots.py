@@ -7,6 +7,7 @@ import matplotlib.patches as patches
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import matplotlib
+from mpl_toolkits.axes_grid1 import Divider, Size
 
 def plot_glm_example(g,celldex=1,times=[908,918]):
     #oeid = 775614751
@@ -27,7 +28,12 @@ def plot_glm_example(g,celldex=1,times=[908,918]):
 
 def plot_glm_example_inputs(g,times,style,ax=None):
     if ax is None:
-        fig,ax = plt.subplots(figsize=(12,6))
+        #fig,ax = plt.subplots(figsize=(12,6))
+        fig = plt.figure(figsize=(12,6))
+        h = [Size.Fixed(2.0),Size.Fixed(9.5)]
+        v = [Size.Fixed(1.0),Size.Fixed(4.5)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
     
     time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
 
@@ -93,12 +99,17 @@ def plot_glm_example_inputs(g,times,style,ax=None):
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.set_xlim(times)
     ax.set_ylim(top-17.5,top+.5)
-    plt.tight_layout()
+    #plt.tight_layout()
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg')
 
 def plot_glm_example_trace(g,celldex,times,style,include_events=True, include_dff=True,ax=None):
     if ax is None:
-        fig,ax = plt.subplots(figsize=(12,3))
+        #fig,ax = plt.subplots(figsize=(12,3))
+        fig = plt.figure(figsize=(12,3))
+        h = [Size.Fixed(2.0),Size.Fixed(9.5)]
+        v = [Size.Fixed(.7),Size.Fixed(2.25)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
 
     time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
 
@@ -136,7 +147,7 @@ def plot_glm_example_trace(g,celldex,times,style,include_events=True, include_df
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.tick_params(axis='y',labelsize=style['fs2'])
     ax.set_xlim(times)
-    plt.tight_layout()
+    #plt.tight_layout()
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg')
     return
 

@@ -32,7 +32,9 @@ def plot_glm_example(g,celldex=18,times=[1780,1800],include_events=True):
     ylims,palette_df = plot_glm_example_components(g,celldex,times,style)
     plot_glm_example_inputs(g,times,style,palette_df)
     plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df)
-    #gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
+    gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
+    gvt.plot_kernel_support(g,plot_bands=True,start=index_times[0],end=index_times[1])
+
  
 def plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df):
     fig = plt.figure(figsize=(6,6))

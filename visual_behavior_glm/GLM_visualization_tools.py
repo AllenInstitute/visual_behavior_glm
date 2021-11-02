@@ -1,5 +1,6 @@
 import visual_behavior.plotting as vbp
 import visual_behavior.utilities as vbu
+import visual_behavior.data_access.utilities as utilities
 import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_params as glm_params
@@ -2878,6 +2879,48 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
     plt.tight_layout()
 
     return fig, ax
+
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task']):
+    
+    # Filter for cells with low variance explained
+    results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
+
+    # Convert dropouts to positive values
+    for dropout in dropouts_to_show:
+        results_pivoted[dropout] = results_pivoted[dropout].abs()
+    
+    # Add additional columns about experience levels
+    experiments_table = loading.get_platform_paper_experiment_table()
+    experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
+    results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
+    cell_types = results_pivoted.cell_type.unique()
+    experience_levels = np.sort(results_pivoted.experience_level.unique())
+
+    experiments_with_all_experience_levels = utilities.limit_to_containers_with_all_experience_levels(experiments_table)
+
+    # Iterate cell types and make a plot for each
+    for cell_type in cell_types:
+        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=True)
+        # Iterate dropouts and plot each by experience
+        for index, feature in enumerate(dropouts_to_show):
+            data = results_pivoted.query('cell_type ==@cell_type')
+            ax[index] = sns.pointplot(
+                data = data,
+                x = 'experience_level',
+                y=feature,
+                order=experience_levels,
+                color='gray',
+                join=True,
+                dodge=0.2,
+                ax=ax[index],
+            )
+            ax[index].set_title(feature)
+            ax[index].set_ylabel('')
+            ax[index].set_xlabel('')
+            ax[index].set_xticklabels(experience_levels, rotation=90)
+        ax[0].set_ylabel('\u0394 explained variance')
+        plt.suptitle(cell_type)
+        fig.tight_layout()
 
 def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True): 
     '''

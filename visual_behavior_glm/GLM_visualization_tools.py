@@ -3,6 +3,8 @@ import visual_behavior.utilities as vbu
 import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_params as glm_params
+from mpl_toolkits.axes_grid1 import Divider, Size
+
 import visual_behavior.database as db
 import matplotlib as mpl
 import seaborn as sns
@@ -2883,8 +2885,16 @@ def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show
 
     '''
     if ax is None:
-        fig,ax = plt.subplots()
-    
+        height = 5
+        width=12
+        horz_offset = 2
+        vertical_offset = 1
+        fig = plt.figure(figsize=(width,height))
+        h = [Size.Fixed(horz_offset),Size.Fixed(width-horz_offset-.5)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+ 
     if palette is None:
         palette = project_colors()
 
@@ -2939,7 +2949,11 @@ def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show
         )
 
     #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    ax.set_ylabel('Fraction change\nin variance explained')
+    ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=18)
+    ax.set_xlabel('Withheld component',fontsize=18)
+    ax.tick_params(axis='x',labelsize=16)
+    ax.tick_params(axis='y',labelsize=16) 
+    plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
 
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     '''

@@ -32,8 +32,8 @@ def plot_glm_example(g,celldex=18,times=[1780,1800],include_events=True):
     ylims,palette_df = plot_glm_example_components(g,celldex,times,style)
     plot_glm_example_inputs(g,times,style,palette_df)
     plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df)
-    gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
-    gvt.plot_kernel_support(g,plot_bands=True,start=index_times[0],end=index_times[1])
+    #gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
+    #gvt.plot_kernel_support(g,plot_bands=True,start=index_times[0],end=index_times[1])
 
  
 def plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df):
@@ -106,11 +106,11 @@ def plot_glm_example_inputs(g,times,style,palette_df,ax=None):
             fcolor='None'
         else:
             image_name = 'image'+str(image)
-            fcolor =palette_df.query('kernel_name == @image_name')['kernel_color'].values[0]
+            fcolor ='k'#palette_df.query('kernel_name == @image_name')['kernel_color'].values[0]
         if len(image_times) > 0:
             #ax.plot(image_times, np.ones(np.shape(image_times))*(top-index),'|',markersize=20)
             for t in image_times:
-                rect =patches.Rectangle((t,top-index-.5),0.25,1,edgecolor=ecolor,facecolor=fcolor,alpha=.5)
+                rect =patches.Rectangle((t,top-index-.5),0.25,1,edgecolor=ecolor,facecolor=fcolor,alpha=.3)
                 ax.add_patch(rect)
 
     # Running Data
@@ -204,7 +204,7 @@ def plot_glm_example_components(g, celldex, times, style):
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_components.svg')
     return ax.get_ylim(),palette_df
 
-def plot_glm_example_trace(g,celldex,times,style,include_events=True, include_dff=True,ax=None):
+def plot_glm_example_trace(g,celldex,times,style,include_events=True,ax=None):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,3))
         fig = plt.figure(figsize=(12,4))
@@ -223,19 +223,20 @@ def plot_glm_example_trace(g,celldex,times,style,include_events=True, include_df
     for index, time in enumerate(change['start_time'].values):
         plt.axvspan(time, time+0.25, color='b',alpha=.2)
 
-    # Plot df/f
-    if include_dff:
-        ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
-            g.fit['dff_trace_arr'][time_vec,celldex],
-            style['dff'],label='df/f',
-            linewidth=style['trace_linewidth'],alpha=.6)
+
 
     # Plot Filtered event trace
     if include_events:
         ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
             g.fit['events_trace_arr'][time_vec,celldex],
-            style['events'],label='Events',
+            style['events'],label='Smoothed L0 events',
             linewidth=style['trace_linewidth'])
+    else:
+        # Plot df/f
+        ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
+            g.fit['dff_trace_arr'][time_vec,celldex],
+            style['dff'],label='df/f',
+            linewidth=style['trace_linewidth'],alpha=.6)
 
     # Plot Model
     ax.plot(g.fit['fit_trace_timestamps'][time_vec],

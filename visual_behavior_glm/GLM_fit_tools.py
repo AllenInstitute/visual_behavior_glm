@@ -808,11 +808,11 @@ def build_dataframe_from_dropouts(fit,run_params):
 
     if 'var_shuffle_cells' in fit:
         # If the shuffle across cells was computed, record average VE for each cell
-        results['shuffle_cells'] = np.nanmean(fit['var_shuffle_cells'],1) 
+        results['Full__shuffle_cells'] = np.nanmean(fit['var_shuffle_cells'],1) 
 
     if 'var_shuffle_time' in fit:
         # If the shuffle across time was computed, record average VE for each cell
-        results['shuffle_time'] = np.nanmean(fit['var_shuffle_time'],1) 
+        results['Full__shuffle_time'] = np.nanmean(fit['var_shuffle_time'],1) 
 
     return results
 

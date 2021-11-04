@@ -2883,7 +2883,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task']):
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True):
     
     # Filter for cells with low variance explained
     results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
@@ -2896,37 +2896,35 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     experiments_table = loading.get_platform_paper_experiment_table()
     experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
     results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
-    #experiments_with_all_experience_levels = utilities.limit_to_containers_with_all_experience_levels(experiments_table)
    
     # Cells Matched across all three experience levels 
-    cells_table = loading.get_cell_table()
-    matched_cells = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
+    cells_table = loading.get_cell_table(platform_paper_only=True)
+    cells_table = cells_table.query('not passive').copy()
+    cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
+    matched_cells = cells_table.cell_specimen_id.unique()
 
     # plotting variables
     cell_types = results_pivoted.cell_type.unique()
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     colors = project_colors()
-    palette = utils.get_experience_level_colors()
-    palette_dict = {
-        'Familiar':'b',#palette[0],
-        'Novel 1':'r',#palette[1],
-        'Novel >1':'m',#palette[2],
-        }
 
     # make combined across cre line plot
-    fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=True)
+    fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
     for index, feature in enumerate(dropouts_to_show):
-        # Plot all cells in active sessions
+        # plots three cre-lines in standard colors
         ax[index] = sns.pointplot(
             data = results_pivoted,
             x = 'experience_level',
             y= feature,
             hue='cre_line',
+            hue_order = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre'],
+            order=experience_levels,
             palette = colors,
             join=True,
             ax=ax[index],
             legend=False,
         )
+
         ax[index].get_legend().remove()
         ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
         ax[index].set_title(feature,fontsize=18)
@@ -2935,18 +2933,36 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[index].set_xticklabels(experience_levels, rotation=90)
         ax[index].tick_params(axis='x',labelsize=16)
         ax[index].tick_params(axis='y',labelsize=16)
-    ax[0].set_ylabel('\u0394 explained variance',fontsize=18)
+    ax[0].set_ylabel('Fraction Reduction in \n explained variance',fontsize=18)
     plt.tight_layout()
-
+    plt.savefig(run_params['figure_dir']+'/dropout_average_combined.svg')  
+ 
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
-        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=True)
+        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
 
         # Iterate dropouts and plot each by experience
         for index, feature in enumerate(dropouts_to_show):
             all_data = results_pivoted.query('cell_type ==@cell_type')
-            matched_data = all_data.query('cell_specimen_id in @matched_cells.cell_specimen_id.values') 
+            matched_data = all_data.query('cell_specimen_id in @matched_cells') 
 
+
+            # Plot all cells in active sessions
+            ax[index] = sns.pointplot(
+                data = all_data,
+                x = 'experience_level',
+                y= feature,
+                hue='experience_level',
+                order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                hue_order=experience_levels,
+                palette = colors,
+                join=False,
+                ax=ax[index]
+            )
+            all_cell_points = list(ax[index].get_children())
+            for x in all_cell_points:
+                x.set_zorder(1000)
+            
             # Plot cells in matched active sessions
             ax[index] = sns.pointplot(
                 data = matched_data,
@@ -2955,31 +2971,22 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                 order=experience_levels,
                 color='gray',
                 join=True,
-                dodge=0.2,
                 ax=ax[index],
             )
-            # Plot all cells in active sessions
-            # TODO, dealing with seaborn bug about colors/palettes here, I dont understand the problem
-            ax[index] = sns.pointplot(
-                data = all_data,
-                x = 'experience_level',
-                y= feature,
-                #hue='experience_level',
-                #hue_order=experience_levels,
-                color='b',#palette = colors,
-                join=False,
-                ax=ax[index],
-            )
+            ax[index].get_legend().remove()
             ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
             ax[index].set_title(feature,fontsize=18)
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
+            ax[index].set_xticks([0,1,2])
             ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xlim(-.5,2.5)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
-        ax[0].set_ylabel('\u0394 explained variance',fontsize=18)
+        ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
         plt.suptitle(cell_type)
         fig.tight_layout()
+        plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+'.svg')
 
 def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True): 
     '''

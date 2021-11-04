@@ -1082,6 +1082,7 @@ def inventory_glm_version(glm_version, valid_rois_only=True, platform_paper_only
         remove_invalid_rois=False
     )
     if len(glm_results) == 0:
+        # Check for empty results
         glm_results['ophys_experiment_id'] = [] 
         glm_results['cell_specimen_id'] = [] 
         glm_results['cell_roi_id'] = [] 

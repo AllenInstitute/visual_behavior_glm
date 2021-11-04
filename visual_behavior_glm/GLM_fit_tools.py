@@ -33,10 +33,14 @@ def load_fit_experiment(ophys_experiment_id, run_params):
     '''
     fit = gat.load_fit_pkl(run_params, ophys_experiment_id)
     session = load_data(ophys_experiment_id, run_params)
+    
+    # num_weights gets populated during stimulus interpolation
+    # configuring it here so the design matrix gets re-generated consistently
     kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
     for k in kernels_to_limit_per_image_cycle:
         if k in run_params['kernels']:
             run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    
+
     design = DesignMatrix(fit)
     design = add_kernels(design, run_params, session,fit)
     design,fit = split_by_engagement(design, run_params, session, fit)
@@ -65,6 +69,10 @@ def check_run_fits(VERSION):
     return experiment_table
 
 def check_weight_lengths(fit,design):
+    '''
+        Does two assertion tests that the number of weights in the design matrix and fit dictionary are 
+        consistent with the number of timesteps per stimulus
+    '''
     num_weights_per_stimulus = fit['stimulus_interpolation']['timesteps_per_stimulus']
     num_weights_design = len([x for x in design.get_X().weights.values if x.startswith('image0')])
     assert num_weights_design == num_weights_per_stimulus, "Number of weights in design matrix is incorrect"
@@ -73,6 +81,10 @@ def check_weight_lengths(fit,design):
         assert num_weights_fit == num_weights_per_stimulus, "Number of weights in fit dictionary is incorrect"
 
 def setup_cv(fit,run_params):
+    '''
+        Defines the time intervals for cross validation
+        Two sets of time intervals are generated, one for setting the ridge hyperparameter, the other for fitting the model
+    '''
     fit['splits'] = split_time(fit['fit_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
     fit['ridge_splits'] = split_time(fit['fit_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
     return fit

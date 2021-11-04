@@ -11,7 +11,7 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_visualization_tools as gvt
 
-def plot_glm_example(g,celldex=18,times=[1780,1800],include_events=True):
+def plot_glm_example(g,cell_specimen_id,times=[1780,1800]):
     #oeid = 775614751,celldex=1
     # (g1) 967008471, 1086492467,celldex =18, times=[324,346], lightness_range=(0.3,.6), saturation_range=(0.9,1), random_seed=5, alt_times = [1780,1800]
 
@@ -23,13 +23,12 @@ def plot_glm_example(g,celldex=18,times=[1780,1800],include_events=True):
         'events':'b',
         'model':'r',
         }
-    kernel_names = ['image0','image1','image2','image3','image4','image5','image6','image7']
-
-    index_times = [np.where(g.fit['fit_trace_timestamps']>=times[0])[0][0],np.where(g.fit['fit_trace_timestamps']>times[1])[0][0]+1]
-    cell_specimen_id=g.fit['fit_trace_arr'].cell_specimen_id.values[celldex]
-    plot_glm_example_trace(g,celldex,times,style,include_events=include_events)
+    kernel_names=['image0','image1','image2','image3','image4','image5','image6','image7']
+    index_times=[np.where(g.fit['fit_trace_timestamps']>=times[0])[0][0],np.where(g.fit['fit_trace_timestamps']>times[1])[0][0]+1]
+    include_events= g.fit['events_trace_arr'] is not None
+    plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events)
     plot_glm_example_dropouts(g,cell_specimen_id,style)
-    ylims,palette_df = plot_glm_example_components(g,celldex,times,style)
+    ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,times,style)
     plot_glm_example_inputs(g,times,style,palette_df)
     plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df)
     #gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
@@ -160,7 +159,7 @@ def plot_glm_example_inputs(g,times,style,palette_df,ax=None):
     #plt.tight_layout()
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg')
 
-def plot_glm_example_components(g, celldex, times, style):
+def plot_glm_example_components(g, cell_specimen_id, times, style):
     fig = plt.figure(figsize=(12,4))
     h = [Size.Fixed(2.0),Size.Fixed(9.5)]
     v = [Size.Fixed(.7),Size.Fixed(3.)]
@@ -169,6 +168,7 @@ def plot_glm_example_components(g, celldex, times, style):
     plt.xlabel('Time')
 
     time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
+    celldex = np.where(g.fit['fit_trace_arr'].cell_specimen_id.values == cell_specimen_id)[0][0]
     trace = g.fit['dropouts']['Full']['full_model_train_prediction'][time_vec,celldex]
     ymax = np.max(trace)
 
@@ -181,7 +181,6 @@ def plot_glm_example_components(g, celldex, times, style):
         plt.axvspan(time, time+0.25, color='b',alpha=.2)
 
     # Plot contributions from each kernel
-    cell_specimen_id = g.fit['fit_trace_arr'].cell_specimen_id.values[celldex] 
     kernel_df = gat.build_kernel_df(g,cell_specimen_id) 
     palette_df = pd.DataFrame({
             'kernel_name':kernel_df['kernel_name'].unique(),
@@ -204,7 +203,7 @@ def plot_glm_example_components(g, celldex, times, style):
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_components.svg')
     return ax.get_ylim(),palette_df
 
-def plot_glm_example_trace(g,celldex,times,style,include_events=True,ax=None):
+def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax=None):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,3))
         fig = plt.figure(figsize=(12,4))
@@ -214,6 +213,7 @@ def plot_glm_example_trace(g,celldex,times,style,include_events=True,ax=None):
         ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
 
     time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
+    celldex = np.where(g.fit['fit_trace_arr'].cell_specimen_id.values == cell_specimen_id)[0][0]
 
     # plot stimulus and change bars
     stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not omitted')
@@ -222,8 +222,6 @@ def plot_glm_example_trace(g,celldex,times,style,include_events=True,ax=None):
     change = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & is_change')
     for index, time in enumerate(change['start_time'].values):
         plt.axvspan(time, time+0.25, color='b',alpha=.2)
-
-
 
     # Plot Filtered event trace
     if include_events:

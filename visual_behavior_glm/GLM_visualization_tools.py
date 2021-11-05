@@ -3821,18 +3821,22 @@ def compare_weight_index(weights_df, kernel='all-images'):
     plt.legend()
     return None
 
-def shuffle_analysis(results,run_params,bins=50,savefig=True):
+def shuffle_analysis(results,run_params,bins=50,savefig=True,shuffle='time'):
+    '''
+        Plots a distribution of variance explained in a shuffle test compared to dropout threshold
+        shuffle is the test to plot, should be either 'time', or 'cells'
+    '''
     plt.figure()
-    plt.hist(results.query('dropout=="Full"')['shuffle_time'],bins=bins,label='Shuffle Time',density=True)
+    plt.hist(results.query('dropout=="Full"')['shuffle_'+shuffle],bins=bins,label='Shuffle {}'.format(shuffle),density=True)
     plt.ylabel('Density')
-    plt.xlabel('Variance explained, shuffling across time')
-    maxve = results.query('dropout=="Full"')['shuffle_time'].max()
+    plt.xlabel('Variance explained, shuffling across {}'.format(shuffle))
+    maxve = results.query('dropout=="Full"')['shuffle_'+shuffle].max()
     plt.axvline(maxve, color='r',linestyle='-',alpha=1,label='Max shuffled VE')
     plt.axvline(run_params['dropout_threshold'],color='m',linestyle='--',alpha=1,label='Threshold for minimum VE (non shuffled)')
     plt.legend()
     plt.title(run_params['version'])
     if savefig:
-        filepath = os.path.join(run_params['fig_overfitting_dir'],'shuffle_time.png')
+        filepath = os.path.join(run_params['fig_overfitting_dir'],'shuffle_{}.png'.format(shuffle))
         print(filepath)
         plt.savefig(filepath)
 

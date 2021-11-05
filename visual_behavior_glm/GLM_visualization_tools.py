@@ -3819,5 +3819,13 @@ def compare_weight_index(weights_df, kernel='all-images'):
     plt.legend()
     return None
 
-
+def shuffle_analysis(results,run_params,bins=50):
+    plt.figure()
+    plt.hist(results.query('dropout=="Full"')['shuffle_time'],bins=bins,label='Shuffle Time')
+    plt.ylabel('Count')
+    plt.xlabel('Variance explained, shuffling across time')
+    maxve = results.query('dropout=="Full"')['shuffle_time'].max()
+    plt.axvline(maxve, color='r',linestyle='--',alpha=.5,label='Max shuffled VE')
+    plt.axvline(run_params['dropout_threshold'],color='m',linestyle='--',alpha=.5,label='Threshold for minimum VE (non shuffled)')
+    plt.legend()
 

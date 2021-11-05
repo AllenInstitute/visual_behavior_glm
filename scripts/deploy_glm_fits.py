@@ -183,7 +183,7 @@ if __name__ == "__main__":
             mem = '{}gb'.format(int(np.ceil((calculate_required_mem(roi_count)))))
             job_id = Slurm.JOB_ARRAY_ID
             job_array_id = Slurm.JOB_ARRAY_MASTER_ID
-            output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+".out"
+            output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+"_"+str(experiment_id)+".out"
     
             # instantiate a SLURM object
             slurm = Slurm(

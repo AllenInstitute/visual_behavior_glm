@@ -8,6 +8,9 @@ import visual_behavior_glm.GLM_schematic_plots as gsm
 from visual_behavior_glm.glm import GLM
 import visual_behavior_glm.GLM_fit_tools as gft
 
+
+# These functions are useful for quickly wrapping the underlying data streams
+# into the glm object, because some analysis functions want the glm object
 class dummy_glm:
     a = 'dummy glm'
 
@@ -20,23 +23,34 @@ def make_dummy_glm(fit, run_params, design, session):
     return g
 
 def make_glm(fit, run_params, design, session):
-    g = GLM(session.metadata['ophys_experiment_id'],run_params['version'], log_results=False, log_weights=False, recompute=False, use_inputs=True, inputs=[session, fit, design])
+    g = GLM(session.metadata['ophys_experiment_id'],run_params['version'], 
+        log_results=False, log_weights=False, recompute=False, 
+        use_inputs=True, inputs=[session, fit, design]
+        )
     g.run_params = run_params
     return g
 
-if False:  
+
+if False: # Code snippets for doing analyses. 
+    # Experiments for debugging consistency
+    #####################
     oeid  = experiment_table.index.values[754]
     oeid1 = experiment_table.index.values[0]
     oeid2 = experiment_table.index.values[154]
     oeid3 = experiment_table.index.values[-1]
 
-if False: # Code snippets for doing basic analyses. 
 
     # Make run JSON
     #####################
     VERSION = 1
     src_path = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 
-    glm_params.make_run_json(VERSION,label='testing',username='alex', src_path = src_path, TESTING=True)
+    glm_params.make_run_json(
+        VERSION,
+        label='testing',
+        username='alex', 
+        src_path = src_path, 
+        TESTING=True
+        )
    
 
 
@@ -65,10 +79,10 @@ if False: # Code snippets for doing basic analyses.
     session, fit, design = gft.fit_experiment(oeid, run_params)
 
     # Deploy all fits on the cluster
-    #conda activate visbeh
-    #cd ../scripts/
-    #vim deploy_glm_fits.sh     # edit the bash script to use the proper version
-    #./deploy_glm_fits.sh
+    # conda activate visbeh
+    # cd ../scripts/
+    # vim deploy_glm_fits.sh     # edit to use the proper version
+    # ./deploy_glm_fits.sh
 
 
 
@@ -83,24 +97,35 @@ if False: # Code snippets for doing basic analyses.
     L2_results = gft.L2_report(fit)
     
     # Make GLM object
-    g = glm.GLM(oeid, VERSION, use_previous_fit=True, log_results=False, log_weights=False)
+    g = glm.GLM(
+        oeid, 
+        VERSION, 
+        use_previous_fit=True, 
+        log_results=False, 
+        log_weights=False
+        )
     
     
 
     # Tools for evaluating model versions
     #####################
-
     # Get a list of the missing experiments/rois for a specific version
     inventory17 = gat.inventory_glm_version('17_dff_all_L2_optimize_by_session')
     
-    # Get a table of fit and missing experiments/rois for GLM versions in the range "vrange"
+    # Get a table for GLM versions in the range "vrange"
     inventory_table = gat.build_inventory_table(vrange=[15,20])
 
     # Compare two model versions
     versions = [x[2:] for x in inventory_table.index.values[-2:]]
     comparison_table,results_combined = gat.get_glm_version_comparison_table(versions)
-    gvt.plot_glm_version_comparison(comparison_table=comparison_table, versions_to_compare=versions)
-    gvt.plot_glm_version_comparison_histogram(comparison_table=comparison_table, versions_to_compare=versions)
+    gvt.plot_glm_version_comparison(
+        comparison_table=comparison_table, 
+        versions_to_compare=versions
+        )
+    gvt.plot_glm_version_comparison_histogram(
+        comparison_table=comparison_table, 
+        versions_to_compare=versions
+        )
     
     # Faster if loading many versions
     results_combined = gat.get_glm_version_summary(versions)
@@ -110,10 +135,18 @@ if False: # Code snippets for doing basic analyses.
     gvt.compare_var_explained_by_version(results_combined,test_data=True)
     gvt.compare_var_explained_by_version(results_combined,test_data=False)
     gvt.compare_var_explained_by_version(results_combined,cre='Sst-IRES-Cre')
-    gvt.compare_var_explained_by_version(results_combined,cre='Sst-IRES-Cre',show_equipment=True)   
+    gvt.compare_var_explained_by_version(
+        results_combined,
+        cre='Sst-IRES-Cre',
+        show_equipment=True
+        )   
  
     # Just look at invalid rois
-    results_combined = gat.get_glm_version_summary(vrange=[15,20], remove_invalid_rois=False, invalid_only=True)
+    results_combined = gat.get_glm_version_summary(
+        vrange=[15,20], 
+        remove_invalid_rois=False, 
+        invalid_only=True
+        )
     gvt.compare_var_explained_by_version(results_combined)
 
 
@@ -121,13 +154,22 @@ if False: # Code snippets for doing basic analyses.
     #####################
 
     # results summary # results are experiment/cell/dropout
-    results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='summary')
+    results = gat.retrieve_results(
+        search_dict={'glm_version':version}, 
+        results_type='summary'
+        )
  
     # results_pivoted # rows are experiment/cell
-    results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+    results_pivoted = gat.build_pivoted_results_summary(
+        'adj_fraction_change_from_full',
+        results_summary=results
+        )
 
     # Full Results
-    full_results = gat.retrieve_results(search_dict={'glm_version':version}, results_type='full')
+    full_results = gat.retrieve_results(
+        search_dict={'glm_version':version}, 
+        results_type='full'
+        )
  
     # weights_df
     weights_df = gat.build_weights_df(run_params, results_pivoted)
@@ -143,6 +185,9 @@ if False: # Code snippets for doing basic analyses.
     schematic_df = gsm.plot_high_level_dropouts(run_params['version'])
     schematic_df = gsm.plot_nice_dropouts(run_params['version'])
 
+    # Make the platform paper schematic examples
+    gsm.plot_glm_example(g)
+
     # Make plot of kernel support
     gvt.plot_kernel_support(g)
 
@@ -156,32 +201,54 @@ if False: # Code snippets for doing basic analyses.
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
 
+    # Make distribution of shuffle results
+    gvt.shuffle_analysis(results, run_params)
+
+    # Check impact of different dropout thresholds
+    gvt.compare_dropout_thresholds(results)
+
     # Make Coding Fraction plots
     # You may need to `mkdir coding` 
     gvt.plot_coding_fraction(results_pivoted, run_params, 'omissions') # Example
-    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction') # Make them all
+    gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction') 
 
     # Make Kernel figures
     # You may need to `mkdir kernels` 
     gvt.kernel_evaluation(weights_df, run_params, 'omissions') # Example
-    gvt.all_kernels_evaluation(weights_df,run_params) # Make them all
+    gvt.all_kernels_evaluation(weights_df,run_params) 
     
     # Make Kernel Comparison Figures
-    gvt.plot_kernel_comparison(weights_df, run_params, 'omissions',cell_filter='vip',compare=['session'],plot_errors=False) # Example
-    gvt.plot_all_kernel_comparison(weights_df, run_params, cell_filter='vip',compare=['session'],plot_errors=False) # Make them all
+    gvt.plot_kernel_comparison(
+        weights_df, 
+        run_params, 
+        'omissions',
+        cell_filter='vip',
+        compare=['session'],
+        plot_errors=False
+        ) 
+    gvt.plot_all_kernel_comparison(
+        weights_df, 
+        run_params,
+        cell_filter='vip',
+        compare=['session'],
+        plot_errors=False
+        )
     
-    ## Comparing Versions
-    #####################
-    versions = ['9a_L2_optimize_by_session','10a_L2_optimize_by_session']
-    comparison_table = gat.get_glm_version_comparison_table(versions)
-    jointplot = gvt.plot_glm_version_comparison(comparison_table, versions_to_compare=versions)
-
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)
-    results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='summary')
-    results_pivoted = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
-    full_results = gat.retrieve_results(search_dict={'glm_version':VERSION}, results_type='full')
+    results = gat.retrieve_results(
+        search_dict={'glm_version':VERSION},
+        results_type='summary'
+        )
+    results_pivoted = gat.build_pivoted_results_summary(
+        'adj_fraction_change_from_full',
+        results_summary=results
+        )
+    full_results = gat.retrieve_results(
+        search_dict={'glm_version':VERSION},
+        results_type='full'
+        )
     weights_df = gat.build_weights_df(run_params, results_pivoted)  
     add_categorical(weights_df) 
     add_categorical(results_pivoted) 
@@ -192,8 +259,8 @@ def add_categorical(df):
         Adds categorical string labels, useful for plotting
     '''
     df['session'] = [str(x) for x in df['session_number']]
-    df['active'] = ['active' if x in [1,3,4,6] else 'passive' for x in df['session_number']]
-    df['familiar'] = ['familiar' if x in [1,2,3] else 'novel' for x in df['session_number']]
+    df['active']=['active' if x in [1,3,4,6] else 'passive' for x in df['session_number']]
+    df['familiar']=['familiar' if x in [1,2,3] else 'novel' for x in df['session_number']]
     df['equipment'] =['scientifica' if x in ['CAM2P.3','CAM2P.4','CAM2P.5'] else 'mesoscope' for x in df['equipment_name']]
     df['layer'] = ['deep' if x > 250 else 'shallow' for x in df['imaging_depth']] # NEED TO UPDATE
 
@@ -257,33 +324,4 @@ def dev_ignore():
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
 
 
-def compare_dropout_thresholds(results_in):
-    results = results_in.copy()
 
-    fig,ax = plt.subplots(3,2,figsize=(12,10))
-    gvt.plot_dropout_summary_population(results,ax=ax[0,0])
-    ax[0,0].set_title('VE < 0.5% set dropout = 0 ')
-    ax[0,0].get_legend().remove()
-
-    gvt.plot_dropout_summary_population(results.query('variance_explained_full > 0.005'),ax=ax[0,1])
-    ax[0,1].set_title('VE < 0.5% removed')        
-    ax[0,1].get_legend().remove()
-
-    gvt.plot_dropout_summary_population(results.query('variance_explained_full > 0.01'),ax=ax[1,1])
-    ax[1,1].set_title('VE < 1.0% removed')        
-    ax[1,1].get_legend().remove()
-
-    gvt.plot_dropout_summary_population(results.query('variance_explained_full > 0.02'),ax=ax[2,1])
-    ax[2,1].set_title('VE < 2.0% removed')        
-    ax[2,1].get_legend().remove()
-
-    results.loc[results['variance_explained_full'] <0.01,'adj_fraction_change_from_full'] = 0
-    gvt.plot_dropout_summary_population(results,ax=ax[1,0])
-    ax[1,0].set_title('VE < 1.0% set dropout = 0')        
-    ax[1,0].get_legend().remove()
-
-    results.loc[results['variance_explained_full'] <0.02,'adj_fraction_change_from_full'] = 0
-    gvt.plot_dropout_summary_population(results,ax=ax[2,0])
-    ax[2,0].set_title('VE < 2.0% set dropout = 0')        
-    ax[2,0].get_legend().remove()
-    plt.tight_layout()

@@ -3819,13 +3819,52 @@ def compare_weight_index(weights_df, kernel='all-images'):
     plt.legend()
     return None
 
-def shuffle_analysis(results,run_params,bins=50):
+def shuffle_analysis(results,run_params,bins=50,savefig=True):
     plt.figure()
-    plt.hist(results.query('dropout=="Full"')['shuffle_time'],bins=bins,label='Shuffle Time')
-    plt.ylabel('Count')
+    plt.hist(results.query('dropout=="Full"')['shuffle_time'],bins=bins,label='Shuffle Time',density=True)
+    plt.ylabel('Density')
     plt.xlabel('Variance explained, shuffling across time')
     maxve = results.query('dropout=="Full"')['shuffle_time'].max()
-    plt.axvline(maxve, color='r',linestyle='--',alpha=.5,label='Max shuffled VE')
-    plt.axvline(run_params['dropout_threshold'],color='m',linestyle='--',alpha=.5,label='Threshold for minimum VE (non shuffled)')
+    plt.axvline(maxve, color='r',linestyle='-',alpha=1,label='Max shuffled VE')
+    plt.axvline(run_params['dropout_threshold'],color='m',linestyle='--',alpha=1,label='Threshold for minimum VE (non shuffled)')
     plt.legend()
+    plt.title(run_params['version'])
+    if savefig:
+        filepath = os.path.join(run_params['fig_overfitting_dir'],'shuffle_time.png')
+        print(filepath)
+        plt.savefig(filepath)
+
+def compare_dropout_thresholds(results_in):
+    '''
+        Plots summary dropouts for different filtering steps
+    '''
+    results = results_in.copy()
+
+    fig,ax = plt.subplots(3,2,figsize=(12,10))
+    plot_dropout_summary_population(results,ax=ax[0,0])
+    ax[0,0].set_title('VE < 0.5% set dropout = 0 ')
+    ax[0,0].get_legend().remove()
+
+    plot_dropout_summary_population(results.query('variance_explained_full > 0.005'),ax=ax[0,1])
+    ax[0,1].set_title('VE < 0.5% removed')        
+    ax[0,1].get_legend().remove()
+
+    plot_dropout_summary_population(results.query('variance_explained_full > 0.01'),ax=ax[1,1])
+    ax[1,1].set_title('VE < 1.0% removed')        
+    ax[1,1].get_legend().remove()
+
+    plot_dropout_summary_population(results.query('variance_explained_full > 0.02'),ax=ax[2,1])
+    ax[2,1].set_title('VE < 2.0% removed')        
+    ax[2,1].get_legend().remove()
+
+    results.loc[results['variance_explained_full'] <0.01,'adj_fraction_change_from_full'] = 0
+    plot_dropout_summary_population(results,ax=ax[1,0])
+    ax[1,0].set_title('VE < 1.0% set dropout = 0')        
+    ax[1,0].get_legend().remove()
+
+    results.loc[results['variance_explained_full'] <0.02,'adj_fraction_change_from_full'] = 0
+    plot_dropout_summary_population(results,ax=ax[2,0])
+    ax[2,0].set_title('VE < 2.0% set dropout = 0')        
+    ax[2,0].get_legend().remove()
+    plt.tight_layout()
 

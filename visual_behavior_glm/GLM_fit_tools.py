@@ -79,6 +79,7 @@ def check_weight_lengths(fit,design):
     if ('dropouts' in fit) and ('train_weights' in fit['dropouts']['Full']):
         num_weights_fit = len([x for x in fit['dropouts']['Full']['train_weights'].weights.values if x.startswith('image0')])
         assert num_weights_fit == num_weights_per_stimulus, "Number of weights in fit dictionary is incorrect"
+    print('Checked weight/kernel lengths against timesteps per stimulus')
 
 def setup_cv(fit,run_params):
     '''
@@ -107,10 +108,16 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     
     # Log oeid
     print("Fitting ophys_experiment_id: "+str(oeid)) 
+    if run_params['version_type'] == 'production':
+        print('Production fit, will include all dropouts')
+    elif run_params['version_type'] == 'standard':
+        print('Standard fit, will only include standard dropouts')
+    elif run_params['version_type'] == 'minimal':
+        print('Minimal fit, will not perform dropouts, or shuffle analysis')
 
     # Warn user if debugging tools are active
     if NO_DROPOUTS:
-        print('WARNING! NO_DROPOUTS=True in fit_experiment(), dropout analysis will NOT run')
+        print('WARNING! NO_DROPOUTS=True in fit_experiment(), dropout analysis will NOT run, despite version_type')
 
     if TESTING:
         print('WARNING! TESTING=True in fit_experiment(), will only fit the first 6 cells of this experiment')
@@ -133,9 +140,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Check Interpolation onto stimulus timestamps
     if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
-        print('Checking stimulus interpolation')
         check_image_kernel_alignment(design,run_params)
-        print('Passed all interpolation checks')
 
     # split by engagement
     design,fit = split_by_engagement(design, run_params, session, fit)
@@ -161,13 +166,13 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     check_weight_lengths(fit,design)
 
     # Perform shuffle analysis, with two shuffle methods
-    if (not NO_DROPOUTS) & fit['ok_to_fit_preferred_engagement']:
+    if (not NO_DROPOUTS) and (fit['ok_to_fit_preferred_engagement']) and (run_params['version_type'] == 'production'):
         print('Evaluating shuffle fits')
         fit = evaluate_shuffle(fit, design, method='cells')
         fit = evaluate_shuffle(fit, design, method='time')
 
     # Save fit dictionary to compressed pickle file
-    print('Saving results')
+    print('Saving fit dictionary')
     fit['failed_kernels'] = run_params['failed_kernels']
     fit['failed_dropouts'] = run_params['failed_dropouts']
     filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pbz2')
@@ -175,9 +180,10 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
         cPickle.dump(fit,f)
 
     # Save Event Table
-    print('Saving Events Table')
-    filepath = os.path.join(run_params['experiment_output_dir'],'event_times_'+str(oeid)+'.h5')
-    pd.DataFrame(design.events).to_hdf(filepath,key='df')
+    if run_params['version_type'] == 'production':
+        print('Saving Events Table')
+        filepath = os.path.join(run_params['experiment_output_dir'],'event_times_'+str(oeid)+'.h5')
+        pd.DataFrame(design.events).to_hdf(filepath,key='df')
 
     # Pack up
     print('Finished') 
@@ -791,12 +797,6 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     eye.loc[eye['likely_blink'],:] = np.nan
     eye = eye.interpolate()   
 
-    # Do a second transient removal step
-    #x = scipy.stats.zscore(eye['pupil_radius'],nan_policy='omit')
-    #d_mask = np.abs(np.diff(x,append=x[-1])) > run_params['eye_transient_threshold']
-    #eye.loc[d_mask,:]=np.nan
-    #eye = eye.interpolate()
-
     # Interpolate everything onto ophys_timestamps
     ophys_eye = pd.DataFrame({'timestamps':ophys_timestamps})
     z_score = ['eye_width','pupil_radius']
@@ -1043,6 +1043,8 @@ def check_image_kernel_alignment(design,run_params):
         Checks to see if any of the image kernels overlap
         Note this fails if the early image is omitted, but I can't check the omission kernels directly because they overlap on purpose with images
     '''
+    print('Checking stimulus interpolation')
+
     kernels = ['image0','image1','image2','image3','image4','image5','image6','image7']
     X = design.get_X(kernels=kernels)
     if ('image_kernel_overlap_tol' in run_params):
@@ -1056,6 +1058,9 @@ def check_image_kernel_alignment(design,run_params):
         print('Image kernels overlap, but within tolerance: {}, {}'.format(overlap, tolerance))
     else:
         print('No Image kernel overlap: {}'.format(overlap))
+    print('Passed all interpolation checks')
+
+
 
 def check_interpolation_to_stimulus(fit, session): 
     '''

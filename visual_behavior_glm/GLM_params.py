@@ -315,7 +315,7 @@ def define_dropouts(kernels,run_params):
             dropouts = set_up_dropouts(dropouts, kernels, dropout_name, dropout_definitions[dropout_name])
     
     # Adds single kernel dropouts:
-    if run_params['version_type'] is 'production':
+    if run_params['version_type'] == 'production':
         for drop in [drop for drop in dropouts.keys()]:
             if (drop != 'Full') & (drop != 'intercept'):
                 # Make a list of kernels by taking the difference between the kernels in 

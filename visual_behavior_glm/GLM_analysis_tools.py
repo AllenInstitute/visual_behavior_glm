@@ -1388,13 +1388,16 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
     Output:
         df (n cells by n selected features)
     '''
-    assert save_df is True and path is not None, 'must provide path when saving file'
+    if save_df is True:
+        assert path is not None, 'must provide path when saving file'
 
     if results_pivoted is None:
         results_pivoted = build_pivoted_results_summary(value_to_use=model_output_type, results_summary=None,
                                              glm_version=glm_version, cutoff=cutoff)
+        print('loading pivoted results')
     elif cutoff is not None:
         results_pivoted = results_pivoted[results_pivoted['variance_explained_full']>cutoff]
+        print('setting a cutoff')
 
     print('loaded glm results')
     if features is None:
@@ -1420,7 +1423,7 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
     print('dropped duplicated cells, keeping first, now N = {}'.format(len(df)))
 
     if save_df is True:
-        filename = 'glm_output_v{}.h5'.format(glm_version)
+        filename = '{}.h5'.format(glm_version)
         full_path = os.path.join(path,filename)
         df.to_hdf(full_path, key='df', mode='w')
         print('saved df file')

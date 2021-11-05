@@ -1,10 +1,256 @@
 import os
+import matplotlib
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import visual_behavior.plotting as vbp
+from mpl_toolkits.axes_grid1 import Divider, Size
 import visual_behavior_glm.GLM_params as glm_params
+import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_visualization_tools as gvt
+
+def plot_glm_example(g,cell_specimen_id,times=[1780,1800]):
+    #oeid = 775614751,celldex=1
+    # (g1) 967008471, 1086492467,celldex =18, times=[324,346], lightness_range=(0.3,.6), saturation_range=(0.9,1), random_seed=5, alt_times = [1780,1800]
+
+    style={
+        'fs1':18,
+        'fs2':16,
+        'trace_linewidth':2,
+        'dff':'k',
+        'events':'b',
+        'model':'r',
+        }
+    kernel_names=['image0','image1','image2','image3','image4','image5','image6','image7']
+    index_times=[np.where(g.fit['fit_trace_timestamps']>=times[0])[0][0],np.where(g.fit['fit_trace_timestamps']>times[1])[0][0]+1]
+    include_events= g.fit['events_trace_arr'] is not None
+    plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events)
+    plot_glm_example_dropouts(g,cell_specimen_id,style)
+    ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,times,style)
+    plot_glm_example_inputs(g,times,style,palette_df)
+    plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df)
+    #gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
+    #gvt.plot_kernel_support(g,plot_bands=True,start=index_times[0],end=index_times[1])
+
+ 
+def plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df):
+    fig = plt.figure(figsize=(6,6))
+    h = [Size.Fixed(1.25),Size.Fixed(4.25)]
+    v = [Size.Fixed(1.0),Size.Fixed(4.5)]
+    divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+    ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+    for kernel_name in kernel_names:
+        ax = plot_glm_example_kernel_inner(g,cell_specimen_id, kernel_name, ax,style,palette_df)
+    plt.ylabel('Kernel',fontsize=style['fs1'])
+    plt.xlabel('Time (s)',fontsize=style['fs1'])
+    ax.tick_params(axis='x',labelsize=style['fs2'])
+    ax.tick_params(axis='y',labelsize=style['fs2'])
+    plt.axvspan(0,.25,color='k',alpha=.1)
+    plt.ylim(ylims)
+    plt.legend()
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_kernels.svg')
+    
+def plot_glm_example_kernel_inner(g,cell_specimen_id, kernel_name,ax,style,palette_df):
+    weight_names = [w for w in g.fit['dropouts']['Full']['train_weights'].weights.values if w.startswith(kernel_name)]
+    kernel = g.fit['dropouts']['Full']['train_weights'].loc[dict(weights=weight_names,cell_specimen_id = cell_specimen_id)]
+    timestamps = np.array(range(0,len(weight_names)))*(1/g.fit['ophys_frame_rate'])       
+    ax.plot(timestamps, kernel,'-',label=kernel_name,linewidth=style['trace_linewidth'],color=palette_df.query('kernel_name == @kernel_name')['kernel_color'].values[0])
+    return ax
+
+def plot_glm_example_dropouts(g,cell_specimen_id,style):
+
+    dropouts = g.dropout_summary.query('cell_specimen_id == @cell_specimen_id')[['dropout','adj_fraction_change_from_full']].sort_values(by='adj_fraction_change_from_full').copy().reset_index(drop=True)
+    dropouts_to_plot = ['all-images','omissions','behavioral','running','pupil','licks','task','hits','misses','false_alarms','correct_rejects']
+    dropouts = dropouts.loc[dropouts.isin({'dropout':dropouts_to_plot})['dropout']].reset_index(drop=True)
+
+    fig = plt.figure(figsize=(6,6))
+    h = [Size.Fixed(2.5),Size.Fixed(3)]
+    v = [Size.Fixed(1.0),Size.Fixed(4.5)]
+    divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+    ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+ 
+    ax.barh(np.arange(len(dropouts_to_plot),0,-1),dropouts['adj_fraction_change_from_full']*(-1),color='k')
+    ax.set_ylabel('Features Removed',fontsize=style['fs1'])
+    ax.set_xlabel('Fraction reduction in \n explained variance',fontsize=style['fs1'])
+    ax.yaxis.set_ticks(np.arange(len(dropouts_to_plot),0,-1))
+    ax.yaxis.set_ticklabels(dropouts_to_plot,fontsize=style['fs2'])
+    ax.tick_params(axis='x',labelsize=style['fs2'])
+    ax.set_xlim(0,1)
+    
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_dropouts.svg')
+
+def plot_glm_example_inputs(g,times,style,palette_df,ax=None):
+    if ax is None:
+        #fig,ax = plt.subplots(figsize=(12,6))
+        fig = plt.figure(figsize=(12,6))
+        h = [Size.Fixed(2.0),Size.Fixed(9.5)]
+        v = [Size.Fixed(1.0),Size.Fixed(4.5)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+    
+    time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
+
+    # plot stimulus and change bars
+    stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1]')
+    top =100
+    ticklabels={}
+    for index, image in enumerate(range(0,9)):
+        image_times = stim.query('image_index == @index')['start_time'].values
+        ticklabels[top-index]='Image '+str(image)
+        ecolor ='k'
+        if index == 8:
+            ticklabels[top-index]='Omission'
+            fcolor='None'
+        else:
+            image_name = 'image'+str(image)
+            fcolor ='k'#palette_df.query('kernel_name == @image_name')['kernel_color'].values[0]
+        if len(image_times) > 0:
+            #ax.plot(image_times, np.ones(np.shape(image_times))*(top-index),'|',markersize=20)
+            for t in image_times:
+                rect =patches.Rectangle((t,top-index-.5),0.25,1,edgecolor=ecolor,facecolor=fcolor,alpha=.3)
+                ax.add_patch(rect)
+
+    # Running Data
+    run = g.session.running_speed.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
+    run['normalized_speed'] = run['speed'].apply(lambda x: (x - run['speed'].min())/(run['speed'].max() - run['speed'].min()))
+    run['normalized_speed'] = run['normalized_speed'] + top-10
+    ax.plot(run.timestamps,run.normalized_speed,'k')
+    ticklabels[top-9.5]='Running Speed'
+
+    # Pupil
+    eye = g.session.eye_tracking.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
+    eye['pupil_radius'] = np.sqrt(eye['pupil_area']*(1/np.pi))
+    eye['normalized_pupil_radius'] = eye['pupil_radius'].apply(lambda x: (x - eye['pupil_radius'].min())/(eye['pupil_radius'].max() - eye['pupil_radius'].min()))
+    eye['normalized_pupil_radius'] = eye['normalized_pupil_radius'] + top-12
+    ax.plot(eye.timestamps,eye.normalized_pupil_radius,'k')
+    ticklabels[top-11.5]='Pupil Radius'
+
+    # licking
+    licks = g.session.licks.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
+    ax.plot(licks.timestamps, np.ones((len(licks),))*(top-13),'k|',markersize=20)
+    ticklabels[top-13]='Licking'
+
+    # Trials
+    trials = g.session.trials.query('(change_time >= @times[0])&(change_time <=@times[1])').copy()
+    hits = trials.query('hit')
+    ax.plot(hits.reward_time, np.ones((len(hits),))*(top-14),'r|',markersize=20)
+    ticklabels[top-14]='Hit'
+
+    miss = trials.query('miss')
+    ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'r|',markersize=20)
+    ticklabels[top-15]='Miss'
+
+    fa = trials.query('false_alarm')
+    ax.plot(fa.change_time, np.ones((len(fa),))*(top-16),'r|',markersize=20)
+    ticklabels[top-16]='False Alarm'
+
+    correct_reject = trials.query('correct_reject')
+    ax.plot(correct_reject.change_time, np.ones((len(correct_reject),))*(top-17),'r|',markersize=20)
+    ticklabels[top-17]='Correct Reject'
+
+    ax.yaxis.set_ticks(list(ticklabels.keys()))
+    ax.yaxis.set_ticklabels(list(ticklabels.values()),fontsize=style['fs2'])
+    ax.set_xlabel('Time (s)',fontsize=style['fs1'])
+    ax.tick_params(axis='x',labelsize=style['fs2'])
+    ax.set_xlim(times)
+    ax.set_ylim(top-17.5,top+.5)
+    #plt.tight_layout()
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg')
+
+def plot_glm_example_components(g, cell_specimen_id, times, style):
+    fig = plt.figure(figsize=(12,4))
+    h = [Size.Fixed(2.0),Size.Fixed(9.5)]
+    v = [Size.Fixed(.7),Size.Fixed(3.)]
+    divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+    ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+    plt.xlabel('Time')
+
+    time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
+    celldex = np.where(g.fit['fit_trace_arr'].cell_specimen_id.values == cell_specimen_id)[0][0]
+    trace = g.fit['dropouts']['Full']['full_model_train_prediction'][time_vec,celldex]
+    ymax = np.max(trace)
+
+    # plot stimulus and change bars
+    stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not omitted')
+    for index, time in enumerate(stim['start_time'].values):
+        plt.axvspan(time, time+0.25, color='k',alpha=.1)
+    change = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & is_change')
+    for index, time in enumerate(change['start_time'].values):
+        plt.axvspan(time, time+0.25, color='b',alpha=.2)
+
+    # Plot contributions from each kernel
+    kernel_df = gat.build_kernel_df(g,cell_specimen_id) 
+    palette_df = pd.DataFrame({
+            'kernel_name':kernel_df['kernel_name'].unique(),
+            'kernel_color':vbp.generate_random_colors(
+                len(kernel_df['kernel_name'].unique()), 
+                lightness_range=(0.3,.6), 
+                saturation_range=(0.9,1), 
+                random_seed=6, 
+                order_colors=False
+            )
+        })
+    gvt.plot_kernels(kernel_df, ax, palette_df, t_span=times, annotate=True,legend=False)
+
+    ax.set_ylabel('Component Contribution',fontsize=style['fs1'])
+    ax.set_xlabel('Time (s)',fontsize=style['fs1'])
+    ax.tick_params(axis='x',labelsize=style['fs2'])
+    ax.tick_params(axis='y',labelsize=style['fs2'])
+    ax.set_xlim(times)
+    ax.set_ylim(ax.get_ylim()[0]-.05,ymax*1.25)
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_components.svg')
+    return ax.get_ylim(),palette_df
+
+def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax=None):
+    if ax is None:
+        #fig,ax = plt.subplots(figsize=(12,3))
+        fig = plt.figure(figsize=(12,4))
+        h = [Size.Fixed(2.0),Size.Fixed(9.5)]
+        v = [Size.Fixed(.7),Size.Fixed(3.)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+
+    time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
+    celldex = np.where(g.fit['fit_trace_arr'].cell_specimen_id.values == cell_specimen_id)[0][0]
+
+    # plot stimulus and change bars
+    stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not omitted')
+    for index, time in enumerate(stim['start_time'].values):
+        plt.axvspan(time, time+0.25, color='k',alpha=.1)
+    change = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & is_change')
+    for index, time in enumerate(change['start_time'].values):
+        plt.axvspan(time, time+0.25, color='b',alpha=.2)
+
+    # Plot Filtered event trace
+    if include_events:
+        ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
+            g.fit['events_trace_arr'][time_vec,celldex],
+            style['events'],label='Smoothed L0 events',
+            linewidth=style['trace_linewidth'])
+    else:
+        # Plot df/f
+        ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
+            g.fit['dff_trace_arr'][time_vec,celldex],
+            style['dff'],label='df/f',
+            linewidth=style['trace_linewidth'],alpha=.6)
+
+    # Plot Model
+    ax.plot(g.fit['fit_trace_timestamps'][time_vec],
+        g.fit['dropouts']['Full']['full_model_train_prediction'][time_vec,celldex],
+        style['model'],label='Model',linewidth=style['trace_linewidth'])
+
+    # Clean up plot
+    ax.legend()
+    ax.set_ylabel('Neural activity',fontsize=style['fs1'])
+    ax.set_xlabel('Time (s)',fontsize=style['fs1'])
+    ax.tick_params(axis='x',labelsize=style['fs2'])
+    ax.tick_params(axis='y',labelsize=style['fs2'])
+    ax.set_xlim(times)
+    #plt.tight_layout()
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg')
+    return
 
 def plot_all_dropouts(VERSION):
     '''

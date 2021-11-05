@@ -33,10 +33,18 @@ def load_fit_experiment(ophys_experiment_id, run_params):
     '''
     fit = gat.load_fit_pkl(run_params, ophys_experiment_id)
     session = load_data(ophys_experiment_id, run_params)
+    
+    # num_weights gets populated during stimulus interpolation
+    # configuring it here so the design matrix gets re-generated consistently
+    kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    for k in kernels_to_limit_per_image_cycle:
+        if k in run_params['kernels']:
+            run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    
+
     design = DesignMatrix(fit)
     design = add_kernels(design, run_params, session,fit)
-    # split by engagement
     design,fit = split_by_engagement(design, run_params, session, fit)
+    check_weight_lengths(fit,design)
     return session, fit, design
 
 def check_run_fits(VERSION):
@@ -59,6 +67,27 @@ def check_run_fits(VERSION):
         filenamepbz2 = run_params['experiment_output_dir']+str(oeid)+".pbz2" 
         experiment_table.at[oeid, 'GLM_fit'] = os.path.isfile(filenamepkl) or os.path.isfile(filenamepbz2)
     return experiment_table
+
+def check_weight_lengths(fit,design):
+    '''
+        Does two assertion tests that the number of weights in the design matrix and fit dictionary are 
+        consistent with the number of timesteps per stimulus
+    '''
+    num_weights_per_stimulus = fit['stimulus_interpolation']['timesteps_per_stimulus']
+    num_weights_design = len([x for x in design.get_X().weights.values if x.startswith('image0')])
+    assert num_weights_design == num_weights_per_stimulus, "Number of weights in design matrix is incorrect"
+    if ('dropouts' in fit) and ('train_weights' in fit['dropouts']['Full']):
+        num_weights_fit = len([x for x in fit['dropouts']['Full']['train_weights'].weights.values if x.startswith('image0')])
+        assert num_weights_fit == num_weights_per_stimulus, "Number of weights in fit dictionary is incorrect"
+
+def setup_cv(fit,run_params):
+    '''
+        Defines the time intervals for cross validation
+        Two sets of time intervals are generated, one for setting the ridge hyperparameter, the other for fitting the model
+    '''
+    fit['splits'] = split_time(fit['fit_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
+    fit['ridge_splits'] = split_time(fit['fit_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
+    return fit
 
 def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     '''
@@ -100,6 +129,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
+    check_weight_lengths(fit,design)
 
     # Check Interpolation onto stimulus timestamps
     if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
@@ -112,8 +142,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Set up CV splits
     print('Setting up CV')
-    fit['splits'] = split_time(fit['fit_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
-    fit['ridge_splits'] = split_time(fit['fit_trace_timestamps'], output_splits=run_params['CV_splits'], subsplits_per_split=run_params['CV_subsplits'])
+    fit = setup_cv(fit,run_params)
 
     # Determine Regularization Strength
     print('Evaluating Regularization values')
@@ -129,6 +158,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     # Iterate over model selections
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
+    check_weight_lengths(fit,design)
 
     # Start Diagnostic analyses
     if (not NO_DROPOUTS) & fit['ok_to_fit_preferred_engagement']:
@@ -778,11 +808,11 @@ def build_dataframe_from_dropouts(fit,run_params):
 
     if 'var_shuffle_cells' in fit:
         # If the shuffle across cells was computed, record average VE for each cell
-        results['shuffle_cells'] = np.nanmean(fit['var_shuffle_cells'],1) 
+        results['Full__shuffle_cells'] = np.nanmean(fit['var_shuffle_cells'],1) 
 
     if 'var_shuffle_time' in fit:
         # If the shuffle across time was computed, record average VE for each cell
-        results['shuffle_time'] = np.nanmean(fit['var_shuffle_time'],1) 
+        results['Full__shuffle_time'] = np.nanmean(fit['var_shuffle_time'],1) 
 
     return results
 

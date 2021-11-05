@@ -1,8 +1,11 @@
 import visual_behavior.plotting as vbp
 import visual_behavior.utilities as vbu
+import visual_behavior.data_access.utilities as utilities
 import visual_behavior.data_access.loading as loading
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_params as glm_params
+from mpl_toolkits.axes_grid1 import Divider, Size
+
 import visual_behavior.database as db
 import matplotlib as mpl
 import seaborn as sns
@@ -58,6 +61,9 @@ def project_colors():
         'passive':(.4,.4,.4),
         'familiar':(222/255,73/255,70/255),
         'novel':(100/255,152/255,193/255),
+        'Familiar':(0.66,0.06,0.086),
+        'Novel 1':(0.044,0.33,0.62),
+        'Novel >1':(0.34,.17,0.57),
         'deep':'r',
         'shallow':'b',
         'VISp':'C0',
@@ -843,7 +849,7 @@ def plot_kernels(kernel_df, ax, palette_df, t_span=None, legend=False, annotate=
         ax=ax,
         palette = palette,
         alpha=0.75,
-        legend=False,
+        legend=legend,
         linewidth=3,
     )
     if legend:
@@ -2877,14 +2883,127 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True):
+    
+    # Filter for cells with low variance explained
+    results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
+
+    # Convert dropouts to positive values
+    for dropout in dropouts_to_show:
+        results_pivoted[dropout] = results_pivoted[dropout].abs()
+    
+    # Add additional columns about experience levels
+    experiments_table = loading.get_platform_paper_experiment_table()
+    experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
+    results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
+   
+    # Cells Matched across all three experience levels 
+    cells_table = loading.get_cell_table(platform_paper_only=True)
+    cells_table = cells_table.query('not passive').copy()
+    cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
+    matched_cells = cells_table.cell_specimen_id.unique()
+
+    # plotting variables
+    cell_types = results_pivoted.cell_type.unique()
+    experience_levels = np.sort(results_pivoted.experience_level.unique())
+    colors = project_colors()
+
+    # make combined across cre line plot
+    fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+    for index, feature in enumerate(dropouts_to_show):
+        # plots three cre-lines in standard colors
+        ax[index] = sns.pointplot(
+            data = results_pivoted,
+            x = 'experience_level',
+            y= feature,
+            hue='cre_line',
+            hue_order = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre'],
+            order=experience_levels,
+            palette = colors,
+            join=True,
+            ax=ax[index],
+            legend=False,
+        )
+
+        ax[index].get_legend().remove()
+        ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
+        ax[index].set_title(feature,fontsize=18)
+        ax[index].set_ylabel('')
+        ax[index].set_xlabel('')
+        ax[index].set_xticklabels(experience_levels, rotation=90)
+        ax[index].tick_params(axis='x',labelsize=16)
+        ax[index].tick_params(axis='y',labelsize=16)
+    ax[0].set_ylabel('Fraction Reduction in \n explained variance',fontsize=18)
+    plt.tight_layout()
+    plt.savefig(run_params['figure_dir']+'/dropout_average_combined.svg')  
+ 
+    # Iterate cell types and make a plot for each
+    for cell_type in cell_types:
+        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+
+        # Iterate dropouts and plot each by experience
+        for index, feature in enumerate(dropouts_to_show):
+            all_data = results_pivoted.query('cell_type ==@cell_type')
+            matched_data = all_data.query('cell_specimen_id in @matched_cells') 
+
+
+            # Plot all cells in active sessions
+            ax[index] = sns.pointplot(
+                data = all_data,
+                x = 'experience_level',
+                y= feature,
+                hue='experience_level',
+                order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                hue_order=experience_levels,
+                palette = colors,
+                join=False,
+                ax=ax[index]
+            )
+            all_cell_points = list(ax[index].get_children())
+            for x in all_cell_points:
+                x.set_zorder(1000)
+            
+            # Plot cells in matched active sessions
+            ax[index] = sns.pointplot(
+                data = matched_data,
+                x = 'experience_level',
+                y=feature,
+                order=experience_levels,
+                color='gray',
+                join=True,
+                ax=ax[index],
+            )
+            ax[index].get_legend().remove()
+            ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
+            ax[index].set_title(feature,fontsize=18)
+            ax[index].set_ylabel('')
+            ax[index].set_xlabel('')
+            ax[index].set_xticks([0,1,2])
+            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xlim(-.5,2.5)
+            ax[index].tick_params(axis='x',labelsize=16)
+            ax[index].tick_params(axis='y',labelsize=16)
+        ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
+        plt.suptitle(cell_type)
+        fig.tight_layout()
+        plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+'.svg')
+
 def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True): 
     '''
        Makes a bar plot that shows the population dropout summary by cre line for different regressors 
 
     '''
     if ax is None:
-        fig,ax = plt.subplots()
-    
+        height = 5
+        width=12
+        horz_offset = 2
+        vertical_offset = 1
+        fig = plt.figure(figsize=(width,height))
+        h = [Size.Fixed(horz_offset),Size.Fixed(width-horz_offset-.5)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+ 
     if palette is None:
         palette = project_colors()
 
@@ -2939,7 +3058,11 @@ def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show
         )
 
     #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    ax.set_ylabel('Fraction change\nin variance explained')
+    ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=18)
+    ax.set_xlabel('Withheld component',fontsize=18)
+    ax.tick_params(axis='x',labelsize=16)
+    ax.tick_params(axis='y',labelsize=16) 
+    plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
 
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     '''

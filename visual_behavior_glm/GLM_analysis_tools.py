@@ -83,9 +83,14 @@ def build_kernel_df(glm, cell_specimen_id):
         kernel = glm.design.kernel_dict[kernel_name]['kernel']
 
         # get the weight matrix for the weights associated with this kernel and cell (dims = 1 x n_weights)
-        kernel_weight_names = [w for w in all_weight_names if w.startswith(kernel_name)]
+        kernel_weight_names = [w for w in glm.W.weights.values if w.startswith(kernel_name)]
         w_kernel = np.expand_dims(glm.W.loc[dict(
             weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)], axis=0)
+
+        # Version 19 had an edge case where the design matrix gets re-loaded with an extra weight       
+        if kernel_name.startswith('image') &(np.shape(kernel)[0] != len(w_kernel)):
+            print('Hack, need to fix bug')
+            kernel = kernel[0:-1,:]
 
         # calculate kernel output as w_kernel * kernel (dims = 1 x n_timestamps)
         # add to list of dataframes with cols: timestamps, kernel_outputs, kernel_name
@@ -1032,7 +1037,6 @@ def build_inventory_table(vrange=[18,20],return_inventories=False):
         Optionally returns the list of missing experiments and rois
     '''
     versions = glm_params.get_versions(vrange=vrange)
-    #versions = [x for x in versions if 'old' not in x]
     inventories ={}
     for v in versions:
         inventories[v]=inventory_glm_version(v[2:])
@@ -1077,6 +1081,11 @@ def inventory_glm_version(glm_version, valid_rois_only=True, platform_paper_only
         merge_in_experiment_metadata=False,
         remove_invalid_rois=False
     )
+    if len(glm_results) == 0:
+        # Check for empty results
+        glm_results['ophys_experiment_id'] = [] 
+        glm_results['cell_specimen_id'] = [] 
+        glm_results['cell_roi_id'] = [] 
     
     # Get list of cells in the dataset
     cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only,add_extra_columns=False).reset_index()

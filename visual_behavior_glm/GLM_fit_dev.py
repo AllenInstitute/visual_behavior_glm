@@ -148,6 +148,7 @@ if False: # Code snippets for doing basic analyses.
 
     # Make dropout summary figures
     gvt.plot_dropout_summary_population(results)
+    gvt.plot_population_averages(results_pivoted, run_params)
 
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 

@@ -160,12 +160,6 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     fit = evaluate_models(fit, design, run_params)
     check_weight_lengths(fit,design)
 
-    # Start Diagnostic analyses
-    if (not NO_DROPOUTS) & fit['ok_to_fit_preferred_engagement']:
-        print('Starting diagnostics')
-        print('Bootstrapping synthetic data')
-        fit = bootstrap_model(fit, design, run_params)
-
     # Perform shuffle analysis, with two shuffle methods
     if (not NO_DROPOUTS) & fit['ok_to_fit_preferred_engagement']:
         print('Evaluating shuffle fits')
@@ -188,108 +182,6 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     # Pack up
     print('Finished') 
     return session, fit, design
-
-def bootstrap_model(fit, design, run_params, regularization=50, norm_preserve=False, check_every=100, PLOT=False):
-    '''
-        Generates synthetic df/f traces using normally distributed random parameters. 
-        Then tries to recover those parameters using the CV procedure in fit_experiment()
-
-        In addition creates a series of synthetic df/f traces where a subset of weights are set to 0 in generating the data, but
-        are still included in the fit recovery. These junk regressors let us evaluate the regularization process. 
-
-        INPUTS:
-        fit             fit dictionary
-        design          design matrix
-        run_params      run_params json
-        regularization  fixed L2 value used for fitting
-        norm_preserve   if true, when zeroing weights preserves the norm of the weight vector (sanity check for weird regularization effects)
-        check_every     Zeros out weights in steps of this many parameters
-        PLOT            if true, makes a summary plot of the bootstrap analysis
-
-        RETURNS:
-        fit             fit dictionary with 'bootstrap' key added which maps to a dictionary of results
-    '''
-    # Set up storage, and how many datasets to make
-    zero_dexes = range(100, len(fit['dropouts']['Full']['cv_weights'][:,:,0]),check_every)
-    cv_var_train    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-    cv_var_test     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-    cv_var_def      = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-    cv_weight_shift = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-
-    # Iterate over datasets, making synthetic data, and doing recovery
-    for index, zero_dex in enumerate(zero_dexes):
-
-        # Set up design matrix and Y variable (will get over-ridden)p
-        X = design.get_X()
-        Y_boot = copy(fit['fit_trace_arr'])
-
-        # iterate over cross validation
-        for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Bootstrapping with {} regressors'.format(zero_dex)):
-            # Set up training/test splits
-            train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
-            test_split = fit['ridge_splits'][split_index]
-
-            # Make weights 
-            W = fit['dropouts']['Full']['cv_weights'][:,:,0].copy()
-            W = np.random.randn(np.shape(W)[0], np.shape(W)[1])
-            if norm_preserve:
-                orig_norm = np.linalg.norm(W,axis=0)
-            idx = np.random.permutation(np.arange(np.shape(W)[0]-1)+1)[zero_dex:]
-            W[idx,:] = 0
-            if norm_preserve:
-                new_norm = np.linalg.norm(W,axis=0)
-                ratio_norm = orig_norm/new_norm
-                W = W @ np.diag(ratio_norm)
-
-            # Generate synthetic data, and get best W estimate
-            Y_boot.values = X.values @ W
-            W_boot = fit_regularized(Y_boot[train_split,:], X[train_split,:],regularization)     
-
-            # Evaluate and save results
-            W_orig = copy(W_boot)
-            W_orig.values = W
-            cv_var_train[:,split_index,index]     = variance_ratio(Y_boot[train_split,:], W_boot, X[train_split,:]) 
-            cv_var_test[:,split_index,index]      = variance_ratio(Y_boot[test_split,:],  W_boot, X[test_split,:])
-            cv_var_def[:,split_index,index]       = variance_ratio(Y_boot[test_split,:],  W_orig, X[test_split,:])
-            cv_weight_shift[:,split_index,index]  = np.mean(np.abs(W_boot.values - W_orig.values))
-
-    # Pack up 
-    keyword = 'bootstrap'
-    if not norm_preserve:
-        keyword = keyword+"_no_norm"
-    fit['bootstrap']={}
-    fit['bootstrap']['W_boot'] = W_boot
-    fit['bootstrap']['W_orig'] = W_orig
-    fit['bootstrap']['var_explained_train'] = cv_var_train.mean(axis=1) 
-    fit['bootstrap']['var_explained_test']  = cv_var_test.mean(axis=1)  
-    fit['bootstrap']['var_explained_def']   = cv_var_def.mean(axis=1)      
-    fit['bootstrap']['mean_weight_shift']   = cv_weight_shift.mean(axis=1)
-    fit['bootstrap']['zero_dexes'] = zero_dexes
-        
-    # If plotting is requested
-    if PLOT:
-        plot_bootstrap(fit, keyword, zero_dexes)
-    
-    # return fit dictionary with added key/value
-    return fit
-
-def plot_bootstrap(fit, keyword,zero_dexes):
-    '''
-        Plots the bootstrapping analysis
-        
-        INPUTS:
-        fit         fit dictionary
-        keywowrd    name of file to save figure as <keyword>.png
-        zero_dexes  index of how many weights were zeroed out for each dataset
-    '''
-    plt.figure()
-    plt.plot(zero_dexes, fit['bootstrap']['var_explained_train'].mean(axis=0), 'bo-', label='Train')
-    plt.plot(zero_dexes, fit['bootstrap']['var_explained_test'].mean(axis=0), 'ro-', label='Test')
-    plt.ylabel('Var Explained')
-    plt.xlabel('Number of non-zero values in generative weights')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(keyword+'.png')
 
 def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     '''

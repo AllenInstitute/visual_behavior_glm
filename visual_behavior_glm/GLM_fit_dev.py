@@ -138,7 +138,7 @@ if False: # Code snippets for doing analyses.
     gvt.compare_var_explained_by_version(
         results_combined,
         cre='Sst-IRES-Cre',
-        show_equipment=True
+        show_equipment=False
         )   
  
     # Just look at invalid rois

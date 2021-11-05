@@ -677,7 +677,9 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
             extra = extra+"_equipment"
         if sort_by_signal:
             extra = extra+"_by_dff"
-    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/variance_explained'+extra+'.png')
+    filepath= '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/variance_explained'+extra+'.png'
+    print(filepath)
+    plt.savefig(filepath)
 
     return fig, ax
 

@@ -249,21 +249,21 @@ def evaluate_ridge(fit, design,run_params):
 
         returns fit, with the values added:
             L2_grid                 # the L2 grid evaluated (if L2_optimize_by_cell, or L2_optimize_by_session)
-            avg_regularization      # the average optimal L2 value, or the fixed value
-            cell_regularization     # the optimal L2 value for each cell (if L2_optimize_by_cell)
+            avg_L2_regularization      # the average optimal L2 value, or the fixed value
+            cell_L2_regularization     # the optimal L2 value for each cell (if L2_optimize_by_cell)
     '''
     if run_params['L2_use_fixed_value']:
         print('Using a hard-coded regularization value')
-        fit['avg_regularization'] = run_params['L2_fixed_lambda']
+        fit['avg_L2_regularization'] = run_params['L2_fixed_lambda']
     elif not fit['ok_to_fit_preferred_engagement']:
         print('\tSkipping ridge evaluation because insufficient preferred engagement timepoints')
-        fit['avg_regularization'] = np.nan      
-        fit['cell_regularization'] = np.empty((fit['fit_trace_arr'].shape[1],))
+        fit['avg_L2_regularization'] = np.nan      
+        fit['cell_L2_regularization'] = np.empty((fit['fit_trace_arr'].shape[1],))
         fit['L2_test_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
         fit['L2_train_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
         fit['L2_at_grid_min'] = np.empty((fit['fit_trace_arr'].shape[1],))
         fit['L2_at_grid_max'] = np.empty((fit['fit_trace_arr'].shape[1],))
-        fit['cell_regularization'][:] = np.nan
+        fit['cell_L2_regularization'][:] = np.nan
         fit['L2_test_cv'][:] = np.nan
         fit['L2_train_cv'][:] =np.nan
         fit['L2_at_grid_min'][:] =np.nan
@@ -297,8 +297,8 @@ def evaluate_ridge(fit, design,run_params):
             train_cv[:,L2_index] = np.mean(cv_var_train,1)
             test_cv[:,L2_index]  = np.mean(cv_var_test,1)
 
-        fit['avg_regularization'] = np.mean([fit['L2_grid'][x] for x in np.argmax(test_cv,1)])      
-        fit['cell_regularization'] = [fit['L2_grid'][x] for x in np.argmax(test_cv,1)]     
+        fit['avg_L2_regularization'] = np.mean([fit['L2_grid'][x] for x in np.argmax(test_cv,1)])      
+        fit['cell_L2_regularization'] = [fit['L2_grid'][x] for x in np.argmax(test_cv,1)]     
         fit['L2_test_cv'] = test_cv
         fit['L2_train_cv'] = train_cv
         fit['L2_at_grid_min'] = [x==0 for x in np.argmax(test_cv,1)]
@@ -358,7 +358,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
         For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
             It does this for the entire dataset as test and train. As well as CV, saving each test/train split
 
-        Each cell uses a different L2 value defined in fit['cell_regularization']
+        Each cell uses a different L2 value defined in fit['cell_L2_regularization']
     '''
     for model_label in fit['dropouts'].keys():
 
@@ -387,7 +387,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
         for cell_index, cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
 
             fit_trace = fit['fit_trace_arr'][:,cell_index]
-            Wall = fit_cell_regularized(X_inner,fit_trace, X,fit['cell_regularization'][cell_index])     
+            Wall = fit_cell_regularized(X_inner,fit_trace, X,fit['cell_L2_regularization'][cell_index])     
             var_explain = variance_ratio(fit_trace, Wall,X)
             adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
             all_weights[:,cell_index] = Wall
@@ -410,7 +410,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
 
                 fit_trace_train = fit['fit_trace_arr'][train_split,cell_index]
                 fit_trace_test = fit['fit_trace_arr'][test_split,cell_index]
-                W = fit_cell_regularized(X_cov,fit_trace_train, X_train, fit['cell_regularization'][cell_index])
+                W = fit_cell_regularized(X_cov,fit_trace_train, X_train, fit['cell_L2_regularization'][cell_index])
                 cv_var_train[cell_index,index] = variance_ratio(fit_trace_train, W, X_train)
                 cv_var_test[cell_index,index] = variance_ratio(fit_trace_test, W, X_test)
                 cv_adjvar_train[cell_index,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask[train_split]) 
@@ -459,7 +459,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
         For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
             It does this for the entire dataset as test and train. As well as CV, saving each test/train split
     
-        All cells use the same regularization value defined in fit['avg_regularization']  
+        All cells use the same regularization value defined in fit['avg_L2_regularization']  
         
     '''
     for model_label in fit['dropouts'].keys():
@@ -471,7 +471,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
 
         # Fit on full dataset for references as training fit
         fit_trace = fit['fit_trace_arr']
-        Wall = fit_regularized(fit_trace, X,fit['avg_regularization'])     
+        Wall = fit_regularized(fit_trace, X,fit['avg_L2_regularization'])     
         var_explain = variance_ratio(fit_trace, Wall,X)
         adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
         fit['dropouts'][model_label]['train_weights'] = Wall
@@ -496,7 +496,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
             mask_train = mask[train_split]
             fit_trace_train = fit['fit_trace_arr'][train_split,:]
             fit_trace_test = fit['fit_trace_arr'][test_split,:]
-            W = fit_regularized(fit_trace_train, X_train, fit['avg_regularization'])
+            W = fit_regularized(fit_trace_train, X_train, fit['avg_L2_regularization'])
             cv_var_train[:,index]   = variance_ratio(fit_trace_train, W, X_train)
             cv_var_test[:,index]    = variance_ratio(fit_trace_test, W, X_test)
             cv_adjvar_train[:,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask_train) 
@@ -726,7 +726,7 @@ def L2_report(fit):
     plt.gca().set_xscale('log')
     plt.ylabel('Session avg test CV')
     plt.xlabel('L2 Strength')
-    plt.axvline(fit['avg_regularization'], color='k', linestyle='--', alpha = 0.5)
+    plt.axvline(fit['avg_L2_regularization'], color='k', linestyle='--', alpha = 0.5)
     plt.ylim(0,.15) 
 
     cellids = fit['fit_trace_arr']['cell_specimen_id'].values

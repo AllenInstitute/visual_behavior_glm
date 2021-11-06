@@ -109,7 +109,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     # Log oeid
     print("Fitting ophys_experiment_id: "+str(oeid)) 
     if run_params['version_type'] == 'production':
-        print('Production fit, will include all dropouts')
+        print('Production fit, will include all dropouts, and shuffle analysis')
     elif run_params['version_type'] == 'standard':
         print('Standard fit, will only include standard dropouts')
     elif run_params['version_type'] == 'minimal':

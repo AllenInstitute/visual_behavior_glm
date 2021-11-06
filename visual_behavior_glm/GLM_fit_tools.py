@@ -712,6 +712,14 @@ def build_dataframe_from_dropouts(fit,run_params):
         # If the shuffle across time was computed, record average VE for each cell
         results['Full__shuffle_time'] = np.nanmean(fit['var_shuffle_time'],1) 
 
+    # Log average regularization value    
+    if 'avg_L2_regularization' in fit:
+        results['Full__avg_L2_regularization'] = fit['avg_L2_regularization']
+
+    # If cell-wise regularization values were computed, log them
+    if 'cell_L2_regularization' in fit:
+        results['Full__cell_L2_regularization'] = fit['cell_L2_regularization']   
+
     return results
 
 def L2_report(fit):

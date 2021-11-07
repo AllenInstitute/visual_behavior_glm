@@ -151,7 +151,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Determine Regularization Strength
     print('Evaluating Regularization values')
-    fit = evaluate_ridge(fit, design, run_params)
+    fit = evaluate_ridge(fit, design, run_params,session)
 
     # Set up kernels to drop for model selection
     print('Setting up model selection dropout')
@@ -233,7 +233,7 @@ def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     fit['var_shuffle_'+method+'_threshold'] = x[dex]
     return fit
 
-def evaluate_ridge(fit, design,run_params):
+def evaluate_ridge(fit, design,run_params,session):
     '''
         Finds the best L2 value by fitting the model on a grid of L2 values and reporting training/test error
     
@@ -255,6 +255,10 @@ def evaluate_ridge(fit, design,run_params):
     if run_params['L2_use_fixed_value']:
         print('Using a hard-coded regularization value')
         fit['avg_L2_regularization'] = run_params['L2_fixed_lambda']
+    elif run_params['L2_optimize_by_cre']:
+        print('Using a hard-coded regularization value for each cre line')
+        this_cre = session.metadata['cre_line']
+        fit['avg_L2_regularization'] = run_params['L2_cre_values'][this_cre]
     elif not fit['ok_to_fit_preferred_engagement']:
         print('\tSkipping ridge evaluation because insufficient preferred engagement timepoints')
         fit['avg_L2_regularization'] = np.nan      

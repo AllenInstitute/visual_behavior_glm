@@ -149,11 +149,6 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
                     'ppn':4,
                     }
 
-    # Define Kernels and dropouts
-    kernels = define_kernels()
-    kernels = process_kernels(kernels)
-    dropouts = define_dropouts(kernels)
-
     # Make JSON file with parameters
     run_params = {
         'output_dir':output_dir,                
@@ -176,16 +171,14 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
         'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
-        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session 
+        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session  
         'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda  
-        'L2_fixed_lambda': None,        # This value is used if L2_use_fixed_value  
+        'L2_fixed_lambda': None,        # This value is used if L2_use_fixed_value   
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
-        'kernels':kernels,
-        'dropouts':dropouts,
         'split_on_engagement': False,   # If True, uses 'engagement_preference' to determine what engagement state to use
         'engagement_preference': None,  # Either None, "engaged", or "disengaged". Must be None if split_on_engagement is False
         'min_engaged_duration': 600,    # Minimum time, in seconds, the session needs to be in the preferred engagement state 
@@ -203,8 +196,18 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'include_invalid_rois': False,  # If True, will fit to ROIs deemed invalid by the SDK. Note that the SDK provides dff traces, but not events, for invalid ROISs
         'interpolate_to_stimulus':True, # If True, interpolates the cell activity trace onto stimulus aligned timestamps
         'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
-        'dropout_threshold':0.005       # Minimum variance explained by full model
+        'dropout_threshold':0.005,      # Minimum variance explained by full model
+        'version_type':'minimal',    # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
     } 
+
+    # Define Kernels and dropouts
+    kernels = define_kernels()
+    kernels = process_kernels(kernels)
+    dropouts = define_dropouts(kernels,run_params)
+    run_params['kernels']=kernels
+    run_params['dropouts']=dropouts
+
+
     # Regularization parameter checks 
     a = run_params['L2_optimize_by_cell'] 
     b = run_params['L2_optimize_by_session'] 
@@ -234,6 +237,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         assert run_params['engagement_preference'] is None, "Not splitting on engagement, engagement preference must be None"
     assert run_params['min_engaged_duration'] >=0, "Must define a minimum interval for the preferred engagement state"
 
+    # Check version type:
+    assert run_params['version_type'] in ['production','standard','minimal'], "Incorrect value for version type. Define what model analyses to run." 
 
     with open(json_path, 'w') as json_file:
         json.dump(run_params, json_file, indent=4)
@@ -265,63 +270,67 @@ def process_kernels(kernels):
             kernels['model_' + str(val)]['event'] = 'model_' + str(val)
     return kernels
 
-def define_dropouts(kernels):
+def define_dropouts(kernels,run_params):
     '''
         Creates a dropout dictionary. Each key is the label for the dropout, and the value is a list of kernels to include
         Creates a dropout for each kernel by removing just that kernel.
         Creates a single-dropout for each kernel by removing all but that kernel
         Also defines nested models
     '''
-    # Remove each kernel one-by-one
+
+    # Define full model
     dropouts = {'Full': {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}}
-    for kernel in [kernel for kernel in kernels.keys() if kernels[kernel]['dropout']]:
-        dropouts[kernel]={'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-        dropouts[kernel]['kernels'].remove(kernel)
-        dropouts[kernel]['dropped_kernels'].append(kernel)
 
-    # Define the nested_models
-    dropout_definitions={
-        'visual':               ['image0','image1','image2','image3','image4','image5','image6','image7','omissions','image_expectation'],
-        'all-images':           ['image0','image1','image2','image3','image4','image5','image6','image7'],
-        #'expectation':          ['image_expectation','omissions'],
-        #'cognitive':            ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
-        'task':                 ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards'],
-        #'image_change':         ['image_change0','image_change1','image_change2','image_change3','image_change4','image_change5','image_change6','image_change7'],
-        #'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
-        'behavioral':           ['running','pupil','licks','lick_bouts','lick_model','groom_model'],
-        'licking':              ['licks','lick_bouts','lick_model','groom_model']
-        #'pupil_and_running':    ['pupil','running'],
-        #'pupil_and_omissions':  ['pupil','omissions'],
-        #'running_and_omissions':['running','omissions']
-        }
+    if run_params['version_type'] in ['production','standard']:
+        # Remove each kernel one-by-one
+        for kernel in [kernel for kernel in kernels.keys() if kernels[kernel]['dropout']]:
+            dropouts[kernel]={'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+            dropouts[kernel]['kernels'].remove(kernel)
+            dropouts[kernel]['dropped_kernels'].append(kernel)
 
-    # Add all face_motion_energy individual kernels to behavioral, and as a group model
-    # Number of PCs is variable, so we have to treat it differently
-    if 'face_motion_PC_0' in kernels:
-        dropout_definitions['face_motion_energy'] = [kernel for kernel in list(kernels.keys()) if kernel.startswith('face_motion')] 
-        dropout_definitions['behavioral']=dropout_definitions['behavioral']+dropout_definitions['face_motion_energy']   
-    
-    # For each nested model, move the appropriate kernels to the dropped_kernel list
-    for dropout_name in dropout_definitions:
-        dropouts = set_up_dropouts(dropouts, kernels, dropout_name, dropout_definitions[dropout_name])
+        # Define the nested_models
+        dropout_definitions={
+            'visual':               ['image0','image1','image2','image3','image4','image5','image6','image7','omissions','image_expectation'],
+            'all-images':           ['image0','image1','image2','image3','image4','image5','image6','image7'],
+            #'expectation':          ['image_expectation','omissions'],
+            #'cognitive':           ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
+            'task':                 ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards'],
+            #'image_change':         ['image_change0','image_change1','image_change2','image_change3','image_change4','image_change5','image_change6','image_change7'],
+            #'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
+            'behavioral':           ['running','pupil','licks','lick_bouts','lick_model','groom_model'],
+            'licking':              ['licks','lick_bouts','lick_model','groom_model']
+            #'pupil_and_running':    ['pupil','running'],
+            #'pupil_and_omissions':  ['pupil','omissions'],
+            #'running_and_omissions':['running','omissions']
+            }
+
+        # Add all face_motion_energy individual kernels to behavioral, and as a group model
+        # Number of PCs is variable, so we have to treat it differently
+        if 'face_motion_PC_0' in kernels:
+            dropout_definitions['face_motion_energy'] = [kernel for kernel in list(kernels.keys()) if kernel.startswith('face_motion')] 
+            dropout_definitions['behavioral']=dropout_definitions['behavioral']+dropout_definitions['face_motion_energy']   
+        
+        # For each nested model, move the appropriate kernels to the dropped_kernel list
+        for dropout_name in dropout_definitions:
+            dropouts = set_up_dropouts(dropouts, kernels, dropout_name, dropout_definitions[dropout_name])
     
     # Adds single kernel dropouts:
-    for drop in [drop for drop in dropouts.keys()]:
-        if (drop != 'Full') & (drop != 'intercept'):
-            # Make a list of kernels by taking the difference between the kernels in 
-            # the full model, and those in the dropout specified by this kernel.
-            # This formulation lets us do single kernel dropouts for things like beh_model,
-            # or all-images
+    if run_params['version_type'] == 'production':
+        for drop in [drop for drop in dropouts.keys()]:
+            if (drop != 'Full') & (drop != 'intercept'):
+                # Make a list of kernels by taking the difference between the kernels in 
+                # the full model, and those in the dropout specified by this kernel.
+                # This formulation lets us do single kernel dropouts for things like beh_model,
+                # or all-images
 
-            kernels = set(dropouts['Full']['kernels'])-set(dropouts[drop]['kernels'])
-            kernels.add('intercept') # We always include the intercept
-            dropped_kernels = set(dropouts['Full']['kernels']) - kernels
-            dropouts['single-'+drop] = {'kernels':list(kernels),'dropped_kernels':list(dropped_kernels),'is_single':True} 
+                kernels = set(dropouts['Full']['kernels'])-set(dropouts[drop]['kernels'])
+                kernels.add('intercept') # We always include the intercept
+                dropped_kernels = set(dropouts['Full']['kernels']) - kernels
+                dropouts['single-'+drop] = {'kernels':list(kernels),'dropped_kernels':list(dropped_kernels),'is_single':True} 
    
     # Check to make sure no kernels got lost in the mix 
     for drop in dropouts.keys():
         assert len(dropouts[drop]['kernels']) + len(dropouts[drop]['dropped_kernels']) == len(dropouts['Full']['kernels']), 'bad length'
-
 
     return dropouts
     

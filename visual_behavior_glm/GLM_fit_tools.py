@@ -79,6 +79,7 @@ def check_weight_lengths(fit,design):
     if ('dropouts' in fit) and ('train_weights' in fit['dropouts']['Full']):
         num_weights_fit = len([x for x in fit['dropouts']['Full']['train_weights'].weights.values if x.startswith('image0')])
         assert num_weights_fit == num_weights_per_stimulus, "Number of weights in fit dictionary is incorrect"
+    print('Checked weight/kernel lengths against timesteps per stimulus')
 
 def setup_cv(fit,run_params):
     '''
@@ -107,10 +108,16 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     
     # Log oeid
     print("Fitting ophys_experiment_id: "+str(oeid)) 
+    if run_params['version_type'] == 'production':
+        print('Production fit, will include all dropouts, and shuffle analysis')
+    elif run_params['version_type'] == 'standard':
+        print('Standard fit, will only include standard dropouts')
+    elif run_params['version_type'] == 'minimal':
+        print('Minimal fit, will not perform dropouts, or shuffle analysis')
 
     # Warn user if debugging tools are active
     if NO_DROPOUTS:
-        print('WARNING! NO_DROPOUTS=True in fit_experiment(), dropout analysis will NOT run')
+        print('WARNING! NO_DROPOUTS=True in fit_experiment(), dropout analysis will NOT run, despite version_type')
 
     if TESTING:
         print('WARNING! TESTING=True in fit_experiment(), will only fit the first 6 cells of this experiment')
@@ -133,9 +140,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Check Interpolation onto stimulus timestamps
     if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
-        print('Checking stimulus interpolation')
         check_image_kernel_alignment(design,run_params)
-        print('Passed all interpolation checks')
 
     # split by engagement
     design,fit = split_by_engagement(design, run_params, session, fit)
@@ -160,20 +165,14 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     fit = evaluate_models(fit, design, run_params)
     check_weight_lengths(fit,design)
 
-    # Start Diagnostic analyses
-    if (not NO_DROPOUTS) & fit['ok_to_fit_preferred_engagement']:
-        print('Starting diagnostics')
-        print('Bootstrapping synthetic data')
-        fit = bootstrap_model(fit, design, run_params)
-
     # Perform shuffle analysis, with two shuffle methods
-    if (not NO_DROPOUTS) & fit['ok_to_fit_preferred_engagement']:
+    if (not NO_DROPOUTS) and (fit['ok_to_fit_preferred_engagement']) and (run_params['version_type'] == 'production'):
         print('Evaluating shuffle fits')
         fit = evaluate_shuffle(fit, design, method='cells')
         fit = evaluate_shuffle(fit, design, method='time')
 
     # Save fit dictionary to compressed pickle file
-    print('Saving results')
+    print('Saving fit dictionary')
     fit['failed_kernels'] = run_params['failed_kernels']
     fit['failed_dropouts'] = run_params['failed_dropouts']
     filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pbz2')
@@ -181,115 +180,14 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
         cPickle.dump(fit,f)
 
     # Save Event Table
-    print('Saving Events Table')
-    filepath = os.path.join(run_params['experiment_output_dir'],'event_times_'+str(oeid)+'.h5')
-    pd.DataFrame(design.events).to_hdf(filepath,key='df')
+    if run_params['version_type'] == 'production':
+        print('Saving Events Table')
+        filepath = os.path.join(run_params['experiment_output_dir'],'event_times_'+str(oeid)+'.h5')
+        pd.DataFrame(design.events).to_hdf(filepath,key='df')
 
     # Pack up
     print('Finished') 
     return session, fit, design
-
-def bootstrap_model(fit, design, run_params, regularization=50, norm_preserve=False, check_every=100, PLOT=False):
-    '''
-        Generates synthetic df/f traces using normally distributed random parameters. 
-        Then tries to recover those parameters using the CV procedure in fit_experiment()
-
-        In addition creates a series of synthetic df/f traces where a subset of weights are set to 0 in generating the data, but
-        are still included in the fit recovery. These junk regressors let us evaluate the regularization process. 
-
-        INPUTS:
-        fit             fit dictionary
-        design          design matrix
-        run_params      run_params json
-        regularization  fixed L2 value used for fitting
-        norm_preserve   if true, when zeroing weights preserves the norm of the weight vector (sanity check for weird regularization effects)
-        check_every     Zeros out weights in steps of this many parameters
-        PLOT            if true, makes a summary plot of the bootstrap analysis
-
-        RETURNS:
-        fit             fit dictionary with 'bootstrap' key added which maps to a dictionary of results
-    '''
-    # Set up storage, and how many datasets to make
-    zero_dexes = range(100, len(fit['dropouts']['Full']['cv_weights'][:,:,0]),check_every)
-    cv_var_train    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-    cv_var_test     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-    cv_var_def      = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-    cv_weight_shift = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']), len(zero_dexes)))
-
-    # Iterate over datasets, making synthetic data, and doing recovery
-    for index, zero_dex in enumerate(zero_dexes):
-
-        # Set up design matrix and Y variable (will get over-ridden)p
-        X = design.get_X()
-        Y_boot = copy(fit['fit_trace_arr'])
-
-        # iterate over cross validation
-        for split_index, test_split in tqdm(enumerate(fit['ridge_splits']), total=len(fit['ridge_splits']), desc='    Bootstrapping with {} regressors'.format(zero_dex)):
-            # Set up training/test splits
-            train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
-            test_split = fit['ridge_splits'][split_index]
-
-            # Make weights 
-            W = fit['dropouts']['Full']['cv_weights'][:,:,0].copy()
-            W = np.random.randn(np.shape(W)[0], np.shape(W)[1])
-            if norm_preserve:
-                orig_norm = np.linalg.norm(W,axis=0)
-            idx = np.random.permutation(np.arange(np.shape(W)[0]-1)+1)[zero_dex:]
-            W[idx,:] = 0
-            if norm_preserve:
-                new_norm = np.linalg.norm(W,axis=0)
-                ratio_norm = orig_norm/new_norm
-                W = W @ np.diag(ratio_norm)
-
-            # Generate synthetic data, and get best W estimate
-            Y_boot.values = X.values @ W
-            W_boot = fit_regularized(Y_boot[train_split,:], X[train_split,:],regularization)     
-
-            # Evaluate and save results
-            W_orig = copy(W_boot)
-            W_orig.values = W
-            cv_var_train[:,split_index,index]     = variance_ratio(Y_boot[train_split,:], W_boot, X[train_split,:]) 
-            cv_var_test[:,split_index,index]      = variance_ratio(Y_boot[test_split,:],  W_boot, X[test_split,:])
-            cv_var_def[:,split_index,index]       = variance_ratio(Y_boot[test_split,:],  W_orig, X[test_split,:])
-            cv_weight_shift[:,split_index,index]  = np.mean(np.abs(W_boot.values - W_orig.values))
-
-    # Pack up 
-    keyword = 'bootstrap'
-    if not norm_preserve:
-        keyword = keyword+"_no_norm"
-    fit['bootstrap']={}
-    fit['bootstrap']['W_boot'] = W_boot
-    fit['bootstrap']['W_orig'] = W_orig
-    fit['bootstrap']['var_explained_train'] = cv_var_train.mean(axis=1) 
-    fit['bootstrap']['var_explained_test']  = cv_var_test.mean(axis=1)  
-    fit['bootstrap']['var_explained_def']   = cv_var_def.mean(axis=1)      
-    fit['bootstrap']['mean_weight_shift']   = cv_weight_shift.mean(axis=1)
-    fit['bootstrap']['zero_dexes'] = zero_dexes
-        
-    # If plotting is requested
-    if PLOT:
-        plot_bootstrap(fit, keyword, zero_dexes)
-    
-    # return fit dictionary with added key/value
-    return fit
-
-def plot_bootstrap(fit, keyword,zero_dexes):
-    '''
-        Plots the bootstrapping analysis
-        
-        INPUTS:
-        fit         fit dictionary
-        keywowrd    name of file to save figure as <keyword>.png
-        zero_dexes  index of how many weights were zeroed out for each dataset
-    '''
-    plt.figure()
-    plt.plot(zero_dexes, fit['bootstrap']['var_explained_train'].mean(axis=0), 'bo-', label='Train')
-    plt.plot(zero_dexes, fit['bootstrap']['var_explained_test'].mean(axis=0), 'ro-', label='Test')
-    plt.ylabel('Var Explained')
-    plt.xlabel('Number of non-zero values in generative weights')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(keyword+'.png')
 
 def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     '''
@@ -351,21 +249,21 @@ def evaluate_ridge(fit, design,run_params):
 
         returns fit, with the values added:
             L2_grid                 # the L2 grid evaluated (if L2_optimize_by_cell, or L2_optimize_by_session)
-            avg_regularization      # the average optimal L2 value, or the fixed value
-            cell_regularization     # the optimal L2 value for each cell (if L2_optimize_by_cell)
+            avg_L2_regularization      # the average optimal L2 value, or the fixed value
+            cell_L2_regularization     # the optimal L2 value for each cell (if L2_optimize_by_cell)
     '''
     if run_params['L2_use_fixed_value']:
         print('Using a hard-coded regularization value')
-        fit['avg_regularization'] = run_params['L2_fixed_lambda']
+        fit['avg_L2_regularization'] = run_params['L2_fixed_lambda']
     elif not fit['ok_to_fit_preferred_engagement']:
         print('\tSkipping ridge evaluation because insufficient preferred engagement timepoints')
-        fit['avg_regularization'] = np.nan      
-        fit['cell_regularization'] = np.empty((fit['fit_trace_arr'].shape[1],))
+        fit['avg_L2_regularization'] = np.nan      
+        fit['cell_L2_regularization'] = np.empty((fit['fit_trace_arr'].shape[1],))
         fit['L2_test_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
         fit['L2_train_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
         fit['L2_at_grid_min'] = np.empty((fit['fit_trace_arr'].shape[1],))
         fit['L2_at_grid_max'] = np.empty((fit['fit_trace_arr'].shape[1],))
-        fit['cell_regularization'][:] = np.nan
+        fit['cell_L2_regularization'][:] = np.nan
         fit['L2_test_cv'][:] = np.nan
         fit['L2_train_cv'][:] =np.nan
         fit['L2_at_grid_min'][:] =np.nan
@@ -399,8 +297,8 @@ def evaluate_ridge(fit, design,run_params):
             train_cv[:,L2_index] = np.mean(cv_var_train,1)
             test_cv[:,L2_index]  = np.mean(cv_var_test,1)
 
-        fit['avg_regularization'] = np.mean([fit['L2_grid'][x] for x in np.argmax(test_cv,1)])      
-        fit['cell_regularization'] = [fit['L2_grid'][x] for x in np.argmax(test_cv,1)]     
+        fit['avg_L2_regularization'] = np.mean([fit['L2_grid'][x] for x in np.argmax(test_cv,1)])      
+        fit['cell_L2_regularization'] = [fit['L2_grid'][x] for x in np.argmax(test_cv,1)]     
         fit['L2_test_cv'] = test_cv
         fit['L2_train_cv'] = train_cv
         fit['L2_at_grid_min'] = [x==0 for x in np.argmax(test_cv,1)]
@@ -460,7 +358,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
         For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
             It does this for the entire dataset as test and train. As well as CV, saving each test/train split
 
-        Each cell uses a different L2 value defined in fit['cell_regularization']
+        Each cell uses a different L2 value defined in fit['cell_L2_regularization']
     '''
     for model_label in fit['dropouts'].keys():
 
@@ -489,7 +387,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
         for cell_index, cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
 
             fit_trace = fit['fit_trace_arr'][:,cell_index]
-            Wall = fit_cell_regularized(X_inner,fit_trace, X,fit['cell_regularization'][cell_index])     
+            Wall = fit_cell_regularized(X_inner,fit_trace, X,fit['cell_L2_regularization'][cell_index])     
             var_explain = variance_ratio(fit_trace, Wall,X)
             adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
             all_weights[:,cell_index] = Wall
@@ -512,7 +410,7 @@ def evaluate_models_different_ridge(fit,design,run_params):
 
                 fit_trace_train = fit['fit_trace_arr'][train_split,cell_index]
                 fit_trace_test = fit['fit_trace_arr'][test_split,cell_index]
-                W = fit_cell_regularized(X_cov,fit_trace_train, X_train, fit['cell_regularization'][cell_index])
+                W = fit_cell_regularized(X_cov,fit_trace_train, X_train, fit['cell_L2_regularization'][cell_index])
                 cv_var_train[cell_index,index] = variance_ratio(fit_trace_train, W, X_train)
                 cv_var_test[cell_index,index] = variance_ratio(fit_trace_test, W, X_test)
                 cv_adjvar_train[cell_index,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask[train_split]) 
@@ -561,7 +459,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
         For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
             It does this for the entire dataset as test and train. As well as CV, saving each test/train split
     
-        All cells use the same regularization value defined in fit['avg_regularization']  
+        All cells use the same regularization value defined in fit['avg_L2_regularization']  
         
     '''
     for model_label in fit['dropouts'].keys():
@@ -573,7 +471,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
 
         # Fit on full dataset for references as training fit
         fit_trace = fit['fit_trace_arr']
-        Wall = fit_regularized(fit_trace, X,fit['avg_regularization'])     
+        Wall = fit_regularized(fit_trace, X,fit['avg_L2_regularization'])     
         var_explain = variance_ratio(fit_trace, Wall,X)
         adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
         fit['dropouts'][model_label]['train_weights'] = Wall
@@ -598,7 +496,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
             mask_train = mask[train_split]
             fit_trace_train = fit['fit_trace_arr'][train_split,:]
             fit_trace_test = fit['fit_trace_arr'][test_split,:]
-            W = fit_regularized(fit_trace_train, X_train, fit['avg_regularization'])
+            W = fit_regularized(fit_trace_train, X_train, fit['avg_L2_regularization'])
             cv_var_train[:,index]   = variance_ratio(fit_trace_train, W, X_train)
             cv_var_test[:,index]    = variance_ratio(fit_trace_test, W, X_test)
             cv_adjvar_train[:,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask_train) 
@@ -814,6 +712,14 @@ def build_dataframe_from_dropouts(fit,run_params):
         # If the shuffle across time was computed, record average VE for each cell
         results['Full__shuffle_time'] = np.nanmean(fit['var_shuffle_time'],1) 
 
+    # Log average regularization value    
+    if 'avg_L2_regularization' in fit:
+        results['Full__avg_L2_regularization'] = fit['avg_L2_regularization']
+
+    # If cell-wise regularization values were computed, log them
+    if 'cell_L2_regularization' in fit:
+        results['Full__cell_L2_regularization'] = fit['cell_L2_regularization']   
+
     return results
 
 def L2_report(fit):
@@ -828,7 +734,7 @@ def L2_report(fit):
     plt.gca().set_xscale('log')
     plt.ylabel('Session avg test CV')
     plt.xlabel('L2 Strength')
-    plt.axvline(fit['avg_regularization'], color='k', linestyle='--', alpha = 0.5)
+    plt.axvline(fit['avg_L2_regularization'], color='k', linestyle='--', alpha = 0.5)
     plt.ylim(0,.15) 
 
     cellids = fit['fit_trace_arr']['cell_specimen_id'].values
@@ -898,12 +804,6 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
     # Remove likely blinks and interpolate
     eye.loc[eye['likely_blink'],:] = np.nan
     eye = eye.interpolate()   
-
-    # Do a second transient removal step
-    #x = scipy.stats.zscore(eye['pupil_radius'],nan_policy='omit')
-    #d_mask = np.abs(np.diff(x,append=x[-1])) > run_params['eye_transient_threshold']
-    #eye.loc[d_mask,:]=np.nan
-    #eye = eye.interpolate()
 
     # Interpolate everything onto ophys_timestamps
     ophys_eye = pd.DataFrame({'timestamps':ophys_timestamps})
@@ -1151,6 +1051,8 @@ def check_image_kernel_alignment(design,run_params):
         Checks to see if any of the image kernels overlap
         Note this fails if the early image is omitted, but I can't check the omission kernels directly because they overlap on purpose with images
     '''
+    print('Checking stimulus interpolation')
+
     kernels = ['image0','image1','image2','image3','image4','image5','image6','image7']
     X = design.get_X(kernels=kernels)
     if ('image_kernel_overlap_tol' in run_params):
@@ -1164,6 +1066,9 @@ def check_image_kernel_alignment(design,run_params):
         print('Image kernels overlap, but within tolerance: {}, {}'.format(overlap, tolerance))
     else:
         print('No Image kernel overlap: {}'.format(overlap))
+    print('Passed all interpolation checks')
+
+
 
 def check_interpolation_to_stimulus(fit, session): 
     '''

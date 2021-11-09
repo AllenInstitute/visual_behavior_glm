@@ -347,12 +347,14 @@ def evaluate_models(fit, design, run_params):
         fit['dropouts']['Full']['train_adjvariance_explained'][:] = np.nan 
         fit['dropouts']['Full']['full_model_train_prediction'][:] = np.nan  
         return fit
-    if run_params['L2_use_fixed_value'] or run_params['L2_optimize_by_session'] :
+    if run_params['L2_use_fixed_value'] or run_params['L2_optimize_by_session'] or run_params['L2_optimize_by_cre']:
         print('Using a constant regularization value across all cells')
         return evaluate_models_same_ridge(fit,design, run_params)
-    else:
+    elif run_params['L2_optimize_by_cell']:
         print('Using an optimized regularization value for each cell')
         return evaluate_models_different_ridge(fit,design,run_params)
+    else:
+        raise Exception('Unknown regularization approach')
 
 
 def evaluate_models_different_ridge(fit,design,run_params):

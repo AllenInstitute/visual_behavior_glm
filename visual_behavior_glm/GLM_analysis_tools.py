@@ -164,6 +164,8 @@ def generate_results_summary_nonadj(glm):
     '''
     # Get list of columns to look at, removing the non-adjusted dropouts, and training scores
     test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' not in col)&('session' not in col)&('cell' not in col))]  
+    if 'Full__shuffle_cells' in glm.results.columns:
+        test_cols.append('Full__shuffle_cells')
  
     # Set up space
     results_summary_list = []

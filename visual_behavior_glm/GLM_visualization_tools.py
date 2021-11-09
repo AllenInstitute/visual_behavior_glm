@@ -677,7 +677,9 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
             extra = extra+"_equipment"
         if sort_by_signal:
             extra = extra+"_by_dff"
-    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/variance_explained'+extra+'.png')
+    filepath= '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/version_comparisons/variance_explained'+extra+'.png'
+    print(filepath)
+    plt.savefig(filepath)
 
     return fig, ax
 
@@ -3819,5 +3821,56 @@ def compare_weight_index(weights_df, kernel='all-images'):
     plt.legend()
     return None
 
+def shuffle_analysis(results,run_params,bins=50,savefig=True,shuffle='time'):
+    '''
+        Plots a distribution of variance explained in a shuffle test compared to dropout threshold
+        shuffle is the test to plot, should be either 'time', or 'cells'
+    '''
+    plt.figure()
+    plt.hist(results.query('dropout=="Full"')['shuffle_'+shuffle],bins=bins,label='Shuffle {}'.format(shuffle),density=True)
+    plt.ylabel('Density')
+    plt.xlabel('Variance explained, shuffling across {}'.format(shuffle))
+    maxve = results.query('dropout=="Full"')['shuffle_'+shuffle].max()
+    plt.axvline(maxve, color='r',linestyle='-',alpha=1,label='Max shuffled VE')
+    plt.axvline(run_params['dropout_threshold'],color='m',linestyle='--',alpha=1,label='Threshold for minimum VE (non shuffled)')
+    plt.legend()
+    plt.title(run_params['version'])
+    if savefig:
+        filepath = os.path.join(run_params['fig_overfitting_dir'],'shuffle_{}.png'.format(shuffle))
+        print(filepath)
+        plt.savefig(filepath)
 
+def compare_dropout_thresholds(results_in):
+    '''
+        Plots summary dropouts for different filtering steps
+    '''
+    results = results_in.copy()
+
+    fig,ax = plt.subplots(3,2,figsize=(12,10))
+    plot_dropout_summary_population(results,ax=ax[0,0])
+    ax[0,0].set_title('VE < 0.5% set dropout = 0 ')
+    ax[0,0].get_legend().remove()
+
+    plot_dropout_summary_population(results.query('variance_explained_full > 0.005'),ax=ax[0,1])
+    ax[0,1].set_title('VE < 0.5% removed')        
+    ax[0,1].get_legend().remove()
+
+    plot_dropout_summary_population(results.query('variance_explained_full > 0.01'),ax=ax[1,1])
+    ax[1,1].set_title('VE < 1.0% removed')        
+    ax[1,1].get_legend().remove()
+
+    plot_dropout_summary_population(results.query('variance_explained_full > 0.02'),ax=ax[2,1])
+    ax[2,1].set_title('VE < 2.0% removed')        
+    ax[2,1].get_legend().remove()
+
+    results.loc[results['variance_explained_full'] <0.01,'adj_fraction_change_from_full'] = 0
+    plot_dropout_summary_population(results,ax=ax[1,0])
+    ax[1,0].set_title('VE < 1.0% set dropout = 0')        
+    ax[1,0].get_legend().remove()
+
+    results.loc[results['variance_explained_full'] <0.02,'adj_fraction_change_from_full'] = 0
+    plot_dropout_summary_population(results,ax=ax[2,0])
+    ax[2,0].set_title('VE < 2.0% set dropout = 0')        
+    ax[2,0].get_legend().remove()
+    plt.tight_layout()
 

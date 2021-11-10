@@ -178,7 +178,6 @@ if __name__ == "__main__":
             job_count += 1
             print('starting cluster job for {}, job count = {}'.format(experiment_id, job_count))
             job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.version)
-
             walltime = '{}:00:00'.format(int(np.ceil((calculate_required_walltime(roi_count)))))
             mem = '{}gb'.format(int(np.ceil((calculate_required_mem(roi_count)))))
             job_id = Slurm.JOB_ARRAY_ID
@@ -202,5 +201,4 @@ if __name__ == "__main__":
                     args_string,
                 )
             )
-
             time.sleep(0.001)

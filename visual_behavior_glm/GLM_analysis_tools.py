@@ -1201,6 +1201,52 @@ def select_experiments_for_testing(returns = 'experiment_ids'):
         return test_experiments
 
 
+def get_normalized_results_pivoted(glm_version = None, kind = 'max', cutoff = -np.inf):
+    '''
+    Loads absolute results pivoted, then normalization.
+    Currently only normalizes to max
+
+    INPUT:
+    glm_version     default is version 15 with events
+    kind            type of normalization. Currently only uses max, other options could be session number.
+
+    OUTPUT:
+    results_pivoted_normalized
+    '''
+    if glm_version == None:
+        glm_version = '15_events_L2_optimize_by_session'
+        print('loading glm version 15 with events by default ...')
+
+    results_pivoted = build_pivoted_results_summary(glm_version=glm_version,
+                                                value_to_use='absolute_change_from_full',
+                                                results_summary=None,
+                                                cutoff=cutoff)
+
+    col_to_exclude = ['identifier', 'Full','variance_explained_full', 'cell_specimen_id', 'cell_roi_id',
+       'glm_version', 'ophys_experiment_id', 'ophys_session_id',
+       'equipment_name', 'donor_id', 'full_genotype', 'mouse_id',
+       'reporter_line', 'driver_line', 'sex', 'age_in_days', 'foraging_id',
+       'cre_line', 'indicator', 'session_number',
+       'prior_exposures_to_session_type', 'prior_exposures_to_image_set',
+       'prior_exposures_to_omissions', 'behavior_session_id',
+       'ophys_container_id', 'project_code', 'container_workflow_state',
+       'experiment_workflow_state', 'session_name', 'isi_experiment_id',
+       'imaging_depth', 'targeted_structure', 'published_at',
+       'date_of_acquisition', 'session_type', 'session_tags', 'failure_tags',
+       'model_outputs_available', 'location']
+
+    if kind == 'max':
+        abs_max_df = results_pivoted[['variance_explained_full', 'cell_specimen_id']].groupby('cell_specimen_id').max()
+        results_pivoted_normalized = results_pivoted.join(abs_max_df, on= 'cell_specimen_id', rsuffix='_max').copy()
+
+        for column in results_pivoted.columns:
+            if column not in col_to_exclude:
+                results_pivoted_normalized.loc[results_pivoted_normalized[column]>0,column]=0
+                results_pivoted_normalized[column] = results_pivoted_normalized[column].divide(results_pivoted_normalized['variance_explained_full_max'])
+
+    return results_pivoted_normalized
+
+ 
 def get_kernel_weights(glm, kernel_name, cell_specimen_id):
     '''
     gets the weights associated with a given kernel for a given cell_specimen_id
@@ -1461,6 +1507,5 @@ def check_mesoscope(results,filters=['cre_line','targeted_structure','depth','me
     summary['err']=results.groupby(filters)['Full__avg_cv_var_test'].sem()*2
     summary['count']=results.groupby(filters)['Full__avg_cv_var_test'].count()
     return summary
-
 
 

@@ -170,13 +170,15 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
+        'L2_optimize_by_cre': True,     # If True, uses the best L2 value for each cell ## TODO
         'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
-        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session  
+        'L2_optimize_by_session': False,# If True, uses the best L2 value for this session ## TODO 
         'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda  
         'L2_fixed_lambda': None,        # This value is used if L2_use_fixed_value   
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'
+        'L2_cre_values':{'Slc17a7-IRES2-Cre':340, 'Vip-IRES-Cre':320,'Sst-IRES-Cre':185}, # Fixed values to use for optimize_by_cre #TODO, for events only
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'split_on_engagement': False,   # If True, uses 'engagement_preference' to determine what engagement state to use
@@ -192,7 +194,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'mean_center_inputs': True,     # If True, mean centers continuous inputs
         'unit_variance_inputs': True,   # If True, continuous inputs have unit variance
         'max_run_speed': 100,           # If 1, has no effect. Scales running speed to be O(1). 
-        'use_events': False,            # If True, use detected events. If False, use raw deltaF/F 
+        'use_events': True,             # If True, use detected events. If False, use raw deltaF/F 
         'include_invalid_rois': False,  # If True, will fit to ROIs deemed invalid by the SDK. Note that the SDK provides dff traces, but not events, for invalid ROISs
         'interpolate_to_stimulus':True, # If True, interpolates the cell activity trace onto stimulus aligned timestamps
         'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
@@ -211,8 +213,11 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     # Regularization parameter checks 
     a = run_params['L2_optimize_by_cell'] 
     b = run_params['L2_optimize_by_session'] 
-    c = run_params['L2_use_fixed_value'] 
-    assert (a or b or c) and not ((a and b) or (b and c) or (a and c)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
+    c = run_params['L2_use_fixed_value']
+    d = run_params['L2_optimize_by_cre'] 
+    assert (a or b or c or d) and not ((a and b) or (b and c) or (a and c)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
+    assert (a or b or c or d) and not ((a and b) or (b and d) or (a and d)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
+    # TODO, fix this mess
 
     # Check L2 Fixed value parameters 
     if run_params['L2_use_fixed_value'] and (run_params['L2_fixed_lambda'] is None): 

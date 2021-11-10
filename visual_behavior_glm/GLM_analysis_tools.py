@@ -5,6 +5,7 @@ import _pickle as cPickle
 import warnings
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import xarray_mongodb
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -572,7 +573,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
 def make_identifier(row):
     return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
 
-def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=True,invalid_only=False,remove_invalid_rois=True,save_results=True):
+def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=True,invalid_only=False,remove_invalid_rois=True,save_results=True,additional_columns=[]):
     '''
         Builds a results summary table for comparing variance explained and dropout scores across model versions.
         results_compact = gat.get_glm_version_summary(versions_to_compare)
@@ -586,6 +587,7 @@ def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=Tru
         dropouts = ['Full','visual','all-images','omissions','behavioral','task']
         return_list = np.concatenate([[x+'__avg_cv_var_test',x+'__avg_cv_var_train'] for x in dropouts])
         return_list = np.concatenate([return_list, ['ophys_experiment_id','cell_roi_id','cre_line','glm_version']])
+        return_list = np.concatenate([return_list, additional_columns])
     else:
         return_list = None
     results_list = []
@@ -1459,5 +1461,6 @@ def check_mesoscope(results,filters=['cre_line','targeted_structure','depth','me
     summary['err']=results.groupby(filters)['Full__avg_cv_var_test'].sem()*2
     summary['count']=results.groupby(filters)['Full__avg_cv_var_test'].count()
     return summary
+
 
 

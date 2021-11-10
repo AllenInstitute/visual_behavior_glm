@@ -149,6 +149,10 @@ if False: # Code snippets for doing analyses.
         )
     gvt.compare_var_explained_by_version(results_combined)
 
+    # look at overfitting by version
+    rc = results_combined.query('Full__avg_cv_var_train > 0.005')
+    rc['over_fit'] = rc.apply(lambda x: (x['Full__avg_cv_var_train'] - x['Full__avg_cv_var_test'])/(x['Full__avg_cv_var_train']),axis=1)
+    rc.groupby(['cre_line','glm_version'])['over_fit'].mean()
 
     # Analysis Dataframes 
     #####################

@@ -5,6 +5,7 @@ import _pickle as cPickle
 import warnings
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import xarray_mongodb
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -1460,5 +1461,6 @@ def check_mesoscope(results,filters=['cre_line','targeted_structure','depth','me
     summary['err']=results.groupby(filters)['Full__avg_cv_var_test'].sem()*2
     summary['count']=results.groupby(filters)['Full__avg_cv_var_test'].count()
     return summary
+
 
 

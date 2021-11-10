@@ -3874,3 +3874,39 @@ def compare_dropout_thresholds(results_in):
     ax[2,0].get_legend().remove()
     plt.tight_layout()
 
+
+def compare_L2_values(results,run_params):
+    results = results.query('dropout == "Full"').copy()
+
+    fig,ax = plt.subplots(1,2,figsize=(8,3))
+    ax[0] = sns.histplot(
+        results, 
+        x='cell_L2_regularization',
+        hue='cre_line',
+        element='step',
+        bins=40,
+        stat='density',
+        common_norm=False,
+        ax=ax[0],
+        palette=project_colors()
+        )
+    ax[0].set_title('All cells')
+    results = results.query('variance_explained > 0.005')
+
+    sns.histplot(
+        results, 
+        x='cell_L2_regularization',
+        hue='cre_line',
+        element='step',
+        bins=40,
+        legend=False,
+        stat='density',
+        common_norm=False,
+        ax=ax[1],
+        palette=project_colors()
+        )
+    ax[1].set_title('Cells > 0.005 VE')
+
+    plt.tight_layout()
+
+

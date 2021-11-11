@@ -37,6 +37,8 @@ def load_fit_experiment(ophys_experiment_id, run_params):
     # num_weights gets populated during stimulus interpolation
     # configuring it here so the design matrix gets re-generated consistently
     kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    if 'post-omissions' in run_params['kernels']:
+        kernels_to_limit_per_image_cycle.append('omissions')
     for k in kernels_to_limit_per_image_cycle:
         if k in run_params['kernels']:
             run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    
@@ -1043,6 +1045,8 @@ def interpolate_to_stimulus(fit, session, run_params):
    
     # Use the number of timesteps per stimulus to define the image kernel length so we get no overlap 
     kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    if 'post-omissions' in run_params['kernels']:
+        kernels_to_limit_per_image_cycle.append('omissions')
     for k in kernels_to_limit_per_image_cycle:
         if k in run_params['kernels']:
             run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    

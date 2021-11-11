@@ -28,8 +28,8 @@ def define_kernels():
         'passive_change':   {'event':'passive_change','type':'discrete','length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
         'false_alarms':     {'event':'false_alarm',   'type':'discrete','length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'lick on catch trials'},
         'correct_rejects':  {'event':'correct_reject','type':'discrete','length':5.5,   'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'no lick on catch trials'},
-        #'each-image_change':{'event':'change',  'type':'discrete',      'length':5.5,   'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'Image specific change'},
-        'omissions':    {'event':'omissions',   'type':'discrete',      'length':2.5,   'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
+        'omissions':        {'event':'omissions',   'type':'discrete',  'length':0.75,  'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
+        'post-omissions':   {'event':'omissions',   'type':'discrete',  'length':1.5,   'offset':0.75,  'num_weights':None, 'dropout':True, 'text': 'images after omission'},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.75,  'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image presentation'},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'normalized running speed'},
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'Z-scored pupil diameter'},
@@ -170,9 +170,9 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'L2_optimize_by_cre': True,     # If True, uses the best L2 value for each cell ## TODO
+        'L2_optimize_by_cre': False,    # If True, uses the best L2 value for each cell
         'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
-        'L2_optimize_by_session': False,# If True, uses the best L2 value for this session ## TODO 
+        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session ## TODO 
         'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda  
         'L2_fixed_lambda': None,        # This value is used if L2_use_fixed_value   
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
@@ -199,7 +199,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'interpolate_to_stimulus':True, # If True, interpolates the cell activity trace onto stimulus aligned timestamps
         'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
         'dropout_threshold':0.005,      # Minimum variance explained by full model
-        'version_type':'minimal',    # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
+        'version_type':'minimal',      # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
     } 
 
     # Define Kernels and dropouts
@@ -303,7 +303,8 @@ def define_dropouts(kernels,run_params):
             #'image_change':         ['image_change0','image_change1','image_change2','image_change3','image_change4','image_change5','image_change6','image_change7'],
             #'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
             'behavioral':           ['running','pupil','licks','lick_bouts','lick_model','groom_model'],
-            'licking':              ['licks','lick_bouts','lick_model','groom_model']
+            'licking':              ['licks','lick_bouts','lick_model','groom_model'],
+            'all-omissions':        ['omissions','post-omissions'],
             #'pupil_and_running':    ['pupil','running'],
             #'pupil_and_omissions':  ['pupil','omissions'],
             #'running_and_omissions':['running','omissions']

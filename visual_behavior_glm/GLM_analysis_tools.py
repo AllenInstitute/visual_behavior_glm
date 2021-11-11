@@ -674,12 +674,19 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
     potential_cols_to_drop = [
         '_id', 
         'index',
-        'dropout', 
-        'variance_explained',
-        'avg_cv_var_test_sem', 
-        'fraction_change_from_full', 
+        'dropout',
         'absolute_change_from_full',
+        'avg_L2_regularization',
+        'avg_cv_var_test_full_comparison_raw',
+        'avg_cv_var_test_raw',
+        'avg_cv_var_test_sem', 
+        'cell_L2_regularization',
+        'fraction_change_from_full', 
+        'adj_dropout_raw',
+        'variance_explained',
         'adj_fraction_change_from_full',
+        'avg_cv_adjvar_test_raw',
+        'avg_cv_adjvar_test_full_comparison_raw',
         'adj_variance_explained',
         'adj_variance_explained_full',
         'entry_time_utc',
@@ -692,14 +699,14 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         right_on='identifier',
         how='left'
     )
-    if 'avg_cv_var_test_sem' in results_summary.columns:
-        results_summary_pivoted = results_summary_pivoted.merge(
-            results_summary.query('dropout == "Full" and variance_explained >=@cutoff')[['identifier','avg_cv_var_test_sem']],
-            left_on='identifier',
-            right_on='identifier',
-            how='left'
-        )
-        results_summary_pivoted = results_summary_pivoted.rename(columns={'avg_cv_var_test_sem':'variance_explained_full_sem'})
+    #if 'avg_cv_var_test_sem' in results_summary.columns:
+    #    results_summary_pivoted = results_summary_pivoted.merge(
+    #        results_summary.query('dropout == "Full" and variance_explained >=@cutoff')[['identifier','avg_cv_var_test_sem']],
+    #        left_on='identifier',
+    #        right_on='identifier',
+    #        how='left'
+    #    )
+    #    results_summary_pivoted = results_summary_pivoted.rename(columns={'avg_cv_var_test_sem':'variance_explained_full_sem'})
  
     return results_summary_pivoted
 

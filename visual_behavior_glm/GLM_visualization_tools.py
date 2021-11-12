@@ -3021,10 +3021,13 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg')
         #plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.png')
 
-def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True): 
+def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True,include_zero_cells=True): 
     '''
-       Makes a bar plot that shows the population dropout summary by cre line for different regressors 
-
+        Makes a bar plot that shows the population dropout summary by cre line for different regressors 
+        palette , color palette to use. If None, uses gvt.project_colors()
+        use_violion (bool) if true, uses violin, otherwise uses boxplots
+        add_median (bool) if true, adds a line at the median of each population
+        include_zero_cells (bool) if true, uses all cells, otherwise uses a threshold for minimum variance explained
     '''
     if ax is None:
         height = 5
@@ -3040,14 +3043,17 @@ def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show
     if palette is None:
         palette = project_colors()
 
-    if 'dropout_threshold' in run_params:
-        threshold = run_params['dropout_threshold']
+    if include_zero_cells:
+        threshold = 0
     else:
-        threshold = 0.005
+        if 'dropout_threshold' in run_params:
+            threshold = run_params['dropout_threshold']
+        else:
+            threshold = 0.005
 
-    cre_lines = np.sort(dropout_summary['cre_line'].unique())
+    cre_lines = np.sort(results['cre_line'].unique())
     
-    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
+    data_to_plot = results.query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     if use_violin:
         plot1= sns.violinplot(
@@ -3089,7 +3095,7 @@ def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show
             ax=ax,
             palette=palette
         )
-
+    ax.set_ylim(0,1)
     #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=18)
     ax.set_xlabel('Withheld component',fontsize=18)

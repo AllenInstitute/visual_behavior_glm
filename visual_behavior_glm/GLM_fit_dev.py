@@ -196,7 +196,7 @@ if False: # Code snippets for doing analyses.
     gvt.plot_kernel_support(g)
 
     # Make dropout summary figures
-    gvt.plot_dropout_summary_population(results)
+    gvt.plot_dropout_summary_population(results,run_params)
     gvt.plot_population_averages(results_pivoted, run_params)
 
     # Make over-fitting figures

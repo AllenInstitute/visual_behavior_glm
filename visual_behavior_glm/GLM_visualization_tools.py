@@ -2885,10 +2885,26 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True):
-    
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False):
+    '''
+        Plots the average dropout scores for each cre line, on each experience level. 
+        Includes all cells, and matched only cells. 
+        sharey (bool) if True, shares the same y axis across dropouts of the same cre line
+        include_zero_cells (bool) if False, requires cells have a minimum of 0.005 variance explained
+        boxplot (bool), if True, uses boxplot instead of pointplot. In general, very hard to read
+    '''  
+ 
+    extra = ''
+    if not sharey:
+        extra = extra+'_untied'
+    if include_zero_cells:
+        extra = extra+'_with_zero_cells'
+ 
     # Filter for cells with low variance explained
-    results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
+    if include_zero_cells:
+        results_pivoted = results_pivoted.query('not passive').copy()       
+    else:
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
 
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
@@ -2937,7 +2953,8 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[index].tick_params(axis='y',labelsize=16)
     ax[0].set_ylabel('Fraction Reduction in \n explained variance',fontsize=18)
     plt.tight_layout()
-    plt.savefig(run_params['figure_dir']+'/dropout_average_combined.svg')  
+    plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg')  
+    #plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.png')  
  
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
@@ -2950,17 +2967,30 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
 
             # Plot all cells in active sessions
-            ax[index] = sns.pointplot(
-                data = all_data,
-                x = 'experience_level',
-                y= feature,
-                hue='experience_level',
-                order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
-                hue_order=experience_levels,
-                palette = colors,
-                join=False,
-                ax=ax[index]
-            )
+            if boxplot:
+                ax[index] = sns.boxplot(
+                    data = all_data,
+                    x = 'experience_level',
+                    y= feature,
+                    hue='experience_level',
+                    order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                    hue_order=experience_levels,
+                    palette = colors,
+                    showfliers=False,
+                    ax=ax[index]
+                )
+            else:
+                ax[index] = sns.pointplot(
+                    data = all_data,
+                    x = 'experience_level',
+                    y= feature,
+                    hue='experience_level',
+                    order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                    hue_order=experience_levels,
+                    palette = colors,
+                    join=False,
+                    ax=ax[index]
+                )
             all_cell_points = list(ax[index].get_children())
             for x in all_cell_points:
                 x.set_zorder(1000)
@@ -2986,9 +3016,10 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
         ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
-        plt.suptitle(cell_type)
-        fig.tight_layout()
-        plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+'.svg')
+        plt.suptitle(cell_type,fontsize=18)
+        fig.tight_layout() 
+        plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg')
+        #plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.png')
 
 def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True): 
     '''

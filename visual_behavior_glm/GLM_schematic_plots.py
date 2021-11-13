@@ -11,10 +11,7 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_visualization_tools as gvt
 
-def plot_glm_example(g,cell_specimen_id,times=[1780,1800]):
-    #oeid = 775614751,celldex=1
-    # (g1) 967008471, 1086492467,celldex =18, times=[324,346], lightness_range=(0.3,.6), saturation_range=(0.9,1), random_seed=5, alt_times = [1780,1800]
-
+def get_example_style():
     style={
         'fs1':18,
         'fs2':16,
@@ -23,16 +20,24 @@ def plot_glm_example(g,cell_specimen_id,times=[1780,1800]):
         'events':'b',
         'model':'r',
         }
+    return style
+
+def plot_glm_example(g,cell_specimen_id,times=[1780,1800]):
+    #oeid = 775614751,celldex=1
+    # (g1) 967008471, 1086492467,celldex =18, times=[324,346], lightness_range=(0.3,.6), saturation_range=(0.9,1), random_seed=5, alt_times = [1780,1800]
+    # g=glm.GLM(oeid,version,use_previous_fit=True,log_results=False,log_weights=False)
+
+    style = get_example_style()
     kernel_names=['image0','image1','image2','image3','image4','image5','image6','image7']
     index_times=[np.where(g.fit['fit_trace_timestamps']>=times[0])[0][0],np.where(g.fit['fit_trace_timestamps']>times[1])[0][0]+1]
     include_events= g.fit['events_trace_arr'] is not None
     plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events)
     plot_glm_example_dropouts(g,cell_specimen_id,style)
-    ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,times,style)
-    plot_glm_example_inputs(g,times,style,palette_df)
-    plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df)
-    #gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
-    #gvt.plot_kernel_support(g,plot_bands=True,start=index_times[0],end=index_times[1])
+    #ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,times,style)
+    plot_glm_example_inputs(g,times,style)
+    #plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df)
+    ##gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
+    ##gvt.plot_kernel_support(g,plot_bands=True,start=index_times[0],end=index_times[1])
 
  
 def plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df):
@@ -81,7 +86,7 @@ def plot_glm_example_dropouts(g,cell_specimen_id,style):
     
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_dropouts.svg')
 
-def plot_glm_example_inputs(g,times,style,palette_df,ax=None):
+def plot_glm_example_inputs(g,times,style,ax=None):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,6))
         fig = plt.figure(figsize=(12,6))
@@ -242,11 +247,12 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
         style['model'],label='Model',linewidth=style['trace_linewidth'])
 
     # Clean up plot
-    ax.legend()
+    ax.legend(loc='upper right')
     ax.set_ylabel('Neural activity',fontsize=style['fs1'])
     ax.set_xlabel('Time (s)',fontsize=style['fs1'])
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.tick_params(axis='y',labelsize=style['fs2'])
+    ax.set_ylim(-0.035,.9)
     ax.set_xlim(times)
     #plt.tight_layout()
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg')

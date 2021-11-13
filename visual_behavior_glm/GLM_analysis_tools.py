@@ -89,7 +89,7 @@ def build_kernel_df(glm, cell_specimen_id):
             weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)], axis=0)
 
         # Version 19 had an edge case where the design matrix gets re-loaded with an extra weight       
-        if kernel_name.startswith('image') &(np.shape(kernel)[0] != len(w_kernel)):
+        if kernel_name.startswith('image') &(np.shape(kernel)[0] != np.shape(w_kernel)[1]):
             print('Hack, need to fix bug')
             kernel = kernel[0:-1,:]
 

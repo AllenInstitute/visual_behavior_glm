@@ -233,7 +233,8 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
         ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
             g.fit['events_trace_arr'][time_vec,celldex],
             style['events'],label='Smoothed L0 events',
-            linewidth=style['trace_linewidth'])
+            linewidth=style['trace_linewidth'],
+            color='gray')
     else:
         # Plot df/f
         ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
@@ -244,7 +245,8 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     # Plot Model
     ax.plot(g.fit['fit_trace_timestamps'][time_vec],
         g.fit['dropouts']['Full']['full_model_train_prediction'][time_vec,celldex],
-        style['model'],label='Model',linewidth=style['trace_linewidth'])
+        style['model'],label='Model',linewidth=style['trace_linewidth'],
+        color='lightcoral')
 
     # Clean up plot
     ax.legend(loc='upper right')

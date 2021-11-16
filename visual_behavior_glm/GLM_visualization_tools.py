@@ -3084,7 +3084,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         else:
             threshold = 0.005
 
-    cre_lines = np.sort(results['cre_line'].unique())
+    cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
     
     data_to_plot = results.query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']

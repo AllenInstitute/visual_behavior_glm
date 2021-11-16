@@ -22,6 +22,7 @@ import matplotlib.patches as patches
 import gc
 from scipy import ndimage
 from scipy import stats
+import statsmodels.stats.multicomp as mc
 import scipy.cluster.hierarchy as sch
 import visual_behavior.visualization.utils as utils
 
@@ -41,10 +42,13 @@ def project_colors():
         6:set1(6),
         'Sst-IRES-Cre':(158/255,218/255,229/255),
         'sst':(158/255,218/255,229/255),
+        'Sst Inhibitory':(158/255,218/255,229/255),
         'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
         'slc':(255/255,152/255,150/255),
+        'Excitatory':(255/255,152/255,150/255),
         'Vip-IRES-Cre':(197/255,176/255,213/255),
         'vip':(197/255,176/255,213/255),
+        'Vip Inhibitory':(197/255,176/255,213/255),
         '1':(148/255,29/255,39/255),
         '2':(222/255,73/255,70/255),
         '3':(239/255,169/255,150/255),
@@ -2885,7 +2889,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False):
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -2954,17 +2958,19 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     ax[0].set_ylabel('Fraction Reduction in \n explained variance',fontsize=18)
     plt.tight_layout()
     plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg')  
-    #plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.png')  
+    plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.png')  
  
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
         fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+        all_data = results_pivoted.query('cell_type ==@cell_type')
+        matched_data = all_data.query('cell_specimen_id in @matched_cells') 
 
+        stats = {}
         # Iterate dropouts and plot each by experience
         for index, feature in enumerate(dropouts_to_show):
-            all_data = results_pivoted.query('cell_type ==@cell_type')
-            matched_data = all_data.query('cell_specimen_id in @matched_cells') 
-
+            anova, tukey = test_significant_dropout_averages(all_data,feature)
+            stats[feature]=(anova, tukey)
 
             # Plot all cells in active sessions
             if boxplot:
@@ -2984,13 +2990,15 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                     data = all_data,
                     x = 'experience_level',
                     y= feature,
-                    hue='experience_level',
+                    #hue='experience_level', ##TODO
                     order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
-                    hue_order=experience_levels,
-                    palette = colors,
+                    #hue_order=experience_levels,##TODO
+                    #palette = colors,## TODO
+                    color=project_colors()[cell_type],
                     join=False,
                     ax=ax[index]
                 )
+
             all_cell_points = list(ax[index].get_children())
             for x in all_cell_points:
                 x.set_zorder(1000)
@@ -3001,12 +3009,12 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                 x = 'experience_level',
                 y=feature,
                 order=experience_levels,
-                color='gray',
+                color='lightgray',
                 join=True,
                 ax=ax[index],
             )
-            ax[index].get_legend().remove()
-            ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
+            #ax[index].get_legend().remove() ##TODO
+            #ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
             ax[index].set_title(feature,fontsize=18)
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
@@ -3015,11 +3023,36 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             ax[index].set_xlim(-.5,2.5)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
+            ax[index].set_ylim(bottom=0)
+
+        if add_stats:
+            ytop = ax[0].get_ylim()[1]
+            ytop2 =ytop*1.05
+            for index, feature in enumerate(dropouts_to_show):
+                (anova, tukey) = stats[feature]
+                if anova.pvalue < 0.05:
+                    ax[index].plot([0,2],ytop*np.array([1,1]),'k-')
+                    ax[index].text(1,ytop2, 'sig.')
+                else:
+                    ax[index].plot([0,2],ytop*np.array([1,1]),'k-')
+                    ax[index].text(1,ytop2, 'n.s.')
+                ax[index].set_ylim(0,ytop2*1.15)
         ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
         plt.suptitle(cell_type,fontsize=18)
         fig.tight_layout() 
         plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg')
-        #plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.png')
+        plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.png')
+
+def test_significant_dropout_averages(data,feature):
+    anova = stats.f_oneway(
+        data.query('experience_level == "Familiar"')[feature],  
+        data.query('experience_level == "Novel >1"')[feature],  
+        data.query('experience_level == "Novel 1"')[feature]
+        )
+    comp = mc.MultiComparison(data[feature], data['experience_level'])
+    post_hoc_res = comp.tukeyhsd()
+    tukey_table = pd.DataFrame(post_hoc_res.summary())
+    return anova, tukey_table
 
 def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True,include_zero_cells=True): 
     '''

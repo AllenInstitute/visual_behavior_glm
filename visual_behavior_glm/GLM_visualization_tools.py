@@ -3036,21 +3036,25 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
             for index, feature in enumerate(dropouts_to_show):
                 (anova, tukey) = stats[feature]
-                for tindex, row in tukey.iterrows():
-                    if row.x2-row.x1 > 1:
-                        y = y2
-                        yh = y2h
-                    else:
-                        y = y1
-                        yh = y1h 
-                    if row.reject:
-                        ax[index].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'k-')
-                        ax[index].text(np.mean([row.x1,row.x2]),yh, '*')
-                    else:
-                        ax[index].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'k-')
-                        ax[index].text(np.mean([row.x1,row.x2]),yh, 'ns')
-                if anova.pvalue > 0.05:
-                    ax[index].text(1.1,ytop*1.17, 'anova n.s.',color='r')
+                if anova.pvalue<0.05:
+                    for tindex, row in tukey.iterrows():
+                        if row.x2-row.x1 > 1:
+                            y = y2
+                            yh = y2h
+                        else:
+                            y = y1
+                            yh = y1h 
+                        if row.reject:
+                            ax[index].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'k-')
+                            ax[index].text(np.mean([row.x1,row.x2]),yh, '*')
+                        else:
+                            ax[index].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'k-')
+                            ax[index].text(np.mean([row.x1,row.x2]),yh, 'ns')
+                else:
+                    y = y1
+                    yh = y1h
+                    ax[index].plot([0,0,1,1,1,2,2],[y,yh,yh,y,yh,yh,y],'k-')
+                    ax[index].text(.95,ytop*1.07, 'ns.',color='k')
                 ax[index].set_ylim(0,ytop*1.2)
         ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
         plt.suptitle(cell_type,fontsize=18)

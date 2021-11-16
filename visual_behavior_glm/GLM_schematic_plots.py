@@ -22,7 +22,7 @@ def get_example_style():
         }
     return style
 
-def plot_glm_example(g,cell_specimen_id,times=[1780,1800]):
+def plot_glm_example(g,cell_specimen_id,run_params,times=[1780,1800]):
     #oeid = 775614751,celldex=1
     # (g1) 967008471, 1086492467,celldex =18, times=[324,346], lightness_range=(0.3,.6), saturation_range=(0.9,1), random_seed=5, alt_times = [1780,1800]
     # g=glm.GLM(oeid,version,use_previous_fit=True,log_results=False,log_weights=False)
@@ -34,7 +34,7 @@ def plot_glm_example(g,cell_specimen_id,times=[1780,1800]):
     plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events)
     plot_glm_example_dropouts(g,cell_specimen_id,style)
     #ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,times,style)
-    plot_glm_example_inputs(g,times,style)
+    plot_glm_example_inputs(g,times,style,run_params)
     #plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df)
     ##gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
     ##gvt.plot_kernel_support(g,plot_bands=True,start=index_times[0],end=index_times[1])
@@ -86,11 +86,21 @@ def plot_glm_example_dropouts(g,cell_specimen_id,style):
     
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_dropouts.svg')
 
-def plot_glm_example_inputs(g,times,style,ax=None):
+def get_kernel_duration(kernel, run_params,force_int=False):
+    d1 = '('+str(run_params['kernels'][kernel]['offset'])
+    if force_int:
+        d2 = ', '+str(int(run_params['kernels'][kernel]['length']+run_params['kernels'][kernel]['offset']))+')'
+    else:
+        d2 = ', '+str((run_params['kernels'][kernel]['length']+run_params['kernels'][kernel]['offset']))+')'
+    d2 = d2
+    d = d1+d2
+    return d.rjust(15) 
+
+def plot_glm_example_inputs(g,times,style,run_params, ax=None):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,6))
-        fig = plt.figure(figsize=(12,6))
-        h = [Size.Fixed(2.0),Size.Fixed(9.5)]
+        fig = plt.figure(figsize=(13,6))
+        h = [Size.Fixed(3.0),Size.Fixed(9.5)]
         v = [Size.Fixed(1.0),Size.Fixed(4.5)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
@@ -103,12 +113,13 @@ def plot_glm_example_inputs(g,times,style,ax=None):
     ticklabels={}
     for index, image in enumerate(range(0,9)):
         image_times = stim.query('image_index == @index')['start_time'].values
-        ticklabels[top-index]='Image '+str(image)
+
         ecolor ='k'
         if index == 8:
-            ticklabels[top-index]='Omission'
+            ticklabels[top-index]='Omission' + get_kernel_duration('omissions',run_params)
             fcolor='None'
         else:
+            ticklabels[top-index]='Image '+str(image) + get_kernel_duration('image'+str(index),run_params,force_int=False)
             image_name = 'image'+str(image)
             fcolor ='k'#palette_df.query('kernel_name == @image_name')['kernel_color'].values[0]
         if len(image_times) > 0:
@@ -122,7 +133,7 @@ def plot_glm_example_inputs(g,times,style,ax=None):
     run['normalized_speed'] = run['speed'].apply(lambda x: (x - run['speed'].min())/(run['speed'].max() - run['speed'].min()))
     run['normalized_speed'] = run['normalized_speed'] + top-10
     ax.plot(run.timestamps,run.normalized_speed,'k')
-    ticklabels[top-9.5]='Running Speed'
+    ticklabels[top-9.5]='Running Speed'+ get_kernel_duration('running',run_params)
 
     # Pupil
     eye = g.session.eye_tracking.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
@@ -130,30 +141,30 @@ def plot_glm_example_inputs(g,times,style,ax=None):
     eye['normalized_pupil_radius'] = eye['pupil_radius'].apply(lambda x: (x - eye['pupil_radius'].min())/(eye['pupil_radius'].max() - eye['pupil_radius'].min()))
     eye['normalized_pupil_radius'] = eye['normalized_pupil_radius'] + top-12
     ax.plot(eye.timestamps,eye.normalized_pupil_radius,'k')
-    ticklabels[top-11.5]='Pupil Radius'
+    ticklabels[top-11.5]='Pupil Radius'+ get_kernel_duration('pupil',run_params)
 
     # licking
     licks = g.session.licks.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
     ax.plot(licks.timestamps, np.ones((len(licks),))*(top-13),'k|',markersize=20)
-    ticklabels[top-13]='Licking'
+    ticklabels[top-13]='Licking'+ get_kernel_duration('licks',run_params)
 
     # Trials
     trials = g.session.trials.query('(change_time >= @times[0])&(change_time <=@times[1])').copy()
     hits = trials.query('hit')
     ax.plot(hits.reward_time, np.ones((len(hits),))*(top-14),'r|',markersize=20)
-    ticklabels[top-14]='Hit'
+    ticklabels[top-14]='Hit'+ get_kernel_duration('hits',run_params)
 
     miss = trials.query('miss')
     ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'r|',markersize=20)
-    ticklabels[top-15]='Miss'
+    ticklabels[top-15]='Miss'+ get_kernel_duration('misses',run_params)
 
     fa = trials.query('false_alarm')
     ax.plot(fa.change_time, np.ones((len(fa),))*(top-16),'r|',markersize=20)
-    ticklabels[top-16]='False Alarm'
+    ticklabels[top-16]='False Alarm'+ get_kernel_duration('false_alarms',run_params)
 
     correct_reject = trials.query('correct_reject')
     ax.plot(correct_reject.change_time, np.ones((len(correct_reject),))*(top-17),'r|',markersize=20)
-    ticklabels[top-17]='Correct Reject'
+    ticklabels[top-17]='Correct Reject'+ get_kernel_duration('correct_rejects',run_params)
 
     ax.yaxis.set_ticks(list(ticklabels.keys()))
     ax.yaxis.set_ticklabels(list(ticklabels.values()),fontsize=style['fs2'])

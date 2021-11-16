@@ -249,7 +249,7 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
         color='lightcoral')
 
     # Clean up plot
-    ax.legend(loc='upper right')
+    ax.legend(loc='upper right',fontsize=16)
     ax.set_ylabel('Neural activity',fontsize=style['fs1'])
     ax.set_xlabel('Time (s)',fontsize=style['fs1'])
     ax.tick_params(axis='x',labelsize=style['fs2'])

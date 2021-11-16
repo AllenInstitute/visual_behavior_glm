@@ -3096,13 +3096,22 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
             palette=palette
         )
     ax.set_ylim(0,1)
-    #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    h,labels =ax.get_legend_handles_labels()
+    clean_labels={
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory'
+        }
+    mylabels = [clean_labels[x] for x in labels]
+    ax.legend(h,mylabels,loc='upper right',fontsize=16)
     ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=18)
     ax.set_xlabel('Withheld component',fontsize=18)
     ax.tick_params(axis='x',labelsize=16)
     ax.tick_params(axis='y',labelsize=16) 
-    plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
-
+    if use_violin:
+        plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
+    else:
+        plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.svg')
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     '''
         Plots the summary figure for the cosyne abstract with visual, behavioral, and cognitive kernels separated.

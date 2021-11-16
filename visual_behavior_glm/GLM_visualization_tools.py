@@ -69,6 +69,7 @@ def project_colors():
         'VISam':'C3',
         'AM':'C3',
         'Full': (.7,.7,.7),
+        'variance_explained_full': (.7, .7, .7),
         'visual':tab20(0), 
         'all-images':tab20(1),
         'expectation':tab20(2),

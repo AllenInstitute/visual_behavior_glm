@@ -1473,7 +1473,7 @@ class GLM_Movie(object):
 
 
 
-def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False): 
+def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False):  ##TODO update
     '''
         Generated kernel comparison plots for all dropouts
         weights_df, dataframe of kernels
@@ -1517,7 +1517,7 @@ def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_
         print('The following kernels failed')
         print(fail) 
 
-def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None,normalize=True): 
+def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None,normalize=True): ## TODO Update 
 
     if 'dropout_threshold' in run_params:
         threshold = run_params['dropout_threshold']
@@ -1626,6 +1626,7 @@ def get_norm(df,kernels,normalize=True):
             df[k] = [np.array(x) for x in df[k].values] 
     return df
 
+## TODO Update
 def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time_vec, meso_time_vec,linewidth=4,alpha=.1,normalize=True):
     '''
         Plots the average kernel for the cells in df
@@ -1659,6 +1660,7 @@ def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time
     for dex,k in enumerate(kernels):
         ax.plot(time_vec, df[k].mean(axis=0),linestyle=linestyles[dex],color=color,label=group+' '+k,linewidth=linewidth)
 
+## TODO update
 def plot_perturbation(weights_df, run_params, kernel, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],normalize=True,CMAP='Blues',in_ax=None):
 
     if 'dropout_threshold' in run_params:
@@ -1801,7 +1803,7 @@ def plot_perturbation(weights_df, run_params, kernel, drop_threshold=0,session_f
    
     return ax,kernel_means
  
-
+## TODO UPDATE
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='session_number',image_set=['familiar','novel']):
     '''
         Plots the average kernel across different comparisons groups of cells
@@ -1941,6 +1943,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         file_temp.close()
     return outputs
 
+## TODO Update
 def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.25,normalize=False):
     '''
         Plots the average kernel for the cells in df
@@ -1977,6 +1980,7 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_tim
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
+## TODO UPDATE
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_threshold=0,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):  
     '''
         Plots the average kernel for each cell line. 
@@ -2422,6 +2426,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
 
+## TODO UPDATE
 def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',depth_filter=[0,1000]): 
     '''
         Makes the analysis plots for all kernels in this model version. Excludes intercept and time kernels
@@ -3279,6 +3284,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
     else:
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.svg')
+
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     '''
         Plots the summary figure for the cosyne abstract with visual, behavioral, and cognitive kernels separated.

@@ -22,6 +22,7 @@ import matplotlib.patches as patches
 import gc
 from scipy import ndimage
 from scipy import stats
+import statsmodels.stats.multicomp as mc
 import scipy.cluster.hierarchy as sch
 import visual_behavior.visualization.utils as utils
 
@@ -41,10 +42,13 @@ def project_colors():
         6:set1(6),
         'Sst-IRES-Cre':(158/255,218/255,229/255),
         'sst':(158/255,218/255,229/255),
+        'Sst Inhibitory':(158/255,218/255,229/255),
         'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
         'slc':(255/255,152/255,150/255),
+        'Excitatory':(255/255,152/255,150/255),
         'Vip-IRES-Cre':(197/255,176/255,213/255),
         'vip':(197/255,176/255,213/255),
+        'Vip Inhibitory':(197/255,176/255,213/255),
         '1':(148/255,29/255,39/255),
         '2':(222/255,73/255,70/255),
         '3':(239/255,169/255,150/255),
@@ -2885,10 +2889,123 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 
     return fig, ax
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True):
-    
+def plot_population_perturbation(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False, include_zero_cells=True):
     # Filter for cells with low variance explained
-    results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
+    if include_zero_cells:
+        results_pivoted = results_pivoted.query('not passive').copy()       
+    else:
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
+
+    # Convert dropouts to positive values
+    for dropout in dropouts_to_show:
+        results_pivoted[dropout] = results_pivoted[dropout].abs()
+
+    # Add additional columns about experience levels
+    experiments_table = loading.get_platform_paper_experiment_table()
+    experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
+    results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
+   
+    # Cells Matched across all three experience levels 
+    cells_table = loading.get_cell_table(platform_paper_only=True)
+    cells_table = cells_table.query('not passive').copy()
+    cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
+    matched_cells = cells_table.cell_specimen_id.unique()
+
+    # plotting variables
+    cell_types = results_pivoted.cell_type.unique()
+    experience_levels = np.sort(results_pivoted.experience_level.unique())
+    colors = project_colors()
+
+    # Make dataframe
+    all_df = results_pivoted.groupby(['experience_level','cre_line'])[dropouts_to_show].mean()
+    matched_df =  results_pivoted.query('cell_specimen_id in @matched_cells').groupby(['experience_level','cre_line'])[dropouts_to_show].mean()
+    fig, ax = plt.subplots(6,len(dropouts_to_show),figsize=(10,15), sharey=sharey,sharex=sharey)
+    plot_population_perturbation_inner('Exc','Sst',all_df, dropouts_to_show, sharey=sharey,ax=ax[0,:],add_title=True)
+    plot_population_perturbation_inner('Exc','Vip',all_df, dropouts_to_show, sharey=sharey,ax=ax[1,:])
+    plot_population_perturbation_inner('Sst','Vip',all_df, dropouts_to_show, sharey=sharey,ax=ax[2,:])
+    plot_population_perturbation_inner('Exc','Vip-Sst',all_df, dropouts_to_show, sharey=sharey,ax=ax[3,:])
+    plot_population_perturbation_inner('Exc-Vip','Sst',all_df, dropouts_to_show, sharey=sharey,ax=ax[4,:])
+    plot_population_perturbation_inner('Exc-Sst','Vip',all_df, dropouts_to_show, sharey=sharey,ax=ax[5,:])
+    plt.tight_layout()
+    plt.savefig(run_params['figure_dir']+'/dropout_perturbation.svg')
+    plt.savefig(run_params['figure_dir']+'/dropout_perturbation.png')  
+
+    plot_population_perturbation_inner('Exc-Vip','Sst',all_df, dropouts_to_show, sharey=sharey,add_title=True)
+    plt.tight_layout()
+    plt.savefig(run_params['figure_dir']+'/dropout_perturbation_EV_S.svg')
+    plt.savefig(run_params['figure_dir']+'/dropout_perturbation_EV_S.png')  
+
+def add_perturbation_arrow(startxy,endxy, colors,experience_level,ax):
+        dx = (startxy[0]-endxy[0])*0.1
+        dy = (startxy[1]-endxy[1])*0.1
+        sxy =(startxy[0]-dx,startxy[1]-dy)
+        exy =(endxy[0]+dx,endxy[1]+dy)
+        ax.annotate("",xy=exy,xytext=sxy,arrowprops=dict(arrowstyle="->",color=colors[experience_level]))
+
+def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_cells=True,ax=None,add_title=False):
+    # plot
+    df= df.rename(index={'Sst-IRES-Cre':'Sst','Vip-IRES-Cre':'Vip','Slc17a7-IRES2-Cre':'Exc'})
+    familiar = df.loc['Familiar']
+    familiar.loc['Vip-Sst'] = familiar.loc['Vip'] - familiar.loc['Sst']
+    familiar.loc['Exc-Sst'] = familiar.loc['Exc'] - familiar.loc['Sst']
+    familiar.loc['Exc-Vip'] = familiar.loc['Exc'] - familiar.loc['Vip']
+    novel1 = df.loc['Novel 1']
+    novel1.loc['Vip-Sst'] = novel1.loc['Vip'] - novel1.loc['Sst']
+    novel1.loc['Exc-Sst'] = novel1.loc['Exc'] - novel1.loc['Sst']
+    novel1.loc['Exc-Vip'] = novel1.loc['Exc'] - novel1.loc['Vip']
+    novelp1 = df.loc['Novel >1']
+    novelp1.loc['Vip-Sst'] = novelp1.loc['Vip'] - novelp1.loc['Sst']
+    novelp1.loc['Exc-Sst'] = novelp1.loc['Exc'] - novelp1.loc['Sst']
+    novelp1.loc['Exc-Vip'] = novelp1.loc['Exc'] - novelp1.loc['Vip']
+    colors = project_colors()
+    if ax is None:
+        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,2.5), sharey=sharey,sharex=sharey)
+    for index, feature in enumerate(dropouts_to_show):
+        familiarxy =[familiar.loc[x][feature],familiar.loc[y][feature]]
+        novel1xy = [novel1.loc[x][feature],novel1.loc[y][feature]]
+        novelp1xy = [novelp1.loc[x][feature],novelp1.loc[y][feature]]
+
+        if all_cells:
+            ax[index].plot(familiarxy[0],familiarxy[1],'o',color=colors['Familiar'])
+            ax[index].plot(novel1xy[0],novel1xy[1],'o',color=colors['Novel 1'])
+            ax[index].plot(novelp1xy[0],novelp1xy[1],'o',color=colors['Novel >1'])
+            add_perturbation_arrow(familiarxy, novel1xy, colors,'Familiar',ax[index])
+            add_perturbation_arrow(novel1xy, novelp1xy, colors,'Novel 1',ax[index])
+        else:
+            ax[index].plot(familiarxy[0],familiarxy[1],'o',color='lightgray')
+            ax[index].plot(novel1xy[0],novel1xy[1],'o',color='lightgray')
+            ax[index].plot(novelp1xy[0],novelp1xy[1],'o',color='lightgray')
+        ax[index].axis('equal')
+        ax[index].set_xlabel(x,fontsize=12)
+        ax[index].set_ylabel(y,fontsize=12)
+        ax[index].tick_params(axis='x',labelsize=10)
+        ax[index].tick_params(axis='y',labelsize=10)
+        ax[index].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+        ax[index].xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+        if add_title:
+            ax[index].set_title(feature)
+    return ax
+
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=False):
+    '''
+        Plots the average dropout scores for each cre line, on each experience level. 
+        Includes all cells, and matched only cells. 
+        sharey (bool) if True, shares the same y axis across dropouts of the same cre line
+        include_zero_cells (bool) if False, requires cells have a minimum of 0.005 variance explained
+        boxplot (bool), if True, uses boxplot instead of pointplot. In general, very hard to read
+    '''  
+ 
+    extra = ''
+    if not sharey:
+        extra = extra+'_untied'
+    if include_zero_cells:
+        extra = extra+'_with_zero_cells'
+ 
+    # Filter for cells with low variance explained
+    if include_zero_cells:
+        results_pivoted = results_pivoted.query('not passive').copy()       
+    else:
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
 
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
@@ -2937,30 +3054,47 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[index].tick_params(axis='y',labelsize=16)
     ax[0].set_ylabel('Fraction Reduction in \n explained variance',fontsize=18)
     plt.tight_layout()
-    plt.savefig(run_params['figure_dir']+'/dropout_average_combined.svg')  
+    plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg')  
+    #plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.png')  
  
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
         fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+        all_data = results_pivoted.query('cell_type ==@cell_type')
+        matched_data = all_data.query('cell_specimen_id in @matched_cells') 
 
+        stats = {}
         # Iterate dropouts and plot each by experience
         for index, feature in enumerate(dropouts_to_show):
-            all_data = results_pivoted.query('cell_type ==@cell_type')
-            matched_data = all_data.query('cell_specimen_id in @matched_cells') 
-
+            anova, tukey = test_significant_dropout_averages(all_data,feature)
+            stats[feature]=(anova, tukey)
 
             # Plot all cells in active sessions
-            ax[index] = sns.pointplot(
-                data = all_data,
-                x = 'experience_level',
-                y= feature,
-                hue='experience_level',
-                order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
-                hue_order=experience_levels,
-                palette = colors,
-                join=False,
-                ax=ax[index]
-            )
+            if boxplot:
+                ax[index] = sns.boxplot(
+                    data = all_data,
+                    x = 'experience_level',
+                    y= feature,
+                    hue='experience_level',
+                    order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                    hue_order=experience_levels,
+                    palette = colors,
+                    showfliers=False,
+                    ax=ax[index]
+                )
+            else:
+                ax[index] = sns.pointplot(
+                    data = all_data,
+                    x = 'experience_level',
+                    y= feature,
+                    hue='experience_level', 
+                    order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                    hue_order=experience_levels,
+                    palette = colors,
+                    join=False,
+                    ax=ax[index]
+                )
+
             all_cell_points = list(ax[index].get_children())
             for x in all_cell_points:
                 x.set_zorder(1000)
@@ -2971,12 +3105,12 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                 x = 'experience_level',
                 y=feature,
                 order=experience_levels,
-                color='gray',
+                color='lightgray',
                 join=True,
                 ax=ax[index],
             )
-            ax[index].get_legend().remove()
-            ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
+            ax[index].get_legend().remove() 
+            #ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
             ax[index].set_title(feature,fontsize=18)
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
@@ -2985,15 +3119,73 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             ax[index].set_xlim(-.5,2.5)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
+            ax[index].set_ylim(bottom=0)
+            ax[index].spines['top'].set_visible(False)
+            ax[index].spines['right'].set_visible(False)
+            ax[index].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+
+        if add_stats:
+            ytop = ax[0].get_ylim()[1]
+            y1 = ytop
+            y1h = ytop*1.05
+            y2 = ytop*1.1
+            y2h = ytop*1.15
+
+            for index, feature in enumerate(dropouts_to_show):
+                (anova, tukey) = stats[feature]
+                if anova.pvalue<0.05:
+                    for tindex, row in tukey.iterrows():
+                        if row.x2-row.x1 > 1:
+                            y = y2
+                            yh = y2h
+                        else:
+                            y = y1
+                            yh = y1h 
+                        if row.reject:
+                            ax[index].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'k-')
+                            ax[index].text(np.mean([row.x1,row.x2]),yh, '*')
+                        else:
+                            ax[index].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'k-')
+                            ax[index].text(np.mean([row.x1,row.x2]),yh, 'ns')
+                else:
+                    y = y1
+                    yh = y1h
+                    ax[index].plot([0,0,1,1,1,2,2],[y,yh,yh,y,yh,yh,y],'k-')
+                    ax[index].text(.95,ytop*1.07, 'ns.',color='k')
+                ax[index].set_ylim(0,ytop*1.2)
         ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
-        plt.suptitle(cell_type)
-        fig.tight_layout()
-        plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+'.svg')
+        plt.suptitle(cell_type,fontsize=18)
+        fig.tight_layout() 
+        plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg')
+        #plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.png')
 
-def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=True,add_median=True): 
+def test_significant_dropout_averages(data,feature):
+    anova = stats.f_oneway(
+        data.query('experience_level == "Familiar"')[feature],  
+        data.query('experience_level == "Novel >1"')[feature],  
+        data.query('experience_level == "Novel 1"')[feature]
+        )
+    comp = mc.MultiComparison(data[feature], data['experience_level'])
+    post_hoc_res = comp.tukeyhsd()
+    tukey_table = pd.DataFrame(post_hoc_res.summary())
+    tukey_table.columns = [str(x) for x in tukey_table.iloc[0]]
+    tukey_table = tukey_table.drop(0).reset_index(drop=True)
+    mapper = {
+        'Familiar':0,
+        'Novel 1':1,
+        'Novel >1':2,
+        }
+    tukey_table['x1'] = [mapper[str(x)] for x in tukey_table['group1']]
+    tukey_table['x2'] = [mapper[str(x)] for x in tukey_table['group2']]
+    return anova, tukey_table
+
+def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True): 
     '''
-       Makes a bar plot that shows the population dropout summary by cre line for different regressors 
-
+        Makes a bar plot that shows the population dropout summary by cre line for different regressors 
+        palette , color palette to use. If None, uses gvt.project_colors()
+        use_violion (bool) if true, uses violin, otherwise uses boxplots
+        add_median (bool) if true, adds a line at the median of each population
+        include_zero_cells (bool) if true, uses all cells, otherwise uses a threshold for minimum variance explained
     '''
     if ax is None:
         height = 5
@@ -3009,14 +3201,17 @@ def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show
     if palette is None:
         palette = project_colors()
 
-    if 'dropout_threshold' in run_params:
-        threshold = run_params['dropout_threshold']
+    if include_zero_cells:
+        threshold = 0
     else:
-        threshold = 0.005
+        if 'dropout_threshold' in run_params:
+            threshold = run_params['dropout_threshold']
+        else:
+            threshold = 0.005
 
-    cre_lines = np.sort(dropout_summary['cre_line'].unique())
+    cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
     
-    data_to_plot = dropout_summary.query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
+    data_to_plot = results.query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     if use_violin:
         plot1= sns.violinplot(
@@ -3058,14 +3253,23 @@ def plot_dropout_summary_population(dropout_summary, run_params,dropouts_to_show
             ax=ax,
             palette=palette
         )
-
-    #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    ax.set_ylim(0,1)
+    h,labels =ax.get_legend_handles_labels()
+    clean_labels={
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory'
+        }
+    mylabels = [clean_labels[x] for x in labels]
+    ax.legend(h,mylabels,loc='upper right',fontsize=16)
     ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=18)
     ax.set_xlabel('Withheld component',fontsize=18)
     ax.tick_params(axis='x',labelsize=16)
     ax.tick_params(axis='y',labelsize=16) 
-    plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
-
+    if use_violin:
+        plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
+    else:
+        plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.svg')
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     '''
         Plots the summary figure for the cosyne abstract with visual, behavioral, and cognitive kernels separated.

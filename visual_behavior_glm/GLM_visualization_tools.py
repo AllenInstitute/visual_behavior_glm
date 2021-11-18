@@ -2930,10 +2930,10 @@ def plot_population_perturbation(results_pivoted, run_params, dropouts_to_show =
     plt.savefig(run_params['figure_dir']+'/dropout_perturbation.svg')
     plt.savefig(run_params['figure_dir']+'/dropout_perturbation.png')  
 
-    plot_population_perturbation_inner('Exc-Vip','Sst',all_df, dropouts_to_show, sharey=sharey,add_title=True)
+    plot_population_perturbation_inner('Vip-Sst','Exc',all_df, dropouts_to_show, sharey=sharey,add_title=True,plot_big=True)
     plt.tight_layout()
-    plt.savefig(run_params['figure_dir']+'/dropout_perturbation_EV_S.svg')
-    plt.savefig(run_params['figure_dir']+'/dropout_perturbation_EV_S.png')  
+    plt.savefig(run_params['figure_dir']+'/dropout_perturbation_VS_E.svg')
+    plt.savefig(run_params['figure_dir']+'/dropout_perturbation_VS_E.png')  
 
 def add_perturbation_arrow(startxy,endxy, colors,experience_level,ax):
         dx = (startxy[0]-endxy[0])*0.1
@@ -2942,7 +2942,7 @@ def add_perturbation_arrow(startxy,endxy, colors,experience_level,ax):
         exy =(endxy[0]+dx,endxy[1]+dy)
         ax.annotate("",xy=exy,xytext=sxy,arrowprops=dict(arrowstyle="->",color=colors[experience_level]))
 
-def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_cells=True,ax=None,add_title=False):
+def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_cells=True,ax=None,add_title=False,plot_big=False):
     # plot
     df= df.rename(index={'Sst-IRES-Cre':'Sst','Vip-IRES-Cre':'Vip','Slc17a7-IRES2-Cre':'Exc'})
     familiar = df.loc['Familiar']
@@ -2976,14 +2976,23 @@ def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_
             ax[index].plot(novel1xy[0],novel1xy[1],'o',color='lightgray')
             ax[index].plot(novelp1xy[0],novelp1xy[1],'o',color='lightgray')
         ax[index].axis('equal')
-        ax[index].set_xlabel(x,fontsize=12)
-        ax[index].set_ylabel(y,fontsize=12)
-        ax[index].tick_params(axis='x',labelsize=10)
-        ax[index].tick_params(axis='y',labelsize=10)
+        if plot_big:
+            ax[index].set_xlabel(x,fontsize=18)
+            ax[index].set_ylabel(y,fontsize=18)
+            ax[index].tick_params(axis='x',labelsize=16)
+            ax[index].tick_params(axis='y',labelsize=16)
+        else:
+            ax[index].set_xlabel(x,fontsize=12)
+            ax[index].set_ylabel(y,fontsize=12)
+            ax[index].tick_params(axis='x',labelsize=10)
+            ax[index].tick_params(axis='y',labelsize=10)
         ax[index].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
         ax[index].xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
         if add_title:
-            ax[index].set_title(feature)
+            if plot_big:
+                ax[index].set_title(feature,fontsize=18)           
+            else:
+                ax[index].set_title(feature,fontsize=12)
     return ax
 
 def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=False):

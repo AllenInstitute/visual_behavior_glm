@@ -1473,7 +1473,8 @@ class GLM_Movie(object):
 
 
 
-def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False): 
+
+def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False):  ##TODO update
     '''
         Generated kernel comparison plots for all dropouts
         weights_df, dataframe of kernels
@@ -1517,7 +1518,7 @@ def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_
         print('The following kernels failed')
         print(fail) 
 
-def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None,normalize=True): 
+def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None,normalize=True): ## TODO Update 
 
     if 'dropout_threshold' in run_params:
         threshold = run_params['dropout_threshold']
@@ -1626,6 +1627,7 @@ def get_norm(df,kernels,normalize=True):
             df[k] = [np.array(x) for x in df[k].values] 
     return df
 
+## TODO Update
 def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time_vec, meso_time_vec,linewidth=4,alpha=.1,normalize=True):
     '''
         Plots the average kernel for the cells in df
@@ -1659,6 +1661,7 @@ def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time
     for dex,k in enumerate(kernels):
         ax.plot(time_vec, df[k].mean(axis=0),linestyle=linestyles[dex],color=color,label=group+' '+k,linewidth=linewidth)
 
+## TODO update
 def plot_perturbation(weights_df, run_params, kernel, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],normalize=True,CMAP='Blues',in_ax=None):
 
     if 'dropout_threshold' in run_params:
@@ -1800,9 +1803,34 @@ def plot_perturbation(weights_df, run_params, kernel, drop_threshold=0,session_f
     plt.tight_layout()
    
     return ax,kernel_means
- 
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='session_number',image_set=['familiar','novel']):
+def plot_kernel_comparison_by_experience(weights_df, run_params, kernel):
+    weights_df = weights_df.query('not passive').copy()
+
+    k, fig_f , ax_f = plot_kernel_comparison(weights_df, run_params, kernel, save_results=False, session_filter=['Familiar']) 
+    k, fig_n , ax_n = plot_kernel_comparison(weights_df, run_params, kernel, save_results=False, session_filter=['Novel 1']) 
+    k, fig_np, ax_np =plot_kernel_comparison(weights_df, run_params, kernel, save_results=False, session_filter=['Novel >1']) 
+
+ 
+    ylims = list(ax_f.get_ylim()) +  list(ax_n.get_ylim()) +  list(ax_np.get_ylim()) 
+    new_y = [np.min(ylims), np.max(ylims)]
+    ax_f.set_ylim(new_y)
+    ax_n.set_ylim(new_y)
+    ax_np.set_ylim(new_y)
+    fig_f.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_familiar_kernel.svg')
+    fig_n.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_novel1_kernel.svg')
+    fig_np.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_novelp1_kernel.svg')
+
+    k, fig_v , ax_v =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Vip-IRES-Cre',compare=['experience_level'])   
+    k, fig_s , ax_s =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Sst-IRES-Cre',compare=['experience_level'])   
+    k, fig_e , ax_e =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=['experience_level'])   
+    fig_v.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_vip_kernel.svg')
+    fig_s.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel.svg')
+    fig_e.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel.svg')
+
+
+## TODO UPDATE
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,normalize=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel']):
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1827,10 +1855,11 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     filter_string = ''
     problem_sessions = get_problem_sessions()   
 
-    if 'dropout_threshold' in run_params:
-        threshold = run_params['dropout_threshold']
-    else:
-        threshold = 0.005
+    #if 'dropout_threshold' in run_params:
+    #    threshold = run_params['dropout_threshold']
+    #else:
+    #    threshold = 0.005
+    threshold = 0
  
     # Filter by Equipment
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
@@ -1863,7 +1892,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.png')
 
     # Applying hard thresholds to dataset
-    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} < @drop_threshold) & (familiar in @image_set)'.format(filter_sessions_on, kernel))
+    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
 
     # Set up time vectors.
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
@@ -1939,8 +1968,9 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         file_temp = open(filename2,'wb')
         pickle.dump(outputs, file_temp)
         file_temp.close()
-    return outputs
+    return outputs, fig,ax
 
+## TODO Update
 def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.25,normalize=False):
     '''
         Plots the average kernel for the cells in df
@@ -1977,6 +2007,7 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_tim
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
+## TODO UPDATE
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_threshold=0,normalize=True,drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',interpolate=True,depth_filter=[0,1000],problem_9c=False,problem_9d=False):  
     '''
         Plots the average kernel for each cell line. 
@@ -2422,6 +2453,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
 
+## TODO UPDATE
 def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',depth_filter=[0,1000]): 
     '''
         Makes the analysis plots for all kernels in this model version. Excludes intercept and time kernels
@@ -2930,10 +2962,10 @@ def plot_population_perturbation(results_pivoted, run_params, dropouts_to_show =
     plt.savefig(run_params['figure_dir']+'/dropout_perturbation.svg')
     plt.savefig(run_params['figure_dir']+'/dropout_perturbation.png')  
 
-    plot_population_perturbation_inner('Exc-Vip','Sst',all_df, dropouts_to_show, sharey=sharey,add_title=True)
+    plot_population_perturbation_inner('Vip-Sst','Exc',all_df, dropouts_to_show, sharey=sharey,add_title=True,plot_big=True)
     plt.tight_layout()
-    plt.savefig(run_params['figure_dir']+'/dropout_perturbation_EV_S.svg')
-    plt.savefig(run_params['figure_dir']+'/dropout_perturbation_EV_S.png')  
+    plt.savefig(run_params['figure_dir']+'/dropout_perturbation_VS_E.svg')
+    plt.savefig(run_params['figure_dir']+'/dropout_perturbation_VS_E.png')  
 
 def add_perturbation_arrow(startxy,endxy, colors,experience_level,ax):
         dx = (startxy[0]-endxy[0])*0.1
@@ -2942,7 +2974,7 @@ def add_perturbation_arrow(startxy,endxy, colors,experience_level,ax):
         exy =(endxy[0]+dx,endxy[1]+dy)
         ax.annotate("",xy=exy,xytext=sxy,arrowprops=dict(arrowstyle="->",color=colors[experience_level]))
 
-def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_cells=True,ax=None,add_title=False):
+def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_cells=True,ax=None,add_title=False,plot_big=False):
     # plot
     df= df.rename(index={'Sst-IRES-Cre':'Sst','Vip-IRES-Cre':'Vip','Slc17a7-IRES2-Cre':'Exc'})
     familiar = df.loc['Familiar']
@@ -2976,14 +3008,23 @@ def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_
             ax[index].plot(novel1xy[0],novel1xy[1],'o',color='lightgray')
             ax[index].plot(novelp1xy[0],novelp1xy[1],'o',color='lightgray')
         ax[index].axis('equal')
-        ax[index].set_xlabel(x,fontsize=12)
-        ax[index].set_ylabel(y,fontsize=12)
-        ax[index].tick_params(axis='x',labelsize=10)
-        ax[index].tick_params(axis='y',labelsize=10)
+        if plot_big:
+            ax[index].set_xlabel(x,fontsize=18)
+            ax[index].set_ylabel(y,fontsize=18)
+            ax[index].tick_params(axis='x',labelsize=16)
+            ax[index].tick_params(axis='y',labelsize=16)
+        else:
+            ax[index].set_xlabel(x,fontsize=12)
+            ax[index].set_ylabel(y,fontsize=12)
+            ax[index].tick_params(axis='x',labelsize=10)
+            ax[index].tick_params(axis='y',labelsize=10)
         ax[index].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
         ax[index].xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
         if add_title:
-            ax[index].set_title(feature)
+            if plot_big:
+                ax[index].set_title(feature,fontsize=18)           
+            else:
+                ax[index].set_title(feature,fontsize=12)
     return ax
 
 def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=False):
@@ -3270,6 +3311,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
     else:
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.svg')
+
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     '''
         Plots the summary figure for the cosyne abstract with visual, behavioral, and cognitive kernels separated.

@@ -1473,6 +1473,7 @@ class GLM_Movie(object):
 
 
 
+
 def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False):  ##TODO update
     '''
         Generated kernel comparison plots for all dropouts
@@ -1802,9 +1803,34 @@ def plot_perturbation(weights_df, run_params, kernel, drop_threshold=0,session_f
     plt.tight_layout()
    
     return ax,kernel_means
+
+def plot_kernel_comparison_by_experience(weights_df, run_params, kernel):
+    weights_df = weights_df.query('not passive').copy()
+
+    k, fig_f , ax_f = plot_kernel_comparison(weights_df, run_params, kernel, save_results=False, session_filter=['Familiar']) 
+    k, fig_n , ax_n = plot_kernel_comparison(weights_df, run_params, kernel, save_results=False, session_filter=['Novel 1']) 
+    k, fig_np, ax_np =plot_kernel_comparison(weights_df, run_params, kernel, save_results=False, session_filter=['Novel >1']) 
+
  
+    ylims = list(ax_f.get_ylim()) +  list(ax_n.get_ylim()) +  list(ax_np.get_ylim()) 
+    new_y = [np.min(ylims), np.max(ylims)]
+    ax_f.set_ylim(new_y)
+    ax_n.set_ylim(new_y)
+    ax_np.set_ylim(new_y)
+    fig_f.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_familiar_kernel.svg')
+    fig_n.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_novel1_kernel.svg')
+    fig_np.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_novelp1_kernel.svg')
+
+    k, fig_v , ax_v =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Vip-IRES-Cre',compare=['experience_level'])   
+    k, fig_s , ax_s =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Sst-IRES-Cre',compare=['experience_level'])   
+    k, fig_e , ax_e =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=['experience_level'])   
+    fig_v.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_vip_kernel.svg')
+    fig_s.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel.svg')
+    fig_e.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel.svg')
+
+
 ## TODO UPDATE
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=True,normalize=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='session_number',image_set=['familiar','novel']):
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,normalize=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel']):
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1829,10 +1855,11 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     filter_string = ''
     problem_sessions = get_problem_sessions()   
 
-    if 'dropout_threshold' in run_params:
-        threshold = run_params['dropout_threshold']
-    else:
-        threshold = 0.005
+    #if 'dropout_threshold' in run_params:
+    #    threshold = run_params['dropout_threshold']
+    #else:
+    #    threshold = 0.005
+    threshold = 0
  
     # Filter by Equipment
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
@@ -1865,7 +1892,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.png')
 
     # Applying hard thresholds to dataset
-    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} < @drop_threshold) & (familiar in @image_set)'.format(filter_sessions_on, kernel))
+    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
 
     # Set up time vectors.
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
@@ -1941,7 +1968,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         file_temp = open(filename2,'wb')
         pickle.dump(outputs, file_temp)
         file_temp.close()
-    return outputs
+    return outputs, fig,ax
 
 ## TODO Update
 def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.25,normalize=False):

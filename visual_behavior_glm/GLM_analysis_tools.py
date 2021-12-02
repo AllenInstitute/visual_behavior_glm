@@ -806,10 +806,6 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         RETURNS:
         a dataframe
     '''
-    
-    #if load_cache & os.path.exists(run_params['output_dir']+'/weights_df.csv'):
-    #    # Need to convert things to np.array
-    #    return pd.read_csv(run_params['output_dir']+'/weights_df.csv')
    
     # Make dataframe for cells and experiments 
     oeids = results_pivoted['ophys_experiment_id'].unique() 
@@ -827,12 +823,20 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     weights_df = pd.concat(sessions,sort=False)
     weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
     
-    ## Cache Results
-    #if cache_results:
-    #    weights_df.to_csv(run_params['output_dir']+'/weights_df.csv') 
+    # Process weights_df
+    weights_df = process_weights_df(weights_df,run_params, results_pivoted)
 
     # Return weights_df
     return weights_df 
+
+def process_weights_df(weights_df, run_params, results_pivoted):
+    '''
+        Interpolate onto one time base
+        Compute generic image kernel
+        compute preferred image kernel
+    '''
+    
+    return weights_df
 
 def compute_weight_index(weights_df):
     '''

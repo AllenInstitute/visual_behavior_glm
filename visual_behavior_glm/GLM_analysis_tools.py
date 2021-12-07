@@ -822,10 +822,10 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
 
     # Merge all the session_dfs, and add more session level info
     weights_df = pd.concat(sessions,sort=False)
-    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
+    #weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) ## TODO, results_pivoted is fucked up
     
     # Process weights_df
-    weights_df = process_weights_df(weights_df,run_params)
+    #weights_df = process_weights_df(weights_df,run_params) #TODO, add back in once you optimize the time process
 
     # Return weights_df
     return weights_df 
@@ -841,6 +841,9 @@ def process_weights_df(weights_df, run_params,normalize=False):
     kernels = [x for x in weights_df.columns if 'weights' in x]
     for kernel in tqdm(kernels):
         weights_df = interpolate_kernel(weights_df, run_params, kernel,normalize=normalize)
+
+    # Try using apply instead of list comprehension
+    # Why is the table so big?
  
     # Compute generic image kernel
     

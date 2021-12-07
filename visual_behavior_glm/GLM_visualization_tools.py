@@ -1518,7 +1518,10 @@ def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_
         print('The following kernels failed')
         print(fail) 
 
-def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None,normalize=True): ## TODO Update 
+def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None):
+    '''
+        Need to add documentation
+    ''' 
 
     if 'dropout_threshold' in run_params:
         threshold = run_params['dropout_threshold']
@@ -1563,9 +1566,7 @@ def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[
     # Set up time vectors.
     time_vec = np.arange(run_params['kernels'][kernels[0]]['offset'], run_params['kernels'][kernels[0]]['offset'] + run_params['kernels'][kernels[0]]['length'],1/31)
     time_vec = np.round(time_vec,2)
-    meso_time_vec = np.arange(run_params['kernels'][kernels[0]]['offset'], run_params['kernels'][kernels[0]]['offset'] + run_params['kernels'][kernels[0]]['length'],1/11)#1/10.725)
 
-    #return time_vec, meso_time_vec, weights
     # Plotting settings
     fig,ax=plt.subplots(figsize=(8,4))
     
@@ -1584,11 +1585,11 @@ def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[
 
     # Filter for this group, and plot
     kernel_weights = [x+'_weights' for x in kernels]
-   
+ 
     # Determine unique groups of cells by the categorical attributes in compare
     if len(compare) == 0:
         weights_dfiltered = weights[kernel_weights]
-        plot_compare_across_kernels_inner(ax,weights_dfiltered,kernel_weights,'', 'k',lines, time_vec, meso_time_vec,normalize=normalize) 
+        plot_compare_across_kernels_inner(ax,weights_dfiltered,kernel_weights,'', 'k',lines, time_vec) 
     else:
         groups = list(weights.groupby(compare).groups.keys())
   
@@ -1598,37 +1599,22 @@ def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[
             query_str = '({0} == @group)'.format(compare[0])
             color = colors.setdefault(group,(100/255,100/255,100/255)) 
             weights_dfiltered = weights.query(query_str)[kernel_weights].copy()
-            plot_compare_across_kernels_inner(ax,weights_dfiltered,kernel_weights,group, color,lines, time_vec, meso_time_vec,normalize=normalize) 
+            plot_compare_across_kernels_inner(ax,weights_dfiltered,kernel_weights,group, color,lines, time_vec) 
 
     # Clean Plot, and add details
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     ax.axvline(0, color='k',linestyle='--',alpha=0.25)
-    ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=18)   
+    ax.set_ylabel('Kernel Weights ($\Delta$f/f)',fontsize=18)   
     ax.set_xlabel('Time (s)',fontsize=18)
     ax.set_xlim(time_vec[0],time_vec[-1])   
     add_stimulus_bars(ax,kernels[0],alpha=.1)
     plt.tick_params(axis='both',labelsize=16)
-    #plt.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
     plt.legend(loc='upper right',title=' & '.join(compare),handlelength=4)
 
     plt.title(title)
     plt.tight_layout()
 
-def get_norm(df,kernels,normalize=True):
-    norm_columns = []
-    for k in kernels:
-        df[k+'_norm'] = [np.max(np.abs(x)) for x in df[~df.isnull()][k].values]
-        norm_columns.append(k+'_norm')
-    df['norm'] = df[norm_columns].max(axis=1)   
-    for k in kernels:
-        if normalize:
-            df[k] = [x[0]/x[1] for x in zip(df[k].values,df['norm'].values)] 
-        else:
-            df[k] = [np.array(x) for x in df[k].values] 
-    return df
-
-## TODO Update
-def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time_vec, meso_time_vec,linewidth=4,alpha=.1,normalize=True):
+def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time_vec,linewidth=4):
     '''
         Plots the average kernel for the cells in df
         
@@ -1638,28 +1624,19 @@ def plot_compare_across_kernels_inner(ax, df,kernels,group,color,linestyles,time
         color, the line color for this group of cells
         linestyle, the line style for this group of cells
         time_vec, the time basis to plot on
-        meso_time_vec, the time basis for mesoscope kernels (will be interpolated to time_vec)
-        plot_errors (bool), if True, plots a shaded error bar
         linewidth, the width of the mean line
-        alpha, the alpha for the shaded error bar
     '''
 
     # Normalize kernels, and interpolate to time_vec
     df = df.dropna(axis=0,subset=kernels)
-    df = get_norm(df,kernels,normalize=normalize)   
+
+    mean_kernels = {}
     for k in kernels:
-        df[k] = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df[k]]
-    
-    # Needed for stability
-    #if len(df)>0:
-    #    df = np.vstack(df)
-    #else:
-    #    df = np.empty((2,len(time_vec)))
-    #    df[:] = np.nan
-    
+        mean_kernels[k] = np.mean(np.vstack(df[k]),0)
+   
     # Plot mean and error bar
     for dex,k in enumerate(kernels):
-        ax.plot(time_vec, df[k].mean(axis=0),linestyle=linestyles[dex],color=color,label=group+' '+k,linewidth=linewidth)
+        ax.plot(time_vec, mean_kernels[k],linestyle=linestyles[dex],color=color,label=group+' '+k,linewidth=linewidth)
 
 ## TODO update
 def plot_perturbation(weights_df, run_params, kernel, drop_threshold=0,session_filter=[1,2,3,4,5,6],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],normalize=True,CMAP='Blues',in_ax=None):
@@ -1828,9 +1805,7 @@ def plot_kernel_comparison_by_experience(weights_df, run_params, kernel):
     fig_s.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel.svg')
     fig_e.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel.svg')
 
-
-## TODO UPDATE
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,normalize=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel']):
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel']):
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1897,7 +1872,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     # Set up time vectors.
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
-    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
+    #meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
 
     #return time_vec, meso_time_vec, weights
     # Plotting settings
@@ -1939,7 +1914,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     
         # Filter for this group, and plot
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
-        k=plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, meso_time_vec,plot_errors=plot_errors,normalize=normalize) 
+        k=plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, plot_errors=plot_errors) 
         outputs[group]=k
 
     # Clean Plot, and add details
@@ -1971,7 +1946,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     return outputs, fig,ax
 
 ## TODO Update
-def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_time_vec,plot_errors=True,linewidth=4,alpha=.25,normalize=False):
+def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot_errors=True,linewidth=4,alpha=.25):
     '''
         Plots the average kernel for the cells in df
         
@@ -1988,11 +1963,8 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, meso_tim
     '''
 
     # Normalize kernels, and interpolate to time_vec
-    if normalize:
-        df_norm = [x/np.max(np.abs(x)) for x in df[~df.isnull()].values]
-    else:
-        df_norm = [x for x in df[~df.isnull()].values]
-    df_norm = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df_norm]
+    df_norm = [x for x in df[~df.isnull()].values]
+    #df_norm = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df_norm]
     
     # Needed for stability
     if len(df_norm)>0:

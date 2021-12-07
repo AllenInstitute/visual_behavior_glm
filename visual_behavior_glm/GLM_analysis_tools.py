@@ -691,7 +691,9 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         'adj_variance_explained',
         'adj_variance_explained_full',
         'entry_time_utc',
-        'driver_line'
+        'driver_line',
+        'shuffle_time',
+        'shuffle_cells',
     ]
     cols_to_drop = [col for col in potential_cols_to_drop if col in results_summary.columns]
     results_summary_pivoted = results_summary_pivoted.merge(

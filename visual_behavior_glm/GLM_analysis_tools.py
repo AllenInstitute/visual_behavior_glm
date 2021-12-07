@@ -824,37 +824,34 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
 
     # Merge all the session_dfs, and add more session level info
     weights_df = pd.concat(sessions,sort=False)
-    #weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) ## TODO, results_pivoted is fucked up
+    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) ## TODO, results_pivoted is fucked up
     
-    # Process weights_df
-    #weights_df = process_weights_df(weights_df,run_params) #TODO, add back in once you optimize the time process
+    # Interpolate everything onto common time base
+    kernels = [x for x in weights_df.columns if 'weights' in x]
+    for kernel in tqdm(kernels):
+        weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
+
+    # Compute generic image kernel
+    weights_df['all-images_weights'] = weights_df.apply(lambda x: np.mean([
+        x['image0_weights'],
+        x['image1_weights'],
+        x['image2_weights'],
+        x['image3_weights'],       
+        x['image4_weights'],
+        x['image5_weights'],
+        x['image6_weights'],
+        x['image7_weights']
+        ],axis=0),axis=1)
 
     # Return weights_df
     return weights_df 
 
-def process_weights_df(weights_df, run_params,normalize=False):
+def interpolate_kernels(weights_df, run_params, kernel_name,normalize=False):
     '''
-        Interpolate onto one time base
-        Compute generic image kernel
-        compute preferred image kernel
-    '''
-
-    # Interpolate everything onto common time base
-    kernels = [x for x in weights_df.columns if 'weights' in x]
-    for kernel in tqdm(kernels):
-        weights_df = interpolate_kernel(weights_df, run_params, kernel,normalize=normalize)
-
-    # Try using apply instead of list comprehension
-    # Why is the table so big?
+        Interpolates all kernels onto the scientific time base
+        If the kernels are the wrong size for either scientifica or mesoscope, it sets them to NaN
+    '''   
  
-    # Compute generic image kernel
-    
-    # compute preferred image kernel (largest magnitude)   
- 
-    return weights_df
-
-def interpolate_kernel(weights_df, run_params, kernel_name,normalize=False):
-    
     # Select the kernel of interest
     df = weights_df[kernel_name].copy()  
     kernel = kernel_name.split('_weights')[0]

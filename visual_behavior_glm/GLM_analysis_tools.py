@@ -795,10 +795,12 @@ def process_session_to_df(oeid, run_params):
             session_df[k] = W.loc[dict(weights=weight_names)].values.T.tolist()
     return session_df
 
-def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False):
+def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False,normalize=False):
     '''
         Builds a dataframe of (cell_specimen_id, ophys_experiment_id) with the weight parameters for each kernel
-        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream   
+        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream  
+        
+        Takes about 5 minutes to run 
  
         INPUTS:
         run_params, parameter json for the version to analyze
@@ -824,7 +826,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
 
     # Merge all the session_dfs, and add more session level info
     weights_df = pd.concat(sessions,sort=False)
-    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) ## TODO, results_pivoted is fucked up
+    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) 
     
     # Interpolate everything onto common time base
     kernels = [x for x in weights_df.columns if 'weights' in x]
@@ -843,8 +845,31 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         x['image7_weights']
         ],axis=0),axis=1)
 
+    # Compute preferred image kernel
+    weights_df['preferred_image_weights'] = weights_df.apply(lambda x: compute_preferred_kernel([
+        x['image0_weights'],
+        x['image1_weights'],
+        x['image2_weights'],
+        x['image3_weights'],       
+        x['image4_weights'],
+        x['image5_weights'],
+        x['image6_weights'],
+        x['image7_weights']
+        ]),axis=1) 
+
     # Return weights_df
     return weights_df 
+
+
+def compute_preferred_kernel(images):
+    
+    # If all the weight kernels are nans
+    if np.ndim(images) ==1:
+        return images[0]
+    
+    # Find the kernel with the largest magnitude 
+    weight_amplitudes = np.sum(np.abs(images),axis=1)
+    return images[np.argmax(weight_amplitudes)] 
 
 def interpolate_kernels(weights_df, run_params, kernel_name,normalize=False):
     '''

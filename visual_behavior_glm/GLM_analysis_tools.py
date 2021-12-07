@@ -1,5 +1,6 @@
 import os
 import bz2
+import scipy
 import pickle
 import _pickle as cPickle
 import warnings
@@ -824,19 +825,62 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
     
     # Process weights_df
-    weights_df = process_weights_df(weights_df,run_params, results_pivoted)
+    weights_df = process_weights_df(weights_df,run_params)
 
     # Return weights_df
     return weights_df 
 
-def process_weights_df(weights_df, run_params, results_pivoted):
+def process_weights_df(weights_df, run_params,normalize=False):
     '''
         Interpolate onto one time base
         Compute generic image kernel
         compute preferred image kernel
     '''
+
+    # Interpolate everything onto common time base
+    kernels = [x for x in weights_df.columns if 'weights' in x]
+    for kernel in tqdm(kernels):
+        weights_df = interpolate_kernel(weights_df, run_params, kernel,normalize=normalize)
+ 
+    # Compute generic image kernel
     
+    # compute preferred image kernel (largest magnitude)   
+ 
     return weights_df
+
+def interpolate_kernel(weights_df, run_params, kernel_name,normalize=False):
+    
+    # Select the kernel of interest
+    df = weights_df[kernel_name].copy()  
+    kernel = kernel_name.split('_weights')[0]
+
+    # Normalize each to its max value, if we are doing normalization
+    if normalize:
+        df = [x/np.max(np.abs(x)) for x in df.values]
+
+    # Interpolate
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
+    time_vecs = {}
+    time_vecs['scientifica'] = time_vec
+    time_vecs['mesoscope'] = meso_time_vec
+    length_mismatch = len(time_vec) != np.max(np.unique([np.size(x) for x in df]))
+    if ('image' in kernel_name) & length_mismatch:
+        time_vecs['scientifica'] = time_vecs['scientifica'][0:-1]
+        time_vecs['mesoscope'] = time_vecs['mesoscope'][0:-1]
+    weights_df[kernel_name] = [weight_interpolation(x, time_vecs) for x in df]
+    return weights_df
+
+def weight_interpolation(weight_vec, time_vecs={}):
+    if np.size(weight_vec) ==1:
+        return weight_vec
+    elif len(weight_vec) == len(time_vecs['scientifica']):
+        return weight_vec
+    elif len(weight_vec) == len(time_vecs['mesoscope']):
+        return scipy.interpolate.interp1d(time_vecs['mesoscope'], weight_vec, fill_value='extrapolate',bounds_error=False)(time_vecs['scientifica'])
+    else:
+        return np.nan 
 
 def compute_weight_index(weights_df):
     '''

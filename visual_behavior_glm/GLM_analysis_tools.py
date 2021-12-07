@@ -1,5 +1,6 @@
 import os
 import bz2
+import scipy
 import pickle
 import _pickle as cPickle
 import warnings
@@ -690,7 +691,9 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         'adj_variance_explained',
         'adj_variance_explained_full',
         'entry_time_utc',
-        'driver_line'
+        'driver_line',
+        'shuffle_time',
+        'shuffle_cells',
     ]
     cols_to_drop = [col for col in potential_cols_to_drop if col in results_summary.columns]
     results_summary_pivoted = results_summary_pivoted.merge(
@@ -792,10 +795,12 @@ def process_session_to_df(oeid, run_params):
             session_df[k] = W.loc[dict(weights=weight_names)].values.T.tolist()
     return session_df
 
-def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False):
+def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False,normalize=False):
     '''
         Builds a dataframe of (cell_specimen_id, ophys_experiment_id) with the weight parameters for each kernel
-        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream   
+        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream  
+        
+        Takes about 5 minutes to run 
  
         INPUTS:
         run_params, parameter json for the version to analyze
@@ -806,10 +811,6 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         RETURNS:
         a dataframe
     '''
-    
-    #if load_cache & os.path.exists(run_params['output_dir']+'/weights_df.csv'):
-    #    # Need to convert things to np.array
-    #    return pd.read_csv(run_params['output_dir']+'/weights_df.csv')
    
     # Make dataframe for cells and experiments 
     oeids = results_pivoted['ophys_experiment_id'].unique() 
@@ -825,14 +826,88 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
 
     # Merge all the session_dfs, and add more session level info
     weights_df = pd.concat(sessions,sort=False)
-    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
+    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) 
     
-    ## Cache Results
-    #if cache_results:
-    #    weights_df.to_csv(run_params['output_dir']+'/weights_df.csv') 
+    # Interpolate everything onto common time base
+    kernels = [x for x in weights_df.columns if 'weights' in x]
+    for kernel in tqdm(kernels):
+        weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
+
+    # Compute generic image kernel
+    weights_df['all-images_weights'] = weights_df.apply(lambda x: np.mean([
+        x['image0_weights'],
+        x['image1_weights'],
+        x['image2_weights'],
+        x['image3_weights'],       
+        x['image4_weights'],
+        x['image5_weights'],
+        x['image6_weights'],
+        x['image7_weights']
+        ],axis=0),axis=1)
+
+    # Compute preferred image kernel
+    weights_df['preferred_image_weights'] = weights_df.apply(lambda x: compute_preferred_kernel([
+        x['image0_weights'],
+        x['image1_weights'],
+        x['image2_weights'],
+        x['image3_weights'],       
+        x['image4_weights'],
+        x['image5_weights'],
+        x['image6_weights'],
+        x['image7_weights']
+        ]),axis=1) 
 
     # Return weights_df
     return weights_df 
+
+
+def compute_preferred_kernel(images):
+    
+    # If all the weight kernels are nans
+    if np.ndim(images) ==1:
+        return images[0]
+    
+    # Find the kernel with the largest magnitude 
+    weight_amplitudes = np.sum(np.abs(images),axis=1)
+    return images[np.argmax(weight_amplitudes)] 
+
+def interpolate_kernels(weights_df, run_params, kernel_name,normalize=False):
+    '''
+        Interpolates all kernels onto the scientific time base
+        If the kernels are the wrong size for either scientifica or mesoscope, it sets them to NaN
+    '''   
+ 
+    # Select the kernel of interest
+    df = weights_df[kernel_name].copy()  
+    kernel = kernel_name.split('_weights')[0]
+
+    # Normalize each to its max value, if we are doing normalization
+    if normalize:
+        df = [x/np.max(np.abs(x)) for x in df.values]
+
+    # Interpolate
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
+    time_vecs = {}
+    time_vecs['scientifica'] = time_vec
+    time_vecs['mesoscope'] = meso_time_vec
+    length_mismatch = len(time_vec) != np.max(np.unique([np.size(x) for x in df]))
+    if ('image' in kernel_name) & length_mismatch:
+        time_vecs['scientifica'] = time_vecs['scientifica'][0:-1]
+        time_vecs['mesoscope'] = time_vecs['mesoscope'][0:-1]
+    weights_df[kernel_name] = [weight_interpolation(x, time_vecs) for x in df]
+    return weights_df
+
+def weight_interpolation(weight_vec, time_vecs={}):
+    if np.size(weight_vec) ==1:
+        return weight_vec
+    elif len(weight_vec) == len(time_vecs['scientifica']):
+        return weight_vec
+    elif len(weight_vec) == len(time_vecs['mesoscope']):
+        return scipy.interpolate.interp1d(time_vecs['mesoscope'], weight_vec, fill_value='extrapolate',bounds_error=False)(time_vecs['scientifica'])
+    else:
+        return np.nan 
 
 def compute_weight_index(weights_df):
     '''

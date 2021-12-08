@@ -170,7 +170,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'L0_optimize_by_session': False # If True, uses the best L0 value for each session
+        'L0': False                     # If True, uses the best L0 value for each session
         'L2_optimize_by_cre': False,    # If True, uses the best L2 value for each cell
         'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
         'L2_optimize_by_session': True, # If True, uses the best L2 value for this session
@@ -215,10 +215,9 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     a = run_params['L2_optimize_by_cell'] 
     b = run_params['L2_optimize_by_session'] 
     c = run_params['L2_use_fixed_value']
-    d = run_params['L2_optimize_by_cre'] 
-    assert (a or b or c or d) and not ((a and b) or (b and c) or (a and c)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
-    assert (a or b or c or d) and not ((a and b) or (b and d) or (a and d)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
-    # TODO, fix this mess
+    d = run_params['L2_optimize_by_cre']
+    e = run_params['L0']
+    assert np.sum([a,b,c,d,e]) == 1, "Must select one and only one regularization option: L0, L2_optimize_by_cre, L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
 
     # Check L2 Fixed value parameters 
     if run_params['L2_use_fixed_value'] and (run_params['L2_fixed_lambda'] is None): 

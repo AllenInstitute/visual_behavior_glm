@@ -34,6 +34,7 @@ def make_glm(fit, run_params, design, session):
 if False: # Code snippets for doing analyses. 
     # Experiments for debugging consistency
     #####################
+    experiment_table = glm_params.get_experiment_table()
     oeid  = experiment_table.index.values[754]
     oeid1 = experiment_table.index.values[0]
     oeid2 = experiment_table.index.values[154]

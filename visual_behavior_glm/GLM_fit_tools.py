@@ -355,8 +355,137 @@ def evaluate_models(fit, design, run_params):
     elif run_params['L2_optimize_by_cell']:
         print('Using an optimized regularization value for each cell')
         return evaluate_models_different_ridge(fit,design,run_params)
+    elif run_params['L0']:
+        print('Using elastic net regularization for each cell')
+        return evaluate_models_L0(fit,design, run_params)
     else:
         raise Exception('Unknown regularization approach')
+
+def L0_dev(fit,design,run_params):
+    '''
+        Development test bed. Just fitting one cell, just fitting full model
+        
+        Questions:
+        Do we need to set alpha/L1_ratio ahead of evaluate_models_L0
+        Do we need to log the cross-validation results, or just the average?
+        Should set L1 ratios as parameters
+        Should verify I can replicate my L2 results using this package with the L1 ratio fixed. 
+        Then worry about L1_ratio optimization
+        I'm not sure if I should trust its alpah selection
+        probably should use fit_intercept=False, since I already include the intercept in the design matrix
+        can pass cv as an iterable that yields CV splits. so I can replicate my approach 
+        I *think* the model.score(x,y) is the same as my variance explained
+
+        next steps
+        Get L2 results for a handful of cells
+        Replicate L2 results with ElasticNetCV function
+        Integrate ElasticNetCV into my workflow
+        Allow L1_ratio to be optimized, compare results
+    '''
+        l1_ratios = [.1,.5,.7,.9,1]
+        
+
+def evaluate_models_L0(fit,design,run_params):
+    '''
+        Fits and evaluates each model defined in fit['dropouts']
+           
+        For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
+            It does this for the entire dataset as test and train. As well as CV, saving each test/train split
+
+    '''
+    for model_label in fit['dropouts'].keys():
+
+        # Set up design matrix for this dropout
+        X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
+        X_inner = np.dot(X.T, X)
+        mask = get_mask(fit['dropouts'][model_label],design)
+        Full_X = design.get_X(kernels=fit['dropouts']['Full']['kernels'])
+
+        # Iterate CV
+        cv_var_train    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cv_var_test     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cv_adjvar_train = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_train_fc = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test_fc= np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))  
+        cv_weights      = np.empty((np.shape(X)[1], fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        all_weights     = np.empty((np.shape(X)[1], fit['fit_trace_arr'].shape[1]))
+        all_var_explain = np.empty((fit['fit_trace_arr'].shape[1]))
+        all_adjvar_explain = np.empty((fit['fit_trace_arr'].shape[1]))
+        all_prediction  = np.empty(fit['fit_trace_arr'].shape)
+        X_test_array = []   # Cache the intermediate steps for each cell
+        X_train_array = []
+        X_cov_array = []
+
+        for cell_index,cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+
+            fit_trace = fit['fit_trace_arr'][:,cell_index]
+            Wall = fit_cell_regularized(X_inner,fit_trace, X,fit['cell_L2_regularization'][cell_index])     
+            var_explain = variance_ratio(fit_trace, Wall,X)
+            adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
+            all_weights[:,cell_index] = Wall
+            all_var_explain[cell_index] = var_explain
+            all_adjvar_explain[cell_index] = adjvar_explain
+            all_prediction[:,cell_index] = X.values @ Wall.values
+
+            for index, test_split in enumerate(fit['splits']):
+                train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index]))
+        
+                # If this is the first cell, stash the design matrix and covariance result
+                if cell_index == 0:
+                    X_test_array.append(X[test_split,:])
+                    X_train_array.append(X[train_split,:])
+                    X_cov_array.append(np.dot(X[train_split,:].T,X[train_split,:]))
+                # Grab the stashed result
+                X_test  = X_test_array[index]
+                X_train = X_train_array[index]
+                X_cov   = X_cov_array[index]
+                fit_trace_train = fit['fit_trace_arr'][train_split,cell_index]
+                fit_trace_test = fit['fit_trace_arr'][test_split,cell_index]
+                
+                # do the fitting #TODO
+                W = fit_cell_regularized(X_cov,fit_trace_train, X_train, fit['cell_L2_regularization'][cell_index])
+
+                cv_var_train[cell_index,index] = variance_ratio(fit_trace_train, W, X_train)
+                cv_var_test[cell_index,index] = variance_ratio(fit_trace_test, W, X_test)
+                cv_adjvar_train[cell_index,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask[train_split]) 
+                cv_adjvar_test[cell_index,index] = masked_variance_ratio(fit_trace_test, W, X_test, mask[test_split])
+                cv_weights[:,cell_index,index] = W 
+                if model_label == 'Full':
+                    # If this is the Full model, the value is the same
+                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask[train_split])  
+                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(fit_trace_test, W, X_test, mask[test_split])  
+                else:
+                    # Otherwise, get weights and design matrix for this cell/cv_split and compute the variance explained on this mask
+                    Full_W = xr.DataArray(fit['dropouts']['Full']['cv_weights'][:,cell_index,index])
+                    Full_X_test = Full_X[test_split,:]
+                    Full_X_train = Full_X[train_split,:]
+                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(fit_trace_train, Full_W, Full_X_train, mask[train_split])  
+                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(fit_trace_test, Full_W, Full_X_test, mask[test_split])    
+
+        all_weights_xarray = xr.DataArray(
+            data = all_weights,
+            dims = ("weights", "cell_specimen_id"),
+            coords = {
+                "weights": X.weights.values,
+                "cell_specimen_id": fit['fit_trace_arr'].cell_specimen_id.values
+            }
+        )
+
+        fit['dropouts'][model_label]['train_weights']   = all_weights_xarray
+        fit['dropouts'][model_label]['train_variance_explained']    = all_var_explain
+        fit['dropouts'][model_label]['train_adjvariance_explained'] = all_adjvar_explain
+        fit['dropouts'][model_label]['full_model_train_prediction'] = all_prediction
+        fit['dropouts'][model_label]['cv_weights']      = cv_weights
+        fit['dropouts'][model_label]['cv_var_train']    = cv_var_train
+        fit['dropouts'][model_label]['cv_var_test']     = cv_var_test
+        fit['dropouts'][model_label]['cv_adjvar_train'] = cv_adjvar_train
+        fit['dropouts'][model_label]['cv_adjvar_test']  = cv_adjvar_test
+        fit['dropouts'][model_label]['cv_adjvar_train_full_comparison'] = cv_adjvar_train_fc
+        fit['dropouts'][model_label]['cv_adjvar_test_full_comparison']  = cv_adjvar_test_fc
+
+    return fit 
+
 
 
 def evaluate_models_different_ridge(fit,design,run_params):

@@ -7,15 +7,18 @@ import pandas as pd
 import scipy 
 from tqdm import tqdm
 from copy import copy
-from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 from sklearn.linear_model import ElasticNetCV
+from sklearn.linear_model import RidgeCV
+from sklearn.linear_model import Ridge
 
-from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
+
+import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior.data_access.loading as loading
 import visual_behavior.data_access.reformat as reformat
+from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
-import visual_behavior_glm.GLM_analysis_tools as gat
 
 def load_fit_experiment(ophys_experiment_id, run_params):
     '''
@@ -374,6 +377,77 @@ def compare_elastic(fite,fitl2):
     plt.plot([0,.2],[0,.2],'k--',alpha=.5)
     plt.ylabel('Elastic')
     plt.xlabel('L2')
+
+def compare_ridge(fitl2):
+    plt.figure()
+    l2_ve = np.mean(fitl2['dropouts']['Full']['cv_var_test'],axis=1)
+    sklearn_ve = fitl2['sklearn_L2_cv_var_test']
+    plt.plot(l2_ve,sklearn_ve,'ko')
+    plt.plot([0,.2],[0,.2],'k--',alpha=.5)
+    plt.ylabel('sklearn Ridge')
+    plt.xlabel('L2')
+    
+    plt.figure()
+    plt.plot(fitl2['cell_L2_regularization'], fitl2['sklearn_cell_L2_regularization'],'ko')
+    plt.plot([0,500],[0,500],'k--',alpha=.5)
+    plt.ylabel('sklearn alpha')
+    plt.xlabel('L2 alpha')   
+
+def sklearn_evaluate_ridge(fit, design, run_params):
+    '''
+    TODO, debugging function
+    This determines the hyper-parameter alpha using the same CV splits I use
+    I get consistent alpha values using this approach compared to my implementation.
+    '''
+    # Determine splits 
+    ridge_splits = []  
+    for split_index, test_split in enumerate(fit['ridge_splits']):
+        train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
+        ridge_splits.append((train_split, test_split)) 
+
+    # do CV to get hyperparameters
+    alphas = []
+    for cell_index,cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+        model = RidgeCV(
+            alphas=np.linspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num']),
+            fit_intercept = False,
+            cv = ridge_splits,
+            )
+        x = design.get_X() 
+        y = fit['fit_trace_arr'][:,cell_index] 
+        model.fit(x,y)
+        alphas.append(model.alpha_)
+    
+    fit['sklearn_cell_L2_regularization'] = alphas
+    return fit    
+
+
+def ridge_dev(fit,design,run_params):
+    test_ve = []
+    splits = []  
+    for split_index, test_split in enumerate(fit['splits']):
+        train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['splits']) if i!=split_index]))
+        splits.append((train_split, test_split)) 
+
+    x = design.get_X() 
+    # do CV to evaluate
+    for cell_index,cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+        y = fit['fit_trace_arr'][:,cell_index] 
+        this_test_ve = []
+        for split_index, split in enumerate(splits):
+            train_y = y[split[0]]
+            test_y = y[split[1]]
+            train_x = x[split[0],:]
+            test_x = x[split[1],:]
+            model = Ridge(
+                alpha=fit['sklearn_cell_L2_regularization'][cell_index],
+                fit_intercept = False,
+                )
+            model.fit(train_x,train_y)
+            this_test_ve.append(model.score(test_x,test_y))
+        test_ve.append(np.nanmean(this_test_ve))
+    fit['sklearn_L2_cv_var_test'] = test_ve 
+    return fit
 
 def elastic_net_dev(fit,design,run_params):
     '''

@@ -387,21 +387,25 @@ def elastic_net_dev(fit,design,run_params):
         probably should use fit_intercept=False, since I already include the intercept in the design matrix
         can pass cv as an iterable that yields CV splits. so I can replicate my approach  
         It would be nice if I could initialize with the L2 prediction, but I'm not sure I can (coef_init)
-        
+        what is the duality gap? 
         Can we check correspondance between my L2 grid and alpha?
+        maybe I should use the sklearn's ridge function
+        my L2 CV approach is stricter, since I use a different CV split for hyperparameter selection and fitting
+        I also have more noise, since I only do one split. 
 
         NEXT STEPS
         **********
-        Get L2 results for a handful of cells
+        Get L2 results for a handful of cells. Need to compare against per-cell optimization. 
         Replicate L2 results with ElasticNetCV function
         Integrate ElasticNetCV into my workflow
         Allow L1_ratio to be optimized, compare results
 
     '''
     #sessionl2, fitl2, designl2 = fit_experiment(oeid0,run_params_l2)
-    l1_ratios = [0.01]
+    l1_ratios = [0.01,.1,.3,.5,.7,.9]
     run_params['ElasticNet_nalphas'] =40
-    fit['ElasticNet_alphas'] = np.linspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])
+    fit['ElasticNet_alphas'] = .1*np.linspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])
+    fit['ElasticNet_alphas'] = [0.00001,0.0001,.001,.01,.1,1,10,100,1000]
 
     # Determine range of L1_ratio, and alpha values
     
@@ -417,7 +421,7 @@ def elastic_net_dev(fit,design,run_params):
             alphas =fit['ElasticNet_alphas'], # TODO, figure out values
             fit_intercept=False, 
             cv=5, #TODO, replace with the same CV splits in the other version?
-            max_iter=1000,
+            max_iter=2000,
             )  
         x = design.get_X() 
         y = fit['fit_trace_arr'][:,cell_index] 

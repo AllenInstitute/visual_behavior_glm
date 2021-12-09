@@ -355,18 +355,18 @@ def evaluate_models(fit, design, run_params):
     elif run_params['L2_optimize_by_cell']:
         print('Using an optimized regularization value for each cell')
         return evaluate_models_different_ridge(fit,design,run_params)
-    elif run_params['L0']:
+    elif run_params['ElasticNet']:
         print('Using elastic net regularization for each cell')
-        return evaluate_models_L0(fit,design, run_params)
+        return evaluate_models_elastic_net(fit,design, run_params)
     else:
         raise Exception('Unknown regularization approach')
 
-def L0_dev(fit,design,run_params):
+def elastic_net_dev(fit,design,run_params):
     '''
         Development test bed. Just fitting one cell, just fitting full model
         
         Questions:
-        Do we need to set alpha/L1_ratio ahead of evaluate_models_L0
+        Do we need to set alpha/L1_ratio ahead of evaluate_models_elastic_net
         Do we need to log the cross-validation results, or just the average?
         Should set L1 ratios as parameters
         Should verify I can replicate my L2 results using this package with the L1 ratio fixed. 
@@ -385,7 +385,7 @@ def L0_dev(fit,design,run_params):
         l1_ratios = [.1,.5,.7,.9,1]
         
 
-def evaluate_models_L0(fit,design,run_params):
+def evaluate_models_elastic_net(fit,design,run_params):
     '''
         Fits and evaluates each model defined in fit['dropouts']
            

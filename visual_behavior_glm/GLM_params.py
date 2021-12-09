@@ -170,7 +170,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'L0': True,                     # If True, uses the best L0 value for each session
+        'ElasticNet': True,             # If True, uses the best L1/L2 value for each session
         'L2_optimize_by_cre': False,    # If True, uses the best L2 value for each cell
         'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
         'L2_optimize_by_session': False,# If True, uses the best L2 value for this session
@@ -216,8 +216,9 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     b = run_params['L2_optimize_by_session'] 
     c = run_params['L2_use_fixed_value']
     d = run_params['L2_optimize_by_cre']
-    e = run_params['L0']
-    assert np.sum([a,b,c,d,e]) == 1, "Must select one and only one regularization option: L0, L2_optimize_by_cre, L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
+    e = run_params['ElasticNet']
+    assert np.sum([a,b,c,d,e]) == 1, \
+        "Must select one and only one regularization option: ElasticNet, L2_optimize_by_cre, L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
 
     # Check L2 Fixed value parameters 
     if run_params['L2_use_fixed_value'] and (run_params['L2_fixed_lambda'] is None): 

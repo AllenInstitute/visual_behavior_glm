@@ -12,6 +12,9 @@ from sklearn.decomposition import PCA
 from sklearn.linear_model import ElasticNetCV
 from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import Ridge
+from sklearn.linear_model import LassoCV
+from sklearn.linear_model import Lasso
+
 
 
 import visual_behavior_glm.GLM_analysis_tools as gat
@@ -369,26 +372,24 @@ def evaluate_models(fit, design, run_params):
     else:
         raise Exception('Unknown regularization approach')
 
-def compare_elastic(fite,fitl2):
+def compare_ridge(fit):
+    '''
+    TODO, debugging function
+    session, fit, designl2 = fit_experiment(oeid0,run_params) 
+    fit = sklearn_evaluate_ridge(fit, design,run_params)
+    fit = sklearn_evaluate_model(fit,design,run_params)
+    compare_ridge(fit)
+    '''
     plt.figure()
-    l2_ve = np.mean(fitl2['dropouts']['Full']['cv_var_test'],axis=1)
-    elastic_ve = fite['dropouts']['Full']['test_ve']
-    plt.plot(l2_ve,elastic_ve,'ko')
-    plt.plot([0,.2],[0,.2],'k--',alpha=.5)
-    plt.ylabel('Elastic')
-    plt.xlabel('L2')
-
-def compare_ridge(fitl2):
-    plt.figure()
-    l2_ve = np.mean(fitl2['dropouts']['Full']['cv_var_test'],axis=1)
-    sklearn_ve = fitl2['sklearn_L2_cv_var_test']
+    l2_ve = np.mean(fit['dropouts']['Full']['cv_var_test'],axis=1)
+    sklearn_ve = fit['sklearn_L2_cv_var_test']
     plt.plot(l2_ve,sklearn_ve,'ko')
     plt.plot([0,.2],[0,.2],'k--',alpha=.5)
     plt.ylabel('sklearn Ridge')
     plt.xlabel('L2')
     
     plt.figure()
-    plt.plot(fitl2['cell_L2_regularization'], fitl2['sklearn_cell_L2_regularization'],'ko')
+    plt.plot(fit['cell_L2_regularization'], fit['sklearn_cell_L2_regularization'],'ko')
     plt.plot([0,500],[0,500],'k--',alpha=.5)
     plt.ylabel('sklearn alpha')
     plt.xlabel('L2 alpha')   
@@ -422,7 +423,10 @@ def sklearn_evaluate_ridge(fit, design, run_params):
     return fit    
 
 
-def ridge_dev(fit,design,run_params):
+def sklearn_evaluate_model(fit,design,run_params):
+    '''
+    TODO, debugging function
+    '''
     test_ve = []
     splits = []  
     for split_index, test_split in enumerate(fit['splits']):
@@ -449,17 +453,108 @@ def ridge_dev(fit,design,run_params):
     fit['sklearn_L2_cv_var_test'] = test_ve 
     return fit
 
-def elastic_net_dev(fit,design,run_params):
+
+def compare_lasso(fit):
     '''
-        Development test bed. Just fitting one cell, just fitting full model
-        
-        Questions:
+    TODO, debugging function
+    session, fit, designl2 = fit_experiment(oeid0,run_params) 
+    fit = sklearn_evaluate_lasso(fit, design,run_params)
+    fit = sklearn_evaluate_model(fit,design,run_params)
+    compare_lasso(fit)
+    '''
+    plt.figure()
+    l2_ve = np.mean(fit['dropouts']['Full']['cv_var_test'],axis=1)
+    sklearn_ve = fit['sklearn_lasso_cv_var_test']
+    plt.plot(l2_ve,sklearn_ve,'ko')
+    plt.plot([0,.2],[0,.2],'k--',alpha=.5)
+    plt.ylabel('sklearn lasso')
+    plt.xlabel('L2')
+    
+    plt.figure()
+    plt.plot(fit['cell_L2_regularization'], fit['sklearn_cell_lasso_regularization'],'ko')
+    plt.plot([0,500],[0,500],'k--',alpha=.5)
+    plt.ylabel('sklearn lasso alpha')
+    plt.xlabel('L2 alpha')   
+
+def sklearn_evaluate_lasso(fit, design, run_params):
+    '''
+    TODO, debugging function
+    This determines the hyper-parameter alpha using the same CV splits I use
+    I get consistent alpha values using this approach compared to my implementation.
+    '''
+    # Determine splits 
+    lasso_splits = []  
+    for split_index, test_split in enumerate(fit['ridge_splits']):
+        train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
+        lasso_splits.append((train_split, test_split)) 
+
+    # do CV to get hyperparameters
+    alphas = []
+    for cell_index,cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+        model = LassoCV( # TODO, does it speed things up to pass the L2 solution as an initialization?
+            n_alphas=100, # TODO, need to figure out 
+            eps=1e-6, # TODO, need to figure out
+            fit_intercept = False,
+            cv = lasso_splits,
+            max_iter=5000, #TODO, need to figure out how to set
+            )
+        x = design.get_X() 
+        y = fit['fit_trace_arr'][:,cell_index] 
+        model.fit(x,y)
+        alphas.append(model.alpha_)
+    
+    fit['sklearn_cell_lasso_regularization'] = alphas
+    return fit    
+
+
+def sklearn_evaluate_model(fit,design,run_params):
+    '''
+    TODO, debugging function
+    '''
+    test_ve = []
+    splits = []  
+    for split_index, test_split in enumerate(fit['splits']):
+        train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['splits']) if i!=split_index]))
+        splits.append((train_split, test_split)) 
+
+    x = design.get_X() 
+    # do CV to evaluate
+    for cell_index,cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+        y = fit['fit_trace_arr'][:,cell_index] 
+        this_test_ve = []
+        for split_index, split in enumerate(splits):
+            train_y = y[split[0]]
+            test_y = y[split[1]]
+            train_x = x[split[0],:]
+            test_x = x[split[1],:]
+            model = Ridge(
+                alpha=fit['sklearn_cell_L2_regularization'][cell_index],
+                fit_intercept = False,
+                )
+            model.fit(train_x,train_y)
+            this_test_ve.append(model.score(test_x,test_y))
+        test_ve.append(np.nanmean(this_test_ve))
+    fit['sklearn_L2_cv_var_test'] = test_ve 
+    return fit
+
+
+
+def compare_elastic(fite,fitl2):
+    plt.figure()
+    l2_ve = np.mean(fitl2['dropouts']['Full']['cv_var_test'],axis=1)
+    elastic_ve = fite['dropouts']['Full']['test_ve']
+    plt.plot(l2_ve,elastic_ve,'ko')
+    plt.plot([0,.2],[0,.2],'k--',alpha=.5)
+    plt.ylabel('Elastic')
+    plt.xlabel('L2')
+
+
+def sklearn_evaluate_elastic(fit,design,run_params):
+    ''' 
         Do we need to log the cross-validation results, or just the average?
         should I worry about convergenceWarnings?
         Why does it stall so hard now?is score redundant?
         I'm not sure if I should trust its alpha selection
-        probably should use fit_intercept=False, since I already include the intercept in the design matrix
-        can pass cv as an iterable that yields CV splits. so I can replicate my approach  
         It would be nice if I could initialize with the L2 prediction, but I'm not sure I can (coef_init)
         what is the duality gap? 
         Can we check correspondance between my L2 grid and alpha?
@@ -469,13 +564,17 @@ def elastic_net_dev(fit,design,run_params):
 
         NEXT STEPS
         **********
-        Get L2 results for a handful of cells. Need to compare against per-cell optimization. 
         Replicate L2 results with ElasticNetCV function
         Integrate ElasticNetCV into my workflow
         Allow L1_ratio to be optimized, compare results
 
     '''
-    #sessionl2, fitl2, designl2 = fit_experiment(oeid0,run_params_l2)
+    # Determine splits 
+    ridge_splits = []  
+    for split_index, test_split in enumerate(fit['ridge_splits']):
+        train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
+        ridge_splits.append((train_split, test_split)) 
+
     l1_ratios = [0.01,.1,.3,.5,.7,.9]
     run_params['ElasticNet_nalphas'] =40
     fit['ElasticNet_alphas'] = .1*np.linspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])
@@ -494,7 +593,7 @@ def elastic_net_dev(fit,design,run_params):
             l1_ratio=l1_ratios, #TODO, figure out values
             alphas =fit['ElasticNet_alphas'], # TODO, figure out values
             fit_intercept=False, 
-            cv=5, #TODO, replace with the same CV splits in the other version?
+            cv=ridge_splits,
             max_iter=2000,
             )  
         x = design.get_X() 

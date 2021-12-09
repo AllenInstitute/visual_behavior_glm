@@ -9,6 +9,7 @@ from tqdm import tqdm
 from copy import copy
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+from sklearn.linear_model import ElasticNetCV
 
 from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 import visual_behavior.data_access.loading as loading
@@ -161,6 +162,8 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     if NO_DROPOUTS:
         # Cancel dropouts if we are in debugging mode
         fit['dropouts'] = {'Full':copy(fit['dropouts']['Full'])}
+    
+    return session, fit, design, run_params #TODO debugging
 
     # Iterate over model selections
     print('Iterating over model selection')
@@ -274,6 +277,8 @@ def evaluate_ridge(fit, design,run_params,session):
         fit['L2_train_cv'][:] =np.nan
         fit['L2_at_grid_min'][:] =np.nan
         fit['L2_at_grid_max'][:] =np.nan
+    elif run_params['ElasticNet']:
+        print('ElasticNet Regularization optimizes hyperparameters for each cell')
     else:
         print('Evaluating a grid of regularization values')
         if run_params['L2_grid_type'] == 'log':
@@ -361,28 +366,73 @@ def evaluate_models(fit, design, run_params):
     else:
         raise Exception('Unknown regularization approach')
 
+def compare_elastic(fite,fitl2):
+    plt.figure()
+    l2_ve = np.mean(fitl2['dropouts']['Full']['cv_var_test'],axis=1)
+    elastic_ve = fite['dropouts']['Full']['test_ve']
+    plt.plot(l2_ve,elastic_ve,'ko')
+    plt.plot([0,.2],[0,.2],'k--',alpha=.5)
+    plt.ylabel('Elastic')
+    plt.xlabel('L2')
+
 def elastic_net_dev(fit,design,run_params):
     '''
         Development test bed. Just fitting one cell, just fitting full model
         
         Questions:
-        Do we need to set alpha/L1_ratio ahead of evaluate_models_elastic_net
         Do we need to log the cross-validation results, or just the average?
-        Should set L1 ratios as parameters
-        Should verify I can replicate my L2 results using this package with the L1 ratio fixed. 
-        Then worry about L1_ratio optimization
-        I'm not sure if I should trust its alpah selection
+        should I worry about convergenceWarnings?
+        Why does it stall so hard now?is score redundant?
+        I'm not sure if I should trust its alpha selection
         probably should use fit_intercept=False, since I already include the intercept in the design matrix
-        can pass cv as an iterable that yields CV splits. so I can replicate my approach 
-        I *think* the model.score(x,y) is the same as my variance explained
+        can pass cv as an iterable that yields CV splits. so I can replicate my approach  
+        It would be nice if I could initialize with the L2 prediction, but I'm not sure I can (coef_init)
+        
+        Can we check correspondance between my L2 grid and alpha?
 
-        next steps
+        NEXT STEPS
+        **********
         Get L2 results for a handful of cells
         Replicate L2 results with ElasticNetCV function
         Integrate ElasticNetCV into my workflow
         Allow L1_ratio to be optimized, compare results
+
     '''
-        l1_ratios = [.1,.5,.7,.9,1]
+    #sessionl2, fitl2, designl2 = fit_experiment(oeid0,run_params_l2)
+    l1_ratios = [0.01]
+    run_params['ElasticNet_nalphas'] =40
+    fit['ElasticNet_alphas'] = np.linspace(run_params['L2_grid_range'][0], run_params['L2_grid_range'][1],num = run_params['L2_grid_num'])
+
+    # Determine range of L1_ratio, and alpha values
+    
+    # Fit full model with CV, using full range
+    # Iterate cells
+    test_ve = []
+    alphas = []
+    l1_vals = []
+    Ws = []
+    for cell_index,cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+        model = ElasticNetCV(
+            l1_ratio=l1_ratios, #TODO, figure out values
+            alphas =fit['ElasticNet_alphas'], # TODO, figure out values
+            fit_intercept=False, 
+            cv=5, #TODO, replace with the same CV splits in the other version?
+            max_iter=1000,
+            )  
+        x = design.get_X() 
+        y = fit['fit_trace_arr'][:,cell_index] 
+        model.fit(x,y)
+        test_ve.append(model.score(x,y)) #TODO, is this already logged?
+        alphas.append(model.alpha_)
+        l1_vals.append(model.l1_ratio_)
+        Ws.append(model.coef_) 
+
+    # Cache hyper-parameters for full model
+    fit['dropouts']['Full']['test_ve'] = test_ve    
+    fit['dropouts']['Full']['alphas'] = alphas 
+    fit['dropouts']['Full']['l1_vals'] = l1_vals 
+    return fit
+    # Iterate dropouts
         
 
 def evaluate_models_elastic_net(fit,design,run_params):

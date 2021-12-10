@@ -377,7 +377,7 @@ def compare_ridge(fit):
     TODO, debugging function
     session, fit, designl2 = fit_experiment(oeid0,run_params) 
     fit = sklearn_evaluate_ridge(fit, design,run_params)
-    fit = sklearn_evaluate_model(fit,design,run_params)
+    fit = sklearn_evaluate_ridge_model(fit,design,run_params)
     compare_ridge(fit)
     '''
     plt.figure()
@@ -423,7 +423,7 @@ def sklearn_evaluate_ridge(fit, design, run_params):
     return fit    
 
 
-def sklearn_evaluate_model(fit,design,run_params):
+def sklearn_evaluate_ridge_model(fit,design,run_params):
     '''
     TODO, debugging function
     '''
@@ -496,7 +496,7 @@ def sklearn_evaluate_lasso(fit, design, run_params):
             eps=1e-6, # TODO, need to figure out
             fit_intercept = False,
             cv = lasso_splits,
-            max_iter=5000, #TODO, need to figure out how to set
+            max_iter=5000, #TODO, need to figure out how to set. unclear if it matters, maybe I should set the tolerance higher?
             )
         x = design.get_X() 
         y = fit['fit_trace_arr'][:,cell_index] 
@@ -507,7 +507,7 @@ def sklearn_evaluate_lasso(fit, design, run_params):
     return fit    
 
 
-def sklearn_evaluate_model(fit,design,run_params):
+def sklearn_evaluate_lasso_model(fit,design,run_params):
     '''
     TODO, debugging function
     '''
@@ -527,14 +527,15 @@ def sklearn_evaluate_model(fit,design,run_params):
             test_y = y[split[1]]
             train_x = x[split[0],:]
             test_x = x[split[1],:]
-            model = Ridge(
-                alpha=fit['sklearn_cell_L2_regularization'][cell_index],
+            model = Lasso(
+                alpha=fit['sklearn_cell_lasso_regularization'][cell_index],
                 fit_intercept = False,
+                max_iter=5000,
                 )
             model.fit(train_x,train_y)
             this_test_ve.append(model.score(test_x,test_y))
         test_ve.append(np.nanmean(this_test_ve))
-    fit['sklearn_L2_cv_var_test'] = test_ve 
+    fit['sklearn_lasso_cv_var_test'] = test_ve 
     return fit
 
 
@@ -551,6 +552,7 @@ def compare_elastic(fite,fitl2):
 
 def sklearn_evaluate_elastic(fit,design,run_params):
     ''' 
+        It fails to converge more right when it starts a new cell
         Do we need to log the cross-validation results, or just the average?
         should I worry about convergenceWarnings?
         Why does it stall so hard now?is score redundant?

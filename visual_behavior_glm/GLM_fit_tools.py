@@ -17,7 +17,7 @@ from sklearn.linear_model import LassoCV
 from sklearn.linear_model import Lasso
 from sklearn.linear_model import LassoLarsCV
 from sklearn.linear_model import LassoLars
-
+from sklearn.linear_model import SGDRegressor
 
 
 import visual_behavior_glm.GLM_analysis_tools as gat
@@ -287,7 +287,8 @@ def evaluate_ridge(fit, design,run_params,session):
         fit['L2_at_grid_min'][:] =np.nan
         fit['L2_at_grid_max'][:] =np.nan
     elif run_params['ElasticNet']:
-        print('ElasticNet Regularization optimizes hyperparameters for each cell')
+        print('Evaluating a grid of regularization values for Lasso')
+        fit = evaluate_lasso(fit, design, run_params)
     else:
         print('Evaluating a grid of regularization values')
         if run_params['L2_grid_type'] == 'log':
@@ -323,6 +324,68 @@ def evaluate_ridge(fit, design,run_params,session):
         fit['L2_train_cv'] = train_cv
         fit['L2_at_grid_min'] = [x==0 for x in np.argmax(test_cv,1)]
         fit['L2_at_grid_max'] = [x==(len(fit['L2_grid'])-1) for x in np.argmax(test_cv,1)]
+    return fit
+
+def evaluate_lasso(fit, design, run_params):
+    '''
+        Uses Cross validation on a grid of alpha parameters
+    '''
+    # Determine splits 
+    lasso_splits = []  
+    for split_index, test_split in enumerate(fit['ridge_splits']):
+        train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
+        lasso_splits.append((train_split, test_split)) 
+
+    alphas = [
+        1e-8,2.5e-8,5e-8,7.5e-8,
+        1e-7,2.5e-7,5e-7,7.5e-7,
+        1e-6,2.5e-6,5e-6,7.5e-6,
+        1e-5,2.5e-5,5e-5,7.5e-5,
+        1e-4,2.5e-4,5e-4,7.5e-4,
+        1e-3,2.5e-3,5e-3,7.5e-3,
+        1e-2,2.5e-2,5e-2,7.5e-2,
+        1e-1,2.5e-1,5e-1,7.5e-1,
+        1,2.5,5,7.5,
+        10,25,50,75,100]
+
+    x = design.get_X()
+    cell_train_cv = []
+    cell_test_cv = []
+    for cell_index,cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+        y = fit['fit_trace_arr'][:,cell_index] 
+        alpha_train_cv = []
+        alpha_test_cv = []
+        for alpha_dex, alpha_val in enumerate(alphas):
+            split_test_ve = []
+            split_train_ve = []
+            model = LassoLars( #Fill in values
+                alpha=alpha_val,
+                fit_intercept = False,
+                normalize=False,
+                max_iter=1000,
+                )
+            for split_index, split in enumerate(lasso_splits):
+                train_y = y[split[0]]
+                test_y = y[split[1]]
+                train_x = x[split[0],:]
+                test_x = x[split[1],:]
+                train_y = np.asfortranarray(train_y)
+                train_x = np.asfortranarray(train_x)
+                model.fit(train_x,train_y)
+
+                split_test_ve.append(model.score(test_x,test_y))
+                split_train_ve.append(model.score(train_x,train_y))
+            alpha_test_cv.append(np.mean(split_test_ve))
+            alpha_train_cv.append(np.mean(split_train_ve))
+        cell_train_cv.append(alpha_train_cv)
+        cell_test_cv.append(alpha_test_cv)
+    fit['Lasso_grid'] = alphas
+    fit['avg_Lasso_regularization'] = np.mean([fit['Lasso_grid'][x] for x in np.argmax(cell_test_cv,1)])      
+    fit['cell_Lasso_regularization'] = [fit['Lasso_grid'][x] for x in np.argmax(cell_test_cv,1)]     
+    fit['Lasso_test_cv'] = cell_test_cv
+    fit['Lasso_train_cv'] = cell_train_cv
+    fit['Lasso_at_grid_min'] = [x==0 for x in np.argmax(cell_test_cv,1)]
+    fit['Lasso_at_grid_max'] = [x==(len(fit['Lasso_grid'])-1) for x in np.argmax(cell_test_cv,1)]
     return fit
 
 def evaluate_models(fit, design, run_params):
@@ -371,11 +434,11 @@ def evaluate_models(fit, design, run_params):
         return evaluate_models_different_ridge(fit,design,run_params)
     elif run_params['ElasticNet']:
         print('Using elastic net regularization for each cell')
-        return evaluate_models_elastic_net(fit,design, run_params)
+        return evaluate_models_lasso(fit,design, run_params)
     else:
         raise Exception('Unknown regularization approach')
 
-def compare_ridge(fit):
+def compare_ridge(fit): ## REMOVE TODO
     '''
     TODO, debugging function
     session, fit, designl2 = fit_experiment(oeid0,run_params) 
@@ -397,7 +460,7 @@ def compare_ridge(fit):
     plt.ylabel('sklearn alpha')
     plt.xlabel('L2 alpha')   
 
-def sklearn_evaluate_ridge(fit, design, run_params):
+def sklearn_evaluate_ridge(fit, design, run_params): ## REMOVE TODO
     '''
     TODO, debugging function
     This determines the hyper-parameter alpha using the same CV splits I use
@@ -426,7 +489,7 @@ def sklearn_evaluate_ridge(fit, design, run_params):
     return fit    
 
 
-def sklearn_evaluate_ridge_model(fit,design,run_params):
+def sklearn_evaluate_ridge_model(fit,design,run_params): ## REMOVE TODO
     '''
     TODO, debugging function
     '''
@@ -457,7 +520,7 @@ def sklearn_evaluate_ridge_model(fit,design,run_params):
     return fit
 
 
-def compare_lasso(fit):
+def compare_lasso(fit): ## REMOVE TODO
     '''
     TODO, debugging function
     session, fit, designl2 = fit_experiment(oeid0,run_params) 
@@ -478,7 +541,7 @@ def compare_lasso(fit):
     plt.ylabel('sklearn lasso alpha')
     plt.xlabel('L2 alpha')   
 
-def sklearn_evaluate_lasso_manual(fit, design, run_params):
+def sklearn_evaluate_lasso_manual(fit, design, run_params):## REMOVE TODO
     # Determine splits 
     lasso_splits = []  
     for split_index, test_split in enumerate(fit['ridge_splits']):
@@ -486,6 +549,7 @@ def sklearn_evaluate_lasso_manual(fit, design, run_params):
         lasso_splits.append((train_split, test_split)) 
 
     alphas = [1e-8,1e-7,1e-6,1e-5,1e-4,1e-3, 1e-2,1e-1,1,10,100]
+    l1_ratio = .15
     cell_ve = []
     x = design.get_X()
     # Could failures to converge be related to NaNs? 
@@ -498,12 +562,13 @@ def sklearn_evaluate_lasso_manual(fit, design, run_params):
     for alpha_dex, alpha_val in enumerate(alphas):
         this_test_ve = []
         this_train_ve = []
-        model = Lasso(
+        model = SGDRegressor(
+            penalty='elasticnet',
+            l1_ratio=l1_ratio,
             alpha=alpha_val,
             fit_intercept = False,
             max_iter=1000,
             warm_start=False,
-            precompute=True,
             )
 
         for split_index, split in enumerate(lasso_splits):
@@ -528,7 +593,7 @@ def sklearn_evaluate_lasso_manual(fit, design, run_params):
     return fit
 
 
-def sklearn_evaluate_lasso(fit, design, run_params):
+def sklearn_evaluate_lasso(fit, design, run_params):## REMOVE TODO
     '''
     TODO, debugging function
     This determines the hyper-parameter alpha using the same CV splits I use
@@ -559,7 +624,7 @@ def sklearn_evaluate_lasso(fit, design, run_params):
     return fit    
 
 
-def sklearn_evaluate_lasso_model(fit,design,run_params):
+def sklearn_evaluate_lasso_model(fit,design,run_params):## REMOVE TODO
     '''
     TODO, debugging function
     '''
@@ -592,7 +657,7 @@ def sklearn_evaluate_lasso_model(fit,design,run_params):
 
 
 
-def compare_elastic(fit):
+def compare_elastic(fit):## REMOVE TODO
     plt.figure()
     l2_ve = np.mean(fit['dropouts']['Full']['cv_var_test'],axis=1)
     elastic_ve = fit['sklearn_elastic_cv_var_test']
@@ -602,7 +667,7 @@ def compare_elastic(fit):
     plt.xlabel('L2')
 
 
-def sklearn_evaluate_elastic(fit,design,run_params):
+def sklearn_evaluate_elastic(fit,design,run_params):## REMOVE TODO
     ''' 
         It fails to converge more right when it starts a new cell
         Do we need to log the cross-validation results, or just the average?
@@ -655,7 +720,7 @@ def sklearn_evaluate_elastic(fit,design,run_params):
     fit['sklearn_cell_elastic_ratio_regularization'] = l1_vals
     return fit
 
-def sklearn_evaluate_elastic_model(fit,design,run_params):
+def sklearn_evaluate_elastic_model(fit,design,run_params):## REMOVE TODO
     '''
     TODO, debugging function
     '''
@@ -689,7 +754,7 @@ def sklearn_evaluate_elastic_model(fit,design,run_params):
 
 
 
-def evaluate_models_elastic_net(fit,design,run_params):
+def evaluate_models_lasso(fit,design,run_params):
     '''
         Fits and evaluates each model defined in fit['dropouts']
            
@@ -701,7 +766,6 @@ def evaluate_models_elastic_net(fit,design,run_params):
 
         # Set up design matrix for this dropout
         X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
-        X_inner = np.dot(X.T, X)
         mask = get_mask(fit['dropouts'][model_label],design)
         Full_X = design.get_X(kernels=fit['dropouts']['Full']['kernels'])
 
@@ -724,7 +788,7 @@ def evaluate_models_elastic_net(fit,design,run_params):
         for cell_index,cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
 
             fit_trace = fit['fit_trace_arr'][:,cell_index]
-            Wall = fit_cell_regularized(X_inner,fit_trace, X,fit['cell_L2_regularization'][cell_index])     
+            Wall = fit_cell_lasso_regularized(fit_trace, X,fit['cell_Lasso_regularization'][cell_index])     
             var_explain = variance_ratio(fit_trace, Wall,X)
             adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
             all_weights[:,cell_index] = Wall
@@ -739,16 +803,15 @@ def evaluate_models_elastic_net(fit,design,run_params):
                 if cell_index == 0:
                     X_test_array.append(X[test_split,:])
                     X_train_array.append(X[train_split,:])
-                    X_cov_array.append(np.dot(X[train_split,:].T,X[train_split,:]))
                 # Grab the stashed result
                 X_test  = X_test_array[index]
                 X_train = X_train_array[index]
-                X_cov   = X_cov_array[index]
+
                 fit_trace_train = fit['fit_trace_arr'][train_split,cell_index]
                 fit_trace_test = fit['fit_trace_arr'][test_split,cell_index]
                 
-                # do the fitting #TODO
-                W = fit_cell_regularized(X_cov,fit_trace_train, X_train, fit['cell_L2_regularization'][cell_index])
+                # do the fitting 
+                W = fit_cell_lasso_regularized(fit_trace_train, X_train, fit['cell_Lasso_regularization'][cell_index])
 
                 cv_var_train[cell_index,index] = variance_ratio(fit_trace_train, W, X_train)
                 cv_var_test[cell_index,index] = variance_ratio(fit_trace_test, W, X_test)
@@ -2320,6 +2383,37 @@ def fit_cell_regularized(X_cov,fit_trace_arr, X, lam):
     else:
         W = np.dot(np.linalg.inv(X_cov + lam * np.eye(X.shape[-1])),
                np.dot(X.T, fit_trace_arr))
+
+    # Make xarray 
+    W_xarray= xr.DataArray(
+            W, 
+            dims =('weights'), 
+            coords = {  'weights':X.weights.values}
+            )
+    return W_xarray
+
+def fit_cell_lasso_regularized(fit_trace_arr, X, alpha):
+    '''
+    Analytical OLS solution with added lasso regularization penalty. 
+
+    fit_trace_arr: shape (n_timestamps * n_cells)
+    X: shape (n_timestamps * n_kernel_params)
+    lam (float): Strength of L2 regularization (hyperparameter to tune)
+
+    Returns: XArray
+    '''
+    # Compute the weights
+    if lam == 0:
+        W = fit(fit_trace_arr,X)
+    else:
+        model = LassoLars(
+            alpha=alpha_val,
+            fit_intercept = False,
+            normalize=False,
+            max_iter=1000,
+            )
+        model.fit(X,fit_trace_arr)
+        W = model.coef_
 
     # Make xarray 
     W_xarray= xr.DataArray(

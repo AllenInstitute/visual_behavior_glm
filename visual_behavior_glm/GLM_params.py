@@ -170,11 +170,11 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
-        'ElasticNet': False,            # If True, uses the best L1/L2 value for each session
+        'ElasticNet': True,            # If True, uses the best L1/L2 value for each session
         'ElasticNet_nalphas':40,        #
         'ElasticNet_nL1_ratios':40,     #
         'L2_optimize_by_cre': False,    # If True, uses the best L2 value for each cell
-        'L2_optimize_by_cell': True,    # If True, uses the best L2 value for each cell
+        'L2_optimize_by_cell': False,    # If True, uses the best L2 value for each cell
         'L2_optimize_by_session': False,# If True, uses the best L2 value for this session
         'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda  
         'L2_fixed_lambda': None,        # This value is used if L2_use_fixed_value   
@@ -202,7 +202,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'interpolate_to_stimulus':True, # If True, interpolates the cell activity trace onto stimulus aligned timestamps
         'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
         'dropout_threshold':0.005,      # Minimum variance explained by full model
-        'version_type':'minimal',      # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
+        'version_type':'standard',      # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
     } 
 
     # Define Kernels and dropouts

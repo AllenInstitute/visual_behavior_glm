@@ -827,7 +827,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Merge all the session_dfs, and add more session level info
     weights_df = pd.concat(sessions,sort=False)
     weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) 
-    
+   
     # If we didn't compute dropout scores, then there won't be redundant columns, so the weights won't get appended with _weights
     if not np.any(['weights' in x for x in weights_df.columns.values]):
         rename = {x: x+'_weights' for x in run_params['kernels'].keys()}
@@ -862,9 +862,21 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         x['image7_weights']
         ]),axis=1) 
 
+    # make a combined omissions kernel
+    if 'post-omissions_weights' in weights_df:
+        weights_df['all-omissions_weights'] = weights_df.apply(lambda x: compute_all_omissions([
+        x['omissions_weights'],
+        x['post-omissions_weights']
+        ]),axis=1)
+
     # Return weights_df
     return weights_df 
 
+def compute_all_omissions(omissions):
+    if np.isnan(np.sum(omissions[0])) or np.isnan(np.sum(omissions[1])):
+        return np.nan
+    
+    return np.concatenate(omissions)
 
 def compute_preferred_kernel(images):
     
@@ -899,6 +911,9 @@ def interpolate_kernels(weights_df, run_params, kernel_name,normalize=False):
     time_vecs['mesoscope'] = meso_time_vec
     length_mismatch = len(time_vec) != np.max(np.unique([np.size(x) for x in df]))
     if ('image' in kernel_name) & length_mismatch:
+        time_vecs['scientifica'] = time_vecs['scientifica'][0:-1]
+        time_vecs['mesoscope'] = time_vecs['mesoscope'][0:-1]
+    if ('omissions' in kernel_name) & length_mismatch:
         time_vecs['scientifica'] = time_vecs['scientifica'][0:-1]
         time_vecs['mesoscope'] = time_vecs['mesoscope'][0:-1]
     weights_df[kernel_name] = [weight_interpolation(x, time_vecs) for x in df]

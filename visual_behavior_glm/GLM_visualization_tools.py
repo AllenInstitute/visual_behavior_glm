@@ -1876,10 +1876,15 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     # Set up time vectors.
     if kernel in ['preferred_image', 'all-images']:
         run_params['kernels'][kernel] = run_params['kernels']['image0']
+    if kernel == 'all-omissions':
+        run_params['kernels'][kernel] = run_params['kernels']['omissions']
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['omissions']['length'] + run_params['kernels']['post-omissions']['length']
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
     
     if 'image' in kernel:
+        time_vec = time_vec[:-1]
+    if ('omissions' == kernel) & ('post-omissions' in run_params['kernels']):
         time_vec = time_vec[:-1]
     #meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
 

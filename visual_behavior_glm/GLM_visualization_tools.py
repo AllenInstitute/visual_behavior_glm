@@ -1867,11 +1867,25 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.png')
 
     # Applying hard thresholds to dataset
-    weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
+    if kernel in weights_df:
+        weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
+    else:
+        weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold)'.format(filter_sessions_on))
+        print('Dropouts not included, cannot use drop filter')
 
     # Set up time vectors.
+    if kernel in ['preferred_image', 'all-images']:
+        run_params['kernels'][kernel] = run_params['kernels']['image0']
+    if kernel == 'all-omissions':
+        run_params['kernels'][kernel] = run_params['kernels']['omissions']
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['omissions']['length'] + run_params['kernels']['post-omissions']['length']
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
+    
+    if 'image' in kernel:
+        time_vec = time_vec[:-1]
+    if ('omissions' == kernel) & ('post-omissions' in run_params['kernels']):
+        time_vec = time_vec[:-1]
     #meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
 
     #return time_vec, meso_time_vec, weights
@@ -1918,12 +1932,10 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         outputs[group]=k
 
     # Clean Plot, and add details
+    plt.title(run_params['version']+'\n'+kernel)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     ax.axvline(0, color='k',linestyle='--',alpha=0.25)
-    if normalize:
-        ax.set_ylabel('Kernel Weights \n(Normalized $\Delta$f/f)',fontsize=fs2)   
-    else:
-        ax.set_ylabel('Kernel Weights',fontsize=fs2)      
+    ax.set_ylabel('Kernel Weights',fontsize=fs2)      
     ax.set_xlabel('Time (s)',fontsize=fs1)
     ax.set_xlim(time_vec[0],time_vec[-1])   
     add_stimulus_bars(ax,kernel,alpha=.1)

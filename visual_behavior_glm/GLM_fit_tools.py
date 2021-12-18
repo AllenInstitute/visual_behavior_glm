@@ -7,14 +7,24 @@ import pandas as pd
 import scipy 
 from tqdm import tqdm
 from copy import copy
-from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.linear_model import ElasticNetCV
+from sklearn.linear_model import ElasticNet
+from sklearn.linear_model import RidgeCV
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import LassoCV
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import LassoLarsCV
+from sklearn.linear_model import LassoLars
+from sklearn.linear_model import SGDRegressor
 
-from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
+
+import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior.data_access.loading as loading
 import visual_behavior.data_access.reformat as reformat
+from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
 from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
-import visual_behavior_glm.GLM_analysis_tools as gat
 
 def load_fit_experiment(ophys_experiment_id, run_params):
     '''
@@ -161,7 +171,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     if NO_DROPOUTS:
         # Cancel dropouts if we are in debugging mode
         fit['dropouts'] = {'Full':copy(fit['dropouts']['Full'])}
-
+    
     # Iterate over model selections
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
@@ -274,6 +284,9 @@ def evaluate_ridge(fit, design,run_params,session):
         fit['L2_train_cv'][:] =np.nan
         fit['L2_at_grid_min'][:] =np.nan
         fit['L2_at_grid_max'][:] =np.nan
+    elif run_params['ElasticNet']:
+        print('Evaluating a grid of regularization values for Lasso')
+        fit = evaluate_lasso(fit, design, run_params)
     else:
         print('Evaluating a grid of regularization values')
         if run_params['L2_grid_type'] == 'log':
@@ -309,6 +322,78 @@ def evaluate_ridge(fit, design,run_params,session):
         fit['L2_train_cv'] = train_cv
         fit['L2_at_grid_min'] = [x==0 for x in np.argmax(test_cv,1)]
         fit['L2_at_grid_max'] = [x==(len(fit['L2_grid'])-1) for x in np.argmax(test_cv,1)]
+    return fit
+
+def evaluate_lasso(fit, design, run_params):
+    '''
+        Uses Cross validation on a grid of alpha parameters
+    '''
+    # Determine splits 
+    lasso_splits = []  
+    for split_index, test_split in enumerate(fit['ridge_splits']):
+        train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
+        lasso_splits.append((train_split, test_split)) 
+
+    alphas = [
+        1e-8,5e-8,
+        1e-7,5e-7,
+        1e-6,5e-6,
+        1e-5,5e-5,
+        1e-4,5e-4,
+        1e-3,5e-3,
+        1e-2,5e-2,
+        1e-1,5e-1,
+        1,5,10,50,100]
+    #alphas = [
+    #    1e-8,
+    #    1e-7,
+    #    1e-6,
+    #    1e-5,
+    #    1e-4,
+    #    1e-3,
+    #    1e-2,
+    #    1e-1,
+    #    1,
+    #    10,100]
+
+    x = design.get_X()
+    cell_train_cv = []
+    cell_test_cv = []
+    for cell_index,cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+        y = fit['fit_trace_arr'][:,cell_index] 
+        alpha_train_cv = []
+        alpha_test_cv = []
+        for alpha_dex, alpha_val in enumerate(alphas):
+            split_test_ve = []
+            split_train_ve = []
+            model = LassoLars( #Fill in values
+                alpha=alpha_val,
+                fit_intercept = False,
+                normalize=False,
+                max_iter=1000,
+                )
+            for split_index, split in enumerate(lasso_splits):
+                train_y = y[split[0]]
+                test_y = y[split[1]]
+                train_x = x[split[0],:]
+                test_x = x[split[1],:]
+                train_y = np.asfortranarray(train_y)
+                train_x = np.asfortranarray(train_x)
+                model.fit(train_x,train_y)
+
+                split_test_ve.append(model.score(test_x,test_y))
+                split_train_ve.append(model.score(train_x,train_y))
+            alpha_test_cv.append(np.mean(split_test_ve))
+            alpha_train_cv.append(np.mean(split_train_ve))
+        cell_train_cv.append(alpha_train_cv)
+        cell_test_cv.append(alpha_test_cv)
+    fit['Lasso_grid'] = alphas
+    fit['avg_Lasso_regularization'] = np.mean([fit['Lasso_grid'][x] for x in np.argmax(cell_test_cv,1)])      
+    fit['cell_Lasso_regularization'] = [fit['Lasso_grid'][x] for x in np.argmax(cell_test_cv,1)]     
+    fit['Lasso_test_cv'] = cell_test_cv
+    fit['Lasso_train_cv'] = cell_train_cv
+    fit['Lasso_at_grid_min'] = [x==0 for x in np.argmax(cell_test_cv,1)]
+    fit['Lasso_at_grid_max'] = [x==(len(fit['Lasso_grid'])-1) for x in np.argmax(cell_test_cv,1)]
     return fit
 
 def evaluate_models(fit, design, run_params):
@@ -355,8 +440,110 @@ def evaluate_models(fit, design, run_params):
     elif run_params['L2_optimize_by_cell']:
         print('Using an optimized regularization value for each cell')
         return evaluate_models_different_ridge(fit,design,run_params)
+    elif run_params['ElasticNet']:
+        print('Using elastic net regularization for each cell')
+        return evaluate_models_lasso(fit,design, run_params)
     else:
         raise Exception('Unknown regularization approach')
+
+def evaluate_models_lasso(fit,design,run_params):
+    '''
+        Fits and evaluates each model defined in fit['dropouts']
+           
+        For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
+            It does this for the entire dataset as test and train. As well as CV, saving each test/train split
+
+    '''
+    for model_label in fit['dropouts'].keys():
+
+        # Set up design matrix for this dropout
+        X = design.get_X(kernels=fit['dropouts'][model_label]['kernels'])
+        mask = get_mask(fit['dropouts'][model_label],design)
+        Full_X = design.get_X(kernels=fit['dropouts']['Full']['kernels'])
+
+        # Iterate CV
+        cv_var_train    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cv_var_test     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cv_adjvar_train = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_train_fc = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test_fc= np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))  
+        cv_weights      = np.empty((np.shape(X)[1], fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        all_weights     = np.empty((np.shape(X)[1], fit['fit_trace_arr'].shape[1]))
+        all_var_explain = np.empty((fit['fit_trace_arr'].shape[1]))
+        all_adjvar_explain = np.empty((fit['fit_trace_arr'].shape[1]))
+        all_prediction  = np.empty(fit['fit_trace_arr'].shape)
+        X_test_array = []   # Cache the intermediate steps for each cell
+        X_train_array = []
+
+        for cell_index,cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
+
+            fit_trace = fit['fit_trace_arr'][:,cell_index]
+            Wall = fit_cell_lasso_regularized(fit_trace, X,fit['cell_Lasso_regularization'][cell_index])     
+            var_explain = variance_ratio(fit_trace, Wall,X)
+            adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
+            all_weights[:,cell_index] = Wall
+            all_var_explain[cell_index] = var_explain
+            all_adjvar_explain[cell_index] = adjvar_explain
+            all_prediction[:,cell_index] = X.values @ Wall.values
+
+            for index, test_split in enumerate(fit['splits']):
+                train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index]))
+        
+                # If this is the first cell, stash the design matrix and covariance result
+                if cell_index == 0:
+                    X_test_array.append(X[test_split,:])
+                    X_train_array.append(X[train_split,:])
+                # Grab the stashed result
+                X_test  = X_test_array[index]
+                X_train = X_train_array[index]
+
+                fit_trace_train = fit['fit_trace_arr'][train_split,cell_index]
+                fit_trace_test = fit['fit_trace_arr'][test_split,cell_index]
+                
+                # do the fitting 
+                W = fit_cell_lasso_regularized(fit_trace_train, X_train, fit['cell_Lasso_regularization'][cell_index])
+
+                cv_var_train[cell_index,index] = variance_ratio(fit_trace_train, W, X_train)
+                cv_var_test[cell_index,index] = variance_ratio(fit_trace_test, W, X_test)
+                cv_adjvar_train[cell_index,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask[train_split]) 
+                cv_adjvar_test[cell_index,index] = masked_variance_ratio(fit_trace_test, W, X_test, mask[test_split])
+                cv_weights[:,cell_index,index] = W 
+                if model_label == 'Full':
+                    # If this is the Full model, the value is the same
+                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(fit_trace_train, W, X_train, mask[train_split])  
+                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(fit_trace_test, W, X_test, mask[test_split])  
+                else:
+                    # Otherwise, get weights and design matrix for this cell/cv_split and compute the variance explained on this mask
+                    Full_W = xr.DataArray(fit['dropouts']['Full']['cv_weights'][:,cell_index,index])
+                    Full_X_test = Full_X[test_split,:]
+                    Full_X_train = Full_X[train_split,:]
+                    cv_adjvar_train_fc[cell_index,index]= masked_variance_ratio(fit_trace_train, Full_W, Full_X_train, mask[train_split])  
+                    cv_adjvar_test_fc[cell_index,index] = masked_variance_ratio(fit_trace_test, Full_W, Full_X_test, mask[test_split])    
+
+        all_weights_xarray = xr.DataArray(
+            data = all_weights,
+            dims = ("weights", "cell_specimen_id"),
+            coords = {
+                "weights": X.weights.values,
+                "cell_specimen_id": fit['fit_trace_arr'].cell_specimen_id.values
+            }
+        )
+
+        fit['dropouts'][model_label]['train_weights']   = all_weights_xarray
+        fit['dropouts'][model_label]['train_variance_explained']    = all_var_explain
+        fit['dropouts'][model_label]['train_adjvariance_explained'] = all_adjvar_explain
+        fit['dropouts'][model_label]['full_model_train_prediction'] = all_prediction
+        fit['dropouts'][model_label]['cv_weights']      = cv_weights
+        fit['dropouts'][model_label]['cv_var_train']    = cv_var_train
+        fit['dropouts'][model_label]['cv_var_test']     = cv_var_test
+        fit['dropouts'][model_label]['cv_adjvar_train'] = cv_adjvar_train
+        fit['dropouts'][model_label]['cv_adjvar_test']  = cv_adjvar_test
+        fit['dropouts'][model_label]['cv_adjvar_train_full_comparison'] = cv_adjvar_train_fc
+        fit['dropouts'][model_label]['cv_adjvar_test_full_comparison']  = cv_adjvar_test_fc
+
+    return fit 
+
 
 
 def evaluate_models_different_ridge(fit,design,run_params):
@@ -1887,6 +2074,37 @@ def fit_cell_regularized(X_cov,fit_trace_arr, X, lam):
     else:
         W = np.dot(np.linalg.inv(X_cov + lam * np.eye(X.shape[-1])),
                np.dot(X.T, fit_trace_arr))
+
+    # Make xarray 
+    W_xarray= xr.DataArray(
+            W, 
+            dims =('weights'), 
+            coords = {  'weights':X.weights.values}
+            )
+    return W_xarray
+
+def fit_cell_lasso_regularized(fit_trace_arr, X, alpha):
+    '''
+    Analytical OLS solution with added lasso regularization penalty. 
+
+    fit_trace_arr: shape (n_timestamps * n_cells)
+    X: shape (n_timestamps * n_kernel_params)
+    alpha (float): Strength of L1 regularization (hyperparameter to tune)
+
+    Returns: XArray
+    '''
+    # Compute the weights
+    if alpha == 0:
+        W = fit(fit_trace_arr,X)
+    else:
+        model = LassoLars(
+            alpha=alpha,
+            fit_intercept = False,
+            normalize=False,
+            max_iter=1000,
+            )
+        model.fit(X,fit_trace_arr)
+        W = model.coef_
 
     # Make xarray 
     W_xarray= xr.DataArray(

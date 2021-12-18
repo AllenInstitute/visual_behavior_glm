@@ -170,15 +170,18 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'experiment_table_path':experiment_table_path,
         'src_file':python_file_full_path,
         'fit_script':python_fit_script,
+        'ElasticNet': True,            # If True, uses the best L1/L2 value for each session
+        'ElasticNet_nalphas':40,        #
+        'ElasticNet_nL1_ratios':40,     #
         'L2_optimize_by_cre': False,    # If True, uses the best L2 value for each cell
-        'L2_optimize_by_cell': False,   # If True, uses the best L2 value for each cell
-        'L2_optimize_by_session': True, # If True, uses the best L2 value for this session ## TODO 
+        'L2_optimize_by_cell': False,    # If True, uses the best L2 value for each cell
+        'L2_optimize_by_session': False,# If True, uses the best L2 value for this session
         'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda  
         'L2_fixed_lambda': None,        # This value is used if L2_use_fixed_value   
         'L2_grid_range':[.1, 500],      # Min/Max L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_num': 40,              # Number of L2 values for L2_optimize_by_cell, or L2_optimize_by_session
         'L2_grid_type':'linear',        # how to space L2 options, must be: 'log' or 'linear'
-        'L2_cre_values':{'Slc17a7-IRES2-Cre':340, 'Vip-IRES-Cre':320,'Sst-IRES-Cre':185}, # Fixed values to use for optimize_by_cre #TODO, for events only
+        'L2_cre_values':{'Slc17a7-IRES2-Cre':340, 'Vip-IRES-Cre':320,'Sst-IRES-Cre':185}, # Fixed values to use for optimize_by_cre 
         'ophys_experiment_ids':experiment_table.index.values.tolist(),
         'job_settings':job_settings,
         'split_on_engagement': False,   # If True, uses 'engagement_preference' to determine what engagement state to use
@@ -199,7 +202,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'interpolate_to_stimulus':True, # If True, interpolates the cell activity trace onto stimulus aligned timestamps
         'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
         'dropout_threshold':0.005,      # Minimum variance explained by full model
-        'version_type':'minimal',      # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
+        'version_type':'standard',       # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
     } 
 
     # Define Kernels and dropouts
@@ -214,10 +217,10 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     a = run_params['L2_optimize_by_cell'] 
     b = run_params['L2_optimize_by_session'] 
     c = run_params['L2_use_fixed_value']
-    d = run_params['L2_optimize_by_cre'] 
-    assert (a or b or c or d) and not ((a and b) or (b and c) or (a and c)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
-    assert (a or b or c or d) and not ((a and b) or (b and d) or (a and d)), "Must select one and only on L2 option: L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
-    # TODO, fix this mess
+    d = run_params['L2_optimize_by_cre']
+    e = run_params['ElasticNet']
+    assert np.sum([a,b,c,d,e]) == 1, \
+        "Must select one and only one regularization option: ElasticNet, L2_optimize_by_cre, L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
 
     # Check L2 Fixed value parameters 
     if run_params['L2_use_fixed_value'] and (run_params['L2_fixed_lambda'] is None): 

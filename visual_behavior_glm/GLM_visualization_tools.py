@@ -3204,7 +3204,7 @@ def test_significant_dropout_averages(data,feature):
     tukey_table['x2'] = [mapper[str(x)] for x in tukey_table['group2']]
     return anova, tukey_table
 
-def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True): 
+def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False): 
     '''
         Makes a bar plot that shows the population dropout summary by cre line for different regressors 
         palette , color palette to use. If None, uses gvt.project_colors()
@@ -3235,7 +3235,10 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
             threshold = 0.005
 
     cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
-    
+
+    if ('post-omissions' in results.dropout.unique())&('omissions' in dropouts_to_show):
+       dropouts_to_show = ['all-omissions' if x == 'omissions' else x for x in dropouts_to_show]
+ 
     data_to_plot = results.query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     if use_violin:
@@ -3290,11 +3293,14 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
     ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=18)
     ax.set_xlabel('Withheld component',fontsize=18)
     ax.tick_params(axis='x',labelsize=16)
-    ax.tick_params(axis='y',labelsize=16) 
+    ax.tick_params(axis='y',labelsize=16)
+    if add_title:
+        plt.title(run_params['version'])
     if use_violin:
         plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
     else:
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.svg')
+        plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
 
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     '''

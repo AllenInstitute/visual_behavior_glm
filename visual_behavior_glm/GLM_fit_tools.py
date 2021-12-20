@@ -334,27 +334,7 @@ def evaluate_lasso(fit, design, run_params):
         train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['ridge_splits']) if i!=split_index]))
         lasso_splits.append((train_split, test_split)) 
 
-    alphas = [
-        1e-8,5e-8,
-        1e-7,5e-7,
-        1e-6,5e-6,
-        1e-5,5e-5,
-        1e-4,5e-4,
-        1e-3,5e-3,
-        1e-2,5e-2,
-        1e-1,5e-1,
-        1,5,10,50,100]
-    #alphas = [
-    #    1e-8,
-    #    1e-7,
-    #    1e-6,
-    #    1e-5,
-    #    1e-4,
-    #    1e-3,
-    #    1e-2,
-    #    1e-1,
-    #    1,
-    #    10,100]
+    alphas = [1e-8,1e-7,1e-6,1e-5,1e-4,1e-3,1e-2,1e-1,1,10,100]
 
     x = design.get_X()
     cell_train_cv = []

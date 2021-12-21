@@ -3204,6 +3204,110 @@ def test_significant_dropout_averages(data,feature):
     tukey_table['x2'] = [mapper[str(x)] for x in tukey_table['group2']]
     return anova, tukey_table
 
+def plot_dropout_individual_population(results, run_params,ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,use_single=False): 
+    '''
+        Makes a bar plot that shows the population dropout summary by cre line for different regressors 
+        palette , color palette to use. If None, uses gvt.project_colors()
+        use_violion (bool) if true, uses violin, otherwise uses boxplots
+        add_median (bool) if true, adds a line at the median of each population
+        include_zero_cells (bool) if true, uses all cells, otherwise uses a threshold for minimum variance explained
+    '''
+    dropouts_to_show = ['all-images','image0','image1','image2','image3','image4','image5','image6','image7','','all-omissions','omissions','post-omissions','','behavioral','licks','pupil','running','','task','hits','misses','passive_change','false_alarms','correct_rejects']
+    if ax is None:
+        height = 8
+        width=18
+        horz_offset = 2
+        vertical_offset = 2.5
+        fig = plt.figure(figsize=(width,height))
+        h = [Size.Fixed(horz_offset),Size.Fixed(width-horz_offset-.5)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+ 
+    if palette is None:
+        palette = project_colors()
+
+    if include_zero_cells:
+        threshold = 0
+    else:
+        if 'dropout_threshold' in run_params:
+            threshold = run_params['dropout_threshold']
+        else:
+            threshold = 0.005
+
+    cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+
+    if 'post-omissions' not in results.dropout.unique():
+        dropouts_to_show = [x for x in dropouts_to_show if x not in ['all-omissions','post-omissions']]
+    
+    if use_single:
+        dropouts_to_show = [x if x=='' else 'single-'+x for x in dropouts_to_show]
+ 
+    data_to_plot = results.query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
+    data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
+    if use_violin:
+        plot1= sns.violinplot(
+            data = data_to_plot,
+            x='dropout',
+            y='explained_variance',
+            hue='cre_line',
+            order=dropouts_to_show,
+            hue_order=cre_lines,
+            fliersize=0,
+            ax=ax,
+            inner='quartile',
+            linewidth=0,
+            palette=palette,
+            cut = 0
+        )
+        if add_median:
+            lines = plot1.get_lines()
+            for index, line in enumerate(lines):
+                if np.mod(index,3) == 0:
+                    line.set_linewidth(0)
+                elif np.mod(index,3) == 1:
+                    line.set_linewidth(1)
+                    line.set_color('r')
+                    line.set_linestyle('-')
+                elif np.mod(index,3) == 2:
+                    line.set_linewidth(0)
+        plt.axhline(0,color='k',alpha=.25)
+
+    else:
+        sns.boxplot(
+            data = data_to_plot,
+            x='dropout',
+            y='explained_variance',
+            hue='cre_line',
+            order=dropouts_to_show,
+            hue_order=cre_lines,
+            fliersize=0,
+            ax=ax,
+            palette=palette
+        )
+    ax.set_ylim(0,1)
+    h,labels =ax.get_legend_handles_labels()
+    clean_labels={
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory'
+        }
+    mylabels = [clean_labels[x] for x in labels]
+    ax.legend(h,mylabels,loc='upper right',fontsize=16)
+    ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=18)
+    ax.set_xlabel('Withheld component',fontsize=18)
+    ax.tick_params(axis='x',labelsize=16,rotation=90)
+    ax.tick_params(axis='y',labelsize=16)
+    if add_title:
+        plt.title(run_params['version'])
+    if use_violin:
+        plt.savefig(run_params['figure_dir']+'/dropout_individual.svg')
+    else:
+        plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot.svg')
+        plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot.png')
+
+
+
 def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False): 
     '''
         Makes a bar plot that shows the population dropout summary by cre line for different regressors 

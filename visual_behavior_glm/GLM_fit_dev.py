@@ -252,24 +252,8 @@ def get_analysis_dfs(VERSION):
         'adj_fraction_change_from_full',
         results_summary=results
         )
-    full_results = gat.retrieve_results(
-        search_dict={'glm_version':VERSION},
-        results_type='full'
-        )
     weights_df = gat.build_weights_df(run_params, results_pivoted)  
-    add_categorical(weights_df) 
-    add_categorical(results_pivoted) 
-    return run_params, results, results_pivoted, weights_df, full_results
-
-def add_categorical(df):
-    '''
-        Adds categorical string labels, useful for plotting
-    '''
-    df['session'] = [str(x) for x in df['session_number']]
-    df['active']=['active' if x in [1,3,4,6] else 'passive' for x in df['session_number']]
-    df['familiar']=['familiar' if x in [1,2,3] else 'novel' for x in df['session_number']]
-    df['equipment'] =['scientifica' if x in ['CAM2P.3','CAM2P.4','CAM2P.5'] else 'mesoscope' for x in df['equipment_name']]
-    df['layer'] = ['deep' if x > 250 else 'shallow' for x in df['imaging_depth']] # NEED TO UPDATE
+    return run_params, results, results_pivoted, weights_df
 
 def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):
     
@@ -287,6 +271,10 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
 
     # Make over-fitting figures
     print('over fitting figures')
+    #full_results = gat.retrieve_results(
+    #    search_dict={'glm_version':VERSION},
+    #    results_type='full'
+    #    )
     gat.compute_over_fitting_proportion(full_results, run_params) 
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)

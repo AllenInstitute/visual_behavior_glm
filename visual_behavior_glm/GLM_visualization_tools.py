@@ -3161,6 +3161,7 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
         include_zero_cells (bool) if true, uses all cells, otherwise uses a threshold for minimum variance explained
     '''
     dropouts_to_show = ['all-images','image0','image1','image2','image3','image4','image5','image6','image7','','all-omissions','omissions','post-omissions','','behavioral','licks','pupil','running','','task','hits','misses','passive_change','false_alarms','correct_rejects']
+    dropouts_to_show = [x for x in dropouts_to_show if (len(x) == 0) or (x in run_params['dropouts']) ]
     if ax is None:
         height = 8
         width=18

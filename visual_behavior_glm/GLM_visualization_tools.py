@@ -1805,7 +1805,7 @@ def plot_kernel_comparison_by_experience(weights_df, run_params, kernel):
     fig_s.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel.svg')
     fig_e.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel.svg')
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel']): #TOGGLE
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel']): 
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1957,7 +1957,6 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         file_temp.close()
     return outputs, fig,ax
 
-## TODO Update
 def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot_errors=True,linewidth=4,alpha=.25):
     '''
         Plots the average kernel for the cells in df
@@ -1976,7 +1975,6 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot_err
 
     # Normalize kernels, and interpolate to time_vec
     df_norm = [x for x in df[~df.isnull()].values]
-    #df_norm = [x if len(x) == len(time_vec) else scipy.interpolate.interp1d(meso_time_vec, x, fill_value="extrapolate", bounds_error=False)(time_vec) for x in df_norm]
     
     # Needed for stability
     if len(df_norm)>0:
@@ -1991,7 +1989,6 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot_err
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
-## TODO UPDATE #TOGGLE
 def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level'):  
     '''
         Plots the average kernel for each cell line. 
@@ -2046,7 +2043,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
     if area_filter != ['VISp','VISl']:
         filter_string+='_area_'+'_'.join(area_filter)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_evaluation_'+filter_string+'.png')
-    problem_sessions = get_problem_sessions() # TODO, can I remove?
+    problem_sessions = get_problem_sessions()
 
     # Filter by overall VE
     if 'dropout_threshold' in run_params:
@@ -2056,10 +2053,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
 
     # Set up time vectors.
     if kernel in ['preferred_image', 'all-images']:
-        run_params['kernels'][kernel] = run_params['kernels']['image0']
+        run_params['kernels'][kernel] = run_params['kernels']['image0'].copy()
     if kernel == 'all-omissions':
         run_params['kernels'][kernel] = run_params['kernels']['omissions'].copy()
         run_params['kernels'][kernel]['length'] = run_params['kernels']['omissions']['length'] + run_params['kernels']['post-omissions']['length']
+    if kernel == 'task':
+        run_params['kernels'][kernel] = run_params['kernels']['hits'].copy()   
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
     if 'image' in kernel:
@@ -2075,6 +2074,8 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         drop_list = ['all_images']
     if (len(drop_list) == 0) & (kernel == 'all-omissions'):
         drop_list = ['all_omissions']
+    if (len(drop_list) == 0) & (kernel == 'task'):
+        drop_list = ['task']
 
     if '-' in kernel:
         weights_df= weights_df.rename(columns={
@@ -2095,11 +2096,14 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > 0) & ({1} <= 0)'.format(filter_sessions_on, kernel))
         use_dropouts=True
     else:
-        weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > 0)'.format(filter_sessions_on))
+        weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > 0)'.format(filter_sessions_on)) 
         print('Dropouts not included, cannot use drop filter')
         use_dropouts=False
 
-    version = run_params['version']
+    # Have to do a manual filtering step here because weird things happen when combining
+    # two kernels
+    if kernel == 'task':
+        weights = weights[~weights['task_weights'].isnull()]
 
     # Plotting settings
     colors = project_colors()
@@ -2368,8 +2372,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
 
-## TODO UPDATE
-def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,normalize=True, drop_threshold_single=False,session_filter=[1,2,3,4,5,6],equipment_filter="all",mode='science',depth_filter=[0,1000]): 
+def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000]): 
     '''
         Makes the analysis plots for all kernels in this model version. Excludes intercept and time kernels
                 
@@ -2382,17 +2385,31 @@ def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,normalize=Tr
     '''
     kernels = set(run_params['kernels'].keys())
     kernels.remove('intercept')
-    kernels.remove('time')
+    kernels.add('task')
+    kernels.add('all-omissions')
+    kernels.add('all-images')
+    kernels.add('preferred_image')
     crashed = set()
     for k in kernels:
+        print(k)
         try:
-            kernel_evaluation(weights_df, run_params, k, save_results=True, drop_threshold=drop_threshold,
-                normalize=normalize,drop_threshold_single=drop_threshold_single,
-                session_filter=session_filter, equipment_filter=equipment_filter,mode=mode,depth_filter=depth_filter)
+            kernel_evaluation(
+                weights_df, 
+                run_params, 
+                k, 
+                save_results=True, 
+                drop_threshold=drop_threshold,
+                session_filter=session_filter, 
+                equipment_filter=equipment_filter,
+                depth_filter=depth_filter,
+                cell_filter=cell_filter,
+                area_filter=area_filter
+                )
             plt.close(plt.gcf().number)
-        except:
+        except Exception as e:
             crashed.add(k)
             plt.close(plt.gcf().number)
+            print(e)
 
     for k in crashed:
         print('Crashed - '+k) 

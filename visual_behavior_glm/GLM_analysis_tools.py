@@ -837,7 +837,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     kernels = [x for x in weights_df.columns if 'weights' in x]
     for kernel in tqdm(kernels, desc='Interpolating kernels'):
         weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
-   
+  
     print('Computing average kernels') 
     # Compute generic image kernel
     weights_df['all-images_weights'] = weights_df.apply(lambda x: np.mean([

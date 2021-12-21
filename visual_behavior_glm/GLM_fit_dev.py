@@ -299,14 +299,9 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     # Make Kernel figures
     print('kernel evaluation figures')
     gvt.all_kernels_evaluation(weights_df,run_params)
-    gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="mesoscope")
-    gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="scientifica")
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[1])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[2])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[3])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[4])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[5])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[6])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=['Familiar'])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=['Novel 1'])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=['Novel >1'])
 
     # Make Kernel Comparison Figures across sessions
     print('kernel comparison figures')

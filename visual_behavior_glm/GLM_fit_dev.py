@@ -230,7 +230,7 @@ if False: # Code snippets for doing analyses.
         run_params, 
         'omissions',
         cell_filter='vip',
-        compare=['session'],
+        compare=['experience_level'],
         plot_errors=False
         ) 
     gvt.plot_all_kernel_comparison(
@@ -240,7 +240,15 @@ if False: # Code snippets for doing analyses.
         compare=['session'],
         plot_errors=False
         )
+    gvt.plot_kernel_comparison_by_experience(
+        weights_df, 
+        run_params, 
+        'omissions'
+        )
     
+    # Might need to update
+    gvt.plot_perturbation(weights_df, run_params, 'omissions')
+    gvt.plot_compare_across_kernels(weights_df, run_params, ['hits','misses'])
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)

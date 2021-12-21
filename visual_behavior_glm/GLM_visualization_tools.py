@@ -1485,7 +1485,7 @@ def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_
     fail = []
 
     # Set up which sessions to plot
-    active_only  = ['licks','hits','misses','false_alarms','correct_rejects', 'model_bias','model_task0','model_omissions1','model_timing1D','beh_model','licking']
+    active_only  = ['licks','hits','misses']
     passive_only = ['passive_change']
  
     # Iterate over list of dropouts
@@ -1518,9 +1518,9 @@ def plot_all_kernel_comparison(weights_df, run_params, drop_threshold=0,session_
         print('The following kernels failed')
         print(fail) 
 
-def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None):
+def plot_compare_across_kernels(weights_df, run_params, kernels,session_filter=[1,2,3,4,5,6], equipment_filter="all",cell_filter="all", compare=[],area_filter=['VISp','VISl'],title=None): #TODO
     '''
-        Need to add documentation
+        compare multiple different kernels to each other 
     ''' 
 
     if 'dropout_threshold' in run_params:
@@ -1866,6 +1866,32 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         filter_string+='_area_'+'_'.join(area_filter)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.png')
 
+    # Set up time vectors.
+    if kernel in ['preferred_image', 'all-images']:
+        run_params['kernels'][kernel] = run_params['kernels']['image0'].copy()
+    if kernel == 'all-omissions':
+        run_params['kernels'][kernel] = run_params['kernels']['omissions'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['omissions']['length'] + run_params['kernels']['post-omissions']['length']
+    if kernel == 'task':
+        run_params['kernels'][kernel] = run_params['kernels']['hits'].copy()   
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2) 
+    if 'image' in kernel:
+        time_vec = time_vec[:-1]
+    if ('omissions' == kernel) & ('post-omissions' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+
+    if '-' in kernel:
+        weights_df= weights_df.rename(columns={
+            'all-omissions':'all_omissions',
+            'all-omissions_weights':'all_omissions_weights',
+            'post-omissions':'post_omissions',
+            'post-omissions_weights':'post_omissions_weights', 
+            'all-images':'all_images',
+            'all-images_weights':'all_images_weights'
+            })
+        kernel = kernel.replace('-','_')
+
     # Applying hard thresholds to dataset
     if kernel in weights_df:
         weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
@@ -1874,20 +1900,6 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold)'.format(filter_sessions_on))
         print('Dropouts not included, cannot use drop filter')
         use_dropouts=False
-
-    # Set up time vectors.
-    if kernel in ['preferred_image', 'all-images']:
-        run_params['kernels'][kernel] = run_params['kernels']['image0']
-    if kernel == 'all-omissions':
-        run_params['kernels'][kernel] = run_params['kernels']['omissions']
-        run_params['kernels'][kernel]['length'] = run_params['kernels']['omissions']['length'] + run_params['kernels']['post-omissions']['length']
-    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
-    time_vec = np.round(time_vec,2)
-    
-    if 'image' in kernel:
-        time_vec = time_vec[:-1]
-    if ('omissions' == kernel) & ('post-omissions' in run_params['kernels']):
-        time_vec = time_vec[:-1]
 
     # Plotting settings
     if ax is None:

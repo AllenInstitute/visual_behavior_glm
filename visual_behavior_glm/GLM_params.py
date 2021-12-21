@@ -33,7 +33,7 @@ def define_kernels():
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.75,  'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image presentation'},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'normalized running speed'},
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'Z-scored pupil diameter'},
-        'licks':        {'event':'licks',       'type':'discrete',      'length':4,     'offset':-2,    'num_weights':None, 'dropout':True, 'text': 'mouse lick'},
+        'licks':        {'event':'licks',       'type':'discrete',      'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'mouse lick'},
         #'time':         {'event':'time',        'type':'continuous',    'length':0,     'offset':0,    'num_weights':None,  'dropout':True, 'text': 'linear ramp from 0 to 1'},
         #'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'num_weights':None,  'dropout':True, 'text': 'behavioral model weights'},
         #'lick_bouts':   {'event':'lick_bouts',  'type':'discrete',      'length':4,     'offset':-2,   'num_weights':None,  'dropout':True, 'text': 'lick bout'},

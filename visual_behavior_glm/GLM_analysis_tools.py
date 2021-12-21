@@ -820,7 +820,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # For each experiment, get the weight matrix from mongo (slow)
     # Then pull the weights from each kernel into a dataframe
     sessions = []
-    for index, oeid in enumerate(tqdm(oeids)):
+    for index, oeid in enumerate(tqdm(oeids, desc='Iterating Sessions')):
         session_df = process_session_to_df(oeid, run_params)
         sessions.append(session_df)
 
@@ -835,9 +835,10 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
  
     # Interpolate everything onto common time base
     kernels = [x for x in weights_df.columns if 'weights' in x]
-    for kernel in tqdm(kernels):
+    for kernel in tqdm(kernels, desc='Interpolating kernels'):
         weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
-    
+  
+    print('Computing average kernels') 
     # Compute generic image kernel
     weights_df['all-images_weights'] = weights_df.apply(lambda x: np.mean([
         x['image0_weights'],
@@ -869,6 +870,12 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         x['post-omissions_weights']
         ]),axis=1)
 
+    # Make a combined change kernel
+    weights_df['task_weights'] = weights_df.apply(lambda x: np.mean([
+        x['hits_weights'],
+        x['misses_weights'],
+        ],axis=0),axis=1)
+ 
     # Return weights_df
     return weights_df 
 

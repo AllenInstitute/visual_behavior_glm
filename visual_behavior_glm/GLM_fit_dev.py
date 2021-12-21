@@ -198,6 +198,7 @@ if False: # Code snippets for doing analyses.
 
     # Make dropout summary figures
     gvt.plot_dropout_summary_population(results,run_params)
+    gvt.plot_dropout_individual_population(results,run_params)
     gvt.plot_population_averages(results_pivoted, run_params,add_stats=True)
     gvt.plot_population_averages(results_pivoted, run_params,sharey=False)
 
@@ -229,7 +230,7 @@ if False: # Code snippets for doing analyses.
         run_params, 
         'omissions',
         cell_filter='vip',
-        compare=['session'],
+        compare=['experience_level'],
         plot_errors=False
         ) 
     gvt.plot_all_kernel_comparison(
@@ -239,7 +240,15 @@ if False: # Code snippets for doing analyses.
         compare=['session'],
         plot_errors=False
         )
+    gvt.plot_kernel_comparison_by_experience(
+        weights_df, 
+        run_params, 
+        'omissions'
+        )
     
+    # Might need to update
+    gvt.plot_perturbation(weights_df, run_params, 'omissions')
+    gvt.plot_compare_across_kernels(weights_df, run_params, ['hits','misses'])
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)
@@ -251,24 +260,8 @@ def get_analysis_dfs(VERSION):
         'adj_fraction_change_from_full',
         results_summary=results
         )
-    full_results = gat.retrieve_results(
-        search_dict={'glm_version':VERSION},
-        results_type='full'
-        )
     weights_df = gat.build_weights_df(run_params, results_pivoted)  
-    add_categorical(weights_df) 
-    add_categorical(results_pivoted) 
-    return run_params, results, results_pivoted, weights_df, full_results
-
-def add_categorical(df):
-    '''
-        Adds categorical string labels, useful for plotting
-    '''
-    df['session'] = [str(x) for x in df['session_number']]
-    df['active']=['active' if x in [1,3,4,6] else 'passive' for x in df['session_number']]
-    df['familiar']=['familiar' if x in [1,2,3] else 'novel' for x in df['session_number']]
-    df['equipment'] =['scientifica' if x in ['CAM2P.3','CAM2P.4','CAM2P.5'] else 'mesoscope' for x in df['equipment_name']]
-    df['layer'] = ['deep' if x > 250 else 'shallow' for x in df['imaging_depth']] # NEED TO UPDATE
+    return run_params, results, results_pivoted, weights_df
 
 def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):
     
@@ -286,6 +279,10 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
 
     # Make over-fitting figures
     print('over fitting figures')
+    #full_results = gat.retrieve_results(
+    #    search_dict={'glm_version':VERSION},
+    #    results_type='full'
+    #    )
     gat.compute_over_fitting_proportion(full_results, run_params) 
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
@@ -298,14 +295,9 @@ def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pi
     # Make Kernel figures
     print('kernel evaluation figures')
     gvt.all_kernels_evaluation(weights_df,run_params)
-    gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="mesoscope")
-    gvt.all_kernels_evaluation(weights_df,run_params,equipment_filter="scientifica")
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[1])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[2])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[3])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[4])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[5])
-    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=[6])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=['Familiar'])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=['Novel 1'])
+    gvt.all_kernels_evaluation(weights_df,run_params,session_filter=['Novel >1'])
 
     # Make Kernel Comparison Figures across sessions
     print('kernel comparison figures')

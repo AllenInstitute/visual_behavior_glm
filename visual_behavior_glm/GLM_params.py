@@ -202,7 +202,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'interpolate_to_stimulus':True, # If True, interpolates the cell activity trace onto stimulus aligned timestamps
         'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
         'dropout_threshold':0.005,      # Minimum variance explained by full model
-        'version_type':'standard',       # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
+        'version_type':'production',       # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
     } 
 
     # Define Kernels and dropouts
@@ -300,14 +300,14 @@ def define_dropouts(kernels,run_params):
         dropout_definitions={
             'visual':               ['image0','image1','image2','image3','image4','image5','image6','image7','omissions','image_expectation'],
             'all-images':           ['image0','image1','image2','image3','image4','image5','image6','image7'],
+            'task':                 ['hits','misses','passive_change'],
+            'behavioral':           ['running','pupil','licks'],
+            'all-omissions':        ['omissions','post-omissions'],
             #'expectation':          ['image_expectation','omissions'],
             #'cognitive':           ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards','model_bias','model_task0','model_timing1D','model_omissions1'],
-            'task':                 ['hits','misses','false_alarms','correct_rejects','passive_change','change','rewards'],
             #'image_change':         ['image_change0','image_change1','image_change2','image_change3','image_change4','image_change5','image_change6','image_change7'],
             #'beh_model':            ['model_bias','model_task0','model_timing1D','model_omissions1'],
-            'behavioral':           ['running','pupil','licks','lick_bouts','lick_model','groom_model'],
-            'licking':              ['licks','lick_bouts','lick_model','groom_model'],
-            'all-omissions':        ['omissions','post-omissions'],
+            #'licking':              ['licks','lick_bouts','lick_model','groom_model'],
             #'pupil_and_running':    ['pupil','running'],
             #'pupil_and_omissions':  ['pupil','omissions'],
             #'running_and_omissions':['running','omissions']

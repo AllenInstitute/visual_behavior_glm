@@ -191,7 +191,10 @@ if False: # Code snippets for doing analyses.
     schematic_df = gsm.plot_nice_dropouts(run_params['version'])
 
     # Make the platform paper schematic examples
-    gsm.plot_glm_example(g)
+    oeid = 967008471
+    cell_specimen_id = 1086492467
+    g=glm.GLM(oeid, version, use_previous_fit=True, log_results=False, log_weights=False)
+    gsm.plot_glm_example(g,cell_specimen_id, run_params)
 
     # Make plot of kernel support
     gvt.plot_kernel_support(g)

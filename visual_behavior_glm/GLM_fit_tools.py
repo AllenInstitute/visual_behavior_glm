@@ -1447,7 +1447,8 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
             running_df = session.running_speed
             running_df = running_df.rename(columns={'speed':'values'})
             timeseries = interpolate_to_ophys_timestamps(fit, running_df)['values'].values
-            timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
+            #timeseries = standardize_inputs(timeseries, mean_center=False,unit_variance=False, max_value=run_params['max_run_speed'])
+            timeseries = standardize_inputs(timeseries)
         elif event.startswith('face_motion'):
             PC_number = int(event.split('_')[-1])
             face_motion_df =  pd.DataFrame({

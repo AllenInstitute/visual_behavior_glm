@@ -1478,7 +1478,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
             timeseries = standardize_inputs(timeseries, mean_center=run_params['mean_center_inputs'],unit_variance=run_params['unit_variance_inputs'])
         elif event == 'pupil':
             session.ophys_eye = process_eye_data(session,run_params,ophys_timestamps =fit['fit_trace_timestamps'] )
-            timeseries = session.ophys_eye['pupil_radius'].values
+            timeseries = session.ophys_eye['pupil_radius_zscore'].values
         elif event == 'lick_model' or event == 'groom_model':
             if not hasattr(session, 'lick_groom_model'):
                 session.lick_groom_model = process_behavior_predictions(session, ophys_timestamps = fit['fit_trace_timestamps'])

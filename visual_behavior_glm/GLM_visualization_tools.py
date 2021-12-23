@@ -598,7 +598,7 @@ def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=
     if sort_by_signal:
         results['dff'] = ['dff' in x for x in results['glm_version']]
 
-        if num_versions > 1:
+        if num_versions > 2:
             glm_version_order = np.concatenate([np.sort(results.query('dff')['glm_version'].unique()),[''],np.sort(results.query('not dff')['glm_version'].unique())])
         else:
             glm_version_order = np.concatenate([np.sort(results.query('dff')['glm_version'].unique()),np.sort(results.query('not dff')['glm_version'].unique())])
@@ -2096,7 +2096,9 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'post-omissions':'post_omissions',
             'post-omissions_weights':'post_omissions_weights', 
             'all-images':'all_images',
-            'all-images_weights':'all_images_weights'
+            'all-images_weights':'all_images_weights',
+            'single-post-omissions':'single_post_omissions',
+            'single-all-images':'single_all_omissions',
             })
         kernel = kernel.replace('-','_')
         drop_list = [x.replace('-','_') for x in drop_list]

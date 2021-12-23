@@ -3346,7 +3346,8 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
             hue_order=cre_lines,
             fliersize=0,
             ax=ax,
-            palette=palette
+            palette=palette,
+            width=.7,
         )
     ax.set_ylim(0,1)
     h,labels =ax.get_legend_handles_labels()

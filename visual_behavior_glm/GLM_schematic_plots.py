@@ -23,7 +23,9 @@ def get_example_style():
     return style
 
 def plot_glm_example(g,cell_specimen_id,run_params,times=[1780,1800]):
-    #oeid = 775614751,celldex=1
+    #OLD:oeid = 775614751,celldex=1
+    # oeid: 967008471
+    # cell_specimen_id: 1086492467
     # (g1) 967008471, 1086492467,celldex =18, times=[324,346], lightness_range=(0.3,.6), saturation_range=(0.9,1), random_seed=5, alt_times = [1780,1800]
     # g=glm.GLM(oeid,version,use_previous_fit=True,log_results=False,log_weights=False)
 
@@ -32,6 +34,7 @@ def plot_glm_example(g,cell_specimen_id,run_params,times=[1780,1800]):
     index_times=[np.where(g.fit['fit_trace_timestamps']>=times[0])[0][0],np.where(g.fit['fit_trace_timestamps']>times[1])[0][0]+1]
     include_events= g.fit['events_trace_arr'] is not None
     plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events)
+    plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events,model='all-images')
     plot_glm_example_dropouts(g,cell_specimen_id,style)
     #ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,times,style)
     plot_glm_example_inputs(g,times,style,run_params)
@@ -67,7 +70,7 @@ def plot_glm_example_kernel_inner(g,cell_specimen_id, kernel_name,ax,style,palet
 def plot_glm_example_dropouts(g,cell_specimen_id,style):
 
     dropouts = g.dropout_summary.query('cell_specimen_id == @cell_specimen_id')[['dropout','adj_fraction_change_from_full']].sort_values(by='adj_fraction_change_from_full').copy().reset_index(drop=True)
-    dropouts_to_plot = ['all-images','omissions','behavioral','running','pupil','licks','task','hits','misses','false_alarms','correct_rejects']
+    dropouts_to_plot = ['all-images','omissions','behavioral','running','pupil','licks','task','hits','misses']
     dropouts = dropouts.loc[dropouts.isin({'dropout':dropouts_to_plot})['dropout']].reset_index(drop=True)
 
     fig = plt.figure(figsize=(6,6))
@@ -158,20 +161,20 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None):
     ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'r|',markersize=20)
     ticklabels[top-15]='Miss'+ get_kernel_duration('misses',run_params)
 
-    fa = trials.query('false_alarm')
-    ax.plot(fa.change_time, np.ones((len(fa),))*(top-16),'r|',markersize=20)
-    ticklabels[top-16]='False Alarm'+ get_kernel_duration('false_alarms',run_params)
+    #fa = trials.query('false_alarm')
+    #ax.plot(fa.change_time, np.ones((len(fa),))*(top-16),'r|',markersize=20)
+    #ticklabels[top-16]='False Alarm'+ get_kernel_duration('false_alarms',run_params)
 
-    correct_reject = trials.query('correct_reject')
-    ax.plot(correct_reject.change_time, np.ones((len(correct_reject),))*(top-17),'r|',markersize=20)
-    ticklabels[top-17]='Correct Reject'+ get_kernel_duration('correct_rejects',run_params)
+    #correct_reject = trials.query('correct_reject')
+    #ax.plot(correct_reject.change_time, np.ones((len(correct_reject),))*(top-17),'r|',markersize=20)
+    #ticklabels[top-17]='Correct Reject'+ get_kernel_duration('correct_rejects',run_params)
 
     ax.yaxis.set_ticks(list(ticklabels.keys()))
     ax.yaxis.set_ticklabels(list(ticklabels.values()),fontsize=style['fs2'])
     ax.set_xlabel('Time (s)',fontsize=style['fs1'])
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.set_xlim(times)
-    ax.set_ylim(top-17.5,top+.5)
+    ax.set_ylim(top-15.5,top+.5)
     #plt.tight_layout()
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg')
 
@@ -219,7 +222,7 @@ def plot_glm_example_components(g, cell_specimen_id, times, style):
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_components.svg')
     return ax.get_ylim(),palette_df
 
-def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax=None):
+def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax=None,model=None):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,3))
         fig = plt.figure(figsize=(12,4))
@@ -243,7 +246,7 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     if include_events:
         ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
             g.fit['events_trace_arr'][time_vec,celldex],
-            style['events'],label='Smoothed L0 events',
+            style['events'],label='Smoothed events',
             linewidth=style['trace_linewidth'],
             color='gray')
     else:
@@ -256,8 +259,14 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     # Plot Model
     ax.plot(g.fit['fit_trace_timestamps'][time_vec],
         g.fit['dropouts']['Full']['full_model_train_prediction'][time_vec,celldex],
-        style['model'],label='Model',linewidth=style['trace_linewidth'],
+        style['model'],label='Full model',linewidth=style['trace_linewidth'],
         color='lightcoral')
+
+    if model is not None:
+        ax.plot(g.fit['fit_trace_timestamps'][time_vec],
+            g.fit['dropouts'][model]['full_model_train_prediction'][time_vec,celldex],
+            '--',label='Without image kernels',linewidth=style['trace_linewidth'],
+            color='cornflowerblue')
 
     # Clean up plot
     ax.legend(loc='upper right',fontsize=16)
@@ -268,7 +277,10 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     ax.set_ylim(-0.035,.9)
     ax.set_xlim(times)
     #plt.tight_layout()
-    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg')
+    if model is not None:
+        plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace_'+model+'.svg')
+    else:
+        plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg')
     return
 
 def plot_all_dropouts(VERSION):

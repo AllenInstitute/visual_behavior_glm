@@ -3370,6 +3370,147 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.svg')
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
 
+def plot_fraction_summary_population(results_pivoted, run_params,sharey=True):
+    results_pivoted = results_pivoted.copy()
+    results_pivoted['code_anything'] = results_pivoted['variance_explained_full'] > run_params['dropout_threshold'] 
+    results_pivoted['code_images'] = results_pivoted['code_anything'] & (results_pivoted['all-images'] < 0)
+    results_pivoted['code_omissions'] = results_pivoted['code_anything'] & (results_pivoted['all-omissions'] < 0)
+    results_pivoted['code_behavioral'] = results_pivoted['code_anything'] & (results_pivoted['behavioral'] < 0)
+    results_pivoted['code_task'] = results_pivoted['code_anything'] & (results_pivoted['task'] < 0)
+    summary_df = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_images','code_omissions','code_behavioral','code_task']].mean()
+ 
+    # plotting variables
+    experience_levels = np.sort(results_pivoted.experience_level.unique())
+    colors = project_colors()
+
+    coding_groups = ['code_anything','code_images','code_omissions','code_behavioral','code_task']
+    titles = ['Anything','Images','Omissions','Behavioral','Task']
+    # make combined across cre line plot
+    fig, ax = plt.subplots(1,len(coding_groups),figsize=(12,4), sharey=sharey)
+    for index, feature in enumerate(coding_groups):
+        # plots three cre-lines in standard colors
+        ax[index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre'][feature],'o-',color=colors['Vip-IRES-Cre'],label='Vip Inhibitory')
+        ax[index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre'][feature],'o-',color=colors['Sst-IRES-Cre'],label='Sst Inhibitory')
+        ax[index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre'][feature],'o-',color=colors['Slc17a7-IRES2-Cre'],label='Excitatory')
+
+        ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
+        ax[index].set_title(titles[index],fontsize=18)
+        ax[index].set_ylabel('')
+        ax[index].set_xlabel('')
+        ax[index].set_xticks([0,1,2])
+        ax[index].set_xticklabels(experience_levels, rotation=90)
+        ax[index].tick_params(axis='x',labelsize=16)
+        ax[index].tick_params(axis='y',labelsize=16)
+        if index ==4:
+            ax[index].legend()
+    ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=18)
+    plt.tight_layout()
+    plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.svg')  
+    plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.png')  
+ 
+    return
+    # Iterate cell types and make a plot for each
+    for cell_type in cell_types:
+        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+        all_data = results_pivoted.query('cell_type ==@cell_type')
+        matched_data = all_data.query('cell_specimen_id in @matched_cells') 
+
+        stats = {}
+        # Iterate dropouts and plot each by experience
+        for index, feature in enumerate(dropouts_to_show):
+            anova, tukey = test_significant_dropout_averages(all_data,feature)
+            stats[feature]=(anova, tukey)
+
+            # Plot all cells in active sessions
+            if boxplot:
+                ax[index] = sns.boxplot(
+                    data = all_data,
+                    x = 'experience_level',
+                    y= feature,
+                    hue='experience_level',
+                    order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                    hue_order=experience_levels,
+                    palette = colors,
+                    showfliers=False,
+                    ax=ax[index]
+                )
+            else:
+                ax[index] = sns.pointplot(
+                    data = all_data,
+                    x = 'experience_level',
+                    y= feature,
+                    hue='experience_level', 
+                    order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                    hue_order=experience_levels,
+                    palette = colors,
+                    join=False,
+                    ax=ax[index]
+                )
+
+            all_cell_points = list(ax[index].get_children())
+            for x in all_cell_points:
+                x.set_zorder(1000)
+            
+            # Plot cells in matched active sessions
+            ax[index] = sns.pointplot(
+                data = matched_data,
+                x = 'experience_level',
+                y=feature,
+                order=experience_levels,
+                color='lightgray',
+                join=True,
+                ax=ax[index],
+            )
+            ax[index].get_legend().remove() 
+            #ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
+            ax[index].set_title(feature,fontsize=18)
+            ax[index].set_ylabel('')
+            ax[index].set_xlabel('')
+            ax[index].set_xticks([0,1,2])
+            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xlim(-.5,2.5)
+            ax[index].tick_params(axis='x',labelsize=16)
+            ax[index].tick_params(axis='y',labelsize=16)
+            ax[index].set_ylim(bottom=0)
+            ax[index].spines['top'].set_visible(False)
+            ax[index].spines['right'].set_visible(False)
+            ax[index].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+
+        if add_stats:
+            ytop = ax[0].get_ylim()[1]
+            y1 = ytop
+            y1h = ytop*1.05
+            y2 = ytop*1.1
+            y2h = ytop*1.15
+
+            for index, feature in enumerate(dropouts_to_show):
+                (anova, tukey) = stats[feature]
+                if anova.pvalue<0.05:
+                    for tindex, row in tukey.iterrows():
+                        if row.x2-row.x1 > 1:
+                            y = y2
+                            yh = y2h
+                        else:
+                            y = y1
+                            yh = y1h 
+                        if row.reject:
+                            ax[index].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'k-')
+                            ax[index].text(np.mean([row.x1,row.x2]),yh, '*')
+                        else:
+                            ax[index].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'k-')
+                            ax[index].text(np.mean([row.x1,row.x2]),yh, 'ns')
+                else:
+                    y = y1
+                    yh = y1h
+                    ax[index].plot([0,0,1,1,1,2,2],[y,yh,yh,y,yh,yh,y],'k-')
+                    ax[index].text(.95,ytop*1.07, 'ns.',color='k')
+                ax[index].set_ylim(0,ytop*1.2)
+        ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
+        plt.suptitle(cell_type,fontsize=18)
+        fig.tight_layout() 
+        #plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg')
+        #plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.png')
+
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     '''
         Plots the summary figure for the cosyne abstract with visual, behavioral, and cognitive kernels separated.

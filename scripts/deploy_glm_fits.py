@@ -69,7 +69,7 @@ def calculate_required_mem(roi_count):
 def calculate_required_walltime(roi_count):
     '''calculate required walltime in hours'''
     estimate= 10 + 0.125*roi_count
-    return np.min([estimate,24])
+    return np.min([estimate,24]) 
 
 def select_experiments_for_testing(returns = 'experiment_ids'):
     '''
@@ -178,12 +178,11 @@ if __name__ == "__main__":
             job_count += 1
             print('starting cluster job for {}, job count = {}'.format(experiment_id, job_count))
             job_title = 'oeid_{}_fit_glm_v_{}'.format(experiment_id, args.version)
-
             walltime = '{}:00:00'.format(int(np.ceil((calculate_required_walltime(roi_count)))))
             mem = '{}gb'.format(int(np.ceil((calculate_required_mem(roi_count)))))
             job_id = Slurm.JOB_ARRAY_ID
             job_array_id = Slurm.JOB_ARRAY_MASTER_ID
-            output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+".out"
+            output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+"_"+str(experiment_id)+".out"
     
             # instantiate a SLURM object
             slurm = Slurm(
@@ -202,5 +201,4 @@ if __name__ == "__main__":
                     args_string,
                 )
             )
-
             time.sleep(0.001)

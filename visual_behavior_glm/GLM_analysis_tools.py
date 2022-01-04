@@ -1,10 +1,12 @@
 import os
 import bz2
+import scipy
 import pickle
 import _pickle as cPickle
 import warnings
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import xarray_mongodb
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -88,7 +90,7 @@ def build_kernel_df(glm, cell_specimen_id):
             weights=kernel_weight_names, cell_specimen_id=cell_specimen_id)], axis=0)
 
         # Version 19 had an edge case where the design matrix gets re-loaded with an extra weight       
-        if kernel_name.startswith('image') &(np.shape(kernel)[0] != len(w_kernel)):
+        if kernel_name.startswith('image') &(np.shape(kernel)[0] != np.shape(w_kernel)[1]):
             print('Hack, need to fix bug')
             kernel = kernel[0:-1,:]
 
@@ -164,6 +166,10 @@ def generate_results_summary_nonadj(glm):
     '''
     # Get list of columns to look at, removing the non-adjusted dropouts, and training scores
     test_cols = [col for col in glm.results.columns if ((not col.endswith('train'))&('adj' not in col)&('session' not in col)&('cell' not in col))]  
+    if 'Full__shuffle_cells' in glm.results.columns:
+        test_cols.append('Full__shuffle_cells')
+    if 'Full__cell_L2_regularization' in glm.results.columns:
+        test_cols.append('Full__cell_L2_regularization')
  
     # Set up space
     results_summary_list = []
@@ -568,7 +574,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
 def make_identifier(row):
     return '{}_{}'.format(row['ophys_experiment_id'],row['cell_specimen_id'])
 
-def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=True,invalid_only=False,remove_invalid_rois=True,save_results=True):
+def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=True,invalid_only=False,remove_invalid_rois=True,save_results=True,additional_columns=[]):
     '''
         Builds a results summary table for comparing variance explained and dropout scores across model versions.
         results_compact = gat.get_glm_version_summary(versions_to_compare)
@@ -582,6 +588,7 @@ def get_glm_version_summary(versions_to_compare=None,vrange=[15,20], compact=Tru
         dropouts = ['Full','visual','all-images','omissions','behavioral','task']
         return_list = np.concatenate([[x+'__avg_cv_var_test',x+'__avg_cv_var_train'] for x in dropouts])
         return_list = np.concatenate([return_list, ['ophys_experiment_id','cell_roi_id','cre_line','glm_version']])
+        return_list = np.concatenate([return_list, additional_columns])
     else:
         return_list = None
     results_list = []
@@ -668,16 +675,25 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
     potential_cols_to_drop = [
         '_id', 
         'index',
-        'dropout', 
-        'variance_explained',
-        'avg_cv_var_test_sem', 
-        'fraction_change_from_full', 
+        'dropout',
         'absolute_change_from_full',
+        'avg_L2_regularization',
+        'avg_cv_var_test_full_comparison_raw',
+        'avg_cv_var_test_raw',
+        'avg_cv_var_test_sem', 
+        'cell_L2_regularization',
+        'fraction_change_from_full', 
+        'adj_dropout_raw',
+        'variance_explained',
         'adj_fraction_change_from_full',
+        'avg_cv_adjvar_test_raw',
+        'avg_cv_adjvar_test_full_comparison_raw',
         'adj_variance_explained',
         'adj_variance_explained_full',
         'entry_time_utc',
-        'driver_line'
+        'driver_line',
+        'shuffle_time',
+        'shuffle_cells',
     ]
     cols_to_drop = [col for col in potential_cols_to_drop if col in results_summary.columns]
     results_summary_pivoted = results_summary_pivoted.merge(
@@ -686,14 +702,14 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         right_on='identifier',
         how='left'
     )
-    if 'avg_cv_var_test_sem' in results_summary.columns:
-        results_summary_pivoted = results_summary_pivoted.merge(
-            results_summary.query('dropout == "Full" and variance_explained >=@cutoff')[['identifier','avg_cv_var_test_sem']],
-            left_on='identifier',
-            right_on='identifier',
-            how='left'
-        )
-        results_summary_pivoted = results_summary_pivoted.rename(columns={'avg_cv_var_test_sem':'variance_explained_full_sem'})
+    #if 'avg_cv_var_test_sem' in results_summary.columns:
+    #    results_summary_pivoted = results_summary_pivoted.merge(
+    #        results_summary.query('dropout == "Full" and variance_explained >=@cutoff')[['identifier','avg_cv_var_test_sem']],
+    #        left_on='identifier',
+    #        right_on='identifier',
+    #        how='left'
+    #    )
+    #    results_summary_pivoted = results_summary_pivoted.rename(columns={'avg_cv_var_test_sem':'variance_explained_full_sem'})
  
     return results_summary_pivoted
 
@@ -779,10 +795,12 @@ def process_session_to_df(oeid, run_params):
             session_df[k] = W.loc[dict(weights=weight_names)].values.T.tolist()
     return session_df
 
-def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False):
+def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False,normalize=False):
     '''
         Builds a dataframe of (cell_specimen_id, ophys_experiment_id) with the weight parameters for each kernel
-        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream   
+        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream  
+        
+        Takes about 5 minutes to run 
  
         INPUTS:
         run_params, parameter json for the version to analyze
@@ -793,10 +811,6 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         RETURNS:
         a dataframe
     '''
-    
-    #if load_cache & os.path.exists(run_params['output_dir']+'/weights_df.csv'):
-    #    # Need to convert things to np.array
-    #    return pd.read_csv(run_params['output_dir']+'/weights_df.csv')
    
     # Make dataframe for cells and experiments 
     oeids = results_pivoted['ophys_experiment_id'].unique() 
@@ -806,20 +820,121 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # For each experiment, get the weight matrix from mongo (slow)
     # Then pull the weights from each kernel into a dataframe
     sessions = []
-    for index, oeid in enumerate(tqdm(oeids)):
+    for index, oeid in enumerate(tqdm(oeids, desc='Iterating Sessions')):
         session_df = process_session_to_df(oeid, run_params)
         sessions.append(session_df)
 
     # Merge all the session_dfs, and add more session level info
     weights_df = pd.concat(sessions,sort=False)
-    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
-    
-    ## Cache Results
-    #if cache_results:
-    #    weights_df.to_csv(run_params['output_dir']+'/weights_df.csv') 
+    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) 
+   
+    # If we didn't compute dropout scores, then there won't be redundant columns, so the weights won't get appended with _weights
+    if not np.any(['weights' in x for x in weights_df.columns.values]):
+        rename = {x: x+'_weights' for x in run_params['kernels'].keys()}
+        weights_df = weights_df.rename(columns=rename)   
+ 
+    # Interpolate everything onto common time base
+    kernels = [x for x in weights_df.columns if 'weights' in x]
+    for kernel in tqdm(kernels, desc='Interpolating kernels'):
+        weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
+  
+    print('Computing average kernels') 
+    # Compute generic image kernel
+    weights_df['all-images_weights'] = weights_df.apply(lambda x: np.mean([
+        x['image0_weights'],
+        x['image1_weights'],
+        x['image2_weights'],
+        x['image3_weights'],       
+        x['image4_weights'],
+        x['image5_weights'],
+        x['image6_weights'],
+        x['image7_weights']
+        ],axis=0),axis=1)
 
+    # Compute preferred image kernel
+    weights_df['preferred_image_weights'] = weights_df.apply(lambda x: compute_preferred_kernel([
+        x['image0_weights'],
+        x['image1_weights'],
+        x['image2_weights'],
+        x['image3_weights'],       
+        x['image4_weights'],
+        x['image5_weights'],
+        x['image6_weights'],
+        x['image7_weights']
+        ]),axis=1) 
+
+    # make a combined omissions kernel
+    if 'post-omissions_weights' in weights_df:
+        weights_df['all-omissions_weights'] = weights_df.apply(lambda x: compute_all_omissions([
+        x['omissions_weights'],
+        x['post-omissions_weights']
+        ]),axis=1)
+
+    # Make a combined change kernel
+    weights_df['task_weights'] = weights_df.apply(lambda x: np.mean([
+        x['hits_weights'],
+        x['misses_weights'],
+        ],axis=0),axis=1)
+ 
     # Return weights_df
     return weights_df 
+
+def compute_all_omissions(omissions):
+    if np.isnan(np.sum(omissions[0])) or np.isnan(np.sum(omissions[1])):
+        return np.nan
+    
+    return np.concatenate(omissions)
+
+def compute_preferred_kernel(images):
+    
+    # If all the weight kernels are nans
+    if np.ndim(images) ==1:
+        return images[0]
+    
+    # Find the kernel with the largest magnitude 
+    weight_amplitudes = np.sum(np.abs(images),axis=1)
+    return images[np.argmax(weight_amplitudes)] 
+
+def interpolate_kernels(weights_df, run_params, kernel_name,normalize=False):
+    '''
+        Interpolates all kernels onto the scientific time base
+        If the kernels are the wrong size for either scientifica or mesoscope, it sets them to NaN
+    '''   
+ 
+    # Select the kernel of interest
+    df = weights_df[kernel_name].copy()  
+    kernel = kernel_name.split('_weights')[0]
+
+    # Normalize each to its max value, if we are doing normalization
+    if normalize:
+        df = [x/np.max(np.abs(x)) for x in df.values]
+
+    # Interpolate
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
+    time_vecs = {}
+    time_vecs['scientifica'] = time_vec
+    time_vecs['mesoscope'] = meso_time_vec
+    length_mismatch = len(time_vec) != np.max(np.unique([np.size(x) for x in df]))
+    if ('image' in kernel_name) & length_mismatch:
+        time_vecs['scientifica'] = time_vecs['scientifica'][0:-1]
+        time_vecs['mesoscope'] = time_vecs['mesoscope'][0:-1]
+    if ('omissions' in kernel_name) & length_mismatch:
+        time_vecs['scientifica'] = time_vecs['scientifica'][0:-1]
+        time_vecs['mesoscope'] = time_vecs['mesoscope'][0:-1]
+    weights_df[kernel_name] = [weight_interpolation(x, time_vecs) for x in df]
+    return weights_df
+
+def weight_interpolation(weight_vec, time_vecs={}):
+    if np.size(weight_vec) ==1:
+        return weight_vec
+    elif len(weight_vec) == len(time_vecs['scientifica']):
+        return weight_vec
+    elif len(weight_vec) == len(time_vecs['mesoscope']):
+        return scipy.interpolate.interp1d(time_vecs['mesoscope'], weight_vec, fill_value='extrapolate',bounds_error=False)(time_vecs['scientifica'])
+    else:
+        return np.nan 
 
 def compute_weight_index(weights_df):
     '''
@@ -1195,6 +1310,52 @@ def select_experiments_for_testing(returns = 'experiment_ids'):
         return test_experiments
 
 
+def get_normalized_results_pivoted(glm_version = None, kind = 'max', cutoff = -np.inf):
+    '''
+    Loads absolute results pivoted, then normalization.
+    Currently only normalizes to max
+
+    INPUT:
+    glm_version     default is version 15 with events
+    kind            type of normalization. Currently only uses max, other options could be session number.
+
+    OUTPUT:
+    results_pivoted_normalized
+    '''
+    if glm_version == None:
+        glm_version = '15_events_L2_optimize_by_session'
+        print('loading glm version 15 with events by default ...')
+
+    results_pivoted = build_pivoted_results_summary(glm_version=glm_version,
+                                                value_to_use='absolute_change_from_full',
+                                                results_summary=None,
+                                                cutoff=cutoff)
+
+    col_to_exclude = ['identifier', 'Full','variance_explained_full', 'cell_specimen_id', 'cell_roi_id',
+       'glm_version', 'ophys_experiment_id', 'ophys_session_id',
+       'equipment_name', 'donor_id', 'full_genotype', 'mouse_id',
+       'reporter_line', 'driver_line', 'sex', 'age_in_days', 'foraging_id',
+       'cre_line', 'indicator', 'session_number',
+       'prior_exposures_to_session_type', 'prior_exposures_to_image_set',
+       'prior_exposures_to_omissions', 'behavior_session_id',
+       'ophys_container_id', 'project_code', 'container_workflow_state',
+       'experiment_workflow_state', 'session_name', 'isi_experiment_id',
+       'imaging_depth', 'targeted_structure', 'published_at',
+       'date_of_acquisition', 'session_type', 'session_tags', 'failure_tags',
+       'model_outputs_available', 'location']
+
+    if kind == 'max':
+        abs_max_df = results_pivoted[['variance_explained_full', 'cell_specimen_id']].groupby('cell_specimen_id').max()
+        results_pivoted_normalized = results_pivoted.join(abs_max_df, on= 'cell_specimen_id', rsuffix='_max').copy()
+
+        for column in results_pivoted.columns:
+            if column not in col_to_exclude:
+                results_pivoted_normalized.loc[results_pivoted_normalized[column]>0,column]=0
+                results_pivoted_normalized[column] = results_pivoted_normalized[column].divide(results_pivoted_normalized['variance_explained_full_max'])
+
+    return results_pivoted_normalized
+
+ 
 def get_kernel_weights(glm, kernel_name, cell_specimen_id):
     '''
     gets the weights associated with a given kernel for a given cell_specimen_id

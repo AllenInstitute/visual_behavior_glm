@@ -3154,9 +3154,8 @@ def test_significant_dropout_averages(data,feature):
         )
     comp = mc.MultiComparison(data[feature], data['experience_level'])
     post_hoc_res = comp.tukeyhsd()
-    tukey_table = pd.DataFrame(post_hoc_res.summary())
-    tukey_table.columns = [str(x) for x in tukey_table.iloc[0]]
-    tukey_table = tukey_table.drop(0).reset_index(drop=True)
+    tukey_table = pd.read_html(post_hoc_res.summary().as_html(),header=0, index_col=0)[0]
+    tukey_table = tukey_table.reset_index()
     mapper = {
         'Familiar':0,
         'Novel 1':1,

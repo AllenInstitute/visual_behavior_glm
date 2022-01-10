@@ -2973,7 +2973,7 @@ def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_
                 ax[index].set_title(feature,fontsize=12)
     return ax
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=False):
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=False,extra=''):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -2982,7 +2982,6 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         boxplot (bool), if True, uses boxplot instead of pointplot. In general, very hard to read
     '''  
  
-    extra = ''
     if not sharey:
         extra = extra+'_untied'
     if include_zero_cells:
@@ -2992,6 +2991,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     if include_zero_cells:
         results_pivoted = results_pivoted.query('not passive').copy()       
     else:
+        extra = extra + '_no_zero_cells'
         results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
 
     # Convert dropouts to positive values
@@ -3029,8 +3029,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             join=True,
             ax=ax[index],
             legend=False,
+            estimator=np.median, ##DEBUG
         )
-
+        extra = extra+'_median' ##DEBUG
         ax[index].get_legend().remove()
         ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
         ax[index].set_title(feature,fontsize=18)

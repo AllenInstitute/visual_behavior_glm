@@ -3370,6 +3370,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
 
 def plot_fraction_summary_population(results_pivoted, run_params,sharey=True):
+    # compute coding fractions
     results_pivoted = results_pivoted.copy()
     results_pivoted['code_anything'] = results_pivoted['variance_explained_full'] > run_params['dropout_threshold'] 
     results_pivoted['code_images'] = results_pivoted['code_anything'] & (results_pivoted['all-images'] < 0)
@@ -3377,20 +3378,31 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True):
     results_pivoted['code_behavioral'] = results_pivoted['code_anything'] & (results_pivoted['behavioral'] < 0)
     results_pivoted['code_task'] = results_pivoted['code_anything'] & (results_pivoted['task'] < 0)
     summary_df = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_images','code_omissions','code_behavioral','code_task']].mean()
+    
+    # Compute Confidence intervals
+    summary_df['n'] = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_images','code_omissions','code_behavioral','code_task']].count()['code_anything']
+    summary_df['code_images_ci'] = 1.96*np.sqrt((summary_df['code_images']*(1-summary_df['code_images']))/summary_df['n'])
+    summary_df['code_omissions_ci'] = 1.96*np.sqrt((summary_df['code_omissions']*(1-summary_df['code_omissions']))/summary_df['n'])
+    summary_df['code_behavioral_ci'] = 1.96*np.sqrt((summary_df['code_behavioral']*(1-summary_df['code_behavioral']))/summary_df['n'])
+    summary_df['code_task_ci'] = 1.96*np.sqrt((summary_df['code_task']*(1-summary_df['code_task']))/summary_df['n'])
  
     # plotting variables
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     colors = project_colors()
 
-    coding_groups = ['code_anything','code_images','code_omissions','code_behavioral','code_task']
-    titles = ['Anything','Images','Omissions','Behavioral','Task']
+    coding_groups = ['code_images','code_omissions','code_behavioral','code_task']
+    titles = ['Images','Omissions','Behavioral','Task']
     # make combined across cre line plot
-    fig, ax = plt.subplots(1,len(coding_groups),figsize=(12,4), sharey=sharey)
+    fig, ax = plt.subplots(1,len(coding_groups),figsize=(10,4), sharey=sharey)
     for index, feature in enumerate(coding_groups):
         # plots three cre-lines in standard colors
-        ax[index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre'][feature],'o-',color=colors['Vip-IRES-Cre'],label='Vip Inhibitory')
-        ax[index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre'][feature],'o-',color=colors['Sst-IRES-Cre'],label='Sst Inhibitory')
-        ax[index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre'][feature],'o-',color=colors['Slc17a7-IRES2-Cre'],label='Excitatory')
+        ax[index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre'][feature],'-',color=colors['Vip-IRES-Cre'],label='Vip Inhibitory',linewidth=2)
+        ax[index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre'][feature],'-',color=colors['Sst-IRES-Cre'],label='Sst Inhibitory',linewidth=2)
+        ax[index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre'][feature],'-',color=colors['Slc17a7-IRES2-Cre'],label='Excitatory',linewidth=2)
+        
+        ax[index].errorbar([0,1,2], summary_df.loc['Vip-IRES-Cre'][feature],yerr=summary_df.loc['Vip-IRES-Cre'][feature+'_ci'],color=colors['Vip-IRES-Cre'])
+        ax[index].errorbar([0,1,2], summary_df.loc['Sst-IRES-Cre'][feature],yerr=summary_df.loc['Sst-IRES-Cre'][feature+'_ci'],color=colors['Sst-IRES-Cre'])
+        ax[index].errorbar([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre'][feature],yerr=summary_df.loc['Slc17a7-IRES2-Cre'][feature+'_ci'],color=colors['Slc17a7-IRES2-Cre'])
 
         ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
         ax[index].set_title(titles[index],fontsize=18)
@@ -3400,7 +3412,9 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True):
         ax[index].set_xticklabels(experience_levels, rotation=90)
         ax[index].tick_params(axis='x',labelsize=16)
         ax[index].tick_params(axis='y',labelsize=16)
-        if index ==4:
+        ax[index].set_xlim(-.5,2.5)
+        ax[index].set_ylim(bottom=0)
+        if index ==3:
             ax[index].legend()
     ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=18)
     plt.tight_layout()

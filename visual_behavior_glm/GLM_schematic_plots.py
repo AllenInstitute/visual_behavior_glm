@@ -22,7 +22,7 @@ def get_example_style():
         }
     return style
 
-def plot_glm_example(g,cell_specimen_id,run_params,times=[1780,1800]):
+def plot_glm_example(g,cell_specimen_id,run_params,times=[1789,1799]):
     #OLD:oeid = 775614751,celldex=1
     # oeid: 967008471
     # cell_specimen_id: 1086492467
@@ -102,8 +102,8 @@ def get_kernel_duration(kernel, run_params,force_int=False):
 def plot_glm_example_inputs(g,times,style,run_params, ax=None):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,6))
-        fig = plt.figure(figsize=(13,6))
-        h = [Size.Fixed(3.0),Size.Fixed(9.5)]
+        fig = plt.figure(figsize=(9,6))
+        h = [Size.Fixed(3.0),Size.Fixed(5.5)]
         v = [Size.Fixed(1.0),Size.Fixed(4.5)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
@@ -179,8 +179,8 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None):
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg')
 
 def plot_glm_example_components(g, cell_specimen_id, times, style):
-    fig = plt.figure(figsize=(12,4))
-    h = [Size.Fixed(2.0),Size.Fixed(9.5)]
+    fig = plt.figure(figsize=(8,4))
+    h = [Size.Fixed(2.0),Size.Fixed(5.5)]
     v = [Size.Fixed(.7),Size.Fixed(3.)]
     divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
     ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
@@ -225,8 +225,8 @@ def plot_glm_example_components(g, cell_specimen_id, times, style):
 def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax=None,model=None):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,3))
-        fig = plt.figure(figsize=(12,4))
-        h = [Size.Fixed(2.0),Size.Fixed(9.5)]
+        fig = plt.figure(figsize=(8,4))
+        h = [Size.Fixed(2.0),Size.Fixed(5.5)]
         v = [Size.Fixed(.7),Size.Fixed(3.)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))

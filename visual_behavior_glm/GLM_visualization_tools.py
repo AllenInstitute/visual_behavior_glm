@@ -3029,9 +3029,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             join=True,
             ax=ax[index],
             legend=False,
-            estimator=np.median, ##DEBUG
         )
-        extra = extra+'_median' ##DEBUG
         ax[index].get_legend().remove()
         ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
         ax[index].set_title(feature,fontsize=18)
@@ -3044,19 +3042,17 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     plt.tight_layout()
     plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg')  
     #plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.png')  
- 
+
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
         fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         matched_data = all_data.query('cell_specimen_id in @matched_cells') 
-
         stats = {}
         # Iterate dropouts and plot each by experience
         for index, feature in enumerate(dropouts_to_show):
             anova, tukey = test_significant_dropout_averages(all_data,feature)
             stats[feature]=(anova, tukey)
-
             # Plot all cells in active sessions
             if boxplot:
                 ax[index] = sns.boxplot(
@@ -3148,6 +3144,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         #plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.png')
 
 def test_significant_dropout_averages(data,feature):
+    data = data[~data[feature].isnull()].copy()
     anova = stats.f_oneway(
         data.query('experience_level == "Familiar"')[feature],  
         data.query('experience_level == "Novel >1"')[feature],  
@@ -3206,7 +3203,7 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
     if use_single:
         dropouts_to_show = [x if x=='' else 'single-'+x for x in dropouts_to_show]
  
-    data_to_plot = results.query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
+    data_to_plot = results.query('not passive').query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     if use_violin:
         plot1= sns.violinplot(
@@ -3306,7 +3303,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
     if ('post-omissions' in results.dropout.unique())&('omissions' in dropouts_to_show):
        dropouts_to_show = ['all-omissions' if x == 'omissions' else x for x in dropouts_to_show]
  
-    data_to_plot = results.query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
+    data_to_plot = results.query('not passive').query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     if use_violin:
         plot1= sns.violinplot(

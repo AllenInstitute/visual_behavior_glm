@@ -783,6 +783,7 @@ def build_dataframe_from_dropouts(fit,run_params):
         # infinities are not set to 0. This is just for debugging purposes.
         results[model_label+"__avg_cv_var_train"] = np.nanmean(fit['dropouts'][model_label]['cv_var_train'],1) 
         if compute_with_infs:
+            results[model_label+"__avg_cv_var_train_raw"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1)
             results[model_label+"__avg_cv_var_test_raw"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
             results[model_label+"__avg_cv_var_test_full_comparison_raw"] = np.mean(fit['dropouts']['Full']['cv_var_test'],1)       
  

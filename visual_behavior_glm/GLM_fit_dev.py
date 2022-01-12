@@ -204,6 +204,10 @@ if False: # Code snippets for doing analyses.
     gvt.plot_dropout_individual_population(results,run_params)
     gvt.plot_population_averages(results_pivoted, run_params,add_stats=True)
     gvt.plot_population_averages(results_pivoted, run_params,sharey=False)
+    gvt.plot_population_averages(results_pivoted, run_params,
+        dropouts_to_show=['behavioral','licks','running','pupil'],extra='_behavioral')
+    gvt.plot_population_averages(results_pivoted, run_params,
+        dropouts_to_show=['task','hits','misses','all-images'],extra='_task')
     gvt.plot_fraction_summary_population(results_pivoted, run_params)
 
     # Make over-fitting figures

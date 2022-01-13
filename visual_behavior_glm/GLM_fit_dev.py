@@ -202,6 +202,7 @@ if False: # Code snippets for doing analyses.
     # Make dropout summary figures
     gvt.plot_dropout_summary_population(results,run_params)
     gvt.plot_dropout_individual_population(results,run_params)
+    gvt.plot_dropout_individual_population(results,run_params,use_single=True)
     gvt.plot_population_averages(results_pivoted, run_params,add_stats=True)
     gvt.plot_population_averages(results_pivoted, run_params,sharey=False)
     gvt.plot_population_averages(results_pivoted, run_params,

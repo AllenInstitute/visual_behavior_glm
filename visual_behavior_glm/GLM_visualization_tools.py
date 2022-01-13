@@ -2460,7 +2460,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
     if save_results:
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
-        plt.savefig(filename_svg) 
+        plt.savefig(filename_svg)
 
 def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000]): 
     '''
@@ -3329,19 +3329,29 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
         'Vip-IRES-Cre':'Vip Inhibitory'
         }
     mylabels = [clean_labels[x] for x in labels]
-    ax.legend(h,mylabels,loc='upper right',fontsize=16)
-    ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=18)
-    ax.set_xlabel('Withheld component',fontsize=18)
-    ax.tick_params(axis='x',labelsize=16,rotation=90)
-    ax.tick_params(axis='y',labelsize=16)
+    ax.legend(h,mylabels,loc='upper right',fontsize=18)
+    ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=20)
+    if use_single:
+        ax.set_xlabel('Only component included',fontsize=20)
+        xticks = ax.get_xticks()
+        labels = ax.get_xticklabels()
+        labels = [x.get_text().replace('single-','') for x in labels]
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(labels)
+               
+    else:
+        ax.set_xlabel('Withheld component',fontsize=20)
+    ax.tick_params(axis='x',labelsize=18,rotation=90)
+    ax.tick_params(axis='y',labelsize=18)
     if add_title:
         plt.title(run_params['version'])
     if use_violin:
         plt.savefig(run_params['figure_dir']+'/dropout_individual.svg')
+    elif use_single:
+        plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot_single.svg')
     else:
         plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot.svg')
         plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot.png')
-
 
 
 def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False): 

@@ -553,7 +553,11 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
-def var_explained_by_experience(results_pivoted, run_params):
+def var_explained_by_experience(results_pivoted, run_params,threshold = 0):
+    
+    if threshold != 0:
+        results_pivoted = results_pivoted.query('variance_explained_full > @threshold').copy()
+
     colors = project_colors()
     mapper = {
         'Slc17a7-IRES2-Cre':'Excitatory',
@@ -579,8 +583,12 @@ def var_explained_by_experience(results_pivoted, run_params):
     plt.ylim(0,40)
     plt.tick_params(axis='both',labelsize=14)
     plt.tight_layout()
-    plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.svg')
-    plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.png')
+    if threshold !=0:
+        plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience_filtered.svg')
+        plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience_filtered.png')
+    else:
+        plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.svg')
+        plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.png')
 
 def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=True,zoom_xlim=True,sort_by_signal=True):
     '''

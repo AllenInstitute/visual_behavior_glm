@@ -199,6 +199,9 @@ if False: # Code snippets for doing analyses.
     # Make plot of kernel support
     gvt.plot_kernel_support(g)
 
+    # Make Variance Explained plot
+    gvt.var_explained_by_experience(results_pivoted, run_params)
+
     # Make dropout summary figures
     gvt.plot_dropout_summary_population(results,run_params)
     gvt.plot_dropout_individual_population(results,run_params)

@@ -552,6 +552,35 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
+def var_explained_by_experience(results_pivoted, run_params):
+    colors = project_colors()
+    mapper = {
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory'
+        }
+    results_pivoted['cell_type'] = [mapper[x] for x in results_pivoted['cre_line']]
+    results_pivoted['variance_explained_percent'] = results_pivoted['variance_explained_full']*100
+    plt.figure()
+    ax = sns.boxplot(
+        x='cell_type',
+        y='variance_explained_percent',
+        hue='experience_level',
+        data=results_pivoted,
+        hue_order=['Familiar','Novel 1','Novel >1'],
+        order=['Vip Inhibitory','Sst Inhibitory','Excitatory'],
+        palette=colors,
+        fliersize=0,
+        linewidth=1,
+    )
+    ax.set_ylabel('Variance Explained (%)',fontsize=18)
+    ax.set_xlabel('Cell Type',fontsize=18)
+    plt.ylim(0,40)
+    plt.tick_params(axis='both',labelsize=14)
+    plt.tight_layout()
+    plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.svg')
+    plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.png')
+
 def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=True,zoom_xlim=True,sort_by_signal=True):
     '''
     make a boxplot comparing variance explained for each version in the database

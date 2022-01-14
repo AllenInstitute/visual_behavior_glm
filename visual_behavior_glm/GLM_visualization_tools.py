@@ -277,10 +277,11 @@ def plot_kernel_support(glm,include_cont = True,plot_bands=True,plot_ticks=True,
                     print('error plotting - '+t)
 
     # Clean up the plot
-    plt.xlabel('Time (s)')
+    plt.xlabel('Time (s)',fontsize=18)
     plt.yticks(ticks,all_k)
+    plt.tick_params(axis='both',labelsize=16)
     plt.xlim(stim.iloc[0].start_time, stim.iloc[-1].start_time+.75)
-    plt.title(str(glm.session.metadata['ophys_experiment_id']) +' '+glm.session.metadata['equipment_name'])
+    #plt.title(str(glm.session.metadata['ophys_experiment_id']) +' '+glm.session.metadata['equipment_name'])
     plt.tight_layout()
     return
 
@@ -2574,26 +2575,29 @@ def plot_over_fitting(full_results, dropout,save_file=""):
     '''
     # Set Up Figure. Only two panels for the full model
     if dropout == "Full":
-        fig, ax = plt.subplots(1,2,figsize=(8,4))   
+        fig, ax = plt.subplots(1,2,figsize=(10,4))   
     else:
         fig, ax = plt.subplots(1,3,figsize=(12,4))
     
     # First panel, relationship between variance explained and overfitting proportion
-    ax[0].plot(full_results[dropout+'__avg_cv_var_test'], full_results[dropout+'__over_fit'],'ko',alpha=.1)
-    ax[0].set_xlim(0,1)
+    ax[0].plot(full_results[dropout+'__avg_cv_var_test']*100, full_results[dropout+'__over_fit'],'ko',alpha=.1)
+    ax[0].set_xlim(0,100)
     ax[0].set_ylim(0,1)
     ax[0].set_ylabel('Overfitting Proportion: '+dropout)
     ax[0].set_xlabel('Test Variance Explained')
-    
+
+    if dropout == "Full":
+        full_results = full_results.query('(Full__over_fit < 1) and (Full__over_fit >=0)').copy()    
+
     # Second panel, histogram of overfitting proportion, with mean/median marked
-    hist_output = ax[1].hist(full_results[dropout+'__over_fit'],100)
+    hist_output = ax[1].hist(full_results[dropout+'__over_fit'],50,density=True)
     ax[1].set_xlim(0,1)
     ax[1].set_ylim(0,1.25*np.max(hist_output[0][:-1]))
-    ax[1].plot(np.mean(full_results[dropout+'__over_fit']), 1.1*np.max(hist_output[0][:-1]),'rv',markerfacecolor='none',label='Mean All Cells')
-    ax[1].plot(np.mean(full_results[dropout+'__over_fit'][full_results[dropout+'__over_fit']<1]), 1.1*np.max(hist_output[0][:-1]),'rv',label='Mean Exclude overfit=1 cells')
-    ax[1].plot(np.median(full_results[dropout+'__over_fit']), 1.1*np.max(hist_output[0][:-1]),'bv',markerfacecolor='none',label='Median All Cells')
-    ax[1].plot(np.median(full_results[dropout+'__over_fit'][full_results[dropout+'__over_fit']<1]), 1.1*np.max(hist_output[0][:-1]),'bv',label='Median Exclude overfit=1 cells')
-    ax[1].set_ylabel('Count')
+    ax[1].plot(np.mean(full_results[dropout+'__over_fit']), 1.1*np.max(hist_output[0][:-1]),'rv',label='Mean')
+    #ax[1].plot(np.mean(full_results[dropout+'__over_fit'][full_results[dropout+'__over_fit']<1]), 1.1*np.max(hist_output[0][:-1]),'rv',label='Mean Exclude overfit=1 cells')
+    #ax[1].plot(np.median(full_results[dropout+'__over_fit']), 1.1*np.max(hist_output[0][:-1]),'bv',markerfacecolor='none',label='Median All Cells')
+    #ax[1].plot(np.median(full_results[dropout+'__over_fit'][full_results[dropout+'__over_fit']<1]), 1.1*np.max(hist_output[0][:-1]),'bv',label='Median Exclude overfit=1 cells')
+    ax[1].set_ylabel('Density')
     ax[1].set_xlabel('Overfitting Proportion: '+dropout)
     ax[1].legend(loc='lower right')
     
@@ -2602,12 +2606,24 @@ def plot_over_fitting(full_results, dropout,save_file=""):
         ax[2].hist(full_results[dropout+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1)),100)
         ax[2].axvline(full_results[dropout+'__dropout_overfit_proportion'].where(lambda x: (x<1)&(x>-1)).median(),color='r',linestyle='--')
         ax[2].set_xlim(-1,1)
+    else:
+        ax[0].tick_params(axis='both',labelsize=16)
+        ax[0].set_ylabel('Overfitting Proportion',fontsize=18)
+        ax[0].set_xlabel('Variance Explained (%)',fontsize=18)
+        ax[1].tick_params(axis='both',labelsize=16)
+        ax[1].set_xlabel('Overfitting Proportion',fontsize=18)
+        ax[1].set_ylabel('Density',fontsize=18)
 
     # Clean up and save
     plt.tight_layout()
     if save_file !="":
         save_file = os.path.join(save_file, dropout+'.png')
+        print(save_file)
         plt.savefig(save_file)
+
+def plot_over_fitting_full_model(full_results, run_params):
+    savefile = run_params['fig_overfitting_dir']
+    plot_over_fitting(full_results, 'Full',save_file=savefile)
 
 def plot_over_fitting_summary(full_results, run_params, plot_dropouts=True):
     '''

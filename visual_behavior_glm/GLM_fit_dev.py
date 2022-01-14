@@ -197,7 +197,7 @@ if False: # Code snippets for doing analyses.
     gsm.plot_glm_example(g,cell_specimen_id, run_params)
 
     # Make plot of kernel support
-    gvt.plot_kernel_support(g)
+    gvt.plot_kernel_support(g,start=45144,end=45757)
 
     # Make Variance Explained plot
     gvt.var_explained_by_experience(results_pivoted, run_params)
@@ -218,6 +218,7 @@ if False: # Code snippets for doing analyses.
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 
     gat.compute_over_fitting_proportion(full_results, run_params) 
+    gvt.plot_over_fitting_full_model(full_results, run_params)
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
 

@@ -201,6 +201,7 @@ if False: # Code snippets for doing analyses.
 
     # Make Variance Explained plot
     gvt.var_explained_by_experience(results_pivoted, run_params)
+    r2 = gcm.compute_event_metrics(results_pivoted, run_params)
 
     # Make dropout summary figures
     gvt.plot_dropout_summary_population(results,run_params)

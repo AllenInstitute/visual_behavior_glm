@@ -3102,7 +3102,7 @@ def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_
                 ax[index].set_title(feature,fontsize=12)
     return ax
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=False,extra=''):
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=False,extra='',strict_experience_matching=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -3137,6 +3137,15 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     cells_table = cells_table.query('not passive').copy()
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     matched_cells = cells_table.cell_specimen_id.unique()
+    
+    # Strictly matched cells in the last familiar, and second novel session
+    if strict_experience_matching:
+        cells_table = loading.get_cell_table(platform_paper_only=True)
+        cells_table = cells_table.query('not passive').copy()
+        cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
+        cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
+        strict_matched_cells = cells_table.cell_specimen_id.unique()
+        extra = extra + "_strict_matched"
 
     # plotting variables
     cell_types = results_pivoted.cell_type.unique()
@@ -3176,7 +3185,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     for cell_type in cell_types:
         fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
-        matched_data = all_data.query('cell_specimen_id in @matched_cells') 
+        matched_data = all_data.query('cell_specimen_id in @matched_cells')
+        if strict_experience_matching:
+            strict_matched_data = all_data.query('cell_specimen_id in @strict_matched_cells') 
         stats = {}
         # Iterate dropouts and plot each by experience
         for index, feature in enumerate(dropouts_to_show):
@@ -3222,7 +3233,21 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                 join=True,
                 ax=ax[index],
             )
-            ax[index].get_legend().remove() 
+
+            if strict_experience_matching:
+                # Plot cells in matched active sessions
+                ax[index] = sns.pointplot(
+                    data = strict_matched_data,
+                    x = 'experience_level',
+                    y=feature,
+                    order=experience_levels,
+                    color='navajowhite',
+                    join=True,
+                    ax=ax[index],
+                )
+            
+            if index !=3:
+                ax[index].get_legend().remove() 
             #ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
             ax[index].set_title(feature,fontsize=18)
             ax[index].set_ylabel('')

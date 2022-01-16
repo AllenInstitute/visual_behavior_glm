@@ -11,6 +11,38 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_visualization_tools as gvt
 
+def change_breakdown_schematic(run_params):
+    plt.figure(figsize=(2.5,1.5))
+    ax = plt.gca()
+    style = get_example_style()
+    plt.axvspan(0,0.25, color=gvt.project_colors()['schematic_change'],alpha=.5)
+    times = np.arange(0.75, run_params['kernels']['hits']['length'],.75)
+    for t in times:
+        plt.axvspan(t,t+0.25, color='k',alpha=.1)
+    ax.set_xlabel('Time (s)',fontsize=style['fs1'])
+    ax.set_xticks([0,.75,2.25])
+    ax.set_xticklabels(['0','.75','2.25'])
+    ax.tick_params(axis='x',labelsize=style['fs2'])
+    ax.set_yticks([])
+    plt.tight_layout()
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/change_breakdown_schematic.svg')
+
+def omission_breakdown_schematic(run_params):
+    plt.figure(figsize=(2.5,1.5))
+    ax = plt.gca()
+    style = get_example_style()
+    plt.axvline(0, linestyle='--', linewidth=1.5, color=gvt.project_colors()['schematic_omission'])
+    times = np.arange(0.75, run_params['kernels']['omissions']['length'],.75)
+    for t in times:
+        plt.axvspan(t,t+0.25, color='k',alpha=.1)
+    ax.set_xlabel('Time (s)',fontsize=style['fs1'])
+    ax.set_xticks([0,.75,3])
+    ax.set_xticklabels(['0','.75','3'])
+    ax.tick_params(axis='x',labelsize=style['fs2'])
+    ax.set_yticks([])
+    plt.tight_layout()
+    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/omission_breakdown_schematic.svg')
+
 def get_example_style():
     style={
         'fs1':18,

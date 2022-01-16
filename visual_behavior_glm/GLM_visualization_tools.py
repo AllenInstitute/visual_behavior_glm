@@ -1994,10 +1994,10 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     session_title = '_'.join(session_filter)
     plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
-    ax.axvline(0, color='k',linestyle='--',alpha=0.25)
+    #ax.axvline(0, color='k',linestyle='--',alpha=0.25)
     ax.set_ylabel('Kernel Weights',fontsize=fs2)      
     ax.set_xlabel('Time (s)',fontsize=fs1)
-    ax.set_xlim(time_vec[0],time_vec[-1])   
+    ax.set_xlim(time_vec[0]-0.05,time_vec[-1])   
     add_stimulus_bars(ax,kernel,alpha=.1)
     plt.tick_params(axis='both',labelsize=fs2)
     if show_legend:
@@ -2210,12 +2210,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
     ax[0,0].plot(time_vec, vip.mean(axis=0),label='VIP (n='+str(n_vip)+')',color=colors['vip'],linewidth=2)
     ax[0,0].plot(time_vec, slc.mean(axis=0),label='SLC (n='+str(n_slc)+')',color=colors['slc'],linewidth=2)
     ax[0,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
-    ax[0,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+    #ax[0,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[0,0].set_ylabel('Weights (df/f)')
     ax[0,0].set_xlabel('Time (s)')
     ax[0,0].legend()
     ax[0,0].set_title('Average kernel')
-    ax[0,0].set_xlim(time_vec[0],time_vec[-1])   
+    ax[0,0].set_xlim(time_vec[0]-0.05,time_vec[-1])   
     add_stimulus_bars(ax[0,0],kernel)
     sst = sst.T
     vip = vip.T
@@ -2251,12 +2251,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
     ax[1,0].plot(time_vec, vip_f.mean(axis=0),label='VIP (n='+str(n_vip)+')',color=colors['vip'],linewidth=2)
     ax[1,0].plot(time_vec, slc_f.mean(axis=0),label='SLC (n='+str(n_slc)+')',color=colors['slc'],linewidth=2)
     ax[1,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
-    ax[1,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+    #ax[1,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
     ax[1,0].set_ylabel('Weights (df/f)')
     ax[1,0].set_xlabel('Time (s)')
     ax[1,0].legend()
     ax[1,0].set_title('Filtered on Full Model VE > '+str(threshold))
-    ax[1,0].set_xlim(time_vec[0],time_vec[-1])   
+    ax[1,0].set_xlim(time_vec[0]-0.05,time_vec[-1])   
     add_stimulus_bars(ax[1,0],kernel)
     sst_f = sst_f.T
     vip_f = vip_f.T
@@ -2295,12 +2295,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         ax[2,0].plot(time_vec, vip_df.mean(axis=0),label='VIP (n='+str(n_vip)+')',color=colors['vip'],linewidth=2)
         ax[2,0].plot(time_vec, slc_df.mean(axis=0),label='SLC (n='+str(n_slc)+')',color=colors['slc'],linewidth=2)
         ax[2,0].axhline(0, color='k',linestyle='--',alpha=line_alpha)
-        ax[2,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
+        #ax[2,0].axvline(0, color='k',linestyle='--',alpha=line_alpha)
         ax[2,0].set_ylabel('Weights (df/f)')
         ax[2,0].set_xlabel('Time (s)')
         ax[2,0].legend()
         ax[2,0].set_title('Filtered on Dropout Score < '+str(drop_threshold))
-        ax[2,0].set_xlim(time_vec[0],time_vec[-1])   
+        ax[2,0].set_xlim(time_vec[0]-.05,time_vec[-1])   
         add_stimulus_bars(ax[2,0],kernel)
         sst_df = sst_df.T
         vip_df = vip_df.T
@@ -2558,17 +2558,18 @@ def add_stimulus_bars(ax, kernel,alpha=0.1):
         if kernel == 'omissions':
             # For omissions, remove omitted stimuli
             times.remove(0.0)
+            ax.axvline(0, color=project_colors()['schematic_omission'], linewidth=1.5,zorder=-np.inf,linestyle='--')
         if kernel in ['change','hits','misses','false_alarms']:
             # For change aligned kernels, plot the two stimuli different colors
             for flash_start in times:
-                if flash_start < 0:
-                    ax.axvspan(flash_start,flash_start+0.25,color='green',alpha=alpha,zorder=-np.inf)                   
+                if flash_start == 0:
+                    ax.axvspan(flash_start,flash_start+0.25,color=project_colors()['schematic_change'],alpha=0.2,zorder=-np.inf)                   
                 else:
-                    ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=alpha,zorder=-np.inf)                   
+                    ax.axvspan(flash_start,flash_start+0.25,color='k',alpha=alpha,zorder=-np.inf)                   
         else:
             # Normal case, just plot all the same color
             for flash_start in times:
-                ax.axvspan(flash_start,flash_start+0.25,color='blue',alpha=alpha,zorder=-np.inf)
+                ax.axvspan(flash_start,flash_start+0.25,color='k',alpha=alpha,zorder=-np.inf)
          
 def plot_over_fitting(full_results, dropout,save_file=""):
     ''' 

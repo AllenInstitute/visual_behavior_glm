@@ -22,7 +22,7 @@ def get_example_style():
         }
     return style
 
-def plot_glm_example(g,cell_specimen_id,run_params,times=[1789,1799]):
+def plot_glm_example(g,cell_specimen_id,run_params,times=[1789,1799],add_stimulus=True):
     #OLD:oeid = 775614751,celldex=1
     # oeid: 967008471
     # cell_specimen_id: 1086492467
@@ -37,7 +37,7 @@ def plot_glm_example(g,cell_specimen_id,run_params,times=[1789,1799]):
     plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events,model='all-images')
     plot_glm_example_dropouts(g,cell_specimen_id,style)
     #ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,times,style)
-    plot_glm_example_inputs(g,times,style,run_params)
+    plot_glm_example_inputs(g,times,style,run_params,add_stimulus=add_stimulus)
     #plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df)
     ##gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
     ##gvt.plot_kernel_support(g,plot_bands=True,start=index_times[0],end=index_times[1])
@@ -99,7 +99,7 @@ def get_kernel_duration(kernel, run_params,force_int=False):
     d = d1+d2
     return d.rjust(15) 
 
-def plot_glm_example_inputs(g,times,style,run_params, ax=None):
+def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,6))
         fig = plt.figure(figsize=(9,6))
@@ -112,24 +112,34 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None):
 
     # plot stimulus and change bars
     stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1]')
+    non_change_stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not is_change')
     top =100
     ticklabels={}
     for index, image in enumerate(range(0,9)):
         image_times = stim.query('image_index == @index')['start_time'].values
+        nc_image_times = non_change_stim.query('image_index == @index')['start_time'].values
 
         ecolor ='k'
         if index == 8:
             ticklabels[top-index]='Omission' + get_kernel_duration('omissions',run_params)
-            fcolor='None'
+            fcolor='k'
+            if add_stimulus:
+                for t in image_times:
+                    ax.axvline(t, color=gvt.project_colors()['schematic_omission'], linestyle='--', linewidth=1.5,zorder=-np.inf)
         else:
             ticklabels[top-index]='Image '+str(image) + get_kernel_duration('image'+str(index),run_params,force_int=False)
             image_name = 'image'+str(image)
             fcolor ='k'#palette_df.query('kernel_name == @image_name')['kernel_color'].values[0]
+            if add_stimulus:
+                for t in nc_image_times:
+                    ax.axvspan(t,t+.25,color='k', alpha=.1)
         if len(image_times) > 0:
-            #ax.plot(image_times, np.ones(np.shape(image_times))*(top-index),'|',markersize=20)
+            #ax.plot(image_times, np.ones(np.shape(image_times))*(top-index),'k|',markersize=20)
             for t in image_times:
-                rect =patches.Rectangle((t,top-index-.5),0.25,1,edgecolor=ecolor,facecolor=fcolor,alpha=.3)
+                #rect =patches.Rectangle((t,top-index-.5),0.25,1,edgecolor=ecolor,facecolor=fcolor,alpha=.3)
+                rect =patches.Rectangle((t,top-index-.5),0.025,1,edgecolor=ecolor,facecolor=fcolor,alpha=1,zorder=np.inf)
                 ax.add_patch(rect)
+
 
     # Running Data
     run = g.session.running_speed.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
@@ -148,17 +158,27 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None):
 
     # licking
     licks = g.session.licks.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
-    ax.plot(licks.timestamps, np.ones((len(licks),))*(top-13),'k|',markersize=20)
+    #ax.plot(licks.timestamps, np.ones((len(licks),))*(top-13),'k|',markersize=20)
+    for t in licks.timestamps:
+        rect =patches.Rectangle((t,top-13-.5),0.025,1,edgecolor='k',facecolor='k',alpha=1,zorder=np.inf)
+        ax.add_patch(rect)
     ticklabels[top-13]='Licking'+ get_kernel_duration('licks',run_params)
 
     # Trials
     trials = g.session.trials.query('(change_time >= @times[0])&(change_time <=@times[1])').copy()
     hits = trials.query('hit')
-    ax.plot(hits.reward_time, np.ones((len(hits),))*(top-14),'r|',markersize=20)
+    #ax.plot(hits.change_time, np.ones((len(hits),))*(top-14),'k|',markersize=20)
+    for t in hits.change_time:
+        #ax.plot([t,t], [top-13.5, top-14.5], color='k',linewidth=2)
+        rect =patches.Rectangle((t,top-14-.5),0.025,1,edgecolor='k',facecolor='k',alpha=1,zorder=np.inf)
+        ax.add_patch(rect)
     ticklabels[top-14]='Hit'+ get_kernel_duration('hits',run_params)
+    if add_stimulus:
+        for t in hits.change_time.values:
+            ax.axvspan(t,t+0.25, color=gvt.project_colors()['schematic_change'], alpha=.5,zorder=-np.inf)
 
     miss = trials.query('miss')
-    ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'r|',markersize=20)
+    ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'k|',markersize=20)
     ticklabels[top-15]='Miss'+ get_kernel_duration('misses',run_params)
 
     #fa = trials.query('false_alarm')
@@ -177,6 +197,8 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None):
     ax.set_ylim(top-15.5,top+.5)
     #plt.tight_layout()
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg')
+    if add_stimulus:
+        plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs_add_stimulus.svg')
 
 def plot_glm_example_components(g, cell_specimen_id, times, style):
     fig = plt.figure(figsize=(8,4))
@@ -197,7 +219,7 @@ def plot_glm_example_components(g, cell_specimen_id, times, style):
         plt.axvspan(time, time+0.25, color='k',alpha=.1)
     change = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & is_change')
     for index, time in enumerate(change['start_time'].values):
-        plt.axvspan(time, time+0.25, color='b',alpha=.2)
+        plt.axvspan(time, time+0.25, color=gvt.project_colors()['schematic_change'],alpha=.5,edgecolor=None)
 
     # Plot contributions from each kernel
     kernel_df = gat.build_kernel_df(g,cell_specimen_id) 
@@ -235,12 +257,15 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     celldex = np.where(g.fit['fit_trace_arr'].cell_specimen_id.values == cell_specimen_id)[0][0]
 
     # plot stimulus and change bars
-    stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not omitted')
+    stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not omitted & not is_change')
     for index, time in enumerate(stim['start_time'].values):
         plt.axvspan(time, time+0.25, color='k',alpha=.1)
     change = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & is_change')
     for index, time in enumerate(change['start_time'].values):
-        plt.axvspan(time, time+0.25, color='b',alpha=.2)
+        plt.axvspan(time, time+0.25, color=gvt.project_colors()['schematic_change'],alpha=.5,edgecolor=None)
+    omission = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & omitted')
+    for index, time in enumerate(omission['start_time'].values):
+        plt.axvline(time, color=gvt.project_colors()['schematic_omission'],linewidth=1.5,linestyle='--')
 
     # Plot Filtered event trace
     if include_events:
@@ -279,6 +304,7 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     #plt.tight_layout()
     if model is not None:
         plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace_'+model+'.svg')
+        plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace_'+model+'.png')
     else:
         plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg')
     return

@@ -121,7 +121,9 @@ def project_colors():
         'image7':color_interpolate(tab20(1), tab20(3),8,7),
         'omissions':color_interpolate(tab20(1), tab20(3),8,8),
         'Mesoscope':'c',
-        'Scientifica':'y'
+        'Scientifica':'y',
+        'schematic_change': sns.color_palette()[0],
+        'schematic_omission':sns.color_palette()[-1]
         } 
     return colors
 
@@ -203,10 +205,10 @@ def plot_kernel_support(glm,include_cont = True,plot_bands=True,plot_ticks=True,
         reward_dex = 0
     if plot_ticks:
         rewards =glm.session.rewards.query('timestamps < @end_t & timestamps > @start_t')['timestamps']
-        plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'ro')
+        #plt.plot(rewards, reward_dex*np.ones(np.shape(rewards)),'ro')
     
     # Stimulus Presentations
-    stim = glm.session.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & not omitted')
+    stim = glm.session.stimulus_presentations.query('start_time > @start_t & start_time < @end_t & not omitted & not is_change')
     for index, time in enumerate(stim['start_time'].values):
         plt.axvspan(time, time+0.25, color='k',alpha=.1)
     if plot_ticks:
@@ -222,7 +224,7 @@ def plot_kernel_support(glm,include_cont = True,plot_bands=True,plot_ticks=True,
             change_dex = stim_points['change'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['change']['offset'])*frame_rate)
             plt.plot(change['start_time'], change_dex*np.ones(np.shape(change['start_time'])),'k|')
     for index, time in enumerate(change['start_time'].values):
-        plt.axvspan(time, time+0.25, color='b',alpha=.2)
+        plt.axvspan(time, time+0.25, color=project_colors()['schematic_change'],alpha=.5,edgecolor=None)
 
     # Stimulus Omissions
     if plot_ticks:
@@ -230,6 +232,8 @@ def plot_kernel_support(glm,include_cont = True,plot_bands=True,plot_ticks=True,
             omitted = glm.session.stimulus_presentations.query('start_time >@start_t & start_time < @end_t & omitted')['start_time']
             omitted_dex = stim_points['omissions'][0] + dt*np.ceil(np.abs(glm.run_params['kernels']['omissions']['offset'])*frame_rate)
             plt.plot(omitted, omitted_dex*np.ones(np.shape(omitted)),'k|')
+            for index, time in enumerate(omitted):
+                plt.axvline(time, color=project_colors()['schematic_omission'], linestyle='--',zorder=-np.inf, linewidth=1.5)
 
     # Image Expectation
     if plot_ticks & ('image_expectation' in glm.run_params['kernels']):

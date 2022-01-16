@@ -303,7 +303,7 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     if include_events:
         ax.plot(g.fit['fit_trace_timestamps'][time_vec], 
             g.fit['events_trace_arr'][time_vec,celldex],
-            style['events'],label='Smoothed events',
+            style['events'],label='neural activity',
             linewidth=style['trace_linewidth'],
             color='gray')
     else:
@@ -316,13 +316,14 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     # Plot Model
     ax.plot(g.fit['fit_trace_timestamps'][time_vec],
         g.fit['dropouts']['Full']['full_model_train_prediction'][time_vec,celldex],
-        style['model'],label='Full model',linewidth=style['trace_linewidth'],
+        style['model'],label='full model',linewidth=style['trace_linewidth'],
         color='lightcoral')
 
     if model is not None:
+        dropout = np.round(g.results.loc[cell_specimen_id]['all-images__dropout']*-1,3)*100
         ax.plot(g.fit['fit_trace_timestamps'][time_vec],
             g.fit['dropouts'][model]['full_model_train_prediction'][time_vec,celldex],
-            '--',label='Without image kernels',linewidth=style['trace_linewidth'],
+            '--',label='without image kernels\n'+str(dropout)+'% reduction in VE',linewidth=style['trace_linewidth'],
             color='cornflowerblue')
 
     # Clean up plot

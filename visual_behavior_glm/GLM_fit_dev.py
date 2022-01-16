@@ -192,7 +192,7 @@ if False: # Code snippets for doing analyses.
 
     # Make the platform paper schematic examples
     oeid = 967008471
-    cell_specimen_id = 1086492467
+    cell_specimen_id = 1086492467 #celldex18
     g=glm.GLM(oeid, version, use_previous_fit=True, log_results=False, log_weights=False)
     gsm.plot_glm_example(g,cell_specimen_id, run_params)
     gsm.omission_breakdown_schematic(run_params)

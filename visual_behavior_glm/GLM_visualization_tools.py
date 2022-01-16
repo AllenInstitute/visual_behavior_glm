@@ -1950,7 +1950,17 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
 
     # Plotting settings
     if ax is None:
-        fig,ax=plt.subplots(figsize=(8,4))
+        #fig,ax=plt.subplots(figsize=(8,4))
+        height = 4
+        width=8
+        pre_horz_offset = 1.5
+        post_horz_offset = 2.5
+        vertical_offset = .75
+        fig = plt.figure(figsize=(width,height))
+        h = [Size.Fixed(pre_horz_offset),Size.Fixed(width-pre_horz_offset-post_horz_offset)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
     
     # Define color scheme for project
     colors = project_colors()
@@ -1992,11 +2002,18 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
 
     # Clean Plot, and add details
     session_title = '_'.join(session_filter)
-    plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
+    #plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
+    plt.title(kernel+', '+session_title,fontsize=fs1)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     #ax.axvline(0, color='k',linestyle='--',alpha=0.25)
     ax.set_ylabel('Kernel Weights',fontsize=fs2)      
-    ax.set_xlabel('Time (s)',fontsize=fs1)
+    if kernel == 'omissions':
+        ax.set_xlabel('Time from omission (s)',fontsize=fs1)
+    elif kernel in ['hits','misses']:
+        ax.set_xlabel('Time from image change (s)',fontsize=fs1)
+    else:
+        ax.set_xlabel('Time (s)',fontsize=fs1)
+
     ax.set_xlim(time_vec[0]-0.05,time_vec[-1])   
     add_stimulus_bars(ax,kernel,alpha=.1)
     plt.tick_params(axis='both',labelsize=fs2)
@@ -2004,7 +2021,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         ax.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
  
     ## Final Clean up and Save
-    plt.tight_layout()
+    #plt.tight_layout()
     if save_results:
         print('Figure Saved to: '+filename)
         plt.savefig(filename)
@@ -2381,12 +2398,23 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         color_bar=fig.colorbar(cbar, ax=ax[0,2])
         color_bar.ax.set_ylabel('Weights')   
         ax[0,2].set_ylabel('{0} Cells\n sorted by dropout'.format(np.shape(weights_sorted)[1]))
-        ax[0,2].set_xlabel('Time (s)')
+        if kernel == 'omissions':
+            ax[0,2].set_xlabel('Time from omission (s)')  
+        elif kernel in ['hits','misses']:
+            ax[0,2].set_xlabel('Time from image change (s)')          
+        else:
+            ax[0,2].set_xlabel('Time (s)')
         ax[0,2].axhline(np.shape(vip)[1],color='k',linewidth='1')
         ax[0,2].axhline(np.shape(vip)[1] + np.shape(sst)[1],color='k',linewidth='1')
         ax[0,2].set_yticks([np.shape(vip)[1]/2,np.shape(vip)[1]+np.shape(sst)[1]/2, np.shape(vip)[1]+np.shape(sst)[1]+np.shape(slc)[1]/2])
         ax[0,2].set_yticklabels(['Vip','Sst','Exc'])
         ax[0,2].set_title(kernel)
+        ncells={
+            'vip':np.shape(vip)[1],
+            'sst':np.shape(sst)[1],
+            'exc':np.shape(slc)[1],
+            }
+        plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells)
     else:
     
         # All Cells
@@ -2424,12 +2452,23 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         color_bar = fig.colorbar(cbar, ax=ax[1,2])
         color_bar.ax.set_ylabel('Weights')   
         ax[1,2].set_ylabel('{0} Cells\n sorted by dropout'.format(np.shape(weights_sorted_f)[1]))
-        ax[1,2].set_xlabel('Time (s)')
+        if kernel == 'omissions':
+            ax[1,2].set_xlabel('Time from omission (s)')  
+        elif kernel in ['hits','misses']:
+            ax[1,2].set_xlabel('Time from image change (s)')          
+        else:
+            ax[1,2].set_xlabel('Time (s)')
         ax[1,2].axhline(np.shape(vip_f)[1],color='k',linewidth='1')
         ax[1,2].axhline(np.shape(vip_f)[1] + np.shape(sst_f)[1],color='k',linewidth='1')
         ax[1,2].set_yticks([np.shape(vip_f)[1]/2,np.shape(vip_f)[1]+np.shape(sst_f)[1]/2, np.shape(vip_f)[1]+np.shape(sst_f)[1]+np.shape(slc_f)[1]/2])
         ax[1,2].set_yticklabels(['Vip','Sst','Exc'])
         ax[1,2].set_title('Filtered on Full Model')
+        ncells={
+            'vip':np.shape(vip_f)[1],
+            'sst':np.shape(sst_f)[1],
+            'exc':np.shape(slc_f)[1],
+            }
+        plot_kernel_heatmap(weights_sorted_f,time_vec, kernel, run_params,ncells,extra='full_model')
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2465,12 +2504,23 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         color_bar = fig.colorbar(cbar, ax=ax[2,2])
         color_bar.ax.set_ylabel('Weights')   
         ax[2,2].set_ylabel('{0} Cells\n sorted by dropout'.format(np.shape(weights_sorted_df)[1]))
-        ax[2,2].set_xlabel('Time (s)')
+        if kernel == 'omissions':
+            ax[2,2].set_xlabel('Time from omission (s)')  
+        elif kernel in ['hits','misses']:
+            ax[2,2].set_xlabel('Time from image change (s)')          
+        else:
+            ax[2,2].set_xlabel('Time (s)')
         ax[2,2].axhline(np.shape(vip_df)[1],color='k',linewidth='1')
         ax[2,2].axhline(np.shape(vip_df)[1] + np.shape(sst_df)[1],color='k',linewidth='1')
         ax[2,2].set_yticks([np.shape(vip_df)[1]/2,np.shape(vip_df)[1]+np.shape(sst_df)[1]/2, np.shape(vip_df)[1]+np.shape(sst_df)[1]+np.shape(slc_df)[1]/2])
         ax[2,2].set_yticklabels(['Vip','Sst','Exc'])
         ax[2,2].set_title('Filtered on Dropout')
+        ncells={
+            'vip':np.shape(vip_df)[1],
+            'sst':np.shape(sst_df)[1],
+            'exc':np.shape(slc_df)[1],
+            }
+        plot_kernel_heatmap(weights_sorted_df,time_vec, kernel, run_params,ncells,extra='dropout')
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2498,6 +2548,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
 
     
     ## Final Clean up and Save
+    plt.figure(fig.number)
     plt.tight_layout()
     if save_results:
         print('Figure Saved to: '+filename)
@@ -2545,6 +2596,52 @@ def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,session_filt
 
     for k in crashed:
         print('Crashed - '+k) 
+
+def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {},ax=None,extra=''):
+    if ax==None:
+        #fig,ax = plt.subplots(figsize=(8,4))
+        height = 4
+        width=8
+        pre_horz_offset = 1.5
+        post_horz_offset = 2.5
+        vertical_offset = .75
+        fig = plt.figure(figsize=(width,height))
+        h = [Size.Fixed(pre_horz_offset),Size.Fixed(width-pre_horz_offset-post_horz_offset)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1)) 
+        h = [Size.Fixed(width-post_horz_offset+.25),Size.Fixed(.25)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        cax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+
+    cbar = ax.imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='bwr')
+    cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95))
+    color_bar=fig.colorbar(cbar, cax=cax)
+    color_bar.ax.set_ylabel('Weight',fontsize=16)  
+    color_bar.ax.tick_params(axis='both',labelsize=16)
+    ax.set_ylabel('{0} cells'.format(np.shape(weights_sorted)[1]),fontsize=18) 
+    if kernel == 'omissions':
+        ax.set_xlabel('Time from omission (s)',fontsize=18)  
+    elif kernel in ['hits','misses']:
+        ax.set_xlabel('Time from image change (s)',fontsize=18)          
+    else:
+        ax.set_xlabel('Time (s)',fontsize=18)
+
+    ax.axhline(ncells['vip'],color='k',linewidth='1')
+    ax.axhline(ncells['vip']+ncells['sst'],color='k',linewidth='1')
+    ax.set_yticks([ncells['vip']/2,ncells['vip']+ncells['sst']/2,ncells['vip']+ncells['sst']+ncells['exc']/2])
+    ax.set_yticklabels(['Vip','Sst','Exc'])
+    ax.tick_params(axis='both',labelsize=16)
+    if extra == '':
+        title = kernel +', all cells'
+    elif extra == 'dropout':
+        title = kernel +', coding cells'
+    else:
+        title = kernel
+    ax.set_title(title,fontsize=18)
+    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_'+extra+'.svg')
+    plt.savefig(filename)
+    #plt.tight_layout()
 
 def add_stimulus_bars(ax, kernel,alpha=0.1):
     '''

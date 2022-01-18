@@ -337,19 +337,7 @@ def dev_ignore():
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[4])
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
 
-def add_binned_depth(df):
-    df['binned_depth'] = [bin_depth(x) for x in df['imaging_depth']]
-
-def bin_depth(x):
-    if x < 100:
-        return 75
-    elif x< 200:
-        return 175
-    elif x<300:
-        return 275
-    else:
-        return 375
-    
+   
 
 
 

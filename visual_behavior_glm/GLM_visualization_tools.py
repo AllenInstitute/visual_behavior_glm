@@ -4631,4 +4631,78 @@ def compare_L2_values(results,run_params):
 
     plt.tight_layout()
 
+def depth_heatmap(weights_df, run_params,metric='omission_responsive',just_coding=False,just_mesoscope=False):
+    if just_mesoscope:
+        df = weights_df.query('equipment_name == "MESO.1"').query('experience_level == "Familiar"').copy()    
+    else:
+        df = weights_df.query('experience_level in ["Familiar"]').copy() 
+    
+    df['binned_depth'] = [bin_depth(x) for x in df['imaging_depth']]       
+    df['change_responsive'] = df['misses'] < 0
+    df['omissions_index'] = [np.argmax(x) for x in df['omissions_weights']]
+    df['omission_responsive'] = df['omissions_index'] <=24
+    df['omission_coding'] = df['omissions'] < 0 
+
+    if just_coding:
+        fraction = df.query('omissions < 0').groupby(['cre_line','targeted_structure','binned_depth'])[metric].mean()   
+        fraction['n'] = df.query('omissions < 0').groupby(['cre_line','targeted_structure','binned_depth'])[metric].count()
+    else:
+        fraction = df.groupby(['cre_line','targeted_structure','binned_depth'])[[metric]].mean()
+        fraction['n'] = df.groupby(['cre_line','targeted_structure','binned_depth'])[metric].count()
+    fraction[metric+'_ci'] = 1.96*np.sqrt((fraction[metric]*(1-fraction[metric]))/fraction['n'])
+
+    cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre'] 
+    mapper = {
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory'
+        }
+
+    fig, ax = plt.subplots(2,3,figsize=(12,8))
+    for index, cell in enumerate(cre_lines):    
+        values = fraction.unstack().loc[cell][metric].values
+        ci = fraction.unstack().loc[cell][metric+'_ci'].values
+        cbar = ax[0,index].imshow(np.fliplr(values.T),cmap='plasma')
+        cbar.set_clim(np.min(values),np.max(values))
+        color_bar = fig.colorbar(cbar, ax = ax[0,index])
+        if just_coding:
+            color_bar.ax.set_ylabel('Fraction of coding cells\n that are '+metric)       
+        else:
+            color_bar.ax.set_ylabel('Fraction of all cells\n that are '+metric)
+        ax[0,index].set_title(mapper[cell],fontsize=18)
+        ax[0,index].set_yticks([0,1,2,3])
+        ax[0,index].set_yticklabels(['75','175','275','375'],fontsize=16)
+        ax[0,index].set_ylabel('Binned Depth',fontsize=18)
+        ax[0,index].set_xticks([0,1])
+        ax[0,index].set_xticklabels(['VISp','VISl'],fontsize=16)
+       
+        ax[1,index].plot([75,175,275,375],values[1,:],'ko-',label='VISp') 
+        ax[1,index].plot([75,175,275,375],values[0,:],'bo-',label='VISl') 
+        ax[1,index].errorbar([75,175,275,375], values[1,:],yerr=ci[1,:],color='k',alpha=.25)
+        ax[1,index].errorbar([75,175,275,375], values[0,:],yerr=ci[0,:],color='b',alpha=.25)
+        ax[1,index].set_xticks([75,175,275,375])
+        ax[1,index].set_xticklabels(['75','175','275','375'],fontsize=16)
+        ax[1,index].set_xlabel('Binned Depth',fontsize=18)
+        ax[1,index].set_ylabel('Fraction of cells',fontsize=18)
+        ax[1,index].tick_params(axis='both',labelsize=16)
+        ax[1,index].legend()
+
+    ax[0,1].set_xlabel('Area',fontsize=18)
+    plt.tight_layout()
+    plt.savefig(run_params['fig_coding_dir']+'/heatmap_'+metric+'.png')
+    plt.savefig(run_params['fig_coding_dir']+'/heatmap_'+metric+'.svg')
+    return fraction    
+
+def bin_depth(x):
+    if x < 100:
+        return 75
+    elif x< 200:
+        return 175
+    elif x<300:
+        return 275
+    else:
+        return 375
+ 
+
+
 

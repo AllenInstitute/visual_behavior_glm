@@ -9,6 +9,18 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior.ophys.response_analysis.cell_metrics as cell_metrics
 
+def compute_event_metrics(results_pivoted,run_params,groups=['cre_line','equipment','targeted_structure','active','experience_level'],threshold=0):
+    if threshold !=0:
+        results_pivoted = results_pivoted.query('variance_explained_full > @threshold').copy()
+        label='_filtered'
+    else:
+        label=''
+    metrics_events = get_metrics(use_events=True)
+    results_events = merge_cell_metrics_table(metrics_events,results_pivoted)
+    r2_events      = compute_r2(results_events,groups=groups).rename(columns={'r2':'glm_events__metrics_events'})
+    evaluate_against_metrics(results_events.query('not passive'), ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=True,run_params=run_params,title='All cells\n'+run_params['version'],ylim=(0,100),label=label)
+    return r2_events
+
 def compute_all(results_pivoted_dff, results_pivoted_events,groups=['cre_line','equipment','targeted_structure','active']):
     '''
         Pass in the results_pivoted dataframes for the model fit to dff and events
@@ -59,38 +71,53 @@ def plot_all(results_metrics,version,metric='trace_mean_over_std',savefig=False)
     evaluate_against_metrics(results_metrics.query('equipment_name == "MESO.1"'),xmetric=metric,version=version,savefig=savefig,label='mesoscope_events',title='Mesoscope')
     evaluate_against_metrics(results_metrics.query('equipment_name != "MESO.!"'),xmetric=metric,version=version,savefig=savefig,label='scientifica_events',title='Scientifica')
 
-def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=False,version=None,label='',title=None,ylim=(0,1)):
+def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=False,run_params=None,label='',title=None,ylim=(0,100)):
     fig,ax = plt.subplots()
-    cre_lines = np.sort(results_metrics['cre_line'].dropna().unique())
+    mapper = {
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory'
+        }
+    results_metrics = results_metrics.copy()
+    results_metrics['cell_type'] = [mapper[x] for x in results_metrics['cre_line']]
+    results_metrics[ymetric] = results_metrics[ymetric]*100
+    cell_types = np.sort(results_metrics['cell_type'].dropna().unique())
     jointplot = sns.scatterplot(
         data = results_metrics,
         x = xmetric, 
         y = ymetric,
-        hue = 'cre_line',
-        hue_order = cre_lines,
+        hue = 'cell_type',
+        hue_order = cell_types,
         alpha = 0.05,
-        palette = [gvt.project_colors()[cre_line] for cre_line in cre_lines],
+        legend=False,
+        palette = [gvt.project_colors()[cell_type] for cell_type in cell_types],
     )
-    for cre in cre_lines:
-        x = results_metrics.query('cre_line ==@cre')[xmetric].values.reshape((-1,1))
-        y = results_metrics.query('cre_line ==@cre')[ymetric].values
+    for cre in cell_types:
+        x = results_metrics.query('cell_type ==@cre')[xmetric].values.reshape((-1,1))
+        y = results_metrics.query('cell_type ==@cre')[ymetric].values
         model = LinearRegression(fit_intercept=True).fit(x,y)
         sortx = np.sort(x).reshape((-1,1))
         y_pred = model.predict(sortx)
         score = round(model.score(x,y),2)
         ax.plot(sortx,y_pred, linestyle='--', color=gvt.project_colors()[cre],label=cre+', r^2='+str(score),linewidth=2)
        
-    plt.ylabel(ymetric,fontsize=14)
-    plt.xlabel(xmetric,fontsize=14)
+    plt.ylabel(ymetric,fontsize=18)
+    plt.xlabel(xmetric,fontsize=18)
+    plt.tick_params(axis='both',labelsize=16)
     plt.ylim(ylim[0],ylim[1])
-
+    plt.xlim(left=0)
+    plt.ylabel('Variance Explained (%)')
+    plt.xlabel('Cell Activity SNR')
+    
     plt.legend()
     if title is not None:
         plt.title(title)
 
+    plt.tight_layout()
     if savefig:
-        run_params = glm_params.load_run_json(version)
-        filepath = os.path.join(run_params['figure_dir'], 'performance_vs_'+xmetric+'_'+label+'.png') 
+        filepath = os.path.join(run_params['figure_dir'], 'variance_explained_vs_'+xmetric+'_'+label+'.png') 
+        plt.savefig(filepath)
+        filepath = os.path.join(run_params['figure_dir'], 'variance_explained_vs_'+xmetric+'_'+label+'.svg') 
         plt.savefig(filepath)
 
   

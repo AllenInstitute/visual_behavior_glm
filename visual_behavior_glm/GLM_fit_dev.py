@@ -192,23 +192,35 @@ if False: # Code snippets for doing analyses.
 
     # Make the platform paper schematic examples
     oeid = 967008471
-    cell_specimen_id = 1086492467
+    cell_specimen_id = 1086492467 #celldex18
     g=glm.GLM(oeid, version, use_previous_fit=True, log_results=False, log_weights=False)
     gsm.plot_glm_example(g,cell_specimen_id, run_params)
+    gsm.omission_breakdown_schematic(run_params)
+    gsm.change_breakdown_schematic(run_params)
 
     # Make plot of kernel support
-    gvt.plot_kernel_support(g)
+    gvt.plot_kernel_support(g,start=45144,end=45757)
+
+    # Make Variance Explained plot
+    gvt.var_explained_by_experience(results_pivoted, run_params)
+    r2 = gcm.compute_event_metrics(results_pivoted, run_params)
 
     # Make dropout summary figures
     gvt.plot_dropout_summary_population(results,run_params)
     gvt.plot_dropout_individual_population(results,run_params)
+    gvt.plot_dropout_individual_population(results,run_params,use_single=True)
     gvt.plot_population_averages(results_pivoted, run_params,add_stats=True)
     gvt.plot_population_averages(results_pivoted, run_params,sharey=False)
+    gvt.plot_population_averages(results_pivoted, run_params,
+        dropouts_to_show=['behavioral','licks','running','pupil'],extra='_behavioral')
+    gvt.plot_population_averages(results_pivoted, run_params,
+        dropouts_to_show=['task','hits','misses','all-images'],extra='_task')
     gvt.plot_fraction_summary_population(results_pivoted, run_params)
 
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 
     gat.compute_over_fitting_proportion(full_results, run_params) 
+    gvt.plot_over_fitting_full_model(full_results, run_params)
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
 
@@ -324,6 +336,11 @@ def dev_ignore():
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[3])
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[4])
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
+
+   
+
+
+
 
 
 

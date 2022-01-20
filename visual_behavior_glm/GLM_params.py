@@ -202,7 +202,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'interpolate_to_stimulus':True, # If True, interpolates the cell activity trace onto stimulus aligned timestamps
         'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
         'dropout_threshold':0.005,      # Minimum variance explained by full model
-        'version_type':'production',       # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
+        'version_type':'standard',      # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
     } 
 
     # Define Kernels and dropouts

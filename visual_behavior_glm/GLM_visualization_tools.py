@@ -2002,6 +2002,16 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
 
     # Clean Plot, and add details
     session_title = '_'.join(session_filter)
+    if len(session_filter) > 1:
+        session_title=cell_filter
+        mapper = {
+            'Slc17a7-IRES2-Cre':'Excitatory',
+            'Sst-IRES-Cre':'Sst Inhibitory',
+            'Vip-IRES-Cre':'Vip Inhibitory'
+            }
+        session_title=mapper[session_title]
+
+
     #plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
     plt.title(kernel+' kernels, '+session_title,fontsize=fs1)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
@@ -2416,7 +2426,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'sst':np.shape(sst)[1],
             'exc':np.shape(slc)[1],
             }
-        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells)
+        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,session_filter=session_filter)
     else:
     
         # All Cells
@@ -2470,7 +2480,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'sst':np.shape(sst_f)[1],
             'exc':np.shape(slc_f)[1],
             }
-        zlims = plot_kernel_heatmap(weights_sorted_f,time_vec, kernel, run_params,ncells_f,extra='full_model',zlims=zlims)
+        zlims = plot_kernel_heatmap(weights_sorted_f,time_vec, kernel, run_params,ncells_f,extra='full_model',zlims=zlims,session_filter=session_filter)
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2522,8 +2532,8 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'sst':np.shape(sst_df)[1],
             'exc':np.shape(slc_df)[1],
             }
-        zlims = plot_kernel_heatmap(weights_sorted_df,time_vec, kernel, run_params,ncells_df,extra='dropout',zlims=None)
-        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,zlims=zlims)
+        zlims = plot_kernel_heatmap(weights_sorted_df,time_vec, kernel, run_params,ncells_df,extra='dropout',zlims=None,session_filter=session_filter)
+        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,zlims=zlims,session_filter=session_filter)
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2600,7 +2610,7 @@ def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,session_filt
     for k in crashed:
         print('Crashed - '+k) 
 
-def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None):
+def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,session_filter=['Familiar','Novel 1','Novel >1']):
     if ax==None:
         #fig,ax = plt.subplots(figsize=(8,4))
         height = 4
@@ -2643,6 +2653,9 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
         title = kernel +' kernels, coding cells'
     else:
         title = kernel +' kernels'
+    if len(session_filter) ==1:
+        extra=extra+'_'+session_filter[0].replace(' ','_').replace('>','p')
+        title = title + ', '+session_filter[0]
     ax.set_title(title,fontsize=20)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_'+extra+'.svg')
     plt.savefig(filename)

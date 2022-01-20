@@ -223,10 +223,12 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
 
     ax.yaxis.set_ticks(list(ticklabels.keys()))
     ax.yaxis.set_ticklabels(list(ticklabels.values()),fontsize=style['fs2'])
-    ax.set_xlabel('Time (s)',fontsize=style['fs1'])
+    ax.set_xlabel('Time in Session (s)',fontsize=style['fs1'])
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.set_xlim(times)
     ax.set_ylim(top-15.5,top+.5)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     #plt.tight_layout()
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg')
     if add_stimulus:
@@ -323,13 +325,15 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
         dropout = np.round(g.results.loc[cell_specimen_id]['all-images__dropout']*-1,3)*100
         ax.plot(g.fit['fit_trace_timestamps'][time_vec],
             g.fit['dropouts'][model]['full_model_train_prediction'][time_vec,celldex],
-            '--',label='without image kernels\n'+str(dropout)+'% reduction in VE',linewidth=style['trace_linewidth'],
-            color='cornflowerblue')
+            '-',label='without image kernels\n'+str(dropout)+'% reduction in VE',linewidth=style['trace_linewidth'],
+            color='limegreen')
 
     # Clean up plot
     ax.legend(loc='upper right',fontsize=16)
-    ax.set_ylabel('Neural activity',fontsize=style['fs1'])
-    ax.set_xlabel('Time (s)',fontsize=style['fs1'])
+    ax.set_ylabel('activity',fontsize=style['fs1'])
+    ax.set_xlabel('Time in Session (s)',fontsize=style['fs1'])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.tick_params(axis='y',labelsize=style['fs2'])
     ax.set_ylim(-0.035,.9)

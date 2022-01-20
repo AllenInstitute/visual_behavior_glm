@@ -1852,7 +1852,7 @@ def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshol
     fig_s.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel'+extra+'.svg')
     fig_e.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=18,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel'],threshold=0): 
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=20,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel'],threshold=0): 
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -2003,10 +2003,10 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     # Clean Plot, and add details
     session_title = '_'.join(session_filter)
     #plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
-    plt.title(kernel+', '+session_title,fontsize=fs1)
+    plt.title(kernel+' kernels, '+session_title,fontsize=fs1)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     #ax.axvline(0, color='k',linestyle='--',alpha=0.25)
-    ax.set_ylabel('Kernel Weights',fontsize=fs2)      
+    ax.set_ylabel('Kernel Weights',fontsize=fs1)      
     if kernel == 'omissions':
         ax.set_xlabel('Time from omission (s)',fontsize=fs1)
     elif kernel in ['hits','misses']:
@@ -2014,7 +2014,9 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     else:
         ax.set_xlabel('Time (s)',fontsize=fs1)
 
-    ax.set_xlim(time_vec[0]-0.05,time_vec[-1])   
+    ax.set_xlim(time_vec[0]-0.05,time_vec[-1])  
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     add_stimulus_bars(ax,kernel,alpha=.1)
     plt.tick_params(axis='both',labelsize=fs2)
     if show_legend:
@@ -2414,7 +2416,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'sst':np.shape(sst)[1],
             'exc':np.shape(slc)[1],
             }
-        plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells)
+        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells)
     else:
     
         # All Cells
@@ -2463,12 +2465,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         ax[1,2].set_yticks([np.shape(vip_f)[1]/2,np.shape(vip_f)[1]+np.shape(sst_f)[1]/2, np.shape(vip_f)[1]+np.shape(sst_f)[1]+np.shape(slc_f)[1]/2])
         ax[1,2].set_yticklabels(['Vip','Sst','Exc'])
         ax[1,2].set_title('Filtered on Full Model')
-        ncells={
+        ncells_f={
             'vip':np.shape(vip_f)[1],
             'sst':np.shape(sst_f)[1],
             'exc':np.shape(slc_f)[1],
             }
-        plot_kernel_heatmap(weights_sorted_f,time_vec, kernel, run_params,ncells,extra='full_model')
+        zlims = plot_kernel_heatmap(weights_sorted_f,time_vec, kernel, run_params,ncells_f,extra='full_model',zlims=zlims)
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2515,12 +2517,13 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         ax[2,2].set_yticks([np.shape(vip_df)[1]/2,np.shape(vip_df)[1]+np.shape(sst_df)[1]/2, np.shape(vip_df)[1]+np.shape(sst_df)[1]+np.shape(slc_df)[1]/2])
         ax[2,2].set_yticklabels(['Vip','Sst','Exc'])
         ax[2,2].set_title('Filtered on Dropout')
-        ncells={
+        ncells_df={
             'vip':np.shape(vip_df)[1],
             'sst':np.shape(sst_df)[1],
             'exc':np.shape(slc_df)[1],
             }
-        plot_kernel_heatmap(weights_sorted_df,time_vec, kernel, run_params,ncells,extra='dropout')
+        zlims = plot_kernel_heatmap(weights_sorted_df,time_vec, kernel, run_params,ncells_df,extra='dropout',zlims=None)
+        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,zlims=zlims)
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2597,7 +2600,7 @@ def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,session_filt
     for k in crashed:
         print('Crashed - '+k) 
 
-def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {},ax=None,extra=''):
+def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None):
     if ax==None:
         #fig,ax = plt.subplots(figsize=(8,4))
         height = 4
@@ -2615,17 +2618,19 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
         cax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
 
     cbar = ax.imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='bwr')
-    cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95))
+    if zlims is None:
+        zlims =[-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95)]
+    cbar.set_clim(zlims[0], zlims[1])
     color_bar=fig.colorbar(cbar, cax=cax)
     color_bar.ax.set_ylabel('Weight',fontsize=16)  
     color_bar.ax.tick_params(axis='both',labelsize=16)
-    ax.set_ylabel('{0} cells'.format(np.shape(weights_sorted)[1]),fontsize=18) 
+    ax.set_ylabel('{0} cells'.format(np.shape(weights_sorted)[1]),fontsize=16) 
     if kernel == 'omissions':
-        ax.set_xlabel('Time from omission (s)',fontsize=18)  
+        ax.set_xlabel('Time from omission (s)',fontsize=20)  
     elif kernel in ['hits','misses']:
-        ax.set_xlabel('Time from image change (s)',fontsize=18)          
+        ax.set_xlabel('Time from image change (s)',fontsize=20)          
     else:
-        ax.set_xlabel('Time (s)',fontsize=18)
+        ax.set_xlabel('Time (s)',fontsize=20)
 
     ax.axhline(ncells['vip'],color='k',linewidth='1')
     ax.axhline(ncells['vip']+ncells['sst'],color='k',linewidth='1')
@@ -2633,14 +2638,15 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
     ax.set_yticklabels(['Vip','Sst','Exc'])
     ax.tick_params(axis='both',labelsize=16)
     if extra == '':
-        title = kernel +', all cells'
+        title = kernel +' kernels, all cells'
     elif extra == 'dropout':
-        title = kernel +', coding cells'
+        title = kernel +' kernels, coding cells'
     else:
-        title = kernel
-    ax.set_title(title,fontsize=18)
+        title = kernel +' kernels'
+    ax.set_title(title,fontsize=20)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_'+extra+'.svg')
     plt.savefig(filename)
+    return zlims
     #plt.tight_layout()
 
 def add_stimulus_bars(ax, kernel,alpha=0.1):
@@ -3621,10 +3627,14 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         }
     mylabels = [clean_labels[x] for x in labels]
     ax.legend(h,mylabels,loc='upper right',fontsize=16)
-    ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=18)
-    ax.set_xlabel('Withheld component',fontsize=18)
+    ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=20)
+    ax.set_xlabel('Withheld component',fontsize=20)
+    ax.set_xticks([0,1,2,3])
+    ax.set_xticklabels(['images','omissions','behavioral','task'])
     ax.tick_params(axis='x',labelsize=16)
     ax.tick_params(axis='y',labelsize=16)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     if add_title:
         plt.title(run_params['version'])
     if use_violin:
@@ -3655,7 +3665,7 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True):
     colors = project_colors()
 
     coding_groups = ['code_images','code_omissions','code_behavioral','code_task']
-    titles = ['Images','Omissions','Behavioral','Task']
+    titles = ['images','omissions','behavioral','task']
     # make combined across cre line plot
     fig, ax = plt.subplots(1,len(coding_groups),figsize=(10.8,4.5), sharey=sharey)
     for index, feature in enumerate(coding_groups):
@@ -3668,19 +3678,20 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True):
         ax[index].errorbar([0,1,2], summary_df.loc['Sst-IRES-Cre'][feature],yerr=summary_df.loc['Sst-IRES-Cre'][feature+'_ci'],color=colors['Sst-IRES-Cre'],linewidth=3)
         ax[index].errorbar([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre'][feature],yerr=summary_df.loc['Slc17a7-IRES2-Cre'][feature+'_ci'],color=colors['Slc17a7-IRES2-Cre'],linewidth=3)
 
-        ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
-        ax[index].set_title(titles[index],fontsize=18)
+        ax[index].set_title(titles[index],fontsize=20)
         ax[index].set_ylabel('')
         ax[index].set_xlabel('')
         ax[index].set_xticks([0,1,2])
         ax[index].set_xticklabels(experience_levels, rotation=90)
         ax[index].tick_params(axis='x',labelsize=16)
         ax[index].tick_params(axis='y',labelsize=16)
+        ax[index].spines['top'].set_visible(False)
+        ax[index].spines['right'].set_visible(False)
         ax[index].set_xlim(-.5,2.5)
         ax[index].set_ylim(bottom=0)
         if index ==3:
             ax[index].legend()
-    ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=18)
+    ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=20)
     plt.tight_layout()
     plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.svg')  
     plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.png')  
@@ -4635,7 +4646,7 @@ def depth_heatmap(weights_df, run_params,metric='omission_responsive',just_codin
     if just_mesoscope:
         df = weights_df.query('equipment_name == "MESO.1"').query('experience_level == "Familiar"').copy()    
     else:
-        df = weights_df.query('experience_level in ["Familiar"]').copy() 
+        df = weights_df.query('experience_level in ["Novel 1"]').copy() 
     
     df['binned_depth'] = [bin_depth(x) for x in df['imaging_depth']]       
     df['change_responsive'] = df['misses'] < 0

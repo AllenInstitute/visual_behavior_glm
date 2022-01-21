@@ -4727,6 +4727,9 @@ def bin_depth(x):
     else:
         return 375
  
-
-
+def coarse_bin_depth(x):
+    if x< 200:
+        return 175
+    else:
+        return 375
 

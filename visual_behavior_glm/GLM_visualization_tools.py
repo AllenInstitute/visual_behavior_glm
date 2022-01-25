@@ -3826,7 +3826,7 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
         add_median (bool) if true, adds a line at the median of each population
         include_zero_cells (bool) if true, uses all cells, otherwise uses a threshold for minimum variance explained
     '''
-    dropouts_to_show = ['all-images','image0','image1','image2','image3','image4','image5','image6','image7','','all-omissions','omissions','post-omissions','','behavioral','licks','pupil','running','','task','hits','misses','passive_change','false_alarms','correct_rejects']
+    dropouts_to_show = ['all-images','image0','image1','image2','image3','image4','image5','image6','image7','','all-omissions','omissions','post-omissions','','behavioral','licks','pupil','running','','task','hits','misses']
     dropouts_to_show = [x for x in dropouts_to_show if (len(x) == 0) or (x in run_params['dropouts']) ]
     if ax is None:
         height = 8
@@ -3909,7 +3909,8 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
         }
     mylabels = [clean_labels[x] for x in labels]
     ax.legend(h,mylabels,loc='upper right',fontsize=18)
-    ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=20)
+    #ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=20)
+    ax.set_ylabel('Coding Score',fontsize=20)
     if use_single:
         ax.set_xlabel('Only component included',fontsize=20)
         xticks = ax.get_xticks()
@@ -3922,6 +3923,8 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
         ax.set_xlabel('Withheld component',fontsize=20)
     ax.tick_params(axis='x',labelsize=18,rotation=90)
     ax.tick_params(axis='y',labelsize=18)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     if add_title:
         plt.title(run_params['version'])
     if use_violin:
@@ -3942,7 +3945,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         include_zero_cells (bool) if true, uses all cells, otherwise uses a threshold for minimum variance explained
     '''
     if ax is None:
-        height = 5
+        height = 4.5
         width=12
         horz_offset = 2
         vertical_offset = 1
@@ -4020,7 +4023,8 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         }
     mylabels = [clean_labels[x] for x in labels]
     ax.legend(h,mylabels,loc='upper right',fontsize=16)
-    ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=20)
+    #ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=20)
+    ax.set_ylabel('Coding Score',fontsize=20)
     ax.set_xlabel('Withheld component',fontsize=20)
     ax.set_xticks([0,1,2,3])
     ax.set_xticklabels(['images','omissions','behavioral','task'])

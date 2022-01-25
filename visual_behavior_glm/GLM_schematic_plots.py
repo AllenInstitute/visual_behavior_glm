@@ -325,7 +325,7 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
         dropout = np.round(g.results.loc[cell_specimen_id]['all-images__dropout']*-1,3)*100
         ax.plot(g.fit['fit_trace_timestamps'][time_vec],
             g.fit['dropouts'][model]['full_model_train_prediction'][time_vec,celldex],
-            '-',label='without image kernels\n'+str(dropout)+'% reduction in VE',linewidth=style['trace_linewidth'],
+            '-',label='without image kernels\n'+str(dropout)+'% reduction in VE\nimage coding score: .953',linewidth=style['trace_linewidth'],
             color='limegreen')
 
     # Clean up plot

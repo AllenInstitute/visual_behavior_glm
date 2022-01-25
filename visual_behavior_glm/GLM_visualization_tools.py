@@ -3223,6 +3223,221 @@ def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_
                 ax[index].set_title(feature,fontsize=12)
     return ax
 
+def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope",area='VISp'):
+    '''
+        Plots the average dropout scores for each cre line, on each experience level. 
+        Includes all cells, and matched only cells. 
+        sharey (bool) if True, shares the same y axis across dropouts of the same cre line
+        include_zero_cells (bool) if False, requires cells have a minimum of 0.005 variance explained
+        boxplot (bool), if True, uses boxplot instead of pointplot. In general, very hard to read
+    '''  
+ 
+    if not sharey:
+        extra = extra+'_untied'
+    if include_zero_cells:
+        extra = extra+'_with_zero_cells'
+
+    if equipment == "mesoscope":
+        extra = extra+'_mesoscope'
+        results_pivoted = results_pivoted.query('equipment_name == "MESO.1"').copy()
+    else:
+        extra = extra+'_scientifica'
+        results_pivoted = results_pivoted.query('equipment_name != "MESO.1"').copy()
+
+    extra = extra+area
+    results_pivoted=results_pivoted.query('targeted_structure == @area').copy()
+ 
+    # Filter for cells with low variance explained
+    if include_zero_cells:
+        results_pivoted = results_pivoted.query('not passive').copy()       
+    else:
+        extra = extra + '_no_zero_cells'
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()
+    
+    # Add binned depth
+    results_pivoted['coarse_binned_depth'] = [bin_depth(x) for x in results_pivoted['imaging_depth']]       
+
+    # Convert dropouts to positive values
+    for dropout in dropouts_to_show:
+        results_pivoted[dropout] = results_pivoted[dropout].abs()
+    
+    # Add additional columns about experience levels
+    experiments_table = loading.get_platform_paper_experiment_table()
+    experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
+    results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
+    
+    # plotting variables
+    cell_types = results_pivoted.cell_type.unique()
+    experience_levels = np.sort(results_pivoted.experience_level.unique())
+    colors = project_colors()
+
+    # Iterate cell types and make a plot for each
+    for cell_type in cell_types:
+        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+        all_data = results_pivoted.query('cell_type ==@cell_type')
+        stats = {}
+        # Iterate dropouts and plot each by experience
+        for index, feature in enumerate(dropouts_to_show):
+            stats[feature] = test_significant_dropout_averages_by_depth(all_data,feature)
+            # Plot all cells in active sessions 
+            ax[index] = sns.pointplot(
+                data = all_data,
+                x = 'experience_level',
+                y= feature,
+                hue='coarse_binned_depth', 
+                order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                hue_order=[175,375],#experience_levels,
+                palette={175:'black',375:'gray'},
+                linestyles=['-','--'],
+                markers=['o','x'],
+                join=True,
+                dodge=True,
+                ax=ax[index]
+            )
+            
+            all_cell_points = list(ax[index].get_children())
+            for x in all_cell_points:
+                x.set_zorder(1000)
+                        
+            if index !=3: 
+                ax[index].get_legend().remove() 
+            ax[index].set_title(feature,fontsize=18)
+            ax[index].set_ylabel('')
+            ax[index].set_xlabel('')
+            ax[index].set_xticks([0,1,2])
+            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xlim(-.5,2.5)
+            ax[index].tick_params(axis='x',labelsize=16)
+            ax[index].tick_params(axis='y',labelsize=16)
+            ax[index].set_ylim(bottom=0)
+            ax[index].spines['top'].set_visible(False)
+            ax[index].spines['right'].set_visible(False)
+            ax[index].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+
+        if add_stats:
+            for index, feature in enumerate(dropouts_to_show):
+                y1h = ax[index].get_ylim()[1]*1.05
+                if stats[feature]['Familiar'].pvalue<0.05:
+                    ax[index].text(0,y1h,'*')
+                if stats[feature]['Novel 1'].pvalue<0.05:
+                    ax[index].text(1,y1h,'*')
+                if stats[feature]['Novel >1'].pvalue<0.05:
+                    ax[index].text(2,y1h,'*')
+                ax[index].set_ylim(0,y1h*1.05)
+        ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
+        plt.suptitle(cell_type+', '+area,fontsize=18)
+        fig.tight_layout() 
+        plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg')
+        plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.png')
+
+
+
+def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope"):
+    '''
+        Plots the average dropout scores for each cre line, on each experience level. 
+        Includes all cells, and matched only cells. 
+        sharey (bool) if True, shares the same y axis across dropouts of the same cre line
+        include_zero_cells (bool) if False, requires cells have a minimum of 0.005 variance explained
+        boxplot (bool), if True, uses boxplot instead of pointplot. In general, very hard to read
+    '''  
+ 
+    if not sharey:
+        extra = extra+'_untied'
+    if include_zero_cells:
+        extra = extra+'_with_zero_cells'
+
+    if equipment == "mesoscope":
+        extra = extra+'_mesoscope'
+        results_pivoted = results_pivoted.query('equipment_name == "MESO.1"').copy()
+    else:
+        extra = extra+'_scientifica'
+        results_pivoted = results_pivoted.query('equipment_name != "MESO.1"').copy()
+ 
+    # Filter for cells with low variance explained
+    if include_zero_cells:
+        results_pivoted = results_pivoted.query('not passive').copy()       
+    else:
+        extra = extra + '_no_zero_cells'
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()
+    
+    # Add binned depth
+    results_pivoted['coarse_binned_depth'] = [bin_depth(x) for x in results_pivoted['imaging_depth']]       
+
+    # Convert dropouts to positive values
+    for dropout in dropouts_to_show:
+        results_pivoted[dropout] = results_pivoted[dropout].abs()
+    
+    # Add additional columns about experience levels
+    experiments_table = loading.get_platform_paper_experiment_table()
+    experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
+    results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
+   
+    # plotting variables
+    cell_types = results_pivoted.cell_type.unique()
+    experience_levels = np.sort(results_pivoted.experience_level.unique())
+    colors = project_colors()
+
+    # Iterate cell types and make a plot for each
+    for cell_type in cell_types:
+        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+        all_data = results_pivoted.query('cell_type ==@cell_type')
+        stats = {}
+        # Iterate dropouts and plot each by experience
+        for index, feature in enumerate(dropouts_to_show):
+            stats[feature] = test_significant_dropout_averages_by_area(all_data,feature)
+            # Plot all cells in active sessions 
+            ax[index] = sns.pointplot(
+                data = all_data,
+                x = 'experience_level',
+                y= feature,
+                hue='targeted_structure', 
+                order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                hue_order=["VISp","VISl"],
+                palette={"VISp":'black',"VISl":'gray'},
+                linestyles=['-','-'],
+                markers=['o','o'],
+                join=False,
+                dodge=False,
+                ax=ax[index]
+            )
+            
+            all_cell_points = list(ax[index].get_children())
+            for x in all_cell_points:
+                x.set_zorder(1000)
+            
+            if index != 3:
+                ax[index].get_legend().remove() 
+            ax[index].set_title(feature,fontsize=18)
+            ax[index].set_ylabel('')
+            ax[index].set_xlabel('')
+            ax[index].set_xticks([0,1,2])
+            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xlim(-.5,2.5)
+            ax[index].tick_params(axis='x',labelsize=16)
+            ax[index].tick_params(axis='y',labelsize=16)
+            ax[index].set_ylim(bottom=0)
+            ax[index].spines['top'].set_visible(False)
+            ax[index].spines['right'].set_visible(False)
+            ax[index].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+
+        if add_stats:
+            for index, feature in enumerate(dropouts_to_show):
+                y1h = ax[index].get_ylim()[1]*1.05
+                if stats[feature]['Familiar'].pvalue<0.05:
+                    ax[index].text(0,y1h,'*')
+                if stats[feature]['Novel 1'].pvalue<0.05:
+                    ax[index].text(1,y1h,'*')
+                if stats[feature]['Novel >1'].pvalue<0.05:
+                    ax[index].text(2,y1h,'*')
+                ax[index].set_ylim(0,y1h*1.05)
+        ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
+        plt.suptitle(cell_type,fontsize=18)
+        fig.tight_layout() 
+        plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.svg')
+        plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.png')
+
+
+
 def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=False,extra='',strict_experience_matching=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
@@ -3437,6 +3652,29 @@ def test_significant_dropout_averages(data,feature):
     tukey_table['x1'] = [mapper[str(x)] for x in tukey_table['group1']]
     tukey_table['x2'] = [mapper[str(x)] for x in tukey_table['group2']]
     return anova, tukey_table
+
+
+def test_significant_dropout_averages_by_area(data,feature):
+    data = data[~data[feature].isnull()].copy()
+    ttests = {}
+    for experience in data['experience_level'].unique():
+       ttests[experience] = stats.ttest_ind(
+            data.query('experience_level == @experience & targeted_structure == "VISp"')[feature],  
+            data.query('experience_level == @experience & targeted_structure == "VISl"')[feature],
+            )
+    return ttests
+
+
+def test_significant_dropout_averages_by_depth(data,feature):
+    data = data[~data[feature].isnull()].copy()
+    ttests = {}
+    for experience in data['experience_level'].unique():
+       ttests[experience] = stats.ttest_ind(
+            data.query('experience_level == @experience & coarse_binned_depth == 175')[feature],  
+            data.query('experience_level == @experience & coarse_binned_depth == 375')[feature],
+            )
+    return ttests
+
 
 def plot_dropout_individual_population(results, run_params,ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,use_single=False): 
     '''

@@ -216,6 +216,9 @@ if False: # Code snippets for doing analyses.
     gvt.plot_population_averages(results_pivoted, run_params,
         dropouts_to_show=['task','hits','misses','all-images'],extra='_task')
     gvt.plot_fraction_summary_population(results_pivoted, run_params)
+    gvt.plot_population_averages_by_area(results_pivoted, run_params)
+    gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISp')
+    gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISl')   
 
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 

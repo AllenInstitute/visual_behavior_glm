@@ -6,6 +6,7 @@ import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_params as glm_params
 from mpl_toolkits.axes_grid1 import Divider, Size
 
+import copy
 import visual_behavior.database as db
 import matplotlib as mpl
 import seaborn as sns
@@ -2211,6 +2212,9 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
         sst_drop = weights.query('cre_line == "Sst-IRES-Cre"')[kernel]
         vip_drop = weights.query('cre_line == "Vip-IRES-Cre"')[kernel]
         slc_drop = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[kernel]
+        sst_table = weights.query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+        vip_table = weights.query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+        slc_table = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
     
     n_sst = len(sst)
     n_vip = len(vip)
@@ -2300,6 +2304,11 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             sst_drop_df = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel]
             vip_drop_df = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel]
             slc_drop_df = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[kernel]
+
+            sst_table_df = weights.query('(cre_line == "Sst-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[[kernel+'_weights',kernel]]
+            vip_table_df = weights.query('(cre_line == "Vip-IRES-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[[kernel+'_weights',kernel]]
+            slc_table_df = weights.query('(cre_line == "Slc17a7-IRES2-Cre") & (variance_explained_full > @threshold) & ({0} < @drop_threshold)'.format(kernel))[[kernel+'_weights',kernel]]
+
         n_sst = len(sst_df)
         n_vip = len(vip_df)
         n_slc = len(slc_df)     
@@ -2426,7 +2435,9 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'sst':np.shape(sst)[1],
             'exc':np.shape(slc)[1],
             }
+
         zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,session_filter=session_filter)
+        #zlims_test = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, kernel, run_params,ncells,session_filter=session_filter)
     else:
     
         # All Cells
@@ -2533,7 +2544,10 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'exc':np.shape(slc_df)[1],
             }
         zlims = plot_kernel_heatmap(weights_sorted_df,time_vec, kernel, run_params,ncells_df,extra='dropout',zlims=None,session_filter=session_filter)
+        zlims_test = plot_kernel_heatmap_with_dropout(vip_table_df, sst_table_df, slc_table_df,time_vec, kernel, run_params,ncells_df,session_filter=session_filter,zlims=zlims,extra='dropout')
+
         zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,zlims=zlims,session_filter=session_filter)
+        zlims_test = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, kernel, run_params,ncells,session_filter=session_filter,zlims=zlims)
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2648,11 +2662,11 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
     ax.set_yticklabels(['Vip','Sst','Exc'])
     ax.tick_params(axis='both',labelsize=16)
     if extra == '':
-        title = kernel +' kernels, all cells'
+        title = kernel +' kernels'
     elif extra == 'dropout':
         title = kernel +' kernels, coding cells'
     else:
-        title = kernel +' kernels'
+        title = kernel +' kernels, VE cells'
     if len(session_filter) ==1:
         extra=extra+'_'+session_filter[0].replace(' ','_').replace('>','p')
         title = title + ', '+session_filter[0]
@@ -2661,6 +2675,134 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
     plt.savefig(filename)
     return zlims
     #plt.tight_layout()
+
+def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,session_filter=['Familiar','Novel 1','Novel >1']):
+    if ax==None:
+        #fig,ax = plt.subplots(figsize=(8,4))
+        height = 4
+        width=8
+        pre_horz_offset = 1.5
+        post_horz_offset = 2.5
+        vertical_offset = .75
+        fig = plt.figure(figsize=(width,height))
+        h = [Size.Fixed(pre_horz_offset),Size.Fixed(width-pre_horz_offset-post_horz_offset-.25)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax3 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+        v = [Size.Fixed(vertical_offset+(height-vertical_offset-.5)/3),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax2 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+        v = [Size.Fixed(vertical_offset+2*(height-vertical_offset-.5)/3),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax1 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+        
+        h = [Size.Fixed(width-post_horz_offset-.25),Size.Fixed(.25)]
+        v = [Size.Fixed(vertical_offset+2*(height-vertical_offset-.5)/3),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        dax1 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+        v = [Size.Fixed(vertical_offset+(height-vertical_offset-.5)/3),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        dax2 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+        v = [Size.Fixed(vertical_offset),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        dax3 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+
+        h = [Size.Fixed(width-post_horz_offset+.25),Size.Fixed(.25)]
+        v = [Size.Fixed(vertical_offset+(height-vertical_offset-.5)/2)+.125,Size.Fixed((height-vertical_offset-.5)/2-.125)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        cax1 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+
+        h = [Size.Fixed(width-post_horz_offset+.25),Size.Fixed(.25)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed((height-vertical_offset-.5)/2-.125)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        cax2 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+
+
+    # Sort cells
+    # convert kernels to columns
+    ncols = len(vip_table[kernel+'_weights'].values[0])
+    vip_df = pd.DataFrame(vip_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
+    vip_df['dropout'] = vip_table.reset_index()[kernel]*-1
+    vip_df = vip_df.sort_values(by=['dropout'],ascending=False)    
+    sst_df = pd.DataFrame(sst_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
+    sst_df['dropout'] = sst_table.reset_index()[kernel]*-1
+    sst_df = sst_df.sort_values(by=['dropout'],ascending=False) 
+    slc_df = pd.DataFrame(slc_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
+    slc_df['dropout'] = slc_table.reset_index()[kernel]*-1
+    slc_df = slc_df.sort_values(by=['dropout'],ascending=False) 
+
+    weights_sorted = np.concatenate([slc_df.to_numpy(),sst_df.to_numpy(), vip_df.to_numpy()])[:,0:-1].T
+    drop_sorted = np.concatenate([slc_df.to_numpy(),sst_df.to_numpy(), vip_df.to_numpy()])[:,-1].T
+    slc_weights_sorted =slc_df.to_numpy()[:,0:-1].T
+    slc_drop_sorted =   slc_df.to_numpy()[:,-1].T
+    sst_weights_sorted =sst_df.to_numpy()[:,0:-1].T
+    sst_drop_sorted =   sst_df.to_numpy()[:,-1].T
+    vip_weights_sorted =vip_df.to_numpy()[:,0:-1].T
+    vip_drop_sorted =   vip_df.to_numpy()[:,-1].T
+
+    cbar1 = ax1.imshow(vip_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(slc_weights_sorted)[1]],cmap='bwr')
+    if zlims is None:
+        zlims =[-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95)]
+    cbar1.set_clim(zlims[0], zlims[1])
+    cbar2 = ax2.imshow(sst_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(sst_weights_sorted)[1]],cmap='bwr')
+    cbar2.set_clim(zlims[0], zlims[1])
+    cbar3 = ax3.imshow(slc_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(vip_weights_sorted)[1]],cmap='bwr')
+    cbar3.set_clim(zlims[0], zlims[1])
+
+    color_bar=fig.colorbar(cbar1, cax=cax1)
+    color_bar.ax.set_ylabel('Weight',fontsize=16)  
+    color_bar.ax.tick_params(axis='both',labelsize=16)
+    if kernel == 'omissions':
+        ax3.set_xlabel('Time from omission (s)',fontsize=20)  
+    elif kernel in ['hits','misses']:
+        ax3.set_xlabel('Time from image change (s)',fontsize=20)          
+    else:
+        ax3.set_xlabel('Time (s)',fontsize=20)
+
+    ax1.set_yticks([ax1.get_ylim()[1]/2])
+    ax1.set_yticklabels(['Vip'])
+    ax2.set_yticks([ax2.get_ylim()[1]/2])
+    ax2.set_yticklabels(['Sst'])
+    ax3.set_yticks([ax3.get_ylim()[1]/2])
+    ax3.set_yticklabels(['Exc'])
+    ax1.set_xticks([])
+    ax2.set_xticks([])
+    ax1.tick_params(axis='both',labelsize=16)
+    ax2.tick_params(axis='both',labelsize=16)
+    ax3.tick_params(axis='both',labelsize=16)
+    if extra == '':
+        title = kernel +' kernels'
+    elif extra == 'dropout':
+        title = kernel +' kernels, coding cells'
+    else:
+        title = kernel +' kernels, VE cells'
+    if len(session_filter) ==1:
+        extra=extra+'_'+session_filter[0].replace(' ','_').replace('>','p')
+        title = title + ', '+session_filter[0]
+    ax1.set_title(title,fontsize=20)
+    cmap = copy.copy(plt.cm.get_cmap('plasma'))
+    cmap.set_under('black')
+    cbar2=dax1.imshow(np.sqrt(vip_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 
+    dax1.set_yticks([])
+    dax1.set_xticks([])
+    color_bar=fig.colorbar(cbar2, cax=cax2,extend='min')
+    color_bar.ax.set_ylabel('Coding Score',fontsize=16) 
+    color_bar.set_ticks([0,.5,1]) 
+    color_bar.ax.tick_params(axis='both',labelsize=16)
+
+    dax2.imshow(np.sqrt(sst_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 
+    dax2.set_yticks([])
+    dax2.set_xticks([])
+    dax3.imshow(np.sqrt(slc_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 
+    dax3.set_yticks([])
+    dax3.set_xticks([])   
+    #dax3.set_xticks([dax3.get_xlim()[1]/2])
+    #dax3.set_xticklabels(['Coding\n Score'],rotation=-70,fontsize=16)
+    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.svg')
+    plt.savefig(filename)
+    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.png')
+    plt.savefig(filename)
+    return zlims
 
 def add_stimulus_bars(ax, kernel,alpha=0.1):
     '''

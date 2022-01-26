@@ -2713,7 +2713,7 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
         cax1 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
 
         h = [Size.Fixed(width-post_horz_offset+.25),Size.Fixed(.25)]
-        v = [Size.Fixed(vertical_offset),Size.Fixed((height-vertical_offset-.5)/2-.125)]
+        v = [Size.Fixed(vertical_offset/4),Size.Fixed((height-vertical_offset-.5)/2-.125)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         cax2 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
 
@@ -2750,7 +2750,7 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
     cbar3.set_clim(zlims[0], zlims[1])
 
     color_bar=fig.colorbar(cbar1, cax=cax1)
-    color_bar.ax.set_ylabel('Weight',fontsize=16)  
+    color_bar.ax.set_title('Weight',fontsize=16,loc='left')  
     color_bar.ax.tick_params(axis='both',labelsize=16)
     if kernel == 'omissions':
         ax3.set_xlabel('Time from omission (s)',fontsize=20)  
@@ -2770,15 +2770,26 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
     ax1.tick_params(axis='both',labelsize=16)
     ax2.tick_params(axis='both',labelsize=16)
     ax3.tick_params(axis='both',labelsize=16)
+    title = kernel +' kernels'
+    all_cells=False
+    dropout=False
+    VE = False
     if extra == '':
-        title = kernel +' kernels'
+        all_cells=True
     elif extra == 'dropout':
-        title = kernel +' kernels, coding cells'
+        dropout = True
     else:
-        title = kernel +' kernels, VE cells'
+        VE = True
+
     if len(session_filter) ==1:
         extra=extra+'_'+session_filter[0].replace(' ','_').replace('>','p')
         title = title + ', '+session_filter[0]
+    if dropout:
+        #title =title +  '\n coding cells'
+        ax2.set_ylabel('Coding Cells',fontsize=16)
+    if VE:
+        ax2.set_ylabel('VE > 0.005 Cells',fontsize=16)
+
     ax1.set_title(title,fontsize=20)
     cmap = copy.copy(plt.cm.get_cmap('plasma'))
     cmap.set_under('black')
@@ -2786,7 +2797,7 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
     dax1.set_yticks([])
     dax1.set_xticks([])
     color_bar=fig.colorbar(cbar2, cax=cax2,extend='min')
-    color_bar.ax.set_ylabel('Coding Score',fontsize=16) 
+    color_bar.ax.set_title('Coding \nScore',fontsize=16,loc='left') 
     color_bar.set_ticks([0,.5,1]) 
     color_bar.ax.tick_params(axis='both',labelsize=16)
 

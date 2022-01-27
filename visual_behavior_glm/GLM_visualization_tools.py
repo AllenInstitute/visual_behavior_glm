@@ -3426,7 +3426,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
 
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
-        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         stats = {}
         # Iterate dropouts and plot each by experience
@@ -3454,7 +3454,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                         
             if index !=3: 
                 ax[index].get_legend().remove() 
-            ax[index].set_title(feature,fontsize=18)
+            ax[index].set_title(feature,fontsize=20)
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
             ax[index].set_xticks([0,1,2])
@@ -3477,8 +3477,8 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                 if stats[feature]['Novel >1'].pvalue<0.05:
                     ax[index].text(2,y1h,'*')
                 ax[index].set_ylim(0,y1h*1.05)
-        ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
-        plt.suptitle(cell_type+', '+area,fontsize=18)
+        ax[0].set_ylabel('Coding Score',fontsize=20)
+        plt.suptitle(cell_type+', '+area,fontsize=20)
         fig.tight_layout() 
         plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg')
         plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.png')
@@ -3532,7 +3532,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
 
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
-        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         stats = {}
         # Iterate dropouts and plot each by experience
@@ -3560,7 +3560,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             
             if index != 3:
                 ax[index].get_legend().remove() 
-            ax[index].set_title(feature,fontsize=18)
+            ax[index].set_title(feature,fontsize=20)
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
             ax[index].set_xticks([0,1,2])
@@ -3583,8 +3583,8 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
                 if stats[feature]['Novel >1'].pvalue<0.05:
                     ax[index].text(2,y1h,'*')
                 ax[index].set_ylim(0,y1h*1.05)
-        ax[0].set_ylabel('Fraction reduction in \n explained variance',fontsize=18)
-        plt.suptitle(cell_type,fontsize=18)
+        ax[0].set_ylabel('Coding Score',fontsize=20)
+        plt.suptitle(cell_type,fontsize=20)
         fig.tight_layout() 
         plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.svg')
         plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.png')

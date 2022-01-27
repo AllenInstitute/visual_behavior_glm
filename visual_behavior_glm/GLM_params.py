@@ -313,9 +313,12 @@ def define_dropouts(kernels,run_params):
         if 'post-omissions' in kernels:
             dropout_definitions['all-omissions'] = ['omissions','post-omissions']
         if 'post-hits' in kernels:
-            dropout_definitions['all-hits']=             ['hits','post-hits']
-            dropout_definitions['all-misses']=           ['misses','post-misses']
-            dropout_definitions['all-passive_change']=   ['passive_change','post-passive_change']
+            dropout_definitions['all-hits']=            ['hits','post-hits']
+            dropout_definitions['all-misses']=          ['misses','post-misses']
+            dropout_definitions['all-passive_change']=  ['passive_change','post-passive_change']
+            dropout_definitions['post-task']=           ['post-hits','post-misses','post-passive_change']
+            dropout_definitions['task']=                ['hits','misses','passive_change']
+            dropout_definitions['all-task']=            ['hits','misses','passive_change','post-hits','post-misses','post-passive_change']
 
         # Add all face_motion_energy individual kernels to behavioral, and as a group model
         # Number of PCs is variable, so we have to treat it differently

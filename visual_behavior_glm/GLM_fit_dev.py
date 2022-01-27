@@ -209,12 +209,11 @@ if False: # Code snippets for doing analyses.
     gvt.plot_dropout_summary_population(results,run_params)
     gvt.plot_dropout_individual_population(results,run_params)
     gvt.plot_dropout_individual_population(results,run_params,use_single=True)
-    gvt.plot_population_averages(results_pivoted, run_params,add_stats=True)
-    gvt.plot_population_averages(results_pivoted, run_params,sharey=False)
+    gvt.plot_population_averages(results_pivoted, run_params)
     gvt.plot_population_averages(results_pivoted, run_params,
-        dropouts_to_show=['behavioral','licks','running','pupil'],extra='_behavioral')
-    gvt.plot_population_averages(results_pivoted, run_params,
-        dropouts_to_show=['task','hits','misses','all-images'],extra='_task')
+        dropouts_to_show=['licks','running','pupil','hits','misses'])
+    gvt.plot_population_averages(results_pivoted, run_params,strict_experience_matching=True)
+    gvt.plot_population_averages(results_pivoted, run_params,include_zero_cells=False)
     gvt.plot_fraction_summary_population(results_pivoted, run_params)
     gvt.plot_population_averages_by_area(results_pivoted, run_params)
     gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISp')

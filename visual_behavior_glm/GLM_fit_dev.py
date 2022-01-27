@@ -209,18 +209,20 @@ if False: # Code snippets for doing analyses.
     gvt.plot_dropout_summary_population(results,run_params)
     gvt.plot_dropout_individual_population(results,run_params)
     gvt.plot_dropout_individual_population(results,run_params,use_single=True)
-    gvt.plot_population_averages(results_pivoted, run_params,add_stats=True)
-    gvt.plot_population_averages(results_pivoted, run_params,sharey=False)
+    gvt.plot_population_averages(results_pivoted, run_params)
     gvt.plot_population_averages(results_pivoted, run_params,
-        dropouts_to_show=['behavioral','licks','running','pupil'],extra='_behavioral')
-    gvt.plot_population_averages(results_pivoted, run_params,
-        dropouts_to_show=['task','hits','misses','all-images'],extra='_task')
+        dropouts_to_show=['licks','running','pupil','hits','misses'])
+    gvt.plot_population_averages(results_pivoted, run_params,strict_experience_matching=True)
+    gvt.plot_population_averages(results_pivoted, run_params,include_zero_cells=False)
     gvt.plot_fraction_summary_population(results_pivoted, run_params)
+    gvt.plot_population_averages_by_area(results_pivoted, run_params)
+    gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISp')
+    gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISl')   
 
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 
     gat.compute_over_fitting_proportion(full_results, run_params) 
-    gvt.plot_over_fitting_full_model(full_results, run_params)
+    gvt.plot_over_fitting_full_model(full_results, run_params
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
 
@@ -231,36 +233,14 @@ if False: # Code snippets for doing analyses.
     gvt.compare_dropout_thresholds(results)
 
     # Make Coding Fraction plots
-    # You may need to `mkdir coding` 
     gvt.plot_coding_fraction(results_pivoted, run_params, 'omissions') # Example
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction') 
 
     # Make Kernel figures
-    # You may need to `mkdir kernels` 
     gvt.kernel_evaluation(weights_df, run_params, 'omissions') # Example
+    gvt.kernel_evaluation(weights_df, run_params, 'omissions',session_filter=['Familiar'])
     gvt.all_kernels_evaluation(weights_df,run_params) 
-    
-    # Make Kernel Comparison Figures
-    gvt.plot_kernel_comparison(
-        weights_df, 
-        run_params, 
-        'omissions',
-        cell_filter='vip',
-        compare=['experience_level'],
-        plot_errors=False
-        ) 
-    gvt.plot_all_kernel_comparison(
-        weights_df, 
-        run_params,
-        cell_filter='vip',
-        compare=['session'],
-        plot_errors=False
-        )
-    gvt.plot_kernel_comparison_by_experience(
-        weights_df, 
-        run_params, 
-        'omissions'
-        )
+    gvt.plot_kernel_comparison_by_experience(weights_df,run_params,'omissions')
     
     # Might need to update
     gvt.plot_perturbation(weights_df, run_params, 'omissions')

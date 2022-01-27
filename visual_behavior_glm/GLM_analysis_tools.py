@@ -869,6 +869,25 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         x['omissions_weights'],
         x['post-omissions_weights']
         ]),axis=1)
+    
+    if 'post-hits_weights' in weights_df:
+        weights_df['all-hits_weights'] = weights_df.apply(lambda x: compute_all_kernels([
+        x['hits_weights'],
+        x['post-hits_weights']
+        ]),axis=1)       
+        weights_df['all-misses_weights'] = weights_df.apply(lambda x: compute_all_kernels([
+        x['misses_weights'],
+        x['post-misses_weights']
+        ]),axis=1)
+        weights_df['all-passive_change_weights'] = weights_df.apply(lambda x: compute_all_kernels([
+        x['passive_change_weights'],
+        x['post-passive_change_weights']
+        ]),axis=1)
+        # Make a combined change kernel
+        weights_df['task_weights'] = weights_df.apply(lambda x: np.mean([
+            x['all-hits_weights'],
+            x['all-misses_weights'],
+            ],axis=0),axis=1)
 
     # Make a combined change kernel
     weights_df['task_weights'] = weights_df.apply(lambda x: np.mean([
@@ -884,6 +903,12 @@ def compute_all_omissions(omissions):
         return np.nan
     
     return np.concatenate(omissions)
+
+def compute_all_kernels(kernels):
+    if np.isnan(np.sum(kernels[0])) or np.isnan(np.sum(kernels[1])):
+        return np.nan
+    
+    return np.concatenate(kernels)
 
 def compute_preferred_kernel(images):
     

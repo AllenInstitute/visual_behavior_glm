@@ -49,6 +49,10 @@ def load_fit_experiment(ophys_experiment_id, run_params):
     kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
     if 'post-omissions' in run_params['kernels']:
         kernels_to_limit_per_image_cycle.append('omissions')
+    if 'post-hits' in run_params['kernels']:
+        kernels_to_limit_per_image_cycle.append('hits')
+        kernels_to_limit_per_image_cycle.append('misses')
+        kernels_to_limit_per_image_cycle.append('passive_change')
     for k in kernels_to_limit_per_image_cycle:
         if k in run_params['kernels']:
             run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    
@@ -1215,6 +1219,10 @@ def interpolate_to_stimulus(fit, session, run_params):
     kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
     if 'post-omissions' in run_params['kernels']:
         kernels_to_limit_per_image_cycle.append('omissions')
+    if 'post-hits' in run_params['kernels']:
+        kernels_to_limit_per_image_cycle.append('hits')
+        kernels_to_limit_per_image_cycle.append('misses')
+        kernels_to_limit_per_image_cycle.append('passive_change')
     for k in kernels_to_limit_per_image_cycle:
         if k in run_params['kernels']:
             run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    

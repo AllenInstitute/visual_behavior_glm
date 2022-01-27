@@ -1920,6 +1920,15 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     if kernel == 'all-omissions':
         run_params['kernels'][kernel] = run_params['kernels']['omissions'].copy()
         run_params['kernels'][kernel]['length'] = run_params['kernels']['omissions']['length'] + run_params['kernels']['post-omissions']['length']
+    if kernel == 'all-hits':
+        run_params['kernels'][kernel] = run_params['kernels']['hits'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['hits']['length'] + run_params['kernels']['post-hits']['length']   
+    if kernel == 'all-misses':
+        run_params['kernels'][kernel] = run_params['kernels']['misses'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['misses']['length'] + run_params['kernels']['post-misses']['length']   
+    if kernel == 'all-passive_change':
+        run_params['kernels'][kernel] = run_params['kernels']['passive_change'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['passive_change']['length'] + run_params['kernels']['post-passive_change']['length']   
     if kernel == 'task':
         run_params['kernels'][kernel] = run_params['kernels']['hits'].copy()   
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
@@ -1928,13 +1937,31 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         time_vec = time_vec[:-1]
     if ('omissions' == kernel) & ('post-omissions' in run_params['kernels']):
         time_vec = time_vec[:-1]
-
+    if ('hits' == kernel) & ('post-hits' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('misses' == kernel) & ('post-misses' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('passive_change' == kernel) & ('post-passive_change' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+ 
     if '-' in kernel:
         weights_df= weights_df.rename(columns={
             'all-omissions':'all_omissions',
             'all-omissions_weights':'all_omissions_weights',
             'post-omissions':'post_omissions',
-            'post-omissions_weights':'post_omissions_weights', 
+            'post-omissions_weights':'post_omissions_weights',
+            'all-hits':'all_hits',
+            'all-hits_weights':'all_hits_weights',
+            'post-hits':'post_hits',
+            'post-hits_weights':'post_hits_weights', 
+            'all-misses':'all_misses',
+            'all-misses_weights':'all_misses_weights',
+            'post-misses':'post_misses',
+            'post-misses_weights':'post_misses_weights', 
+            'all-passive_change':'all_passive_change',
+            'all-passive_change_weights':'all_passive_change_weights',
+            'post-passive_change':'post_passive_change',
+            'post-passive_change_weights':'post_passive_change_weights',  
             'all-images':'all_images',
             'all-images_weights':'all_images_weights'
             })
@@ -2148,6 +2175,15 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
     if kernel == 'all-omissions':
         run_params['kernels'][kernel] = run_params['kernels']['omissions'].copy()
         run_params['kernels'][kernel]['length'] = run_params['kernels']['omissions']['length'] + run_params['kernels']['post-omissions']['length']
+    if kernel == 'all-hits':
+        run_params['kernels'][kernel] = run_params['kernels']['hits'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['hits']['length'] + run_params['kernels']['post-hits']['length']   
+    if kernel == 'all-misses':
+        run_params['kernels'][kernel] = run_params['kernels']['misses'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['misses']['length'] + run_params['kernels']['post-misses']['length']   
+    if kernel == 'all-passive_change':
+        run_params['kernels'][kernel] = run_params['kernels']['passive_change'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['passive_change']['length'] + run_params['kernels']['post-passive_change']['length']   
     if kernel == 'task':
         run_params['kernels'][kernel] = run_params['kernels']['hits'].copy()   
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
@@ -2155,6 +2191,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
     if 'image' in kernel:
         time_vec = time_vec[:-1]
     if ('omissions' == kernel) & ('post-omissions' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('hits' == kernel) & ('post-hits' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('misses' == kernel) & ('post-misses' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('passive_change' == kernel) & ('post-passive_change' in run_params['kernels']):
         time_vec = time_vec[:-1]
 
     # Make dropout list
@@ -2174,11 +2216,24 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'all-omissions_weights':'all_omissions_weights',
             'post-omissions':'post_omissions',
             'post-omissions_weights':'post_omissions_weights', 
+            'all-hits':'all_hits',
+            'all-hits_weights':'all_hits_weights',
+            'post-hits':'post_hits',
+            'post-hits_weights':'post_hits_weights', 
+            'all-misses':'all_misses',
+            'all-misses_weights':'all_misses_weights',
+            'post-misses':'post_misses',
+            'post-misses_weights':'post_misses_weights', 
+            'all-passive_change':'all_passive_change',
+            'all-passive_change_weights':'all_passive_change_weights',
+            'post-passive_change':'post_passive_change',
+            'post-passive_change_weights':'post_passive_change_weights',  
             'all-images':'all_images',
             'all-images_weights':'all_images_weights',
             'single-post-omissions':'single_post_omissions',
             'single-all-images':'single_all_omissions',
             })
+
         kernel = kernel.replace('-','_')
         drop_list = [x.replace('-','_') for x in drop_list]
 
@@ -3969,7 +4024,8 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
         add_median (bool) if true, adds a line at the median of each population
         include_zero_cells (bool) if true, uses all cells, otherwise uses a threshold for minimum variance explained
     '''
-    dropouts_to_show = ['all-images','image0','image1','image2','image3','image4','image5','image6','image7','','all-omissions','omissions','post-omissions','','behavioral','licks','pupil','running','','task','hits','misses']
+    dropouts_to_show = ['all-images','image0','image1','image2','image3','image4','image5','image6','image7','','all-omissions','omissions','post-omissions','','behavioral','licks','pupil','running','','task','hits','misses','all-hits','all-misses','post-hits','post-misses']
+
     dropouts_to_show = [x for x in dropouts_to_show if (len(x) == 0) or (x in run_params['dropouts']) ]
     if ax is None:
         height = 8
@@ -3997,7 +4053,13 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
 
     if 'post-omissions' not in results.dropout.unique():
         dropouts_to_show = [x for x in dropouts_to_show if x not in ['all-omissions','post-omissions']]
-    
+    if 'post-hits' not in results.dropout.unique():
+        dropouts_to_show = [x for x in dropouts_to_show if x not in ['all-hits','post-hits']]
+    if 'post-misses' not in results.dropout.unique():
+        dropouts_to_show = [x for x in dropouts_to_show if x not in ['all-misses','post-misses']]
+    if 'post-passive_change' not in results.dropout.unique():
+        dropouts_to_show = [x for x in dropouts_to_show if x not in ['all-passive_change','post-passive_change']]
+ 
     if use_single:
         dropouts_to_show = [x if x=='' else 'single-'+x for x in dropouts_to_show]
  
@@ -4113,6 +4175,12 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
 
     if ('post-omissions' in results.dropout.unique())&('omissions' in dropouts_to_show):
        dropouts_to_show = ['all-omissions' if x == 'omissions' else x for x in dropouts_to_show]
+    if ('post-hits' in results.dropout.unique())&('hits' in dropouts_to_show):
+       dropouts_to_show = ['all-hits' if x == 'hits' else x for x in dropouts_to_show]
+    if ('post-misses' in results.dropout.unique())&('misses' in dropouts_to_show):
+       dropouts_to_show = ['all-misses' if x == 'misses' else x for x in dropouts_to_show]
+    if ('post-passive_change' in results.dropout.unique())&('passive_change' in dropouts_to_show):
+       dropouts_to_show = ['all-passive_change' if x == 'passive_change' else x for x in dropouts_to_show]
  
     data_to_plot = results.query('not passive').query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']

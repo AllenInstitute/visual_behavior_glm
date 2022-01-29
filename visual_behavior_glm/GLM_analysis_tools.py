@@ -680,6 +680,7 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         'avg_L2_regularization',
         'avg_cv_var_test_full_comparison_raw',
         'avg_cv_var_test_raw',
+        'avg_cv_var_train_raw',
         'avg_cv_var_test_sem', 
         'cell_L2_regularization',
         'fraction_change_from_full', 

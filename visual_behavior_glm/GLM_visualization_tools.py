@@ -3961,7 +3961,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                             ax[cindex].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'k-')
                             ax[cindex].text(np.mean([row.x1,row.x2]),yh, '*')
                 #ax[index].set_ylim(0,ytop*1.2)
-        clean_feature = feature.replace('all-','')
+        clean_feature = feature.replace('all-images','images')
         ax[0].set_ylabel(clean_feature+'\nCoding Score',fontsize=20)
         plt.suptitle(clean_feature,fontsize=18)
         ax[0].set_ylim(bottom=0)

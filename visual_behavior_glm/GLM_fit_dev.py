@@ -219,10 +219,16 @@ if False: # Code snippets for doing analyses.
     gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISp')
     gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISl')   
 
+    # For task and omission breakdown, you need to load the results of version: 
+    # 24_events_all_L2_optimize_by_session_task_and_omission_breakdown
+    gvt.plot_population_averages(results_pivoted_24d, run_params_24d,
+        dropouts_to_show=['omissions','post-omissions','all-omissions'],
+        extra='_breakdown')
+
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 
     gat.compute_over_fitting_proportion(full_results, run_params) 
-    gvt.plot_over_fitting_full_model(full_results, run_params
+    gvt.plot_over_fitting_full_model(full_results, run_params)
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
 

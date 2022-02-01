@@ -26,6 +26,7 @@ from scipy import stats
 import statsmodels.stats.multicomp as mc
 import scipy.cluster.hierarchy as sch
 import visual_behavior.visualization.utils as utils
+from sklearn.decomposition import PCA
 
 def project_colors():
     '''
@@ -5148,6 +5149,110 @@ def compare_L2_values(results,run_params):
 
     plt.tight_layout()
 
+def clustering_kernels(weights_df, run_params, kernel,just_coding=False,pca_by_experience=True):
+    problem_sessions = get_problem_sessions()
+    colors = project_colors() 
+    fig, ax = plt.subplots(3,5,figsize=(16,8))
+
+    if kernel in ['preferred_image', 'all-images']:
+        run_params['kernels'][kernel] = run_params['kernels']['image0'].copy()
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    if 'image' in kernel:
+        time_vec = time_vec[:-1]
+    if ('omissions' == kernel) & ('post-omissions' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('hits' == kernel) & ('post-hits' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('misses' == kernel) & ('post-misses' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('passive_change' == kernel) & ('post-passive_change' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+
+
+
+    cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre'] 
+
+    for index, cre_line in enumerate(cre_lines):
+        if just_coding:
+            weights = weights_df.query('(cre_line == @cre_line) & (ophys_session_id not in @problem_sessions) &(not passive)&({0} <0)'.format(kernel)).copy()       
+        else:
+            weights = weights_df.query('(cre_line == @cre_line) & (ophys_session_id not in @problem_sessions) &(not passive)').copy()
+        weights = weights[~weights[kernel+'_weights'].isnull()]
+        
+        # Do PCA across experience levels
+        x = np.vstack(weights[kernel+'_weights'].values) 
+        pca = PCA()
+        pca.fit(x) 
+        y = pca.transform(x)
+        weights['pc1'] = y[:,0]
+        weights['pc2'] = y[:,1]   
+        
+        # Plot PCA summary
+        if pca_by_experience:
+            #ax[index,0].plot(pca.explained_variance_ratio_, 'o-', color=colors[cre_line], label='global')   
+            ax[index,0].set_xlim(-.5,5)
+            ax[index,0].set_title(kernel,fontsize=18)
+            ax[index,0].tick_params(axis='both',labelsize=16)
+            ax[index,0].set_ylabel(cre_line+'\nVariance Explained',fontsize=16)
+            ax[index,0].set_xlabel('PC #',fontsize=16)
+        else:
+            ax[0,0].plot(pca.explained_variance_ratio_, 'o-', color=colors[cre_line], label=cre_line)
+            ax[0,0].set_xlim(-.5,5)
+            ax[0,0].set_title(kernel,fontsize=18)
+            ax[0,0].tick_params(axis='both',labelsize=16)
+            ax[0,0].set_ylabel('Variance Explained',fontsize=16)
+            ax[0,0].set_xlabel('PC #',fontsize=16)
+
+        #ax[index+1,0].plot(y[:,0],y[:,1], 'x',color=colors[cre_line])
+        #ax[index+1,0].set_title(cre_line)
+        #ax[index+1,0].set_ylabel('PC 2',fontsize=16)
+        #ax[index+1,0].set_xlabel('PC 1',fontsize=16)
+        #ax[index+1,0].tick_params(axis='both',labelsize=16)
+
+        if pca_by_experience:
+            #ax[index,1].plot(time_vec, pca.components_[0,:], 'k-',label='global')
+            ax[index,1].set_ylabel('PC 1',fontsize=16)
+        else:
+            ax[index,1].plot(time_vec, pca.components_[0,:], 'r-',label='PC 1')
+            ax[index,1].plot(time_vec,pca.components_[1,:], 'b-',label='PC 2')
+            ax[index,1].legend()
+            ax[index,1].set_ylabel('PC',fontsize=16)
+        ax[index,1].set_xlabel('Time (s)',fontsize=16)
+        ax[index,1].tick_params(axis='both',labelsize=16)
+
+        weights = weights.sort_values(by=['pc1'])
+        for eindex, experience_level in enumerate(['Familiar','Novel 1','Novel >1']):
+            if pca_by_experience:
+                eweights = weights.query('experience_level ==@experience_level').copy()
+                x = np.vstack(eweights[kernel+'_weights'].values) 
+                pca = PCA()
+                pca.fit(x) 
+                y = pca.transform(x)
+                eweights['pc1'] = y[:,0]
+                eweights['pc2'] = y[:,1]   
+                sorted_x = np.vstack(eweights.query('experience_level ==@experience_level')[kernel+'_weights'].values)
+                ax[index,0].plot(pca.explained_variance_ratio_, 'o-',label=experience_level,color=colors[experience_level])
+                ax[index,1].plot(time_vec, pca.components_[0,:],label=experience_level,color=colors[experience_level])
+                ax[index,0].legend()
+            else:           
+                sorted_x = np.vstack(weights.query('experience_level ==@experience_level')[kernel+'_weights'].values)
+
+            cbar=ax[index,2+eindex].imshow(sorted_x,aspect='auto',extent=[time_vec[0], time_vec[-1],0,np.shape(sorted_x)[1]],cmap='bwr')    
+            cbar.set_clim(-np.nanpercentile(np.abs(sorted_x),95),np.nanpercentile(np.abs(sorted_x),95))
+            ax[0,2+eindex].set_title(experience_level,fontsize=18)
+            ax[index,2+eindex].set_xlabel('Time (s)',fontsize=16)
+            ax[index,2+eindex].set_ylabel('Cells sorted \nby PC1 weight',fontsize=16)
+            ax[index,2+eindex].set_yticks([])
+            ax[index,2+eindex].tick_params(axis='both',labelsize=16)
+
+    plt.tight_layout()
+    if pca_by_experience:
+        filename = run_params['fig_clustering_dir']+'/'+kernel+'_by_experience.png'
+    else:
+        filename = run_params['fig_clustering_dir']+'/'+kernel+'.png'
+    plt.savefig(filename)
+    
 def depth_heatmap(weights_df, run_params,metric='omission_responsive',just_coding=False,just_mesoscope=False):
     if just_mesoscope:
         df = weights_df.query('equipment_name == "MESO.1"').query('experience_level == "Familiar"').copy()    

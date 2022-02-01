@@ -3486,7 +3486,10 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
 
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
-        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
+        if len(dropouts_to_show) ==3:
+            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(8.1,4), sharey=sharey)       
+        else:
+            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         stats = {}
         # Iterate dropouts and plot each by experience
@@ -3512,9 +3515,13 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
             for x in all_cell_points:
                 x.set_zorder(1000)
                         
-            if index !=3: 
+            if index !=len(dropouts_to_show)-1: 
                 ax[index].get_legend().remove() 
-            ax[index].set_title(feature,fontsize=20)
+            title_feature = feature.replace('all-images','images')
+            title_feature = title_feature.replace('omissions_positive','excited')
+            title_feature = title_feature.replace('omissions_negative','inhibited')
+            ax[index].set_title(title_feature,fontsize=20)
+
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
             ax[index].set_xticks([0,1,2])
@@ -3592,7 +3599,10 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
 
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
-        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
+        if len(dropouts_to_show) == 3:
+            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(8.1,4), sharey=sharey)       
+        else:
+            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         stats = {}
         # Iterate dropouts and plot each by experience
@@ -3618,9 +3628,12 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             for x in all_cell_points:
                 x.set_zorder(1000)
             
-            if index != 3:
-                ax[index].get_legend().remove() 
-            ax[index].set_title(feature,fontsize=20)
+            if index != len(dropouts_to_show)-1:
+                ax[index].get_legend().remove()
+            title_feature = feature.replace('all-images','images')
+            title_feature = title_feature.replace('omissions_positive','excited')
+            title_feature = title_feature.replace('omissions_negative','inhibited')
+            ax[index].set_title(title_feature,fontsize=20)
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
             ax[index].set_xticks([0,1,2])
@@ -3680,7 +3693,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     experiments_table = loading.get_platform_paper_experiment_table()
     experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
     results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
-   
+ 
     # Cells Matched across all three experience levels 
     cells_table = loading.get_cell_table(platform_paper_only=True)
     cells_table = cells_table.query('not passive').copy()
@@ -3967,6 +3980,8 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                             ax[cindex].text(np.mean([row.x1,row.x2]),yh, '*')
                 #ax[index].set_ylim(0,ytop*1.2)
         clean_feature = feature.replace('all-images','images')
+        clean_feature = clean_feature.replace('omissions_positive','omissions excited')
+        clean_feature = clean_feature.replace('omissions_negative','omissions inhibited')
         ax[0].set_ylabel(clean_feature+'\nCoding Score',fontsize=20)
         plt.suptitle(clean_feature,fontsize=18)
         ax[0].set_ylim(bottom=0)
@@ -4256,7 +4271,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.svg')
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
 
-def plot_fraction_summary_population(results_pivoted, run_params,sharey=True):
+def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omissions_excitation=False):
     # compute coding fractions
     results_pivoted = results_pivoted.query('not passive').copy()
     results_pivoted['code_anything'] = results_pivoted['variance_explained_full'] > run_params['dropout_threshold'] 
@@ -4265,22 +4280,39 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True):
     results_pivoted['code_behavioral'] = results_pivoted['code_anything'] & (results_pivoted['behavioral'] < 0)
     results_pivoted['code_task'] = results_pivoted['code_anything'] & (results_pivoted['task'] < 0)
     summary_df = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_images','code_omissions','code_behavioral','code_task']].mean()
-    
+
     # Compute Confidence intervals
     summary_df['n'] = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_images','code_omissions','code_behavioral','code_task']].count()['code_anything']
     summary_df['code_images_ci'] = 1.96*np.sqrt((summary_df['code_images']*(1-summary_df['code_images']))/summary_df['n'])
     summary_df['code_omissions_ci'] = 1.96*np.sqrt((summary_df['code_omissions']*(1-summary_df['code_omissions']))/summary_df['n'])
     summary_df['code_behavioral_ci'] = 1.96*np.sqrt((summary_df['code_behavioral']*(1-summary_df['code_behavioral']))/summary_df['n'])
     summary_df['code_task_ci'] = 1.96*np.sqrt((summary_df['code_task']*(1-summary_df['code_task']))/summary_df['n'])
- 
+
+    if omissions_excitation:
+        results_pivoted['code_omissions_excited'] = results_pivoted['code_anything'] & (results_pivoted['all-omissions'] < 0) & (results_pivoted['omissions_excited'])    
+        results_pivoted['code_omissions_inhibited'] = results_pivoted['code_anything'] & (results_pivoted['all-omissions'] < 0) & (results_pivoted['omissions_excited']==False) 
+        summary_df = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_omissions','code_omissions_excited','code_omissions_inhibited']].mean()
+        summary_df['n'] = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_omissions','code_omissions_excited','code_omissions_inhibited']].count()['code_anything']
+        summary_df['code_omissions_ci'] = 1.96*np.sqrt((summary_df['code_omissions']*(1-summary_df['code_omissions']))/summary_df['n'])
+        summary_df['code_omissions_excited_ci'] = 1.96*np.sqrt((summary_df['code_omissions_excited']*(1-summary_df['code_omissions_excited']))/summary_df['n'])
+        summary_df['code_omissions_inhibited_ci'] = 1.96*np.sqrt((summary_df['code_omissions_inhibited']*(1-summary_df['code_omissions_inhibited']))/summary_df['n'])
+
     # plotting variables
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     colors = project_colors()
 
-    coding_groups = ['code_images','code_omissions','code_behavioral','code_task']
-    titles = ['images','omissions','behavioral','task']
+    if omissions_excitation:
+        coding_groups = ['code_omissions','code_omissions_excited','code_omissions_inhibited']   
+        titles = ['both','excited','inhibited']
+    else:
+        coding_groups = ['code_images','code_omissions','code_behavioral','code_task']
+        titles = ['images','omissions','behavioral','task']
+
     # make combined across cre line plot
-    fig, ax = plt.subplots(1,len(coding_groups),figsize=(10.8,4), sharey=sharey)
+    if omissions_excitation:
+        fig, ax = plt.subplots(1,len(coding_groups),figsize=(8.1,4), sharey=sharey)
+    else:
+        fig, ax = plt.subplots(1,len(coding_groups),figsize=(10.8,4), sharey=sharey)
     for index, feature in enumerate(coding_groups):
         # plots three cre-lines in standard colors
         ax[index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre'][feature],'-',color=colors['Vip-IRES-Cre'],label='Vip Inhibitory',linewidth=3)
@@ -4306,8 +4338,12 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True):
             ax[index].legend()
     ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=20)
     plt.tight_layout()
-    plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.svg')  
-    plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.png')  
+    if omissions_excitation:
+        plt.savefig(run_params['figure_dir']+'/coding_fraction_omissions_summary.svg')  
+        plt.savefig(run_params['figure_dir']+'/coding_fraction_omissions_summary.png')  
+    else:
+        plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.svg')  
+        plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.png')  
  
 
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):

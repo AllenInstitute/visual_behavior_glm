@@ -4254,7 +4254,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
 
 def plot_fraction_summary_population(results_pivoted, run_params,sharey=True):
     # compute coding fractions
-    results_pivoted = results_pivoted.copy()
+    results_pivoted = results_pivoted.query('not passive').copy()
     results_pivoted['code_anything'] = results_pivoted['variance_explained_full'] > run_params['dropout_threshold'] 
     results_pivoted['code_images'] = results_pivoted['code_anything'] & (results_pivoted['all-images'] < 0)
     results_pivoted['code_omissions'] = results_pivoted['code_anything'] & (results_pivoted['all-omissions'] < 0)

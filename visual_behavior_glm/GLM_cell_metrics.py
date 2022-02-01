@@ -108,10 +108,11 @@ def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',
     plt.xlim(left=0)
     plt.ylabel('Variance Explained (%)')
     plt.xlabel('Cell Activity SNR')
-    
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.legend()
-    if title is not None:
-        plt.title(title)
+    #if title is not None:
+    #    plt.title(title)
 
     plt.tight_layout()
     if savefig:

@@ -3989,7 +3989,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[2].set_ylim(bottom=0)
         ax[3].set_ylim(bottom=0)
         fig.tight_layout() 
-        plt.savefig(run_params['figure_dir']+'/dropout_average_'+clean_feature+extra+'.svg')
+        plt.savefig(run_params['figure_dir']+'/dropout_average_'+clean_feature.replace(' ','_')+extra+'.svg')
 
 
 

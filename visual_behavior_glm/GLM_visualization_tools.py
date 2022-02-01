@@ -562,7 +562,9 @@ def pc_component_heatmap(pca, figsize=(18,4)):
 def var_explained_by_experience(results_pivoted, run_params,threshold = 0):
     
     if threshold != 0:
-        results_pivoted = results_pivoted.query('variance_explained_full > @threshold').copy()
+        results_pivoted = results_pivoted.query('(not passive) & (variance_explained_full > @threshold)').copy()
+    else:
+         results_pivoted = results_pivoted.query('not passive').copy()   
 
     colors = project_colors()
     mapper = {
@@ -586,9 +588,11 @@ def var_explained_by_experience(results_pivoted, run_params,threshold = 0):
     )
     ax.set_ylabel('Variance Explained (%)',fontsize=18)
     ax.set_xlabel('Cell Type',fontsize=18)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.ylim(0,40)
     plt.tick_params(axis='both',labelsize=14)
-    plt.tight_layout()
+    plt.tight_layout() 
     if threshold !=0:
         plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience_filtered.svg')
         plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience_filtered.png')
@@ -1970,10 +1974,10 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
 
     # Applying hard thresholds to dataset
     if kernel in weights_df:
-        weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
+        weights = weights_df.query('(not passive)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
         use_dropouts=True
     else:
-        weights = weights_df.query('(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold)'.format(filter_sessions_on))
+        weights = weights_df.query('(not passive)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold)'.format(filter_sessions_on))
         print('Dropouts not included, cannot use drop filter')
         use_dropouts=False
 

@@ -1858,6 +1858,19 @@ def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshol
     fig_s.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel'+extra+'.svg')
     fig_e.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
 
+def plot_kernel_comparison_by_omission_excitation(weights_df, run_params):
+    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Familiar'],cell_filter='Slc17a7-IRES2-Cre',compare=['omissions_excited'])
+    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel 1'],cell_filter='Slc17a7-IRES2-Cre',compare=['omissions_excited'])
+    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=['omissions_excited'])
+
+    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Familiar'],cell_filter='Sst-IRES-Cre',compare=['omissions_excited'])
+    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel 1'],cell_filter='Sst-IRES-Cre',compare=['omissions_excited'])
+    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel >1'],cell_filter='Sst-IRES-Cre',compare=['omissions_excited'])
+
+    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Familiar'],cell_filter='Vip-IRES-Cre',compare=['omissions_excited'])
+    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel 1'],cell_filter='Vip-IRES-Cre',compare=['omissions_excited'])
+    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel >1'],cell_filter='Vip-IRES-Cre',compare=['omissions_excited'])
+
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=20,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel'],threshold=0): 
     '''
         Plots the average kernel across different comparisons groups of cells
@@ -1917,7 +1930,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
     if area_filter != ['VISp','VISl']:
         filter_string+='_area_'+'_'.join(area_filter)
-    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.png')
+    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.svg')
 
     # Set up time vectors.
     if kernel in ['preferred_image', 'all-images']:
@@ -2069,7 +2082,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     #plt.tight_layout()
     if save_results:
         print('Figure Saved to: '+filename)
-        plt.savefig(filename)
+        plt.savefig(filename) 
     if save_kernels:
         outputs['time'] = time_vec
         filename2 = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.pkl')

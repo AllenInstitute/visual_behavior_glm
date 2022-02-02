@@ -259,6 +259,7 @@ if False: # Code snippets for doing analyses.
     gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation')
     gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISp')
     gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISl')
+    gvt.plot_kernel_comparison_by_omission_excitation(weights_df_24, run_params_24)
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)

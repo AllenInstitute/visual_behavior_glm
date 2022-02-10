@@ -1579,7 +1579,8 @@ def check_cv_nans(fit):
 
 
 def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fraction_change_from_full',
-                 glm_version='19_events_all_L2_optimize_by_session',
+                 glm_version='24_events_all_L2_optimize_by_session',
+                 ophys_experiment_ids_to_use = None,
                  cutoff=None, features=None, single=False, save_df=False,
                  path=None):
 
@@ -1610,9 +1611,12 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
     elif cutoff is not None:
         results_pivoted = results_pivoted[results_pivoted['variance_explained_full']>cutoff]
 
+    if ophys_experiment_ids_to_use is not None:
+        results_pivoted= results_pivoted[results_pivoted['ophys_experiment_id'].isin(ophys_experiment_ids_to_use)]
+
     print('loaded glm results')
     if features is None:
-        features  = get_default_features(single=single)
+        features = get_default_features(single=single)
 
     # sort by date collected,
     results_pivoted = results_pivoted.sort_values('date_of_acquisition')
@@ -1630,8 +1634,6 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
     print('total N cells = {}'.format(len(df)))
     df = df.dropna()
     print('dropped NaN, now N = {}'.format(len(df)))
-    df = df.drop_duplicates()
-    print('dropped duplicated cells, keeping first, now N = {}'.format(len(df)))
 
     if save_df is True:
         filename = 'glm_output_v{}.h5'.format(glm_version)

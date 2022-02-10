@@ -680,6 +680,7 @@ def build_pivoted_results_summary(value_to_use, results_summary=None, glm_versio
         'avg_L2_regularization',
         'avg_cv_var_test_full_comparison_raw',
         'avg_cv_var_test_raw',
+        'avg_cv_var_train_raw',
         'avg_cv_var_test_sem', 
         'cell_L2_regularization',
         'fraction_change_from_full', 
@@ -869,21 +870,56 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         x['omissions_weights'],
         x['post-omissions_weights']
         ]),axis=1)
+    
+    if 'post-hits_weights' in weights_df:
+        weights_df['all-hits_weights'] = weights_df.apply(lambda x: compute_all_kernels([
+        x['hits_weights'],
+        x['post-hits_weights']
+        ]),axis=1)       
+        weights_df['all-misses_weights'] = weights_df.apply(lambda x: compute_all_kernels([
+        x['misses_weights'],
+        x['post-misses_weights']
+        ]),axis=1)
+        weights_df['all-passive_change_weights'] = weights_df.apply(lambda x: compute_all_kernels([
+        x['passive_change_weights'],
+        x['post-passive_change_weights']
+        ]),axis=1)
+        # Make a combined change kernel
+        weights_df['task_weights'] = weights_df.apply(lambda x: np.mean([
+            x['all-hits_weights'],
+            x['all-misses_weights'],
+            ],axis=0),axis=1)
 
     # Make a combined change kernel
     weights_df['task_weights'] = weights_df.apply(lambda x: np.mean([
         x['hits_weights'],
         x['misses_weights'],
         ],axis=0),axis=1)
- 
+
+    # Make a metric of omission excitation/inhibition
+    #weights_df['omission_excited'] = [np.sum(x[0:24]) for x in weights_df['omissions_weights']
+    weights_df['omissions_excited'] = weights_df_24.apply(lambda x: omission_excitation(x['omissions_weights']),axis=1)
+
     # Return weights_df
     return weights_df 
+
+def omission_excitation(omissions):
+    if np.isnan(np.sum(omissions)):
+        return np.nan
+    else:
+        return np.sum(omissions[0:24]) > 0
 
 def compute_all_omissions(omissions):
     if np.isnan(np.sum(omissions[0])) or np.isnan(np.sum(omissions[1])):
         return np.nan
     
     return np.concatenate(omissions)
+
+def compute_all_kernels(kernels):
+    if np.isnan(np.sum(kernels[0])) or np.isnan(np.sum(kernels[1])):
+        return np.nan
+    
+    return np.concatenate(kernels)
 
 def compute_preferred_kernel(images):
     
@@ -951,6 +987,23 @@ def compute_weight_index(weights_df):
     weights_df['all-images_weights_index'] = weights_df['image0_weights_index'] + weights_df['image1_weights_index'] + weights_df['image2_weights_index'] + weights_df['image3_weights_index'] + weights_df['image4_weights_index'] +weights_df['image5_weights_index'] +weights_df['image6_weights_index'] +weights_df['image7_weights_index']
     return weights_df
 
+def append_omissions_excitation(weights_df, results_pivoted):
+    
+    results_pivoted = pd.merge(
+        results_pivoted,
+        weights_df[['identifier','omissions_excited']],
+        how = 'inner',
+        on = 'identifier',
+        validate='one_to_one'
+        )
+
+    results_pivoted['omissions_positive'] = results_pivoted['omissions']
+    results_pivoted['omissions_negative'] = results_pivoted['omissions']
+    results_pivoted.loc[results_pivoted['omissions_excited'] != True, 'omissions_positive'] = 0
+    results_pivoted.loc[results_pivoted['omissions_excited'] != False,'omissions_negative'] = 0   
+
+    return results_pivoted
+        
 
 def compute_over_fitting_proportion(results_full,run_params):
     '''

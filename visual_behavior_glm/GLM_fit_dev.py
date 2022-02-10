@@ -192,23 +192,43 @@ if False: # Code snippets for doing analyses.
 
     # Make the platform paper schematic examples
     oeid = 967008471
-    cell_specimen_id = 1086492467
+    cell_specimen_id = 1086492467 #celldex18
     g=glm.GLM(oeid, version, use_previous_fit=True, log_results=False, log_weights=False)
     gsm.plot_glm_example(g,cell_specimen_id, run_params)
+    gsm.omission_breakdown_schematic(run_params)
+    gsm.change_breakdown_schematic(run_params)
 
     # Make plot of kernel support
-    gvt.plot_kernel_support(g)
+    gvt.plot_kernel_support(g,start=45144,end=45757)
+
+    # Make Variance Explained plot
+    gvt.var_explained_by_experience(results_pivoted, run_params)
+    r2 = gcm.compute_event_metrics(results_pivoted, run_params)
 
     # Make dropout summary figures
     gvt.plot_dropout_summary_population(results,run_params)
     gvt.plot_dropout_individual_population(results,run_params)
-    gvt.plot_population_averages(results_pivoted, run_params,add_stats=True)
-    gvt.plot_population_averages(results_pivoted, run_params,sharey=False)
+    gvt.plot_dropout_individual_population(results,run_params,use_single=True)
+    gvt.plot_population_averages(results_pivoted, run_params)
+    gvt.plot_population_averages(results_pivoted, run_params,
+        dropouts_to_show=['licks','running','pupil','hits','misses'])
+    gvt.plot_population_averages(results_pivoted, run_params,strict_experience_matching=True)
+    gvt.plot_population_averages(results_pivoted, run_params,include_zero_cells=False)
     gvt.plot_fraction_summary_population(results_pivoted, run_params)
+    gvt.plot_population_averages_by_area(results_pivoted, run_params)
+    gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISp')
+    gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISl')   
+
+    # For task and omission breakdown, you need to load the results of version: 
+    # 24_events_all_L2_optimize_by_session_task_and_omission_breakdown
+    gvt.plot_population_averages(results_pivoted_24d, run_params_24d,
+        dropouts_to_show=['omissions','post-omissions','all-omissions'],
+        extra='_breakdown')
 
     # Make over-fitting figures
     # You may need to `mkdir over_fitting_figures` 
     gat.compute_over_fitting_proportion(full_results, run_params) 
+    gvt.plot_over_fitting_full_model(full_results, run_params)
     gvt.plot_over_fitting_summary(full_results, run_params)
     gvt.plot_all_over_fitting(full_results, run_params)
 
@@ -219,40 +239,27 @@ if False: # Code snippets for doing analyses.
     gvt.compare_dropout_thresholds(results)
 
     # Make Coding Fraction plots
-    # You may need to `mkdir coding` 
     gvt.plot_coding_fraction(results_pivoted, run_params, 'omissions') # Example
     gvt.plot_all_coding_fraction(results_pivoted, run_params, metric='fraction') 
 
     # Make Kernel figures
-    # You may need to `mkdir kernels` 
     gvt.kernel_evaluation(weights_df, run_params, 'omissions') # Example
+    gvt.kernel_evaluation(weights_df, run_params, 'omissions',session_filter=['Familiar'])
     gvt.all_kernels_evaluation(weights_df,run_params) 
-    
-    # Make Kernel Comparison Figures
-    gvt.plot_kernel_comparison(
-        weights_df, 
-        run_params, 
-        'omissions',
-        cell_filter='vip',
-        compare=['experience_level'],
-        plot_errors=False
-        ) 
-    gvt.plot_all_kernel_comparison(
-        weights_df, 
-        run_params,
-        cell_filter='vip',
-        compare=['session'],
-        plot_errors=False
-        )
-    gvt.plot_kernel_comparison_by_experience(
-        weights_df, 
-        run_params, 
-        'omissions'
-        )
+    gvt.plot_kernel_comparison_by_experience(weights_df,run_params,'omissions')
     
     # Might need to update
     gvt.plot_perturbation(weights_df, run_params, 'omissions')
     gvt.plot_compare_across_kernels(weights_df, run_params, ['hits','misses'])
+
+    # splitting omissions
+    results_pivoted = gat.append_omissions_excitation(weights_df, results_pivoted)
+    gvt.plot_fraction_summary_population(results_pivoted, run_params, omissions_excitation=True)
+    gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'])
+    gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation')
+    gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISp')
+    gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISl')
+    gvt.plot_kernel_comparison_by_omission_excitation(weights_df_24, run_params_24)
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)
@@ -324,6 +331,11 @@ def dev_ignore():
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[3])
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[4])
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
+
+   
+
+
+
 
 
 

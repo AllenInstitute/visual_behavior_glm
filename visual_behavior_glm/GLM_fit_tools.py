@@ -49,6 +49,10 @@ def load_fit_experiment(ophys_experiment_id, run_params):
     kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
     if 'post-omissions' in run_params['kernels']:
         kernels_to_limit_per_image_cycle.append('omissions')
+    if 'post-hits' in run_params['kernels']:
+        kernels_to_limit_per_image_cycle.append('hits')
+        kernels_to_limit_per_image_cycle.append('misses')
+        kernels_to_limit_per_image_cycle.append('passive_change')
     for k in kernels_to_limit_per_image_cycle:
         if k in run_params['kernels']:
             run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    
@@ -783,6 +787,7 @@ def build_dataframe_from_dropouts(fit,run_params):
         # infinities are not set to 0. This is just for debugging purposes.
         results[model_label+"__avg_cv_var_train"] = np.nanmean(fit['dropouts'][model_label]['cv_var_train'],1) 
         if compute_with_infs:
+            results[model_label+"__avg_cv_var_train_raw"] = np.mean(fit['dropouts'][model_label]['cv_var_train'],1)
             results[model_label+"__avg_cv_var_test_raw"]  = np.mean(fit['dropouts'][model_label]['cv_var_test'],1) 
             results[model_label+"__avg_cv_var_test_full_comparison_raw"] = np.mean(fit['dropouts']['Full']['cv_var_test'],1)       
  
@@ -1214,6 +1219,10 @@ def interpolate_to_stimulus(fit, session, run_params):
     kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
     if 'post-omissions' in run_params['kernels']:
         kernels_to_limit_per_image_cycle.append('omissions')
+    if 'post-hits' in run_params['kernels']:
+        kernels_to_limit_per_image_cycle.append('hits')
+        kernels_to_limit_per_image_cycle.append('misses')
+        kernels_to_limit_per_image_cycle.append('passive_change')
     for k in kernels_to_limit_per_image_cycle:
         if k in run_params['kernels']:
             run_params['kernels'][k]['num_weights'] = fit['stimulus_interpolation']['timesteps_per_stimulus']    

@@ -1581,6 +1581,7 @@ def check_cv_nans(fit):
 def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fraction_change_from_full',
                  glm_version='24_events_all_L2_optimize_by_session',
                  ophys_experiment_ids_to_use = None,
+                 drop_duplicated_cells = True,
                  cutoff=None, features=None, single=False, save_df=False,
                  path=None):
 
@@ -1603,7 +1604,14 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
     Output:
         df (n cells by n selected features)
     '''
-    assert save_df is True and path is not None, 'must provide path when saving file'
+
+    if path is None and save_df is True:
+        raise Warning('Please specify file path if you want to save df '
+                      'or set save_df to False. File will not be saved.')
+        save_df = False
+    elif path is not None and save_df is False:
+        raise Warning('Have to set save_df to True if you wish to save the file.')
+
 
     if results_pivoted is None:
         results_pivoted = build_pivoted_results_summary(value_to_use=model_output_type, results_summary=None,
@@ -1634,6 +1642,14 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
     print('total N cells = {}'.format(len(df)))
     df = df.dropna()
     print('dropped NaN, now N = {}'.format(len(df)))
+
+    if drop_duplicated_cells is True:
+        if len(df) == len(np.unique(df.index.values)):
+            print('No duplicated cells found')
+        elif len(df) > len(np.unique(df.index.values)):
+            print('found {} duplicated cells. But not removed. This needs to be fixed'.format(len(df) - len(np.unique(df.index.values))))
+        elif len(df) < len(np.unique(df.index.values)):
+            print('something weird happened!!')
 
     if save_df is True:
         filename = 'glm_output_v{}.h5'.format(glm_version)

@@ -594,11 +594,15 @@ def var_explained_by_experience(results_pivoted, run_params,threshold = 0):
     plt.tick_params(axis='both',labelsize=14)
     plt.tight_layout() 
     if threshold !=0:
-        plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience_filtered.svg')
+        filename = run_params['figure_dir']+'/variance_explained_by_experience_filtered.svg'
         plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience_filtered.png')
+        print('Figure saved to: ' + filename)
+        plt.savefig(filename)
     else:
-        plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.svg')
+        filename = run_params['figure_dir']+'/variance_explained_by_experience.svg'
         plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.png')
+        print('Figure saved to: ' + filename)
+        plt.savefig(filename)
 
 def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=True,zoom_xlim=True,sort_by_signal=True):
     '''
@@ -3560,9 +3564,10 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
         ax[0].set_ylabel('Coding Score',fontsize=20)
         plt.suptitle(cell_type+', '+area,fontsize=20)
         fig.tight_layout() 
-        plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg')
+        filename = run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg'
         plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.png')
-
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
 
 
 def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope"):
@@ -3672,8 +3677,10 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
         ax[0].set_ylabel('Coding Score',fontsize=20)
         plt.suptitle(cell_type,fontsize=20)
         fig.tight_layout() 
-        plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.svg')
+        filename = run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.svg'
         plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.png')
+        plt.savefig(filename)
+        print('Figure saved to: '+filename)
 
 
 
@@ -3755,7 +3762,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             ax[index].tick_params(axis='y',labelsize=16)
         ax[0].set_ylabel('Coding Score',fontsize=20)
         plt.tight_layout()
-        plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg')  
+        filename = run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg'
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)  
         #plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.png')  
     
         # Iterate cell types and make a plot for each
@@ -3862,8 +3871,10 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                     ax[index].set_ylim(0,ytop*1.2)
             ax[0].set_ylabel('Coding Score',fontsize=18)
             plt.suptitle(cell_type,fontsize=18)
-            fig.tight_layout() 
-            plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg')
+            fig.tight_layout()
+            filename = run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg' 
+            plt.savefig(filename)
+            print('Figure saved to: '+filename)
 
     # Repeat the plots but transposed
     # Iterate cell types and make a plot for each
@@ -4002,7 +4013,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[2].set_ylim(bottom=0)
         ax[3].set_ylim(bottom=0)
         fig.tight_layout() 
-        plt.savefig(run_params['figure_dir']+'/dropout_average_'+clean_feature.replace(' ','_')+extra+'.svg')
+        filename = run_params['figure_dir']+'/dropout_average_'+clean_feature.replace(' ','_')+extra+'.svg'
+        plt.savefig(filename)
+        print('Figure saved to: '+filename)
 
 
 
@@ -4166,13 +4179,15 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
     if add_title:
         plt.title(run_params['version'])
     if use_violin:
-        plt.savefig(run_params['figure_dir']+'/dropout_individual.svg')
+        filename = run_params['figure_dir']+'/dropout_individual.svg'
     elif use_single:
-        plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot_single.svg')
+        filename = run_params['figure_dir']+'/dropout_individual_boxplot_single.svg'
     else:
-        plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot.svg')
+        filename = run_params['figure_dir']+'/dropout_individual_boxplot.svg'
         plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot.png')
 
+    plt.savefig(filename)
+    print('Figure saved to: '+filename)
 
 def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False): 
     '''
@@ -4281,7 +4296,9 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
     if use_violin:
         plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
     else:
-        plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.svg')
+        filename = run_params['figure_dir']+'/dropout_summary_boxplot.svg'
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
 
 def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omissions_excitation=False):
@@ -4352,11 +4369,15 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omi
     ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=20)
     plt.tight_layout()
     if omissions_excitation:
-        plt.savefig(run_params['figure_dir']+'/coding_fraction_omissions_summary.svg')  
-        plt.savefig(run_params['figure_dir']+'/coding_fraction_omissions_summary.png')  
+        filename = run_params['figure_dir']+'/coding_fraction_omissions_summary.svg'  
+        plt.savefig(filename)  
+        plt.savefig(run_params['figure_dir']+'/coding_fraction_omissions_summary.png') 
+        print('Figure saved to: '+filename) 
     else:
-        plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.svg')  
+        filename = run_params['figure_dir']+'/coding_fraction_summary.svg'
+        plt.savefig(filename)  
         plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.png')  
+        print('Figure saved to: '+filename) 
  
 
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):

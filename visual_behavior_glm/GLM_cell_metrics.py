@@ -120,7 +120,7 @@ def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',
         plt.savefig(filepath)
         filepath = os.path.join(run_params['figure_dir'], 'variance_explained_vs_'+xmetric+'_'+label+'.svg') 
         plt.savefig(filepath)
-        print(filepath)
+        print('Figure saved to: '+filepath)
     
   
  

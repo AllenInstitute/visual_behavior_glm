@@ -3509,6 +3509,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     colors = project_colors()
 
+    summary = {}
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
         if len(dropouts_to_show) ==3:
@@ -3517,9 +3518,11 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
             fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         stats = {}
+        summary[cell_type + ' data'] = {}
         # Iterate dropouts and plot each by experience
         for index, feature in enumerate(dropouts_to_show):
             stats[feature] = test_significant_dropout_averages_by_depth(all_data,feature)
+            summary[cell_type+' data'][feature] = all_data.groupby(['experience_level','coarse_binned_depth'])[feature].describe()
             # Plot all cells in active sessions 
             ax[index] = sns.pointplot(
                 data = all_data,
@@ -3576,7 +3579,8 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
         plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.png')
         print('Figure saved to: '+filename)
         plt.savefig(filename)
-
+        summary[cell_type + ' stats'] = stats
+    return summary
 
 def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope"):
     '''
@@ -3622,7 +3626,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     cell_types = results_pivoted.cell_type.unique()
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     colors = project_colors()
-
+    summary = {}
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
         if len(dropouts_to_show) == 3:
@@ -3631,10 +3635,12 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         stats = {}
+        summary[cell_type + ' data'] = {}
         # Iterate dropouts and plot each by experience
         for index, feature in enumerate(dropouts_to_show):
             stats[feature] = test_significant_dropout_averages_by_area(all_data,feature)
             # Plot all cells in active sessions 
+            summary[cell_type+' data'][feature] = all_data.groupby(['experience_level','targeted_structure'])[feature].describe()
             ax[index] = sns.pointplot(
                 data = all_data,
                 x = 'experience_level',
@@ -3689,7 +3695,8 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
         plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.png')
         plt.savefig(filename)
         print('Figure saved to: '+filename)
-
+        summary[cell_type + ' stats'] = stats
+    return summary
 
 
 def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False):
@@ -3886,6 +3893,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
     # Repeat the plots but transposed
     # Iterate cell types and make a plot for each
+    summary_data = {}
     for index, feature in enumerate(dropouts_to_show):   
         fig, ax = plt.subplots(1,4,figsize=(10.8,4), sharey=sharey) 
 
@@ -3912,6 +3920,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[3].spines['top'].set_visible(False)
         ax[3].spines['right'].set_visible(False)
 
+        summary_data[feature + ' data'] = {}
         stats = {}
         # Iterate dropouts and plot each by experience
         for cindex, cell_type in enumerate(cell_types):
@@ -3921,6 +3930,8 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                 strict_matched_data = all_data.query('cell_specimen_id in @strict_matched_cells') 
             anova, tukey = test_significant_dropout_averages(all_data,feature)
             stats[cell_type]=(anova, tukey)
+            summary_data[feature+' data'][cell_type+' all data'] = all_data.groupby(['experience_level'])[feature].describe()
+            summary_data[feature+' data'][cell_type+' matched data'] = matched_data.groupby(['experience_level'])[feature].describe()
             # Plot all cells in active sessions
             if boxplot:
                 ax[cindex] = sns.boxplot(
@@ -3964,6 +3975,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
             if strict_experience_matching:
                 # Plot cells in matched active sessions
+                summary_data[feature+' data'][cell_type+' strict matched data'] = strict_matched_data.groupby(['experience_level'])[feature].describe()
                 ax[cindex] = sns.pointplot(
                     data = strict_matched_data,
                     x = 'experience_level',
@@ -4024,7 +4036,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         filename = run_params['figure_dir']+'/dropout_average_'+clean_feature.replace(' ','_')+extra+'.svg'
         plt.savefig(filename)
         print('Figure saved to: '+filename)
+        summary_data[feature+' stats'] = stats
 
+    return summary_data
 
 
 def test_significant_dropout_averages(data,feature):

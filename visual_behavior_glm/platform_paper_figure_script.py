@@ -4,14 +4,18 @@
 
     02/22/2022 Alex Piet (alexpiet@gmail.com)
 
-    All functions print the location of where figures are saved
+    All functions print the location of where figures are saved. Some 
+    functions return summary statistics tables. The exceptions are the kernel
+    functions for which we did not perform any quantification. The entire 
+    script will take about 30 minutes to run, although I recommend just 
+    running it line by line since it will generate so many figures. 
+
+    This script was tested on the following code versions
+    visual_behavior_glm v1.0
+    visual_behavior_analysis origin/update_cell_metrics commit #526e7659
+    AllenSDK rc/2.13.2
 
 '''
-
-### TODO, Note SDK version
-### TODO, Note VBA version
-### TODO, Note GLM repo version
-
 
 ### Import packages
 import visual_behavior_glm.GLM_fit_dev as gfd
@@ -63,8 +67,24 @@ gvt.plot_kernel_comparison_by_experience(weights_df, run_params, 'omissions')
 stats_D = gvt.plot_dropout_summary_population(results,run_params) 
 
 ## Panel E - Dropout averages for experience and cre-line
-# TODO, stats
-gvt.plot_population_averages(results_pivoted, run_params) 
+'''
+    Returns a dictionary containing two entries for each dropout in
+    `dropouts_to_show`. The default option is the 4 primary dropouts, but the 
+    supplemental figures below use different dropouts.
+
+    "<dropout> stats" is a dictionary, which has a 2-tuple value for each cell type
+        The stats are computed in `gvt.test_significant_dropout_averages` 
+        The first entry is the results of scipy.stats.f_oneway anova test comparing
+            across experience levels
+        The second entry is the results of multiple comparison adjusted tukey tests
+            between each individual experience level comparison.
+
+    "<dropout> data" is a dictionary of cell types and data filters.
+        "<cell type> all data" is a pandas "describe()" output on all cells
+        "<cell type> matched data" is just for matched cells
+        "<cell type> strict matched data" is available only if requested 
+'''
+stats_E = gvt.plot_population_averages(results_pivoted, run_params) 
 
 ## Panel F - Coding fraction by experience/cre
 # Returns a dataframe with rows for cre/experience, and columns with the fraction of
@@ -83,35 +103,38 @@ stats_S1B = gvt.plot_dropout_individual_population(results,run_params,use_single
 
 
 ## S2 - all dropouts by experience
-# TODO, need stats
-gvt.plot_population_averages(results_pivoted, run_params,
+stats_S2 = gvt.plot_population_averages(results_pivoted, run_params,
         dropouts_to_show=['licks','running','pupil','hits','misses'])
 
 
 ## S3 - cell selection
 # Panel A - Comparing strictly matched cells (last familiar, first novel repeat)
-# TODO, need stats
-gvt.plot_population_averages(results_pivoted, run_params,
+stats_S3A = gvt.plot_population_averages(results_pivoted, run_params,
         strict_experience_matching=True)
 
 # Panel B - Cells with explained variance > 0.5%
-# TODO, need stats
-gvt.plot_population_averages(results_pivoted, run_params,include_zero_cells=False)
+stats_S3B = gvt.plot_population_averages(results_pivoted, run_params,
+        include_zero_cells=False)
 
 
 ## S4 - area
-# TODO, need stats
-gvt.plot_population_averages_by_area(results_pivoted, run_params)
+'''
+    stats is a dictionary containing entries for cell_type statistics and data
+    [<cell type> stats][<feature>][<experience>] is the output of a ttest
+    [<cell type> data][<feature>] is a pandas "describe()" of that dropout
+
+'''
+stats_S4 = gvt.plot_population_averages_by_area(results_pivoted, run_params)
 
 
 ## S5 - Depth V1
-# TODO, need stats
-gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISp')
+stats_S5_V1 = gvt.plot_population_averages_by_depth(results_pivoted,run_params, 
+        area='VISp')
 
 
 ## S5 - Depth LM
-# TODO, need stats
-gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISl')   
+stats_S5_LM = gvt.plot_population_averages_by_depth(results_pivoted,run_params, 
+        area='VISl')   
 
 
 ## For Supplemental figures S6-S9, you need to load the results from a different version
@@ -124,27 +147,27 @@ run_params_b, results_b, results_pivoted_b, weights_df_b = gfd.get_analysis_dfs(
 
 ## S6 - hits breakdown
 gsm.change_breakdown_schematic(run_params)
-gvt.plot_population_averages(results_pivoted_b, run_params_b,
+stats_S6 = gvt.plot_population_averages(results_pivoted_b, run_params_b,
     dropouts_to_show=['hits','post-hits'], extra='_breakdown')
-#TODO, need stats
+
 
 ## S7 - misses breakdown
 gsm.change_breakdown_schematic(run_params)
-gvt.plot_population_averages(results_pivoted_b, run_params_b,
+stats_S7 = gvt.plot_population_averages(results_pivoted_b, run_params_b,
     dropouts_to_show=['misses','post-misses'], extra='_breakdown')
-#TODO, need stats
+
 
 ## S8 - task breakdown
 gsm.change_breakdown_schematic(run_params)
-gvt.plot_population_averages(results_pivoted_b, run_params_b,
+stats_S8 = gvt.plot_population_averages(results_pivoted_b, run_params_b,
     dropouts_to_show=['task','post-task'], extra='_breakdown')
-#TODO, need stats
+
 
 ## S9 - omission breakdown 
 gsm.omission_breakdown_schematic(run_params)
-gvt.plot_population_averages(results_pivoted_b, run_params_b,
+stats_S9 = gvt.plot_population_averages(results_pivoted_b, run_params_b,
     dropouts_to_show=['omissions','post-omissions'], extra='_breakdown')
-#TODO, need stats
+
 
 ## S10 - omission excitation
 # This annotates omission excited versus inhibited cells
@@ -162,8 +185,7 @@ stats_S10B = gvt.plot_fraction_summary_population(results_pivoted, run_params,
     omissions_excitation=True)
 
 # Panel C - dropout averages
-#TODO, need stats
-gvt.plot_population_averages(results_pivoted, run_params, 
+stats_S10C = gvt.plot_population_averages(results_pivoted, run_params, 
     dropouts_to_show=['omissions','omissions_positive','omissions_negative'])
 
 
@@ -255,12 +277,6 @@ gvt.plot_kernel_comparison_by_experience(weights_df, run_params, 'running')
 gvt.kernel_evaluation(weights_df, run_params, 'running', session_filter=['Familiar'])
 gvt.kernel_evaluation(weights_df, run_params, 'running', session_filter=['Novel 1'])
 gvt.kernel_evaluation(weights_df, run_params, 'running', session_filter=['Novel >1'])
-
-
-
-
-
-
 
 
 

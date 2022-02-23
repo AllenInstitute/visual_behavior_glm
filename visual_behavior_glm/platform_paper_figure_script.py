@@ -54,6 +54,7 @@ gvt.kernel_evaluation(weights_df, run_params, 'omissions', session_filter=['Fami
 
 ## Panel C - Omission kernels for each experience level
 # This generates 6 figures,  3 by experience, and 3 by cre-line
+# only the 3 by experience are used in the main figure
 gvt.plot_kernel_comparison_by_experience(weights_df, run_params, 'omissions')
 
 ## Panel D - Dropout summaries
@@ -109,40 +110,38 @@ gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISp')
 # TODO, need stats
 gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISl')   
 
-# TODO, finish checking this one
+
 ## For Supplemental figures S6-S9, you need to load the results from a different version
 # This takes a few minutes
 VERSION_b = '24_events_all_L2_optimize_by_session_task_and_omission_breakdown'
 run_params_b, results_b, results_pivoted_b, weights_df_b = gfd.get_analysis_dfs(VERSION_b)
 
+# For each of S6-S9, "hits" is just the (0,0.75s) window, and "post-hits" is (0.75, end)
+# In the supplemental figure, I use the VERSION figure for the entire interval
 
 ## S6 - hits breakdown
 gsm.change_breakdown_schematic(run_params)
 gvt.plot_population_averages(results_pivoted_b, run_params_b,
-    dropouts_to_show=['hits','post-hits','all-hits'],
-    extra='_breakdown')
-
+    dropouts_to_show=['hits','post-hits'], extra='_breakdown')
+#TODO, need stats
 
 ## S7 - misses breakdown
 gsm.change_breakdown_schematic(run_params)
 gvt.plot_population_averages(results_pivoted_b, run_params_b,
-    dropouts_to_show=['misses','post-misses','all-misses'],
-    extra='_breakdown')
-
+    dropouts_to_show=['misses','post-misses'], extra='_breakdown')
+#TODO, need stats
 
 ## S8 - task breakdown
 gsm.change_breakdown_schematic(run_params)
 gvt.plot_population_averages(results_pivoted_b, run_params_b,
-    dropouts_to_show=['task','post-task','all-task'],
-    extra='_breakdown')
-
+    dropouts_to_show=['task','post-task'], extra='_breakdown')
+#TODO, need stats
 
 ## S9 - omission breakdown 
 gsm.omission_breakdown_schematic(run_params)
 gvt.plot_population_averages(results_pivoted_b, run_params_b,
-    dropouts_to_show=['omissions','post-omissions','all-omissions'],
-    extra='_breakdown')
-
+    dropouts_to_show=['omissions','post-omissions'], extra='_breakdown')
+#TODO, need stats
 
 ## S10 - omission excitation
 # This annotates omission excited versus inhibited cells

@@ -58,25 +58,28 @@ gvt.kernel_evaluation(weights_df, run_params, 'omissions', session_filter=['Fami
 gvt.plot_kernel_comparison_by_experience(weights_df, run_params, 'omissions')
 
 ## Panel D - Dropout summaries
-# TODO, stats
-gvt.plot_dropout_summary_population(results,run_params) 
+# Returns a dataframe with rows for cre/dropout, and columns describing
+# the dropout score
+stats_D = gvt.plot_dropout_summary_population(results,run_params) 
 
 ## Panel E - Dropout averages for experience and cre-line
 # TODO, stats
 gvt.plot_population_averages(results_pivoted, run_params) 
 
 ## Panel F - Coding fraction by experience/cre
-# TODO, stats
-gvt.plot_fraction_summary_population(results_pivoted, run_params)
+# Returns a dataframe with rows for cre/experience, and columns with the fraction of
+# cells coding for each regressor, and the CI value (which is the value +/- from the mean)
+stats_F = gvt.plot_fraction_summary_population(results_pivoted, run_params)
 
 
 
 ### Supplemental figures
 
 ## S1 - all dropouts
-# TODO, need stats
-gvt.plot_dropout_individual_population(results,run_params)
-gvt.plot_dropout_individual_population(results,run_params,use_single=True)
+# Returns a dataframe with rows for cre/dropout, and columns describing
+# the dropout score
+stats_S1A = gvt.plot_dropout_individual_population(results,run_params)
+stats_S1B = gvt.plot_dropout_individual_population(results,run_params,use_single=True)
 
 
 ## S2 - all dropouts by experience
@@ -148,16 +151,20 @@ gvt.plot_population_averages(results_pivoted_b, run_params_b,
 results_pivoted = gat.append_omissions_excitation(weights_df, results_pivoted)
 
 # Panel A - Average kernels
-# This generates several figures, you want `omissions_comparison_by_omissions_excited_slc_sessions_Familiar.svg`
+# This generates several figures, you want 
+# `omissions_comparison_by_omissions_excited_slc_sessions_Familiar.svg`
 gvt.plot_kernel_comparison_by_omission_excitation(weights_df, run_params)
 
 # Panel B - Coding Fraction 
-#TODO, need stats
-gvt.plot_fraction_summary_population(results_pivoted, run_params, omissions_excitation=True)
+# Returns a dataframe with rows for cre/experience, and columns with the fraction of
+# cells coding for each regressor, and the CI value (which is the value +/- from the mean)
+stats_S10B = gvt.plot_fraction_summary_population(results_pivoted, run_params, 
+    omissions_excitation=True)
 
 # Panel C - dropout averages
 #TODO, need stats
-gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'])
+gvt.plot_population_averages(results_pivoted, run_params, 
+    dropouts_to_show=['omissions','omissions_positive','omissions_negative'])
 
 
 ## S11 - model validation
@@ -167,8 +174,8 @@ gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['omi
 gvt.plot_kernel_support(g,start=45144,end=45757)
 
 # Panel B - Explained Variance by experience/cre-line
-# TODO, need stats
-gvt.var_explained_by_experience(results_pivoted, run_params)
+# Returns a pandas dataframe describing the explained variance by experience/cre-line
+stats_S11B = gvt.var_explained_by_experience(results_pivoted, run_params)
 
 # Panel C - Explained Variance vs SNR
 # r2 is a dataframe of r^2 values for different subsets of the data

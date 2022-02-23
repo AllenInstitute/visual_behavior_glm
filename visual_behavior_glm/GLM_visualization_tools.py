@@ -603,6 +603,7 @@ def var_explained_by_experience(results_pivoted, run_params,threshold = 0):
         plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.png')
         print('Figure saved to: ' + filename)
         plt.savefig(filename)
+    return results_pivoted.groupby(['cell_type','experience_level'])['variance_explained_percent'].describe()
 
 def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=True,zoom_xlim=True,sort_by_signal=True):
     '''
@@ -4195,6 +4196,7 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
 
     plt.savefig(filename)
     print('Figure saved to: '+filename)
+    return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe()
 
 def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False): 
     '''
@@ -4307,6 +4309,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         print('Figure saved to: '+filename)
         plt.savefig(filename)
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
+    return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe() 
 
 def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omissions_excitation=False):
     # compute coding fractions
@@ -4385,7 +4388,7 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omi
         plt.savefig(filename)  
         plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.png')  
         print('Figure saved to: '+filename) 
- 
+    return summary_df 
 
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     '''

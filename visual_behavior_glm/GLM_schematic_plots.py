@@ -25,7 +25,10 @@ def change_breakdown_schematic(run_params):
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.set_yticks([])
     plt.tight_layout()
-    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/change_breakdown_schematic.svg')
+    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/change_breakdown_schematic.svg'
+    print('Figure saved to: '+filename)
+    plt.savefig(filename)
+
 
 def omission_breakdown_schematic(run_params):
     plt.figure(figsize=(2.5,1.5))
@@ -41,7 +44,9 @@ def omission_breakdown_schematic(run_params):
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.set_yticks([])
     plt.tight_layout()
-    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/omission_breakdown_schematic.svg')
+    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/omission_breakdown_schematic.svg'
+    print('Figure saved to: '+filename)
+    plt.savefig(filename)
 
 def get_example_style():
     style={
@@ -230,9 +235,13 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     #plt.tight_layout()
-    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg')
+
     if add_stimulus:
-        plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs_add_stimulus.svg')
+        filename ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs_add_stimulus.svg'
+    else:
+        filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg'
+    print('Figure saved to: '+filename)
+    plt.savefig(filename)
 
 def plot_glm_example_components(g, cell_specimen_id, times, style):
     fig = plt.figure(figsize=(8,4))
@@ -339,11 +348,15 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     ax.set_ylim(-0.035,.9)
     ax.set_xlim(times)
     #plt.tight_layout()
+    
     if model is not None:
-        plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace_'+model+'.svg')
+        filename='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace_'+model+'.svg'
         plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace_'+model+'.png')
     else:
-        plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg')
+        filename='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg'
+
+    print('Figure saved to: '+filename)
+    plt.savefig(filename)
     return
 
 def plot_all_dropouts(VERSION):

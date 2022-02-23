@@ -594,11 +594,16 @@ def var_explained_by_experience(results_pivoted, run_params,threshold = 0):
     plt.tick_params(axis='both',labelsize=14)
     plt.tight_layout() 
     if threshold !=0:
-        plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience_filtered.svg')
+        filename = run_params['figure_dir']+'/variance_explained_by_experience_filtered.svg'
         plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience_filtered.png')
+        print('Figure saved to: ' + filename)
+        plt.savefig(filename)
     else:
-        plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.svg')
+        filename = run_params['figure_dir']+'/variance_explained_by_experience.svg'
         plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.png')
+        print('Figure saved to: ' + filename)
+        plt.savefig(filename)
+    return results_pivoted.groupby(['cell_type','experience_level'])['variance_explained_percent'].describe()
 
 def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=True,zoom_xlim=True,sort_by_signal=True):
     '''
@@ -1850,6 +1855,9 @@ def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshol
     fig_f.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_familiar_kernel'+extra+'.svg')
     fig_n.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_novel1_kernel'+extra+'.svg')
     fig_np.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_novelp1_kernel'+extra+'.svg')
+    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_familiar_kernel'+extra+'.svg')
+    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_novel1_kernel'+extra+'.svg')
+    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_novelp1_kernel'+extra+'.svg')
 
     k, fig_v , ax_v =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Vip-IRES-Cre',compare=['experience_level'],threshold=threshold,drop_threshold=drop_threshold)   
     k, fig_s , ax_s =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Sst-IRES-Cre',compare=['experience_level'],threshold=threshold,drop_threshold=drop_threshold)   
@@ -1857,6 +1865,9 @@ def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshol
     fig_v.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_vip_kernel'+extra+'.svg')
     fig_s.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel'+extra+'.svg')
     fig_e.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
+    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_vip_kernel'+extra+'.svg')
+    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel'+extra+'.svg')
+    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
 
 def plot_kernel_comparison_by_omission_excitation(weights_df, run_params):
     plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Familiar'],cell_filter='Slc17a7-IRES2-Cre',compare=['omissions_excited'])
@@ -2884,6 +2895,7 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
     #dax3.set_xticklabels(['Coding\n Score'],rotation=-70,fontsize=16)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.svg')
     plt.savefig(filename)
+    print('Figure saved to: '+filename)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.png')
     plt.savefig(filename)
     return zlims
@@ -3497,6 +3509,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     colors = project_colors()
 
+    summary = {}
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
         if len(dropouts_to_show) ==3:
@@ -3505,9 +3518,11 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
             fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         stats = {}
+        summary[cell_type + ' data'] = {}
         # Iterate dropouts and plot each by experience
         for index, feature in enumerate(dropouts_to_show):
             stats[feature] = test_significant_dropout_averages_by_depth(all_data,feature)
+            summary[cell_type+' data'][feature] = all_data.groupby(['experience_level','coarse_binned_depth'])[feature].describe()
             # Plot all cells in active sessions 
             ax[index] = sns.pointplot(
                 data = all_data,
@@ -3560,10 +3575,12 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
         ax[0].set_ylabel('Coding Score',fontsize=20)
         plt.suptitle(cell_type+', '+area,fontsize=20)
         fig.tight_layout() 
-        plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg')
+        filename = run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg'
         plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.png')
-
-
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+        summary[cell_type + ' stats'] = stats
+    return summary
 
 def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope"):
     '''
@@ -3609,7 +3626,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     cell_types = results_pivoted.cell_type.unique()
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     colors = project_colors()
-
+    summary = {}
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
         if len(dropouts_to_show) == 3:
@@ -3618,10 +3635,12 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         stats = {}
+        summary[cell_type + ' data'] = {}
         # Iterate dropouts and plot each by experience
         for index, feature in enumerate(dropouts_to_show):
             stats[feature] = test_significant_dropout_averages_by_area(all_data,feature)
             # Plot all cells in active sessions 
+            summary[cell_type+' data'][feature] = all_data.groupby(['experience_level','targeted_structure'])[feature].describe()
             ax[index] = sns.pointplot(
                 data = all_data,
                 x = 'experience_level',
@@ -3672,9 +3691,12 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
         ax[0].set_ylabel('Coding Score',fontsize=20)
         plt.suptitle(cell_type,fontsize=20)
         fig.tight_layout() 
-        plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.svg')
+        filename = run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.svg'
         plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.png')
-
+        plt.savefig(filename)
+        print('Figure saved to: '+filename)
+        summary[cell_type + ' stats'] = stats
+    return summary
 
 
 def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False):
@@ -3755,7 +3777,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             ax[index].tick_params(axis='y',labelsize=16)
         ax[0].set_ylabel('Coding Score',fontsize=20)
         plt.tight_layout()
-        plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg')  
+        filename = run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg'
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)  
         #plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.png')  
     
         # Iterate cell types and make a plot for each
@@ -3862,11 +3886,14 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                     ax[index].set_ylim(0,ytop*1.2)
             ax[0].set_ylabel('Coding Score',fontsize=18)
             plt.suptitle(cell_type,fontsize=18)
-            fig.tight_layout() 
-            plt.savefig(run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg')
+            fig.tight_layout()
+            filename = run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg' 
+            plt.savefig(filename)
+            print('Figure saved to: '+filename)
 
     # Repeat the plots but transposed
     # Iterate cell types and make a plot for each
+    summary_data = {}
     for index, feature in enumerate(dropouts_to_show):   
         fig, ax = plt.subplots(1,4,figsize=(10.8,4), sharey=sharey) 
 
@@ -3893,6 +3920,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[3].spines['top'].set_visible(False)
         ax[3].spines['right'].set_visible(False)
 
+        summary_data[feature + ' data'] = {}
         stats = {}
         # Iterate dropouts and plot each by experience
         for cindex, cell_type in enumerate(cell_types):
@@ -3902,6 +3930,8 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                 strict_matched_data = all_data.query('cell_specimen_id in @strict_matched_cells') 
             anova, tukey = test_significant_dropout_averages(all_data,feature)
             stats[cell_type]=(anova, tukey)
+            summary_data[feature+' data'][cell_type+' all data'] = all_data.groupby(['experience_level'])[feature].describe()
+            summary_data[feature+' data'][cell_type+' matched data'] = matched_data.groupby(['experience_level'])[feature].describe()
             # Plot all cells in active sessions
             if boxplot:
                 ax[cindex] = sns.boxplot(
@@ -3945,6 +3975,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
             if strict_experience_matching:
                 # Plot cells in matched active sessions
+                summary_data[feature+' data'][cell_type+' strict matched data'] = strict_matched_data.groupby(['experience_level'])[feature].describe()
                 ax[cindex] = sns.pointplot(
                     data = strict_matched_data,
                     x = 'experience_level',
@@ -4002,8 +4033,12 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[2].set_ylim(bottom=0)
         ax[3].set_ylim(bottom=0)
         fig.tight_layout() 
-        plt.savefig(run_params['figure_dir']+'/dropout_average_'+clean_feature.replace(' ','_')+extra+'.svg')
+        filename = run_params['figure_dir']+'/dropout_average_'+clean_feature.replace(' ','_')+extra+'.svg'
+        plt.savefig(filename)
+        print('Figure saved to: '+filename)
+        summary_data[feature+' stats'] = stats
 
+    return summary_data
 
 
 def test_significant_dropout_averages(data,feature):
@@ -4166,13 +4201,16 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
     if add_title:
         plt.title(run_params['version'])
     if use_violin:
-        plt.savefig(run_params['figure_dir']+'/dropout_individual.svg')
+        filename = run_params['figure_dir']+'/dropout_individual.svg'
     elif use_single:
-        plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot_single.svg')
+        filename = run_params['figure_dir']+'/dropout_individual_boxplot_single.svg'
     else:
-        plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot.svg')
+        filename = run_params['figure_dir']+'/dropout_individual_boxplot.svg'
         plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot.png')
 
+    plt.savefig(filename)
+    print('Figure saved to: '+filename)
+    return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe()
 
 def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False): 
     '''
@@ -4281,8 +4319,11 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
     if use_violin:
         plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
     else:
-        plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.svg')
+        filename = run_params['figure_dir']+'/dropout_summary_boxplot.svg'
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
+    return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe() 
 
 def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omissions_excitation=False):
     # compute coding fractions
@@ -4352,12 +4393,16 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omi
     ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=20)
     plt.tight_layout()
     if omissions_excitation:
-        plt.savefig(run_params['figure_dir']+'/coding_fraction_omissions_summary.svg')  
-        plt.savefig(run_params['figure_dir']+'/coding_fraction_omissions_summary.png')  
+        filename = run_params['figure_dir']+'/coding_fraction_omissions_summary.svg'  
+        plt.savefig(filename)  
+        plt.savefig(run_params['figure_dir']+'/coding_fraction_omissions_summary.png') 
+        print('Figure saved to: '+filename) 
     else:
-        plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.svg')  
+        filename = run_params['figure_dir']+'/coding_fraction_summary.svg'
+        plt.savefig(filename)  
         plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.png')  
- 
+        print('Figure saved to: '+filename) 
+    return summary_df 
 
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):
     '''

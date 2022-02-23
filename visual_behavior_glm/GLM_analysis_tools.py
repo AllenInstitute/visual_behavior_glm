@@ -898,7 +898,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
 
     # Make a metric of omission excitation/inhibition
     #weights_df['omission_excited'] = [np.sum(x[0:24]) for x in weights_df['omissions_weights']
-    weights_df['omissions_excited'] = weights_df_24.apply(lambda x: omission_excitation(x['omissions_weights']),axis=1)
+    weights_df['omissions_excited'] = weights_df.apply(lambda x: omission_excitation(x['omissions_weights']),axis=1)
 
     # Return weights_df
     return weights_df 

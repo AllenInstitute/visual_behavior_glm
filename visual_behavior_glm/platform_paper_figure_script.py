@@ -109,22 +109,39 @@ gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISp')
 # TODO, need stats
 gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISl')   
 
+# TODO, finish checking this one
+## For Supplemental figures S6-S9, you need to load the results from a different version
+# This takes a few minutes
+VERSION_b = '24_events_all_L2_optimize_by_session_task_and_omission_breakdown'
+run_params_b, results_b, results_pivoted_b, weights_df_b = gfd.get_analysis_dfs(VERSION_b)
+
 
 ## S6 - hits breakdown
 gsm.change_breakdown_schematic(run_params)
- #TODO
+gvt.plot_population_averages(results_pivoted_b, run_params_b,
+    dropouts_to_show=['hits','post-hits','all-hits'],
+    extra='_breakdown')
+
 
 ## S7 - misses breakdown
 gsm.change_breakdown_schematic(run_params)
- #TODO
+gvt.plot_population_averages(results_pivoted_b, run_params_b,
+    dropouts_to_show=['misses','post-misses','all-misses'],
+    extra='_breakdown')
+
 
 ## S8 - task breakdown
 gsm.change_breakdown_schematic(run_params)
- #TODO
+gvt.plot_population_averages(results_pivoted_b, run_params_b,
+    dropouts_to_show=['task','post-task','all-task'],
+    extra='_breakdown')
 
-## S9 - omission breakdown
+
+## S9 - omission breakdown 
 gsm.omission_breakdown_schematic(run_params)
- #TODO
+gvt.plot_population_averages(results_pivoted_b, run_params_b,
+    dropouts_to_show=['omissions','post-omissions','all-omissions'],
+    extra='_breakdown')
 
 
 ## S10 - omission excitation

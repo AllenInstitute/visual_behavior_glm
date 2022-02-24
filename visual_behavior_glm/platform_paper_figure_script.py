@@ -2,7 +2,7 @@
     This script generates all of the figures for the visual behavior ophys
     platform paper. 
 
-    02/22/2022 Alex Piet (alexpiet@gmail.com)
+    02/24/2022 Alex Piet (alexpiet@gmail.com)
 
     All functions print the location of where figures are saved. Some 
     functions return summary statistics tables. The exceptions are the kernel
@@ -11,9 +11,9 @@
     running it line by line since it will generate so many figures. 
 
     This script was tested on the following code versions
-    visual_behavior_glm v1.0
-    visual_behavior_analysis origin/update_cell_metrics commit #526e7659
-    AllenSDK rc/2.13.2
+    visual_behavior_glm v1.0.0
+    visual_behavior_analysis origin/master, commit d37ba1bd
+    AllenSDK origin/master version rc/2.13.4
 
 '''
 
@@ -46,7 +46,7 @@ run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
 ## Panel A - Example inputs and outputs
 # Load example experiment, which takes a few minutes
 oeid = 967008471
-g=glm.GLM(oeid, VERSION, use_previous_fit=True, log_results=False, log_weights=False)
+g=GLM(oeid, VERSION, use_previous_fit=True, log_results=False, log_weights=False)
 
 # Plot Inputs and model outputs for an example cell
 cell_specimen_id = 1086492467

@@ -3493,7 +3493,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
         results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()
     
     # Add binned depth
-    results_pivoted['coarse_binned_depth'] = [bin_depth(x) for x in results_pivoted['imaging_depth']]       
+    results_pivoted['coarse_binned_depth'] = [coarse_bin_depth(x) for x in results_pivoted['imaging_depth']]   
 
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
@@ -3530,8 +3530,8 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                 y= feature,
                 hue='coarse_binned_depth', 
                 order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
-                hue_order=[175,375],#experience_levels,
-                palette={175:'black',375:'gray'},
+                hue_order=['upper','lower'],
+                palette={'upper':'black','lower':'gray'},
                 linestyles=['-','--'],
                 markers=['o','x'],
                 join=True,
@@ -3609,10 +3609,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     else:
         extra = extra + '_no_zero_cells'
         results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()
-    
-    # Add binned depth
-    results_pivoted['coarse_binned_depth'] = [bin_depth(x) for x in results_pivoted['imaging_depth']]       
-
+     
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
         results_pivoted[dropout] = results_pivoted[dropout].abs()
@@ -4078,8 +4075,8 @@ def test_significant_dropout_averages_by_depth(data,feature):
     ttests = {}
     for experience in data['experience_level'].unique():
        ttests[experience] = stats.ttest_ind(
-            data.query('experience_level == @experience & coarse_binned_depth == 175')[feature],  
-            data.query('experience_level == @experience & coarse_binned_depth == 375')[feature],
+            data.query('experience_level == @experience & coarse_binned_depth == "upper"')[feature],  
+            data.query('experience_level == @experience & coarse_binned_depth == "lower"')[feature],
             )
     return ttests
 
@@ -5425,7 +5422,7 @@ def bin_depth(x):
  
 def coarse_bin_depth(x):
     if x< 200:
-        return 175
+        return 'upper'
     else:
-        return 375
+        return 'lower'
 

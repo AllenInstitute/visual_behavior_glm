@@ -14,6 +14,8 @@ def across_session_normalization(cell_specimen_id =1086490680, glm_version='24_e
     run_params = glm_params.load_run_json(glm_version)
     data = get_across_session_data(run_params,cell_specimen_id)
     score_df = compute_across_session_dropouts(data, run_params, cell_specimen_id)
+    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+glm_version+'/across_session/'+str(cell_specimen_id)
+    score_df.to_csv(filename)
 
     return data, score_df
 

@@ -330,42 +330,4 @@ def dev_ignore():
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[4])
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
 
-   
-def across_session_normalization(results_pivoted,run_params,cell_specimen_id =1086490680):
-    '''
-        Computes the across session normalization for a cell
-    
-    '''
-    data = get_across_session_data(results_pivoted, run_params,cell_specimen_id)
-
-def compute_across_session_dropouts(data, results_pivoted, cell_specimen_id):
-    # For each dropout
-        # Determine which session 
-
-    # Whats weird is that this means the overall variance explained will be
-    # different for different dropouts  
-
-
-def get_across_session_data(results_pivoted, run_params, cell_specimen_id):
-    # TODO, use cell matching to get exactly three sessions for this cell
-    # TODO, use the GLM object instead of the session, fit, design tuple
-
-    # Find which experiments this cell was in
-    cell_rp = results_pivoted.query('(cell_specimen_id == @cell_specimen_id)&(not passive)')
-    cell_rp = cell_rp.tail(3) #Hack for this particular cell_specimen_id. Need to do proper strict matching
-
-    # For each experiment, load the session, design matrix, and fit dictionary
-    oeids = cell_rp['ophys_experiment_id']
-    data = {}
-    print('Loading each experiment, will print a bunch of information about the design matrix for each experiment')
-    for oeid in oeids: 
-        print('Loading oeid: '+str(oeid))
-        session, fit, design = gft.load_fit_experiment(oeid, run_params)       
-        data[str(oeid)+'_session'] = session
-        data[str(oeid)+'_fit'] = fit
-        data[str(oeid)+'_design'] = design
-    return data
-
-
-
 

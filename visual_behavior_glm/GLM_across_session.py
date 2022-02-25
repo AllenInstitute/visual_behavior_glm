@@ -8,6 +8,7 @@ def across_session_normalization(cell_specimen_id =1086490680, glm_version='24_e
     '''
         Computes the across session normalization for a cell
         This is very slow because we have to load the design matrices for each object
+        Takes about 3 minutes. 
     
     '''
     run_params = glm_params.load_run_json(glm_version)
@@ -19,7 +20,7 @@ def across_session_normalization(cell_specimen_id =1086490680, glm_version='24_e
 def get_across_session_data(run_params, cell_specimen_id):
     '''
         Loads GLM information for each ophys experiment that this cell participated in.
-        Very slow. 
+        Very slow, takes about 3 minutes.
     '''
 
     # Find which experiments this cell was in

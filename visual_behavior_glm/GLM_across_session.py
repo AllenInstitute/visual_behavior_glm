@@ -3,7 +3,30 @@ import pandas as pd
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior.data_access.loading as loading
-   
+ 
+
+def load_cells(cells, glm_version ='24_events_all_L2_optimize_by_session'):
+    dfs = []
+    for cell in cells:
+        try:
+            filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv' 
+            score_df = pd.read_csv(filename)
+            score_df['cell_specimen_id'] = cell
+            #score_df = score_df.reset_index()
+            dfs.append(score_df)
+        except:
+            print(str(cell)+' could not be loaded')
+    df = pd.concat(dfs)
+    df =  df.drop(columns = ['fit_index'])
+    return df 
+
+def compute_many_cells(cells):
+    for cell in cells:
+        try:
+            data, score_df = across_session_normalization(cell)
+        except:
+            print(str(cell) +' crashed')
+ 
 def across_session_normalization(cell_specimen_id =1086490680, glm_version='24_events_all_L2_optimize_by_session'):
     '''
         Computes the across session normalization for a cell

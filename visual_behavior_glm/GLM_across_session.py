@@ -13,13 +13,16 @@ def get_cell_list():
     return cells_table
  
 
-def load_cells(cells=None, glm_version ='24_events_all_L2_optimize_by_session'):
-    if cells is None:
+def load_cells(cells='examples', glm_version ='24_events_all_L2_optimize_by_session'):
+    if cells is 'examples':
         # list of cells marked as examples
         cells = [
             1086490397, 1086490480, 1086490510, 108649118, 
             1086559968, 1086559206, 1086551301, 1086490680, 
             1086490289, 1086490441]
+    else:
+        cells = get_cell_list()['cell_specimen_id'].unique()
+
     dfs = []
     for cell in cells:
         try:

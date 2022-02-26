@@ -30,8 +30,8 @@ def scatter_df(df,cell_type):
     fig.suptitle(cell_type, fontsize=20)
 
     plt.tight_layout()
-    plt.savefig(figdir+cell_type+'_scatter.png')
-    plt.savefig(figdir+cell_type+'_scatter.svg')
+    plt.savefig(figdir+cell_type.replace(' ','_')+'_scatter.png')
+    #plt.savefig(figdir+cell_type.replace(' ','_')+'_scatter.svg')
 
 def plot_dropout(df, dropout, ax):
     experience_levels = df['experience_level'].unique()

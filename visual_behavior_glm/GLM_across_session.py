@@ -2,8 +2,46 @@ import numpy as np
 import pandas as pd
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_params as glm_params
+import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior.data_access.loading as loading
 import visual_behavior.data_access.utilities as utilities
+import matplotlib.pyplot as plt
+
+figdir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/across_session/'
+
+def fraction_same(df):
+    dropouts = ['omissions','all-images','behavioral','task']
+
+    for dropout in dropouts:
+        df[dropout+'_same'] = df[dropout+'_within'] == df[dropout+'_across']
+    x = df.groupby(['cre_line','experience_level'])[['omissions_same','all-images_same','behavioral_same','task_same']].mean()
+    print(x)
+    return df
+
+def scatter_df(df,cell_type):
+    
+    df = df.query('cell_type == @cell_type')
+
+    fig, ax = plt.subplots(2,2,figsize=(11,8))
+    plot_dropout(df, 'omissions', ax[0,0])
+    plot_dropout(df, 'all-images', ax[0,1])
+    plot_dropout(df, 'behavioral', ax[1,0])
+    plot_dropout(df, 'task', ax[1,1])
+    fig.suptitle(cell_type, fontsize=20)
+
+    plt.tight_layout()
+    plt.savefig(figdir+cell_type+'_scatter.png')
+    plt.savefig(figdir+cell_type+'_scatter.svg')
+
+def plot_dropout(df, dropout, ax):
+    experience_levels = df['experience_level'].unique()
+    colors = gvt.project_colors()
+    for elevel in experience_levels:
+        edf = df.query('experience_level == @elevel')
+        ax.plot(-edf[dropout+'_within'],-edf[dropout+'_across'],'o',color=colors[elevel])
+    ax.set_xlabel(dropout+' within',fontsize=18)
+    ax.set_ylabel(dropout+' across',fontsize=18)
+    ax.tick_params(axis='both',labelsize=16)
 
 def get_cell_list():
     cells_table = loading.get_cell_table(platform_paper_only=True)
@@ -35,6 +73,11 @@ def load_cells(cells='examples', glm_version ='24_events_all_L2_optimize_by_sess
             print(str(cell)+' could not be loaded')
     df = pd.concat(dfs)
     df =  df.drop(columns = ['fit_index']).reset_index(drop=True)
+
+    cells_table = loading.get_cell_table(platform_paper_only=True).reset_index()
+    df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(df['ophys_experiment_id'],df['cell_specimen_id'])]
+    cells_table['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(cells_table['ophys_experiment_id'],cells_table['cell_specimen_id'])]
+    df = pd.merge(df, cells_table, on='identifier')
     return df 
 
 def compute_many_cells(cells):

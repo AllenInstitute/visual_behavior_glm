@@ -12,6 +12,10 @@ import visual_behavior_glm.GLM_across_session as gas
 parser = argparse.ArgumentParser(description='deploy glm fits to cluster')
 parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='path to conda environment to use')
 
+def already_fit(cell_id):
+    filepath = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/across_session/"+str(cell_id)+".csv"
+    return os.path.exists(filepath) 
+
 if __name__ == "__main__":
     args = parser.parse_args()
     python_executable = "{}/bin/python".format(args.env_path)
@@ -34,31 +38,33 @@ if __name__ == "__main__":
     n_cell_ids = len(cell_ids)
 
     for cell_id in cell_ids:
-
-        job_count += 1
-        print('starting cluster job for {}, job count = {}'.format(cell_id, job_count))
-        job_title = 'cell_{}'.format(cell_id)
-        walltime = '1:00:00'
-        mem = '10gb'
-        job_id = Slurm.JOB_ARRAY_ID
-        job_array_id = Slurm.JOB_ARRAY_MASTER_ID
-        output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+"_"+str(cell_id)+".out"
-    
-        # instantiate a SLURM object
-        slurm = Slurm(
-            cpus_per_task=4,
-            job_name=job_title,
-            time=walltime,
-            mem=mem,
-            output= output,
-            partition="braintv"
-        )
-
-        args_string = job_string.format(cell_id)
-        slurm.sbatch('{} {} {}'.format(
-                python_executable,
-                python_file,
-                args_string,
+        if already_fit(cell_id):
+            print('already fit, skipping')
+        else:
+            job_count += 1
+            print('starting cluster job for {}, job count = {}'.format(cell_id, job_count))
+            job_title = 'cell_{}'.format(cell_id)
+            walltime = '2:00:00'
+            mem = '24gb'
+            job_id = Slurm.JOB_ARRAY_ID
+            job_array_id = Slurm.JOB_ARRAY_MASTER_ID
+            output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+"_"+str(cell_id)+".out"
+        
+            # instantiate a SLURM object
+            slurm = Slurm(
+                cpus_per_task=4,
+                job_name=job_title,
+                time=walltime,
+                mem=mem,
+                output= output,
+                partition="braintv"
             )
-        )
-        time.sleep(0.001)
+    
+            args_string = job_string.format(cell_id)
+            slurm.sbatch('{} {} {}'.format(
+                    python_executable,
+                    python_file,
+                    args_string,
+                )
+            )
+            time.sleep(0.001)

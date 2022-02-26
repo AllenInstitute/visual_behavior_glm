@@ -3,10 +3,19 @@ import pandas as pd
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior.data_access.loading as loading
+import visual_behavior.data_access.utilities as utilities
+
+def get_cell_list():
+    cells_table = loading.get_cell_table(platform_paper_only=True)
+    cells_table = cells_table.query('not passive').copy()
+    cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
+    cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
+    return cells_table
  
 
 def load_cells(cells=None, glm_version ='24_events_all_L2_optimize_by_session'):
     if cells is None:
+        # list of cells marked as examples
         cells = [
             1086490397, 1086490480, 1086490510, 108649118, 
             1086559968, 1086559206, 1086551301, 1086490680, 
@@ -22,7 +31,7 @@ def load_cells(cells=None, glm_version ='24_events_all_L2_optimize_by_session'):
         except:
             print(str(cell)+' could not be loaded')
     df = pd.concat(dfs)
-    df =  df.drop(columns = ['fit_index'])
+    df =  df.drop(columns = ['fit_index']).reset_index(drop=True)
     return df 
 
 def compute_many_cells(cells):

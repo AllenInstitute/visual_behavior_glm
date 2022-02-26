@@ -59,6 +59,7 @@ def load_cells(cells='examples', glm_version ='24_events_all_L2_optimize_by_sess
             1086559968, 1086559206, 1086551301, 1086490680, 
             1086490289, 1086490441]
     else:
+        # 3921 unique cells
         cells = get_cell_list()['cell_specimen_id'].unique()
 
     dfs = []

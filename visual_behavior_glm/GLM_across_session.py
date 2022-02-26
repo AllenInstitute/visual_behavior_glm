@@ -5,7 +5,12 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior.data_access.loading as loading
  
 
-def load_cells(cells, glm_version ='24_events_all_L2_optimize_by_session'):
+def load_cells(cells=None, glm_version ='24_events_all_L2_optimize_by_session'):
+    if cells is None:
+        cells = [
+            1086490397, 1086490480, 1086490510, 108649118, 
+            1086559968, 1086559206, 1086551301, 1086490680, 
+            1086490289, 1086490441]
     dfs = []
     for cell in cells:
         try:

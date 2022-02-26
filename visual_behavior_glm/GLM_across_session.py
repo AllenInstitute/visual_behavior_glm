@@ -14,7 +14,7 @@ def across_session_normalization(cell_specimen_id =1086490680, glm_version='24_e
     run_params = glm_params.load_run_json(glm_version)
     data = get_across_session_data(run_params,cell_specimen_id)
     score_df = compute_across_session_dropouts(data, run_params, cell_specimen_id)
-    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+glm_version+'/across_session/'+str(cell_specimen_id)
+    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell_specimen_id)+'.csv'
     score_df.to_csv(filename)
 
     return data, score_df
@@ -46,7 +46,7 @@ def get_across_session_data(run_params, cell_specimen_id):
     return data
 
 
-def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df = True):
+def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df = False):
     '''
         Computes the across session dropout scores
         data                a dictionary containing the session object, fit dictionary, 
@@ -88,7 +88,8 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
     clean_columns = []
     for dropout in dropouts:
         clean_columns.append(dropout+'_within')
-        clean_columns.append(dropout+'_across')
+        clean_columns.append(dropout+'_across1')
+        clean_columns.append(dropout+'_across2')
         # Adjust variance explained based on number of timestamps
         score_df[dropout+'_pt'] = score_df[dropout]/score_df[dropout+'_timestamps']   
         score_df[dropout+'_fc_pt'] = score_df[dropout+'_fc']/score_df[dropout+'_timestamps'] 
@@ -97,7 +98,9 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
         score_df[dropout+'_max'] = score_df[dropout+'_fc_pt'].max()
 
         # calculate across session coding scores
-        score_df[dropout+'_across'] = -(score_df[dropout+'_max'] - score_df[dropout+'_pt'])/(score_df[dropout+'_max'])
+        #score_df[dropout+'_across1'] = -(score_df[dropout+'_max'] - score_df[dropout+'_pt'])/(score_df[dropout+'_max'])
+        score_df[dropout+'_across'] = -(score_df[dropout+'_fc_pt'] - score_df[dropout+'_pt'])/(score_df[dropout+'_max'])
+        score_df.loc[score_df[dropout+'_across'] > 0,dropout+'_across'] = 0
 
         # Cleaning step for low VE dropouts
         score_df.loc[score_df[dropout+'_within'] == 0,dropout+'_across'] = 0
@@ -107,5 +110,9 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
         score_df = score_df[clean_columns].copy()
     return score_df
         
+def print_df(score_df):
+    dropouts = ['omissions','all-images','behavioral','task']
+    for d in dropouts:
+        print(score_df[[d+'_within',d+'_across']])
 
 

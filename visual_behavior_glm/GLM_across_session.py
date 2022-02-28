@@ -222,8 +222,8 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
     clean_columns = []
     for dropout in dropouts:
         clean_columns.append(dropout+'_within')
-        clean_columns.append(dropout+'_across1')
-        clean_columns.append(dropout+'_across2')
+        clean_columns.append(dropout+'_across')
+
         # Adjust variance explained based on number of timestamps
         score_df[dropout+'_pt'] = score_df[dropout]/score_df[dropout+'_timestamps']   
         score_df[dropout+'_fc_pt'] = score_df[dropout+'_fc']/score_df[dropout+'_timestamps'] 
@@ -232,7 +232,6 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
         score_df[dropout+'_max'] = score_df[dropout+'_fc_pt'].max()
 
         # calculate across session coding scores
-        #score_df[dropout+'_across1'] = -(score_df[dropout+'_max'] - score_df[dropout+'_pt'])/(score_df[dropout+'_max'])
         score_df[dropout+'_across'] = -(score_df[dropout+'_fc_pt'] - score_df[dropout+'_pt'])/(score_df[dropout+'_max'])
         score_df.loc[score_df[dropout+'_across'] > 0,dropout+'_across'] = 0
 

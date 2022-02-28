@@ -259,6 +259,28 @@ if False: # Code snippets for doing analyses.
     gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISl')
     gvt.plot_kernel_comparison_by_omission_excitation(weights_df, run_params)
 
+
+    # Across Session Analysis
+    #####################
+
+    # compute the across session dropout for a single cell
+    data, score_df = gas.across_session_normalization(cell_specimen_id)
+    
+    # Load all cells that have across session normalization
+    across_df, fail_to_load = gas.load_cells(cells='all')
+
+    # plot a scatter plot of the within vs across scores
+    gas.scatter_df(across_df, 'Excitatory')
+    
+    # print a groupby table of the fraction of cells with unchanged (across vs within)
+    # dropout scores
+    gas.fraction_same(across_df)
+    
+    # Plot the population averages across experience/cre line
+    gas.plot_across_summary(across_df) 
+
+
+
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)
     results = gat.retrieve_results(
@@ -329,43 +351,5 @@ def dev_ignore():
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[3])
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[4])
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
-
-   
-def across_session_normalization(results_pivoted,run_params,cell_specimen_id =1086490680):
-    '''
-        Computes the across session normalization for a cell
-    
-    '''
-    data = get_across_session_data(results_pivoted, run_params,cell_specimen_id)
-
-def compute_across_session_dropouts(data, results_pivoted, cell_specimen_id):
-    # For each dropout
-        # Determine which session 
-
-    # Whats weird is that this means the overall variance explained will be
-    # different for different dropouts  
-
-
-def get_across_session_data(results_pivoted, run_params, cell_specimen_id):
-    # TODO, use cell matching to get exactly three sessions for this cell
-    # TODO, use the GLM object instead of the session, fit, design tuple
-
-    # Find which experiments this cell was in
-    cell_rp = results_pivoted.query('(cell_specimen_id == @cell_specimen_id)&(not passive)')
-    cell_rp = cell_rp.tail(3) #Hack for this particular cell_specimen_id. Need to do proper strict matching
-
-    # For each experiment, load the session, design matrix, and fit dictionary
-    oeids = cell_rp['ophys_experiment_id']
-    data = {}
-    print('Loading each experiment, will print a bunch of information about the design matrix for each experiment')
-    for oeid in oeids: 
-        print('Loading oeid: '+str(oeid))
-        session, fit, design = gft.load_fit_experiment(oeid, run_params)       
-        data[str(oeid)+'_session'] = session
-        data[str(oeid)+'_fit'] = fit
-        data[str(oeid)+'_design'] = design
-    return data
-
-
 
 

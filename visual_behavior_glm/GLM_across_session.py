@@ -9,6 +9,19 @@ import matplotlib.pyplot as plt
 
 figdir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/across_session/'
 
+def make_fake_run_params():
+    run_params = {}
+    run_params['version'] = '24_events_all_L2_optimize_by_session_across'
+    run_params['figure_dir'] = figdir[:-1]
+    return run_params
+
+def plot_across_summary(df):
+    run_params = make_fake_run_params()
+    gvt.plot_population_averages(df, run_params, dropouts_to_show=[
+        'all-images_within','omissions_within','behavioral_within','task_within'],across_session=True,stats_on_across=True)
+    gvt.plot_population_averages(df, run_params, dropouts_to_show=[
+        'all-images_within','omissions_within','behavioral_within','task_within'],across_session=True,stats_on_across=False)
+
 def fraction_same(df):
     dropouts = ['omissions','all-images','behavioral','task']
 
@@ -63,6 +76,7 @@ def load_cells(cells='examples', glm_version ='24_events_all_L2_optimize_by_sess
         cells = get_cell_list()['cell_specimen_id'].unique()
 
     dfs = []
+    fail_to_load = []
     for cell in cells:
         try:
             filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv' 
@@ -72,14 +86,16 @@ def load_cells(cells='examples', glm_version ='24_events_all_L2_optimize_by_sess
             dfs.append(score_df)
         except:
             print(str(cell)+' could not be loaded')
+            fail_to_load.append(cell)
     df = pd.concat(dfs)
     df =  df.drop(columns = ['fit_index']).reset_index(drop=True)
 
     cells_table = loading.get_cell_table(platform_paper_only=True).reset_index()
     df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(df['ophys_experiment_id'],df['cell_specimen_id'])]
     cells_table['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(cells_table['ophys_experiment_id'],cells_table['cell_specimen_id'])]
-    df = pd.merge(df, cells_table, on='identifier')
-    return df 
+    df = pd.merge(df, cells_table, on='identifier',suffixes=('','_y'))
+    
+    return df, fail_to_load 
 
 def compute_many_cells(cells):
     for cell in cells:

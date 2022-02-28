@@ -259,6 +259,28 @@ if False: # Code snippets for doing analyses.
     gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISl')
     gvt.plot_kernel_comparison_by_omission_excitation(weights_df, run_params)
 
+
+    # Across Session Analysis
+    #####################
+
+    # compute the across session dropout for a single cell
+    data, score_df = gas.across_session_normalization(cell_specimen_id)
+    
+    # Load all cells that have across session normalization
+    across_df, fail_to_load = gas.load_cells(cells='all')
+
+    # plot a scatter plot of the within vs across scores
+    gas.scatter_df(across_df, 'Excitatory')
+    
+    # print a groupby table of the fraction of cells with unchanged (across vs within)
+    # dropout scores
+    gas.fraction_same(across_df)
+    
+    # Plot the population averages across experience/cre line
+    gas.plot_across_summary(across_df) 
+
+
+
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)
     results = gat.retrieve_results(

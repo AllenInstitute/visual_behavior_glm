@@ -10,12 +10,21 @@ import matplotlib.pyplot as plt
 figdir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/across_session/'
 
 def make_fake_run_params():
+    '''
+        Makes a dummy dictionary with the figure directory hard coded
+    '''
     run_params = {}
     run_params['version'] = '24_events_all_L2_optimize_by_session_across'
     run_params['figure_dir'] = figdir[:-1]
     return run_params
 
 def plot_across_summary(df):
+    '''
+        Plots the population average dropout scores by experience and cre line,
+        for the high level dropouts. Plots two versions, one with statistics 
+        computed for the across session scores, the other for the within session 
+        scores. 
+    '''
     run_params = make_fake_run_params()
     gvt.plot_population_averages(df, run_params, dropouts_to_show=[
         'all-images_within','omissions_within','behavioral_within','task_within'],across_session=True,stats_on_across=True)
@@ -23,6 +32,10 @@ def plot_across_summary(df):
         'all-images_within','omissions_within','behavioral_within','task_within'],across_session=True,stats_on_across=False)
 
 def fraction_same(df):
+    '''
+        Prints a groupby table of the fraction of cells with coding scores
+        that are the same between within and across normalization
+    '''
     dropouts = ['omissions','all-images','behavioral','task']
 
     for dropout in dropouts:
@@ -32,7 +45,11 @@ def fraction_same(df):
     return df
 
 def scatter_df(df,cell_type):
-    
+    '''
+        Plots a scatter plot comparing within and across coding scores
+        for each of the high level dropouts
+    '''   
+ 
     df = df.query('cell_type == @cell_type')
 
     fig, ax = plt.subplots(2,2,figsize=(11,8))
@@ -57,6 +74,10 @@ def plot_dropout(df, dropout, ax):
     ax.tick_params(axis='both',labelsize=16)
 
 def get_cell_list():
+    '''
+        Returns a list of cell_specimen_ids that are strictly matched
+        and therefore used in the clustering analysis and across session normalization
+    '''
     cells_table = loading.get_cell_table(platform_paper_only=True)
     cells_table = cells_table.query('not passive').copy()
     cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
@@ -64,7 +85,20 @@ def get_cell_list():
     return cells_table
  
 
-def load_cells(cells='examples', glm_version ='24_events_all_L2_optimize_by_session'):
+def load_cells(cells='all', glm_version ='24_events_all_L2_optimize_by_session'):
+    '''
+        Loads all cells that have across session coding scores computed.
+        prints the cell_specimen_id for any cell that cannot be loaded.
+
+        ARGS
+        cells (str) if "examples" only returns the example cells
+                    otherwise returns all cells.
+    
+        RETURNS  
+        df  - a dataframe containing the across and within session normalization
+        fail_to_load - a list of cell_specimen_ids that could not be loaded    
+    
+    '''
     if cells is 'examples':
         # list of cells marked as examples
         cells = [

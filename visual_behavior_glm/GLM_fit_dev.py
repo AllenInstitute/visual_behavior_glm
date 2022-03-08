@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import visual_behavior_glm.GLM_clustering as gc
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
@@ -279,7 +280,11 @@ if False: # Code snippets for doing analyses.
     # Plot the population averages across experience/cre line
     gas.plot_across_summary(across_df) 
 
+    # Clustering Analysis
+    #####################
 
+    # Look at statistics for clustering frequencies
+    gc.cluster_frequencies()
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)

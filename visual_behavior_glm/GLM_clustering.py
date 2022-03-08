@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+
+filedir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/clustering/'
+
 def cluster_frequencies():
     df = load_cluster_labels()
     plot_proportions(df)
@@ -39,6 +42,8 @@ def plot_proportions(df):
     plot_proportion_cre(df, fig, ax[2], 'Slc17a7-IRES2-Cre')
     plot_proportion_cre(df, fig, ax[1], 'Sst-IRES-Cre')
     plot_proportion_cre(df, fig, ax[0], 'Vip-IRES-Cre')
+    plt.savefig(filedir+'cluster_proportions.svg')
+    plt.savefig(filedir+'cluster_proportions.png')
 
 def plot_proportion_cre(df,fig,ax, cre):
     '''
@@ -78,6 +83,9 @@ def plot_proportion_differences(df):
     plot_proportion_differences_cre(df, fig, ax[2], 'Slc17a7-IRES2-Cre')
     plot_proportion_differences_cre(df, fig, ax[1], 'Sst-IRES-Cre')
     plot_proportion_differences_cre(df, fig, ax[0], 'Vip-IRES-Cre')
+    plt.savefig(filedir+'cluster_proportion_differences.svg')
+    plt.savefig(filedir+'cluster_proportion_differences.png')
+
 
 def plot_proportion_differences_cre(df,fig,ax, cre):
     '''
@@ -110,6 +118,8 @@ def plot_cluster_proportions(df):
     plot_cluster_proportion_cre(df, fig, ax[2], 'Slc17a7-IRES2-Cre')
     plot_cluster_proportion_cre(df, fig, ax[1], 'Sst-IRES-Cre')
     plot_cluster_proportion_cre(df, fig, ax[0], 'Vip-IRES-Cre')
+    plt.savefig(filedir+'within_cluster_proportions.svg')
+    plt.savefig(filedir+'within_cluster_proportions.png')
 
 def plot_cluster_proportion_cre(df,fig,ax, cre):
     '''
@@ -160,6 +170,8 @@ def plot_cluster_percentages(df):
     plot_cluster_percentage_cre(df, fig, ax[2], 'Slc17a7-IRES2-Cre')
     plot_cluster_percentage_cre(df, fig, ax[1], 'Sst-IRES-Cre')
     plot_cluster_percentage_cre(df, fig, ax[0], 'Vip-IRES-Cre')
+    plt.savefig(filedir+'within_cluster_percentages.svg')
+    plt.savefig(filedir+'within_cluster_percentages.png')
 
 def plot_cluster_percentage_cre(df,fig,ax, cre):
     '''

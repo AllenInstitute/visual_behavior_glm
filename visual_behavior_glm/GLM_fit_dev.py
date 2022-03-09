@@ -260,6 +260,11 @@ if False: # Code snippets for doing analyses.
     gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISl')
     gvt.plot_kernel_comparison_by_omission_excitation(weights_df, run_params)
 
+    # Kernel excitation more generally
+    gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['hits','hits_positive','hits_negative'])
+    gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['misses','misses_positive','misses_negative'])
+    gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['task','task_positive','task_negative'])
+    gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['all-images','all-images_positive','all-images_negative'])
 
     # Across Session Analysis
     #####################

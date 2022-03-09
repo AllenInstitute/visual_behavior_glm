@@ -3719,7 +3719,10 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
-        results_pivoted[dropout] = results_pivoted[dropout].abs()
+        if '_signed' in dropout:
+            results_pivoted[dropout] = -results_pivoted[dropout]
+        else:
+            results_pivoted[dropout] = results_pivoted[dropout].abs()
         if across_session:
             results_pivoted[dropout.replace('_within','_across')] = results_pivoted[dropout.replace('_within','_across')].abs()
     
@@ -4051,14 +4054,15 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         clean_feature = clean_feature.replace('_within','')
         ax[0].set_ylabel(clean_feature+'\nCoding Score',fontsize=20)
         plt.suptitle(clean_feature,fontsize=18)
-        ax[0].set_ylim(bottom=0)
-        ax[1].set_ylim(bottom=0)
-        ax[2].set_ylim(bottom=0)
-        ax[3].set_ylim(bottom=0)
+        if '_signed' not in feature:
+            ax[0].set_ylim(bottom=0)
+            ax[1].set_ylim(bottom=0)
+            ax[2].set_ylim(bottom=0)
+            ax[3].set_ylim(bottom=0)
         fig.tight_layout() 
         if across_session & stats_on_across:
             extra = extra + '_stats_on_across'
-        else:
+        elif across_session:
             extra = extra + '_stats_on_within'
         filename = run_params['figure_dir']+'/dropout_average_'+clean_feature.replace(' ','_')+extra+'.svg'
         plt.savefig(filename)

@@ -268,7 +268,7 @@ if False: # Code snippets for doing analyses.
     gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'hits')
     gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'misses')
     gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'task')
-    gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'all-images') ## need to fix
+    gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'all-images') 
     gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='hits')
     gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='misses')
     gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='task')

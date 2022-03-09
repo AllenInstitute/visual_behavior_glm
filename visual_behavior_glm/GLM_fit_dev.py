@@ -252,7 +252,7 @@ if False: # Code snippets for doing analyses.
     gvt.plot_compare_across_kernels(weights_df, run_params, ['hits','misses'])
 
     # splitting omissions
-    results_pivoted = gat.append_omissions_excitation(weights_df, results_pivoted)
+    results_pivoted = gat.append_kernel_excitation(weights_df, results_pivoted)
     gvt.plot_fraction_summary_population(results_pivoted, run_params, omissions_excitation=True)
     gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'])
     gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation')

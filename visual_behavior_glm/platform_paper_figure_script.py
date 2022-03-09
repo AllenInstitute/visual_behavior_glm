@@ -171,7 +171,7 @@ stats_S9 = gvt.plot_population_averages(results_pivoted_b, run_params_b,
 
 ## S10 - omission excitation
 # This annotates omission excited versus inhibited cells
-results_pivoted = gat.append_omissions_excitation(weights_df, results_pivoted)
+results_pivoted = gat.append_kernel_excitation(weights_df, results_pivoted)
 
 # Panel A - Average kernels
 # This generates several figures, you want 

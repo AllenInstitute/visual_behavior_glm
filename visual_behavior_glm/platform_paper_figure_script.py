@@ -182,7 +182,7 @@ gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'omission
 # Returns a dataframe with rows for cre/experience, and columns with the fraction of
 # cells coding for each regressor, and the CI value (which is the value +/- from the mean)
 stats_S10B = gvt.plot_fraction_summary_population(results_pivoted, run_params, 
-    omissions_excitation=True)
+    kernel_excitation=True,kernel='omissions')
 
 # Panel C - dropout averages
 stats_S10C = gvt.plot_population_averages(results_pivoted, run_params, 

@@ -4356,12 +4356,17 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe() 
 
-def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omissions_excitation=False):
+def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,kernel_excitation=False,kernel=None):
+    if kernel_excitation:
+        assert kernel is not None, "Need to name the excited kernel"
+    else:
+        assert kernel is None, "Kernel Excitation is False, you should not provide a named kernel"
+
     # compute coding fractions
     results_pivoted = results_pivoted.query('not passive').copy()
     results_pivoted['code_anything'] = results_pivoted['variance_explained_full'] > run_params['dropout_threshold'] 
     results_pivoted['code_images'] = results_pivoted['code_anything'] & (results_pivoted['all-images'] < 0)
-    results_pivoted['code_omissions'] = results_pivoted['code_anything'] & (results_pivoted['all-omissions'] < 0)
+    results_pivoted['code_omissions'] = results_pivoted['code_anything'] & (results_pivoted['omissions'] < 0)
     results_pivoted['code_behavioral'] = results_pivoted['code_anything'] & (results_pivoted['behavioral'] < 0)
     results_pivoted['code_task'] = results_pivoted['code_anything'] & (results_pivoted['task'] < 0)
     summary_df = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_images','code_omissions','code_behavioral','code_task']].mean()
@@ -4373,28 +4378,29 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omi
     summary_df['code_behavioral_ci'] = 1.96*np.sqrt((summary_df['code_behavioral']*(1-summary_df['code_behavioral']))/summary_df['n'])
     summary_df['code_task_ci'] = 1.96*np.sqrt((summary_df['code_task']*(1-summary_df['code_task']))/summary_df['n'])
 
-    if omissions_excitation:
-        results_pivoted['code_omissions_excited'] = results_pivoted['code_anything'] & (results_pivoted['all-omissions'] < 0) & (results_pivoted['omissions_excited'])    
-        results_pivoted['code_omissions_inhibited'] = results_pivoted['code_anything'] & (results_pivoted['all-omissions'] < 0) & (results_pivoted['omissions_excited']==False) 
-        summary_df = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_omissions','code_omissions_excited','code_omissions_inhibited']].mean()
-        summary_df['n'] = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_omissions','code_omissions_excited','code_omissions_inhibited']].count()['code_anything']
-        summary_df['code_omissions_ci'] = 1.96*np.sqrt((summary_df['code_omissions']*(1-summary_df['code_omissions']))/summary_df['n'])
-        summary_df['code_omissions_excited_ci'] = 1.96*np.sqrt((summary_df['code_omissions_excited']*(1-summary_df['code_omissions_excited']))/summary_df['n'])
-        summary_df['code_omissions_inhibited_ci'] = 1.96*np.sqrt((summary_df['code_omissions_inhibited']*(1-summary_df['code_omissions_inhibited']))/summary_df['n'])
+    if kernel_excitation:
+        results_pivoted['code_'+kernel] = results_pivoted['code_anything'] & (results_pivoted[kernel] < 0)
+        results_pivoted['code_'+kernel+'_excited'] = results_pivoted['code_anything'] & (results_pivoted[kernel] < 0) & (results_pivoted[kernel+'_excited'])    
+        results_pivoted['code_'+kernel+'_inhibited'] = results_pivoted['code_anything'] & (results_pivoted[kernel] < 0) & (results_pivoted[kernel+'_excited']==False) 
+        summary_df = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_'+kernel,'code_'+kernel+'_excited','code_'+kernel+'_inhibited']].mean()
+        summary_df['n'] = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_'+kernel,'code_'+kernel+'_excited','code_'+kernel+'_inhibited']].count()['code_anything']
+        summary_df['code_'+kernel+'_ci'] = 1.96*np.sqrt((summary_df['code_'+kernel]*(1-summary_df['code_'+kernel]))/summary_df['n'])
+        summary_df['code_'+kernel+'_excited_ci'] = 1.96*np.sqrt((summary_df['code_'+kernel+'_excited']*(1-summary_df['code_'+kernel+'_excited']))/summary_df['n'])
+        summary_df['code_'+kernel+'_inhibited_ci'] = 1.96*np.sqrt((summary_df['code_'+kernel+'_inhibited']*(1-summary_df['code_'+kernel+'_inhibited']))/summary_df['n'])
 
     # plotting variables
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     colors = project_colors()
 
-    if omissions_excitation:
-        coding_groups = ['code_omissions','code_omissions_excited','code_omissions_inhibited']   
+    if kernel_excitation:
+        coding_groups = ['code_'+kernel,'code_'+kernel+'_excited','code_'+kernel+'_inhibited']   
         titles = ['both','excited','inhibited']
     else:
         coding_groups = ['code_images','code_omissions','code_behavioral','code_task']
         titles = ['images','omissions','behavioral','task']
 
     # make combined across cre line plot
-    if omissions_excitation:
+    if kernel_excitation:
         fig, ax = plt.subplots(1,len(coding_groups),figsize=(8.1,4), sharey=sharey)
     else:
         fig, ax = plt.subplots(1,len(coding_groups),figsize=(10.8,4), sharey=sharey)
@@ -4423,10 +4429,10 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omi
             ax[index].legend()
     ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=20)
     plt.tight_layout()
-    if omissions_excitation:
-        filename = run_params['figure_dir']+'/coding_fraction_omissions_summary.svg'  
+    if kernel_excitation:
+        filename = run_params['figure_dir']+'/coding_fraction_'+kernel+'_summary.svg'  
         plt.savefig(filename)  
-        plt.savefig(run_params['figure_dir']+'/coding_fraction_omissions_summary.png') 
+        plt.savefig(run_params['figure_dir']+'/coding_fraction_'+kernel+'_summary.png') 
         print('Figure saved to: '+filename) 
     else:
         filename = run_params['figure_dir']+'/coding_fraction_summary.svg'

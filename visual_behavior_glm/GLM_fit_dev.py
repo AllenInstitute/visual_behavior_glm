@@ -253,7 +253,7 @@ if False: # Code snippets for doing analyses.
 
     # splitting omissions
     results_pivoted = gat.append_kernel_excitation(weights_df, results_pivoted)
-    gvt.plot_fraction_summary_population(results_pivoted, run_params, omissions_excitation=True)
+    gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='omissions')
     gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'])
     gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation')
     gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISp')
@@ -269,6 +269,10 @@ if False: # Code snippets for doing analyses.
     gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'misses')
     gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'task')
     gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'all-images')
+    gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='hits')
+    gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='misses')
+    gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='task')
+    gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='all-images')
  
     # Across Session Analysis
     #####################

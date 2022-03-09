@@ -176,7 +176,7 @@ results_pivoted = gat.append_kernel_excitation(weights_df, results_pivoted)
 # Panel A - Average kernels
 # This generates several figures, you want 
 # `omissions_comparison_by_omissions_excited_slc_sessions_Familiar.svg`
-gvt.plot_kernel_comparison_by_omission_excitation(weights_df, run_params)
+gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'omissions')
 
 # Panel B - Coding Fraction 
 # Returns a dataframe with rows for cre/experience, and columns with the fraction of

@@ -1869,18 +1869,18 @@ def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshol
     print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel'+extra+'.svg')
     print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
 
-def plot_kernel_comparison_by_omission_excitation(weights_df, run_params):
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Familiar'],cell_filter='Slc17a7-IRES2-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel 1'],cell_filter='Slc17a7-IRES2-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=['omissions_excited'])
+def plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,kernel):
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'])
 
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Familiar'],cell_filter='Sst-IRES-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel 1'],cell_filter='Sst-IRES-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel >1'],cell_filter='Sst-IRES-Cre',compare=['omissions_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'])
 
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Familiar'],cell_filter='Vip-IRES-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel 1'],cell_filter='Vip-IRES-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel >1'],cell_filter='Vip-IRES-Cre',compare=['omissions_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'])
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=20,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel'],threshold=0): 
     '''

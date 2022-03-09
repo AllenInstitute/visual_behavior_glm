@@ -1869,20 +1869,27 @@ def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshol
     print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel'+extra+'.svg')
     print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
 
-def plot_kernel_comparison_by_omission_excitation(weights_df, run_params):
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Familiar'],cell_filter='Slc17a7-IRES2-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel 1'],cell_filter='Slc17a7-IRES2-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=['omissions_excited'])
+def plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,kernel):
+    mapper = {
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory'
+        }
+    nk = kernel.replace('all-','')
 
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Familiar'],cell_filter='Sst-IRES-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel 1'],cell_filter='Sst-IRES-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel >1'],cell_filter='Sst-IRES-Cre',compare=['omissions_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'],set_title='Excitatory, Familiar, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'], set_title='Excitatory, Novel 1, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'],set_title='Excitatory, Novel >1, '+nk)
 
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Familiar'],cell_filter='Vip-IRES-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel 1'],cell_filter='Vip-IRES-Cre',compare=['omissions_excited'])
-    plot_kernel_comparison(weights_df,run_params,'omissions',session_filter=['Novel >1'],cell_filter='Vip-IRES-Cre',compare=['omissions_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'],set_title='Sst Inhibitory, Familiar, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'], set_title='Sst Inhibitory, Novel 1, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'],set_title='Sst Inhibitory, Novel >1, '+nk)
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=20,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel'],threshold=0): 
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'],set_title='Vip Inhibitory, Familiar, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'], set_title='Vip Inhibitory, Novel 1, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'],set_title='Vip Inhibitory, Novel >1, '+nk)
+
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=20,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel'],threshold=0,set_title=None): 
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -1906,7 +1913,8 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     version = run_params['version']
     filter_string = ''
     problem_sessions = get_problem_sessions()   
-
+    weights_df = weights_df.copy()
+    
     #if 'dropout_threshold' in run_params:
     #    threshold = run_params['dropout_threshold']
     #else:
@@ -1992,9 +2000,12 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
             'post-passive_change':'post_passive_change',
             'post-passive_change_weights':'post_passive_change_weights',  
             'all-images':'all_images',
-            'all-images_weights':'all_images_weights'
+            'all-images_weights':'all_images_weights',
+            'all-images_excited':'all_images_excited'
             })
         kernel = kernel.replace('-','_')
+    compare = [x.replace('-','_') for x in compare]
+        
 
     # Applying hard thresholds to dataset
     if kernel in weights_df:
@@ -2058,19 +2069,22 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         outputs[group]=k
 
     # Clean Plot, and add details
-    session_title = '_'.join(session_filter)
-    if len(session_filter) > 1:
-        session_title=cell_filter
-        mapper = {
-            'Slc17a7-IRES2-Cre':'Excitatory',
-            'Sst-IRES-Cre':'Sst Inhibitory',
-            'Vip-IRES-Cre':'Vip Inhibitory'
-            }
-        session_title=mapper[session_title]
+    if set_title is not None:
+        plt.title(set_title, fontsize=fs1)
+    else:
+        session_title = '_'.join(session_filter)
+        if len(session_filter) > 1:
+            session_title=cell_filter
+            mapper = {
+                'Slc17a7-IRES2-Cre':'Excitatory',
+                'Sst-IRES-Cre':'Sst Inhibitory',
+                'Vip-IRES-Cre':'Vip Inhibitory'
+                }
+            session_title=mapper[session_title]
 
-
-    #plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
-    plt.title(kernel+' kernels, '+session_title,fontsize=fs1)
+    
+        #plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
+        plt.title(kernel+' kernels, '+session_title,fontsize=fs1)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     #ax.axvline(0, color='k',linestyle='--',alpha=0.25)
     ax.set_ylabel('Kernel Weights',fontsize=fs1)      
@@ -2087,7 +2101,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     add_stimulus_bars(ax,kernel,alpha=.1)
     plt.tick_params(axis='both',labelsize=fs2)
     if show_legend:
-        ax.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
+        ax.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare).replace('_',' '),handlelength=4)
  
     ## Final Clean up and Save
     #plt.tight_layout()
@@ -3544,10 +3558,13 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                 x.set_zorder(1000)
                         
             if index !=len(dropouts_to_show)-1: 
-                ax[index].get_legend().remove() 
+                ax[index].get_legend().remove()
+            else:
+                ax[index].get_legend().set_title('Depth') 
             title_feature = feature.replace('all-images','images')
             title_feature = title_feature.replace('omissions_positive','excited')
             title_feature = title_feature.replace('omissions_negative','inhibited')
+            title_feature = title_feature.replace('_',' ')
             ax[index].set_title(title_feature,fontsize=20)
 
             ax[index].set_ylabel('')
@@ -3659,9 +3676,12 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             
             if index != len(dropouts_to_show)-1:
                 ax[index].get_legend().remove()
+            else:
+                ax[index].get_legend().set_title('Area')
             title_feature = feature.replace('all-images','images')
             title_feature = title_feature.replace('omissions_positive','excited')
             title_feature = title_feature.replace('omissions_negative','inhibited')
+            title_feature = title_feature.replace('_',' ')
             ax[index].set_title(title_feature,fontsize=20)
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
@@ -3719,7 +3739,10 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
-        results_pivoted[dropout] = results_pivoted[dropout].abs()
+        if '_signed' in dropout:
+            results_pivoted[dropout] = -results_pivoted[dropout]
+        else:
+            results_pivoted[dropout] = results_pivoted[dropout].abs()
         if across_session:
             results_pivoted[dropout.replace('_within','_across')] = results_pivoted[dropout.replace('_within','_across')].abs()
     
@@ -4006,7 +4029,8 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             
             if (cindex !=3 )&( not across_session):
                 ax[cindex].get_legend().remove() 
-            #ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
+            if '_signed' in feature:
+                ax[cindex].axhline(0,color='k',linestyle='--',alpha=.25)
             ax[cindex].set_title(cell_type,fontsize=20)
             ax[cindex].set_ylabel('')
             ax[cindex].set_xlabel('')
@@ -4046,19 +4070,21 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                             ax[cindex].text(np.mean([row.x1,row.x2]),yh, '*')
                 #ax[index].set_ylim(0,ytop*1.2)
         clean_feature = feature.replace('all-images','images')
-        clean_feature = clean_feature.replace('omissions_positive','omissions excited')
-        clean_feature = clean_feature.replace('omissions_negative','omissions inhibited')
+        clean_feature = clean_feature.replace('_positive',' excited')
+        clean_feature = clean_feature.replace('_negative',' inhibited')
         clean_feature = clean_feature.replace('_within','')
+        clean_feature = clean_feature.replace('_', ' ')
         ax[0].set_ylabel(clean_feature+'\nCoding Score',fontsize=20)
         plt.suptitle(clean_feature,fontsize=18)
-        ax[0].set_ylim(bottom=0)
-        ax[1].set_ylim(bottom=0)
-        ax[2].set_ylim(bottom=0)
-        ax[3].set_ylim(bottom=0)
+        if '_signed' not in feature:
+            ax[0].set_ylim(bottom=0)
+            ax[1].set_ylim(bottom=0)
+            ax[2].set_ylim(bottom=0)
+            ax[3].set_ylim(bottom=0)
         fig.tight_layout() 
         if across_session & stats_on_across:
             extra = extra + '_stats_on_across'
-        else:
+        elif across_session:
             extra = extra + '_stats_on_within'
         filename = run_params['figure_dir']+'/dropout_average_'+clean_feature.replace(' ','_')+extra+'.svg'
         plt.savefig(filename)
@@ -4352,12 +4378,17 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe() 
 
-def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omissions_excitation=False):
+def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,kernel_excitation=False,kernel=None):
+    if kernel_excitation:
+        assert kernel is not None, "Need to name the excited kernel"
+    else:
+        assert kernel is None, "Kernel Excitation is False, you should not provide a named kernel"
+
     # compute coding fractions
     results_pivoted = results_pivoted.query('not passive').copy()
     results_pivoted['code_anything'] = results_pivoted['variance_explained_full'] > run_params['dropout_threshold'] 
     results_pivoted['code_images'] = results_pivoted['code_anything'] & (results_pivoted['all-images'] < 0)
-    results_pivoted['code_omissions'] = results_pivoted['code_anything'] & (results_pivoted['all-omissions'] < 0)
+    results_pivoted['code_omissions'] = results_pivoted['code_anything'] & (results_pivoted['omissions'] < 0)
     results_pivoted['code_behavioral'] = results_pivoted['code_anything'] & (results_pivoted['behavioral'] < 0)
     results_pivoted['code_task'] = results_pivoted['code_anything'] & (results_pivoted['task'] < 0)
     summary_df = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_images','code_omissions','code_behavioral','code_task']].mean()
@@ -4369,28 +4400,29 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omi
     summary_df['code_behavioral_ci'] = 1.96*np.sqrt((summary_df['code_behavioral']*(1-summary_df['code_behavioral']))/summary_df['n'])
     summary_df['code_task_ci'] = 1.96*np.sqrt((summary_df['code_task']*(1-summary_df['code_task']))/summary_df['n'])
 
-    if omissions_excitation:
-        results_pivoted['code_omissions_excited'] = results_pivoted['code_anything'] & (results_pivoted['all-omissions'] < 0) & (results_pivoted['omissions_excited'])    
-        results_pivoted['code_omissions_inhibited'] = results_pivoted['code_anything'] & (results_pivoted['all-omissions'] < 0) & (results_pivoted['omissions_excited']==False) 
-        summary_df = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_omissions','code_omissions_excited','code_omissions_inhibited']].mean()
-        summary_df['n'] = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_omissions','code_omissions_excited','code_omissions_inhibited']].count()['code_anything']
-        summary_df['code_omissions_ci'] = 1.96*np.sqrt((summary_df['code_omissions']*(1-summary_df['code_omissions']))/summary_df['n'])
-        summary_df['code_omissions_excited_ci'] = 1.96*np.sqrt((summary_df['code_omissions_excited']*(1-summary_df['code_omissions_excited']))/summary_df['n'])
-        summary_df['code_omissions_inhibited_ci'] = 1.96*np.sqrt((summary_df['code_omissions_inhibited']*(1-summary_df['code_omissions_inhibited']))/summary_df['n'])
+    if kernel_excitation:
+        results_pivoted['code_'+kernel] = results_pivoted['code_anything'] & (results_pivoted[kernel] < 0)
+        results_pivoted['code_'+kernel+'_excited'] = results_pivoted['code_anything'] & (results_pivoted[kernel] < 0) & (results_pivoted[kernel+'_excited'])    
+        results_pivoted['code_'+kernel+'_inhibited'] = results_pivoted['code_anything'] & (results_pivoted[kernel] < 0) & (results_pivoted[kernel+'_excited']==False) 
+        summary_df = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_'+kernel,'code_'+kernel+'_excited','code_'+kernel+'_inhibited']].mean()
+        summary_df['n'] = results_pivoted.groupby(['cre_line','experience_level'])[['code_anything','code_'+kernel,'code_'+kernel+'_excited','code_'+kernel+'_inhibited']].count()['code_anything']
+        summary_df['code_'+kernel+'_ci'] = 1.96*np.sqrt((summary_df['code_'+kernel]*(1-summary_df['code_'+kernel]))/summary_df['n'])
+        summary_df['code_'+kernel+'_excited_ci'] = 1.96*np.sqrt((summary_df['code_'+kernel+'_excited']*(1-summary_df['code_'+kernel+'_excited']))/summary_df['n'])
+        summary_df['code_'+kernel+'_inhibited_ci'] = 1.96*np.sqrt((summary_df['code_'+kernel+'_inhibited']*(1-summary_df['code_'+kernel+'_inhibited']))/summary_df['n'])
 
     # plotting variables
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     colors = project_colors()
 
-    if omissions_excitation:
-        coding_groups = ['code_omissions','code_omissions_excited','code_omissions_inhibited']   
-        titles = ['both','excited','inhibited']
+    if kernel_excitation:
+        coding_groups = ['code_'+kernel,'code_'+kernel+'_excited','code_'+kernel+'_inhibited']   
+        titles = [kernel.replace('all-images','images'), 'excited','inhibited']
     else:
         coding_groups = ['code_images','code_omissions','code_behavioral','code_task']
         titles = ['images','omissions','behavioral','task']
 
     # make combined across cre line plot
-    if omissions_excitation:
+    if kernel_excitation:
         fig, ax = plt.subplots(1,len(coding_groups),figsize=(8.1,4), sharey=sharey)
     else:
         fig, ax = plt.subplots(1,len(coding_groups),figsize=(10.8,4), sharey=sharey)
@@ -4419,10 +4451,10 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,omi
             ax[index].legend()
     ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=20)
     plt.tight_layout()
-    if omissions_excitation:
-        filename = run_params['figure_dir']+'/coding_fraction_omissions_summary.svg'  
+    if kernel_excitation:
+        filename = run_params['figure_dir']+'/coding_fraction_'+kernel+'_summary.svg'  
         plt.savefig(filename)  
-        plt.savefig(run_params['figure_dir']+'/coding_fraction_omissions_summary.png') 
+        plt.savefig(run_params['figure_dir']+'/coding_fraction_'+kernel+'_summary.png') 
         print('Figure saved to: '+filename) 
     else:
         filename = run_params['figure_dir']+'/coding_fraction_summary.svg'

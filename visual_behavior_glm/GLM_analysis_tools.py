@@ -897,17 +897,20 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         ],axis=0),axis=1)
 
     # Make a metric of omission excitation/inhibition
-    #weights_df['omission_excited'] = [np.sum(x[0:24]) for x in weights_df['omissions_weights']
-    weights_df['omissions_excited'] = weights_df.apply(lambda x: omission_excitation(x['omissions_weights']),axis=1)
+    weights_df['omissions_excited'] = weights_df.apply(lambda x: kernel_excitation(x['omissions_weights']),axis=1)
+    weights_df['hits_excited']      = weights_df.apply(lambda x: kernel_excitation(x['hits_weights']),axis=1)
+    weights_df['misses_excited']    = weights_df.apply(lambda x: kernel_excitation(x['misses_weights']),axis=1)
+    weights_df['task_excited']      = weights_df.apply(lambda x: kernel_excitation(x['task_weights']),axis=1)
+    weights_df['all-images_excited']= weights_df.apply(lambda x: kernel_excitation(x['all-images_weights']),axis=1)
 
     # Return weights_df
     return weights_df 
 
-def omission_excitation(omissions):
-    if np.isnan(np.sum(omissions)):
+def kernel_excitation(kernel):
+    if np.isnan(np.sum(kernel)):
         return np.nan
     else:
-        return np.sum(omissions[0:24]) > 0
+        return np.sum(kernel[0:24]) > 0
 
 def compute_all_omissions(omissions):
     if np.isnan(np.sum(omissions[0])) or np.isnan(np.sum(omissions[1])):
@@ -987,20 +990,34 @@ def compute_weight_index(weights_df):
     weights_df['all-images_weights_index'] = weights_df['image0_weights_index'] + weights_df['image1_weights_index'] + weights_df['image2_weights_index'] + weights_df['image3_weights_index'] + weights_df['image4_weights_index'] +weights_df['image5_weights_index'] +weights_df['image6_weights_index'] +weights_df['image7_weights_index']
     return weights_df
 
-def append_omissions_excitation(weights_df, results_pivoted):
-    
+def append_kernel_excitation(weights_df, results_pivoted):
+    '''
+        Appends labels about kernel weights from weights_df onto results_pivoted
+        for some kernels, cells are labeled "excited" or "inhibited" if the average weight over 750ms after
+        the aligning event was positive (excited), or negative (inhibited)
+
+        Additionally computes three coding scores for each kernel:
+        kernel_positive is the original coding score if the kernel was excited, otherwise 0
+        kernel_negative is the original coding score if the kernel was inhibited, otherwise 0
+        kernel_signed is kernel_positive - kernel_negative
+       
+    '''   
+ 
     results_pivoted = pd.merge(
         results_pivoted,
-        weights_df[['identifier','omissions_excited']],
+        weights_df[['identifier','omissions_excited','hits_excited','misses_excited','all-images_excited','task_excited']],
         how = 'inner',
         on = 'identifier',
         validate='one_to_one'
         )
-
-    results_pivoted['omissions_positive'] = results_pivoted['omissions']
-    results_pivoted['omissions_negative'] = results_pivoted['omissions']
-    results_pivoted.loc[results_pivoted['omissions_excited'] != True, 'omissions_positive'] = 0
-    results_pivoted.loc[results_pivoted['omissions_excited'] != False,'omissions_negative'] = 0   
+ 
+    excited_kernels = ['omissions','hits','misses','task','all-images']
+    for kernel in excited_kernels:
+        results_pivoted[kernel+'_positive'] = results_pivoted[kernel]
+        results_pivoted[kernel+'_negative'] = results_pivoted[kernel]
+        results_pivoted.loc[results_pivoted[kernel+'_excited'] != True, kernel+'_positive'] = 0
+        results_pivoted.loc[results_pivoted[kernel+'_excited'] != False,kernel+'_negative'] = 0   
+        results_pivoted[kernel+'_signed'] = results_pivoted[kernel+'_positive'] - results_pivoted[kernel+'_negative']
 
     return results_pivoted
         

@@ -3558,10 +3558,13 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                 x.set_zorder(1000)
                         
             if index !=len(dropouts_to_show)-1: 
-                ax[index].get_legend().remove() 
+                ax[index].get_legend().remove()
+            else:
+                ax[index].get_legend().set_title('Depth') 
             title_feature = feature.replace('all-images','images')
             title_feature = title_feature.replace('omissions_positive','excited')
             title_feature = title_feature.replace('omissions_negative','inhibited')
+            title_feature = title_feature.replace('_',' ')
             ax[index].set_title(title_feature,fontsize=20)
 
             ax[index].set_ylabel('')
@@ -3673,9 +3676,12 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             
             if index != len(dropouts_to_show)-1:
                 ax[index].get_legend().remove()
+            else:
+                ax[index].get_legend().set_title('Area')
             title_feature = feature.replace('all-images','images')
             title_feature = title_feature.replace('omissions_positive','excited')
             title_feature = title_feature.replace('omissions_negative','inhibited')
+            title_feature = title_feature.replace('_',' ')
             ax[index].set_title(title_feature,fontsize=20)
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')

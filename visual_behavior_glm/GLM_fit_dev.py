@@ -255,9 +255,9 @@ if False: # Code snippets for doing analyses.
     results_pivoted = gat.append_kernel_excitation(weights_df, results_pivoted)
     gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='omissions')
     gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_signed','omissions_positive','omissions_negative'])
-    gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation')
-    gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISp')
-    gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISl')
+    stats = gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation')
+    stats = gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISp')
+    stats = gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation',area='VISl')
     gvt.plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,'omissions')
 
     # Kernel excitation more generally
@@ -273,7 +273,20 @@ if False: # Code snippets for doing analyses.
     gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='misses')
     gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='task')
     gvt.plot_fraction_summary_population(results_pivoted, run_params,kernel_excitation=True,kernel='all-images')
- 
+    stats = gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['omissions','omissions_positive','omissions_negative'],extra='_omissions_excitation')
+    stats = gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['hits','hits_positive','hits_negative'],extra='_hits_excitation')
+    stats = gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['misses','misses_positive','misses_negative'],extra='_misses_excitation')
+    stats = gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['task','task_positive','task_negative'],extra='_task_excitation')
+    stats = gvt.plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show=['all-images','all-images_positive','all-images_negative'],extra='_all-images_excitation')
+    stats = gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['all-images','all-images_positive','all-images_negative'],extra='_all-images_excitation',area='VISp')
+    stats = gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['all-images','all-images_positive','all-images_negative'],extra='_all-images_excitation',area='VISl')
+    stats = gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['hits','hits_positive','hits_negative'],extra='_hits_excitation',area='VISp')
+    stats = gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['hits','hits_positive','hits_negative'],extra='_hits_excitation',area='VISl')
+    stats = gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['misses','misses_positive','misses_negative'],extra='_misses_excitation',area='VISp')
+    stats = gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['misses','misses_positive','misses_negative'],extra='_misses_excitation',area='VISl')
+    stats = gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['task','task_positive','task_negative'],extra='_task_excitation',area='VISp')
+    stats = gvt.plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show=['task','task_positive','task_negative'],extra='_task_excitation',area='VISl')
+
     # Across Session Analysis
     #####################
 

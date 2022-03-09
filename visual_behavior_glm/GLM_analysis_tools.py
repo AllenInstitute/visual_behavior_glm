@@ -897,17 +897,20 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         ],axis=0),axis=1)
 
     # Make a metric of omission excitation/inhibition
-    #weights_df['omission_excited'] = [np.sum(x[0:24]) for x in weights_df['omissions_weights']
-    weights_df['omissions_excited'] = weights_df.apply(lambda x: omission_excitation(x['omissions_weights']),axis=1)
+    weights_df['omissions_excited'] = weights_df.apply(lambda x: kernel_excitation(x['omissions_weights']),axis=1)
+    weights_df['hits_excited']      = weights_df.apply(lambda x: kernel_excitation(x['hits_weights']),axis=1)
+    weights_df['misses_excited']    = weights_df.apply(lambda x: kernel_excitation(x['misses_weights']),axis=1)
+    weights_df['task_excited']      = weights_df.apply(lambda x: kernel_excitation(x['task_weights']),axis=1)
+    weights_df['all_images_excited']= weights_df.apply(lambda x: kernel_excitation(x['all-images_weights']),axis=1)
 
     # Return weights_df
     return weights_df 
 
-def omission_excitation(omissions):
-    if np.isnan(np.sum(omissions)):
+def kernel_excitation(kernel):
+    if np.isnan(np.sum(kernel)):
         return np.nan
     else:
-        return np.sum(omissions[0:24]) > 0
+        return np.sum(kernel[0:24]) > 0
 
 def compute_all_omissions(omissions):
     if np.isnan(np.sum(omissions[0])) or np.isnan(np.sum(omissions[1])):

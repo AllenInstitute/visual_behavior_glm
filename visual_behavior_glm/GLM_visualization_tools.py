@@ -1906,7 +1906,8 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     version = run_params['version']
     filter_string = ''
     problem_sessions = get_problem_sessions()   
-
+    weights_df = weights_df.copy()
+    
     #if 'dropout_threshold' in run_params:
     #    threshold = run_params['dropout_threshold']
     #else:
@@ -1992,9 +1993,12 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
             'post-passive_change':'post_passive_change',
             'post-passive_change_weights':'post_passive_change_weights',  
             'all-images':'all_images',
-            'all-images_weights':'all_images_weights'
+            'all-images_weights':'all_images_weights',
+            'all-images_excited':'all_images_excited'
             })
         kernel = kernel.replace('-','_')
+    compare = [x.replace('-','_') for x in compare]
+        
 
     # Applying hard thresholds to dataset
     if kernel in weights_df:

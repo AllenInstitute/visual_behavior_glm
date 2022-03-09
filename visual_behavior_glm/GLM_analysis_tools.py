@@ -995,6 +995,12 @@ def append_kernel_excitation(weights_df, results_pivoted):
         Appends labels about kernel weights from weights_df onto results_pivoted
         for some kernels, cells are labeled "excited" or "inhibited" if the average weight over 750ms after
         the aligning event was positive (excited), or negative (inhibited)
+
+        Additionally computes three coding scores for each kernel:
+        kernel_positive is the original coding score if the kernel was excited, otherwise 0
+        kernel_negative is the original coding score if the kernel was inhibited, otherwise 0
+        kernel_signed is kernel_positive - kernel_negative
+       
     '''   
  
     results_pivoted = pd.merge(
@@ -1011,6 +1017,7 @@ def append_kernel_excitation(weights_df, results_pivoted):
         results_pivoted[kernel+'_negative'] = results_pivoted[kernel]
         results_pivoted.loc[results_pivoted[kernel+'_excited'] != True, kernel+'_positive'] = 0
         results_pivoted.loc[results_pivoted[kernel+'_excited'] != False,kernel+'_negative'] = 0   
+        results_pivoted[kernel+'_signed'] = results_pivoted[kernel+'_positive'] - results_pivoted[kernel+'_negative']
 
     return results_pivoted
         

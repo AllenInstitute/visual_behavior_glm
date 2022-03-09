@@ -1870,19 +1870,26 @@ def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshol
     print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
 
 def plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,kernel):
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'])
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'])
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'])
+    mapper = {
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory'
+        }
+    nk = kernel.replace('all-','')
 
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'])
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'])
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'],set_title='Excitatory, Familiar, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'], set_title='Excitatory, Novel 1, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'],set_title='Excitatory, Novel >1, '+nk)
 
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'])
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'])
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'])
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'],set_title='Sst Inhibitory, Familiar, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'], set_title='Sst Inhibitory, Novel 1, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'],set_title='Sst Inhibitory, Novel >1, '+nk)
 
-def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=20,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel'],threshold=0): 
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'],set_title='Vip Inhibitory, Familiar, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'], set_title='Vip Inhibitory, Novel 1, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'],set_title='Vip Inhibitory, Novel >1, '+nk)
+
+def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=20,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel'],threshold=0,set_title=None): 
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -2062,19 +2069,22 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
         outputs[group]=k
 
     # Clean Plot, and add details
-    session_title = '_'.join(session_filter)
-    if len(session_filter) > 1:
-        session_title=cell_filter
-        mapper = {
-            'Slc17a7-IRES2-Cre':'Excitatory',
-            'Sst-IRES-Cre':'Sst Inhibitory',
-            'Vip-IRES-Cre':'Vip Inhibitory'
-            }
-        session_title=mapper[session_title]
+    if set_title is not None:
+        plt.title(set_title, fontsize=fs1)
+    else:
+        session_title = '_'.join(session_filter)
+        if len(session_filter) > 1:
+            session_title=cell_filter
+            mapper = {
+                'Slc17a7-IRES2-Cre':'Excitatory',
+                'Sst-IRES-Cre':'Sst Inhibitory',
+                'Vip-IRES-Cre':'Vip Inhibitory'
+                }
+            session_title=mapper[session_title]
 
-
-    #plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
-    plt.title(kernel+' kernels, '+session_title,fontsize=fs1)
+    
+        #plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
+        plt.title(kernel+' kernels, '+session_title,fontsize=fs1)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
     #ax.axvline(0, color='k',linestyle='--',alpha=0.25)
     ax.set_ylabel('Kernel Weights',fontsize=fs1)      
@@ -2091,7 +2101,7 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     add_stimulus_bars(ax,kernel,alpha=.1)
     plt.tick_params(axis='both',labelsize=fs2)
     if show_legend:
-        ax.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),handlelength=4)
+        ax.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare).replace('_',' '),handlelength=4)
  
     ## Final Clean up and Save
     #plt.tight_layout()
@@ -4013,7 +4023,8 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             
             if (cindex !=3 )&( not across_session):
                 ax[cindex].get_legend().remove() 
-            #ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
+            if '_signed' in feature:
+                ax[cindex].axhline(0,color='k',linestyle='--',alpha=.25)
             ax[cindex].set_title(cell_type,fontsize=20)
             ax[cindex].set_ylabel('')
             ax[cindex].set_xlabel('')
@@ -4053,9 +4064,10 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                             ax[cindex].text(np.mean([row.x1,row.x2]),yh, '*')
                 #ax[index].set_ylim(0,ytop*1.2)
         clean_feature = feature.replace('all-images','images')
-        clean_feature = clean_feature.replace('omissions_positive','omissions excited')
-        clean_feature = clean_feature.replace('omissions_negative','omissions inhibited')
+        clean_feature = clean_feature.replace('_positive',' excited')
+        clean_feature = clean_feature.replace('_negative',' inhibited')
         clean_feature = clean_feature.replace('_within','')
+        clean_feature = clean_feature.replace('_', ' ')
         ax[0].set_ylabel(clean_feature+'\nCoding Score',fontsize=20)
         plt.suptitle(clean_feature,fontsize=18)
         if '_signed' not in feature:
@@ -4398,7 +4410,7 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,ker
 
     if kernel_excitation:
         coding_groups = ['code_'+kernel,'code_'+kernel+'_excited','code_'+kernel+'_inhibited']   
-        titles = ['both','excited','inhibited']
+        titles = [kernel.replace('all-images','images'), 'excited','inhibited']
     else:
         coding_groups = ['code_images','code_omissions','code_behavioral','code_task']
         titles = ['images','omissions','behavioral','task']

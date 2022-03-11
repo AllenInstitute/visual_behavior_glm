@@ -248,4 +248,38 @@ def print_df(score_df):
     for d in dropouts:
         print(score_df[[d+'_within',d+'_across']])
 
+def append_kernel_excitation_across(weights_df, across_df):
+    '''
+        Appends labels about kernel weights from weights_df onto across_df 
+        for some kernels, cells are labeled "excited" or "inhibited" if the average weight over 750ms after
+        the aligning event was positive (excited), or negative (inhibited)
 
+        Note that the excited/inhibited labels do not depend on within or across session normalization
+        since they are based on the weights from the full model. 
+
+        Additionally computes three coding scores for each kernel:
+        kernel_across_positive is the across coding score if the kernel was excited, otherwise 0
+        kernel_across_negative is the across coding score if the kernel was inhibited, otherwise 0
+        kernel_across_signed is kernel_across_positive - kernel_across_negative
+
+        across_df,_ = gas.load_cells()
+        across_df = gas.append_kernel_excitation_across(weights_df, across_df) 
+    '''   
+ 
+    across_df = pd.merge(
+        across_df,
+        weights_df[['identifier','omissions_excited','all-images_excited','task_excited']],
+        how = 'inner',
+        on = 'identifier',
+        validate='one_to_one'
+        )
+ 
+    excited_kernels = ['omissions','task','all-images']
+    for kernel in excited_kernels:
+        across_df[kernel+'_across_positive'] = across_df[kernel+'_across']
+        across_df[kernel+'_across_negative'] = across_df[kernel+'_across']
+        across_df.loc[across_df[kernel+'_excited'] != True, kernel+'_across_positive'] = 0
+        across_df.loc[across_df[kernel+'_excited'] != False,kernel+'_across_negative'] = 0   
+        across_df[kernel+'_across_signed'] = across_df[kernel+'_across_positive'] - across_df[kernel+'_across_negative']
+
+    return across_df

@@ -8,6 +8,11 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 filedir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/clustering/'
 
+def final(df, cre):
+    proportion_table = compute_cluster_proportion_cre(df, cre)
+    stats_table = stats(df,cre)
+    return proportion_table, stats_table
+
 def cluster_frequencies():
     df = load_cluster_labels()
     plot_proportions(df)
@@ -45,10 +50,7 @@ def plot_proportions(df):
     plt.savefig(filedir+'cluster_proportions.svg')
     plt.savefig(filedir+'cluster_proportions.png')
 
-def plot_proportion_cre(df,fig,ax, cre):
-    '''
-        Fraction of cells per area&depth 
-    '''
+def compute_proportion_cre(df, cre):
     # Count cells in each area/cluster
     table = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
     table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
@@ -58,6 +60,13 @@ def plot_proportion_cre(df,fig,ax, cre):
     depth_areas = table.columns.values
     for da in depth_areas:
         table[da] = table[da]/table[da].sum()
+    return table
+
+def plot_proportion_cre(df,fig,ax, cre):
+    '''
+        Fraction of cells per area&depth 
+    '''
+    table = compute_proportion_cre(df, cre)
 
     # plot proportions
     cbar = ax.imshow(table,cmap='Purples')
@@ -86,12 +95,7 @@ def plot_proportion_differences(df):
     plt.savefig(filedir+'cluster_proportion_differences.svg')
     plt.savefig(filedir+'cluster_proportion_differences.png')
 
-
-def plot_proportion_differences_cre(df,fig,ax, cre):
-    '''
-        Fraction of cells per area & depth, then
-        subtract expected fraction (1/n)
-    '''
+def compute_proportion_differences_cre(df, cre):
     # count cells in each area/cluster
     table = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
     table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
@@ -102,6 +106,15 @@ def plot_proportion_differences_cre(df,fig,ax, cre):
     depth_areas = table.columns.values
     for da in depth_areas:
         table[da] = table[da]/table[da].sum() - 1/nclusters
+    return table
+
+def plot_proportion_differences_cre(df,fig,ax, cre):
+    '''
+        Fraction of cells per area & depth, then
+        subtract expected fraction (1/n)
+    '''
+
+    table = compute_proportion_differences_cre(df,cre)
 
     # plot fractions
     vmax = table.abs().max().max()
@@ -121,30 +134,27 @@ def plot_cluster_proportions(df):
     plt.savefig(filedir+'within_cluster_proportions.svg')
     plt.savefig(filedir+'within_cluster_proportions.png')
 
-def plot_cluster_proportion_cre(df,fig,ax, cre):
-    '''
-        Fraction of cells per area&depth 
-    '''
-    # count cells in each area
-    table = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
-    table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
-    table = table.fillna(value=0)
-
-    # get proportion in each area
-    depth_areas = table.columns.values
-    for da in depth_areas:
-        table[da] = table[da]/table[da].sum()
+def compute_cluster_proportion_cre(df, cre):
+    table = compute_proportion_cre(df, cre)
 
     # get average proportion in each cluster
     table['mean'] = table.mean(axis=1)
 
     # compute proportion in each area relative to cluster average
+    depth_areas = table.columns.values
     for da in depth_areas:
-        #table[da] = table[da] / table['mean'] - 1
         table[da] = table[da] - table['mean'] 
 
     # plot proportions
     table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
+    return table
+
+def plot_cluster_proportion_cre(df,fig,ax, cre):
+    '''
+        Fraction of cells per area&depth 
+    '''
+    table = compute_cluster_proportion_cre(df,cre)
+
     vmax = table.abs().max().max()
     vmax = .15
     cbar = ax.imshow(table,cmap='PRGn',vmin=-vmax, vmax=vmax)

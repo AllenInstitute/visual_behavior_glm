@@ -9,6 +9,13 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 filedir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/clustering/'
 
 def final(df, cre):
+    '''
+        Returns two tables
+        proportion_table contains the proportion of cells in each depth/area found in each cluster, relative to the average proportion across depth/areas for that cluster
+
+        stats_table returns statistical tests on the proportion of cells in each depth/area
+        Use 'bh_significant' unless you have a good reason to use the uncorrected tests
+    '''
     proportion_table = compute_cluster_proportion_cre(df, cre)
     stats_table = stats(df,cre)
     return proportion_table, stats_table

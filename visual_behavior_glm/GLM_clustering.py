@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-
 filedir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/clustering/'
 
 def final(df, cre):
@@ -21,6 +20,18 @@ def final(df, cre):
     return proportion_table, stats_table
 
 def cluster_frequencies():
+    '''
+        Generates 4 differn plots of clustering frequency/proportion analysis
+        1. The proportions of each location (depth/area) in each cluster
+        2. The proportions of each location (depth/area) in each cluster 
+           relative to "chance" of 1/n-clusters (evenly distributed cells across clusters)
+        3. The proportions of each location (depth/area) in each cluster
+           relative to the average proportion across locations in that cluster 
+           (clusters have the same proportion across locations)
+        4. The proportion of each location in each cluster
+           relative to the average proportion across locations in that cluster
+           but using a multiplicative perspective instead of a linear perspective. 
+    '''
     df = load_cluster_labels()
     plot_proportions(df)
     plot_proportion_differences(df)
@@ -58,6 +69,9 @@ def plot_proportions(df):
     plt.savefig(filedir+'cluster_proportions.png')
 
 def compute_proportion_cre(df, cre):
+    '''
+        Computes the proportion of cells in each cluster within each location
+    '''
     # Count cells in each area/cluster
     table = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
     table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]

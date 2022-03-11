@@ -306,11 +306,21 @@ if False: # Code snippets for doing analyses.
     # Plot the population averages across experience/cre line
     gas.plot_across_summary(across_df) 
 
+    # Add kernel excitation labels
+    across_df = gas.append_kernel_excitation_across(weights_df, across_df)
+
     # Clustering Analysis
     #####################
 
     # Look at statistics for clustering frequencies
+    # makes a bunch of plots
     gc.cluster_frequencies()
+
+    # If you want to get the data instead of plotting
+    cluster_df = gc.load_cluster_labels()
+    vip_proportion_table, vip_stats_table = gc.final(cluster_df, 'Vip-IRES-Cre')
+    sst_proportion_table, sst_stats_table = gc.final(cluster_df, 'Sst-IRES-Cre')
+    exc_proportion_table, exc_stats_table = gc.final(cluster_df, 'Slc17a7-IRES2-Cre')
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)

@@ -4323,7 +4323,7 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
     print('Figure saved to: '+filename)
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe()
 
-def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False): 
+def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,dropout_cleaning_threshold=None, exclusion_threshold=None): 
     '''
         Makes a bar plot that shows the population dropout summary by cre line for different regressors 
         palette , color palette to use. If None, uses gvt.project_colors()
@@ -4348,10 +4348,11 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
     if include_zero_cells:
         threshold = 0
     else:
-        if 'dropout_threshold' in run_params:
-            threshold = run_params['dropout_threshold']
-        else:
-            threshold = 0.005
+        threshold=exclusion_threshold
+        # if 'dropout_threshold' in run_params:
+        #     threshold = run_params['dropout_threshold']
+        # else:
+        #     threshold = 0.005
 
     cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
 
@@ -4366,6 +4367,10 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
  
     data_to_plot = results.query('not passive').query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
+    if dropout_cleaning_threshold is not None:
+        print('Clipping dropout scores for cells with full model VE < '+str(dropout_cleaning_threshold))
+        data_to_plot.loc[data_to_plot['adj_variance_explained_full']<dropout_cleaning_threshold,'explained_variance'] = 0 
+
     if use_violin:
         plot1= sns.violinplot(
             data = data_to_plot,
@@ -4427,13 +4432,20 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
     ax.spines['right'].set_visible(False)
     if add_title:
         plt.title(run_params['version'])
-    if use_violin:
-        plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
+    if dropout_cleaning_threshold is not None:
+        extra ='_'+str(dropout_cleaning_threshold) 
+    elif not include_zero_cells:
+        extra ='_remove_'+str(exclusion_threshold)
     else:
-        filename = run_params['figure_dir']+'/dropout_summary_boxplot.svg'
+        extra=''
+    if use_violin:
+        filename = run_params['figure_dir']+'/dropout_summary'+extra+'.svg'
+        plt.savefig(filename)
+    else:
+        filename = run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'.svg'
         print('Figure saved to: '+filename)
         plt.savefig(filename)
-        plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
+        plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'.png')
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe() 
 
 def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,kernel_excitation=False,kernel=None):

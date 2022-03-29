@@ -2770,7 +2770,7 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
         title = title + ', '+session_filter[0]
     ax.set_title(title,fontsize=20)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_'+extra+'.svg')
-    plt.savefig(filename)
+    plt.savefig(filename) 
     return zlims
     #plt.tight_layout()
 
@@ -2908,10 +2908,10 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
     #dax3.set_xticks([dax3.get_xlim()[1]/2])
     #dax3.set_xticklabels(['Coding\n Score'],rotation=-70,fontsize=16)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.svg')
-    plt.savefig(filename)
+    plt.savefig(filename) 
     print('Figure saved to: '+filename)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.png')
-    plt.savefig(filename)
+    plt.savefig(filename) 
     return zlims
 
 def add_stimulus_bars(ax, kernel,alpha=0.1):
@@ -3804,8 +3804,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         plt.tight_layout()
         filename = run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg'
         print('Figure saved to: '+filename)
-        plt.savefig(filename)  
-        #plt.savefig(run_params['figure_dir']+'/dropout_average_combined'+extra+'.png')  
+        plt.savefig(filename)   
     
         # Iterate cell types and make a plot for each
         for cell_type in cell_types:
@@ -3913,7 +3912,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             plt.suptitle(cell_type,fontsize=18)
             fig.tight_layout()
             filename = run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg' 
-            plt.savefig(filename)
+            plt.savefig(filename) 
             print('Figure saved to: '+filename)
 
     # Repeat the plots but transposed

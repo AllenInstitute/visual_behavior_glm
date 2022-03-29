@@ -363,23 +363,25 @@ def log_weights_matrix_to_mongo(glm):
     returns:
         None
     '''
+
     conn = db.Database('visual_behavior_data')
     lookup_table_document = {
-        'ophys_experiment_id':glm.ophys_experiment_id,
+        'ophys_experiment_id':int(glm.ophys_experiment_id),
         'glm_version':glm.version,
     }
     w_matrix_lookup_table = conn['ophys_glm']['weight_matrix_lookup_table']
     w_matrix_database = conn['ophys_glm_xarrays']
 
     if w_matrix_lookup_table.count_documents(lookup_table_document) >= 1:
-        lookup_result = list(w_matrix_lookup_table.find(lookup_table_document))[0]
         # if weights matrix for this experiment/version has already been logged, we need to replace it
+        lookup_result = list(w_matrix_lookup_table.find(lookup_table_document))[0]
 
         # get the id of the xarray
         w_matrix_id = lookup_result['w_matrix_id']
 
         # delete the existing xarray (both metadata and chunks)
         w_matrix_database['xarray.chunks'].delete_many({'meta_id':w_matrix_id})
+
         w_matrix_database['xarray.meta'].delete_many({'_id':w_matrix_id})
 
         # write the new weights matrix to mongo
@@ -394,10 +396,10 @@ def log_weights_matrix_to_mongo(glm):
 
         # write the weights matrix to mongo
         w_matrix_id = xarray_to_mongo(glm.W)
-
+        
         # add the id to the lookup table document
         lookup_table_document.update({'w_matrix_id': w_matrix_id})
-
+        
         # insert the lookup table document into the lookup table
         w_matrix_lookup_table.insert_one(db.clean_and_timestamp(lookup_table_document))
 
@@ -838,7 +840,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     kernels = [x for x in weights_df.columns if 'weights' in x]
     for kernel in tqdm(kernels, desc='Interpolating kernels'):
         weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
-  
+ 
     print('Computing average kernels') 
     # Compute generic image kernel
     weights_df['all-images_weights'] = weights_df.apply(lambda x: np.mean([

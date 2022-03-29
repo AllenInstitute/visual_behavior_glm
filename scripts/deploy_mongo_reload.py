@@ -58,7 +58,7 @@ if __name__ == "__main__":
         slurm = Slurm(
             cpus_per_task=4,
             job_name=job_title,
-            time='2:00:00',
+            time='0:30:00',
             mem='50gb',
             output=output,
             partition="braintv"

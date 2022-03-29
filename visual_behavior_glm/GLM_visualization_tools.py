@@ -559,6 +559,65 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
+def var_explained_matched(results_pivoted, run_params):
+    # Remove passive sessions
+    results_pivoted = results_pivoted.query('not passive').copy()
+    colors = project_colors()
+    colors['Matched'] = 'k'
+    colors['Non-matched'] = 'gray'
+
+    mapper = {
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory'
+        }
+    results_pivoted['cell_type'] = [mapper[x] for x in results_pivoted['cre_line']]
+    results_pivoted['variance_explained_percent'] = results_pivoted['variance_explained_full']*100
+
+    # load cells table to get matched cells
+    cells_table = loading.get_cell_table(platform_paper_only=True)
+    cells_table = cells_table.query('not passive').copy()
+    cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
+    matched_cells = cells_table.cell_specimen_id.unique()
+    results_pivoted['matched'] = ['Matched' if x in np.array(matched_cells) else 'Non-matched' for x in results_pivoted['cell_specimen_id']]
+
+    fig,ax = plt.subplots(1,3,figsize=(10,3.5))
+    cres = ['Excitatory','Sst Inhibitory','Vip Inhibitory']
+    for index,cre in enumerate(cres):
+        all_data = results_pivoted.query('cell_type==@cre')
+        ax[index] = sns.boxplot(
+            x='experience_level',
+            y='variance_explained_percent',
+            hue='matched',
+            data=all_data,
+            hue_order=['Matched', 'Non-matched'],
+            order=['Familiar','Novel 1','Novel >1'],
+            palette=[colors[cre],'gray'],
+            linewidth=1,
+            fliersize=0,
+            ax=ax[index],
+        )
+        if index == 0:
+            ax[index].set_ylabel('Variance Explained (%)',fontsize=18)
+        else:
+            ax[index].set_ylabel('',fontsize=18)
+        ax[index].set_xlabel(cre,fontsize=18)
+        ax[index].spines['top'].set_visible(False)
+        ax[index].spines['right'].set_visible(False)
+        ax[index].set_ylim(0,30)
+        ax[index].tick_params(axis='both',labelsize=14)
+        handles, labels = ax[index].get_legend_handles_labels()
+        ax[index].legend(handles=handles, labels=labels,loc='upper right')
+    plt.tight_layout() 
+    filename = run_params['figure_dir']+'/variance_explained_matched.svg'
+    plt.savefig(run_params['figure_dir']+'/variance_explained_matched.png')
+    print('Figure saved to: ' + filename)
+    plt.savefig(filename)
+    return results_pivoted.groupby(['cell_type','experience_level','matched'])['variance_explained_percent'].describe()
+
+ 
+ 
+
 def var_explained_by_experience(results_pivoted, run_params,threshold = 0):
     
     if threshold != 0:

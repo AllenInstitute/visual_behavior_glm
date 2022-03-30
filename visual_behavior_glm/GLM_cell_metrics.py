@@ -42,7 +42,7 @@ def compute_all(results_pivoted_dff, results_pivoted_events,groups=['cre_line','
     r2_dff_dff['glm_events__metrics_events'] = r2_events_events['glm_events__metrics_events']
     return r2_dff_dff
 
-def compute_r2(results_metrics,groups=['cre_line']):
+def compute_r2(results_metrics,groups=['cre_line'],metric1='variance_explained_full',metric2='trace_mean_over_std'):
     '''
         Computes a table of r2 values for each group defined in groups
         Computes r2 between the trace_mean_over_std column and variance_explained_full
@@ -50,9 +50,9 @@ def compute_r2(results_metrics,groups=['cre_line']):
     '''
     nlevels = len(groups)
     g = results_metrics.groupby(groups)
-    r2 = g[['variance_explained_full','trace_mean_over_std']].corr().pow(2).round(decimals=3)
-    r2 = r2.drop('trace_mean_over_std',level=nlevels,axis=0).drop(columns=['variance_explained_full']).droplevel(nlevels)
-    r2 = r2.rename(columns={'trace_mean_over_std':'r2'})
+    r2 = g[[metric1,metric2]].corr().pow(2).round(decimals=3)
+    r2 = r2.drop(metric2,level=nlevels,axis=0).drop(columns=[metric1]).droplevel(nlevels)
+    r2 = r2.rename(columns={metric2:'r2'})
     r2['count'] = g.size()
     return r2
 

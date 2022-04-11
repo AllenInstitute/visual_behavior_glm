@@ -3774,8 +3774,17 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
         summary[cell_type + ' stats'] = stats
     return summary
 
+def get_matched_cells_with_ve(cells_table, results_pivoted,threshold):
+    # determine max VE for each cell
+    cells_table = pd.merge(cells_table.reset_index(),results_pivoted[['cell_roi_id','variance_explained_full']], on='cell_roi_id',validate='1:1')
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False,across_session=False,stats_on_across=True):
+    # get cells with maxVE about threshold
+    cells_with_ve = cells_table.groupby('cell_specimen_id')['variance_explained_full'].max().to_frame().query('variance_explained_full >= @threshold')
+
+    return cells_with_ve.index.values
+
+
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False,across_session=False,stats_on_across=True, matched_with_variance_explained=False,matched_ve_threshold=0):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -3828,6 +3837,10 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         strict_matched_cells = cells_table.cell_specimen_id.unique()
         extra = extra + "_strict_matched"
 
+    if matched_with_variance_explained:
+        matched_cells_with_ve = get_matched_cells_with_ve(cells_table, results_pivoted,matched_ve_threshold)
+        extra = extra + "_matched_with_ve_"+str(matched_ve_threshold)
+
     # plotting variables
     #cell_types = results_pivoted.cell_type.unique()
     cell_types = ['Vip Inhibitory','Sst Inhibitory','Excitatory']
@@ -3872,6 +3885,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             matched_data = all_data.query('cell_specimen_id in @matched_cells')
             if strict_experience_matching:
                 strict_matched_data = all_data.query('cell_specimen_id in @strict_matched_cells') 
+            if matched_with_variance_explained:
+                matched_cells_with_ve_data = all_data.query('cell_specimen_id in @matched_cells_with_ve')
+
             stats = {}
             # Iterate dropouts and plot each by experience
             for index, feature in enumerate(dropouts_to_show):
@@ -3929,7 +3945,18 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                         join=True,
                         ax=ax[index],
                     )
-                
+                if matched_with_variance_explained:
+                    # Plot cells in matched active sessions
+                    ax[index] = sns.pointplot(
+                        data = matched_cells_with_ve_data,
+                        x = 'experience_level',
+                        y=feature,
+                        order=experience_levels,
+                        color='navajowhite',
+                        join=True,
+                        ax=ax[index],
+                    )
+                 
                 if index !=3:
                     ax[index].get_legend().remove() 
                 #ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
@@ -4010,12 +4037,17 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             all_data = results_pivoted.query('cell_type ==@cell_type')
             matched_data = all_data.query('cell_specimen_id in @matched_cells')
             if strict_experience_matching:
-                strict_matched_data = all_data.query('cell_specimen_id in @strict_matched_cells') 
+                strict_matched_data = all_data.query('cell_specimen_id in @strict_matched_cells')
+            if matched_with_variance_explained:
+                matched_cells_with_ve_data = all_data.query('cell_specimen_id in @matched_cells_with_ve')
             if across_session & stats_on_across:
                 stats_feature = feature.replace('_within','_across')
             else:
                 stats_feature = feature
-            anova, tukey = test_significant_dropout_averages(all_data,stats_feature)
+            if matched_with_variance_explained:
+                anova, tukey = test_significant_dropout_averages(matched_cells_with_ve_data,stats_feature)
+            else:
+                anova, tukey = test_significant_dropout_averages(all_data,stats_feature)
             stats[cell_type]=(anova, tukey)
             summary_data[feature+' data'][cell_type+' all data'] = all_data.groupby(['experience_level'])[feature].describe()
             summary_data[feature+' data'][cell_type+' matched data'] = matched_data.groupby(['experience_level'])[feature].describe()
@@ -4084,7 +4116,20 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                     join=True,
                     ax=ax[cindex],
                 )
-            
+            if matched_with_variance_explained:
+                # Plot cells in matched active sessions
+                ax[cindex] = sns.pointplot(
+                    data = matched_cells_with_ve_data,
+                    x = 'experience_level',
+                    y=feature,
+                    order=experience_levels,
+                    color='navajowhite',
+                    join=True,
+                    ax=ax[cindex],
+                )
+             
+           
+ 
             if (cindex !=3 )&( not across_session):
                 ax[cindex].get_legend().remove() 
             if '_signed' in feature:
@@ -4110,6 +4155,8 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             y2h = ytop*1.15
             if across_session & stats_on_across:
                 stats_color = 'olivedrab'
+            elif matched_with_variance_explained:
+                stats_color='navajowhite'
             else:
                 stats_color='k'
 

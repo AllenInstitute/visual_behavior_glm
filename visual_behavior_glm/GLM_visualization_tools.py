@@ -559,6 +559,65 @@ def pc_component_heatmap(pca, figsize=(18,4)):
     fig.tight_layout()
     return fig, ax
 
+def var_explained_matched(results_pivoted, run_params):
+    # Remove passive sessions
+    results_pivoted = results_pivoted.query('not passive').copy()
+    colors = project_colors()
+    colors['Matched'] = 'k'
+    colors['Non-matched'] = 'gray'
+
+    mapper = {
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory'
+        }
+    results_pivoted['cell_type'] = [mapper[x] for x in results_pivoted['cre_line']]
+    results_pivoted['variance_explained_percent'] = results_pivoted['variance_explained_full']*100
+
+    # load cells table to get matched cells
+    cells_table = loading.get_cell_table(platform_paper_only=True)
+    cells_table = cells_table.query('not passive').copy()
+    cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
+    matched_cells = cells_table.cell_specimen_id.unique()
+    results_pivoted['matched'] = ['Matched' if x in np.array(matched_cells) else 'Non-matched' for x in results_pivoted['cell_specimen_id']]
+
+    fig,ax = plt.subplots(1,3,figsize=(10,3.5))
+    cres = ['Excitatory','Sst Inhibitory','Vip Inhibitory']
+    for index,cre in enumerate(cres):
+        all_data = results_pivoted.query('cell_type==@cre')
+        ax[index] = sns.boxplot(
+            x='experience_level',
+            y='variance_explained_percent',
+            hue='matched',
+            data=all_data,
+            hue_order=['Matched', 'Non-matched'],
+            order=['Familiar','Novel 1','Novel >1'],
+            palette=[colors[cre],'gray'],
+            linewidth=1,
+            fliersize=0,
+            ax=ax[index],
+        )
+        if index == 0:
+            ax[index].set_ylabel('Variance Explained (%)',fontsize=18)
+        else:
+            ax[index].set_ylabel('',fontsize=18)
+        ax[index].set_xlabel(cre,fontsize=18)
+        ax[index].spines['top'].set_visible(False)
+        ax[index].spines['right'].set_visible(False)
+        ax[index].set_ylim(0,30)
+        ax[index].tick_params(axis='both',labelsize=14)
+        handles, labels = ax[index].get_legend_handles_labels()
+        ax[index].legend(handles=handles, labels=labels,loc='upper right')
+    plt.tight_layout() 
+    filename = run_params['figure_dir']+'/variance_explained_matched.svg'
+    plt.savefig(run_params['figure_dir']+'/variance_explained_matched.png')
+    print('Figure saved to: ' + filename)
+    plt.savefig(filename)
+    return results_pivoted.groupby(['cell_type','experience_level','matched'])['variance_explained_percent'].describe()
+
+ 
+ 
+
 def var_explained_by_experience(results_pivoted, run_params,threshold = 0):
     
     if threshold != 0:
@@ -3715,8 +3774,17 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
         summary[cell_type + ' stats'] = stats
     return summary
 
+def get_matched_cells_with_ve(cells_table, results_pivoted,threshold):
+    # determine max VE for each cell
+    cells_table = pd.merge(cells_table.reset_index(),results_pivoted[['cell_roi_id','variance_explained_full']], on='cell_roi_id',validate='1:1')
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False,across_session=False,stats_on_across=True):
+    # get cells with maxVE about threshold
+    cells_with_ve = cells_table.groupby('cell_specimen_id')['variance_explained_full'].max().to_frame().query('variance_explained_full >= @threshold')
+
+    return cells_with_ve.index.values
+
+
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False,across_session=False,stats_on_across=True, matched_with_variance_explained=False,matched_ve_threshold=0):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -3769,6 +3837,10 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         strict_matched_cells = cells_table.cell_specimen_id.unique()
         extra = extra + "_strict_matched"
 
+    if matched_with_variance_explained:
+        matched_cells_with_ve = get_matched_cells_with_ve(cells_table, results_pivoted,matched_ve_threshold)
+        extra = extra + "_matched_with_ve_"+str(matched_ve_threshold)
+
     # plotting variables
     #cell_types = results_pivoted.cell_type.unique()
     cell_types = ['Vip Inhibitory','Sst Inhibitory','Excitatory']
@@ -3813,6 +3885,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             matched_data = all_data.query('cell_specimen_id in @matched_cells')
             if strict_experience_matching:
                 strict_matched_data = all_data.query('cell_specimen_id in @strict_matched_cells') 
+            if matched_with_variance_explained:
+                matched_cells_with_ve_data = all_data.query('cell_specimen_id in @matched_cells_with_ve')
+
             stats = {}
             # Iterate dropouts and plot each by experience
             for index, feature in enumerate(dropouts_to_show):
@@ -3870,7 +3945,18 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                         join=True,
                         ax=ax[index],
                     )
-                
+                if matched_with_variance_explained:
+                    # Plot cells in matched active sessions
+                    ax[index] = sns.pointplot(
+                        data = matched_cells_with_ve_data,
+                        x = 'experience_level',
+                        y=feature,
+                        order=experience_levels,
+                        color='navajowhite',
+                        join=True,
+                        ax=ax[index],
+                    )
+                 
                 if index !=3:
                     ax[index].get_legend().remove() 
                 #ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
@@ -3951,12 +4037,17 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             all_data = results_pivoted.query('cell_type ==@cell_type')
             matched_data = all_data.query('cell_specimen_id in @matched_cells')
             if strict_experience_matching:
-                strict_matched_data = all_data.query('cell_specimen_id in @strict_matched_cells') 
+                strict_matched_data = all_data.query('cell_specimen_id in @strict_matched_cells')
+            if matched_with_variance_explained:
+                matched_cells_with_ve_data = all_data.query('cell_specimen_id in @matched_cells_with_ve')
             if across_session & stats_on_across:
                 stats_feature = feature.replace('_within','_across')
             else:
                 stats_feature = feature
-            anova, tukey = test_significant_dropout_averages(all_data,stats_feature)
+            if matched_with_variance_explained:
+                anova, tukey = test_significant_dropout_averages(matched_cells_with_ve_data,stats_feature)
+            else:
+                anova, tukey = test_significant_dropout_averages(all_data,stats_feature)
             stats[cell_type]=(anova, tukey)
             summary_data[feature+' data'][cell_type+' all data'] = all_data.groupby(['experience_level'])[feature].describe()
             summary_data[feature+' data'][cell_type+' matched data'] = matched_data.groupby(['experience_level'])[feature].describe()
@@ -4025,7 +4116,20 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                     join=True,
                     ax=ax[cindex],
                 )
-            
+            if matched_with_variance_explained:
+                # Plot cells in matched active sessions
+                ax[cindex] = sns.pointplot(
+                    data = matched_cells_with_ve_data,
+                    x = 'experience_level',
+                    y=feature,
+                    order=experience_levels,
+                    color='navajowhite',
+                    join=True,
+                    ax=ax[cindex],
+                )
+             
+           
+ 
             if (cindex !=3 )&( not across_session):
                 ax[cindex].get_legend().remove() 
             if '_signed' in feature:
@@ -4051,6 +4155,8 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             y2h = ytop*1.15
             if across_session & stats_on_across:
                 stats_color = 'olivedrab'
+            elif matched_with_variance_explained:
+                stats_color='navajowhite'
             else:
                 stats_color='k'
 
@@ -4264,7 +4370,7 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
     print('Figure saved to: '+filename)
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe()
 
-def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False): 
+def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,dropout_cleaning_threshold=None, exclusion_threshold=None): 
     '''
         Makes a bar plot that shows the population dropout summary by cre line for different regressors 
         palette , color palette to use. If None, uses gvt.project_colors()
@@ -4289,10 +4395,11 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
     if include_zero_cells:
         threshold = 0
     else:
-        if 'dropout_threshold' in run_params:
-            threshold = run_params['dropout_threshold']
-        else:
-            threshold = 0.005
+        threshold=exclusion_threshold
+        # if 'dropout_threshold' in run_params:
+        #     threshold = run_params['dropout_threshold']
+        # else:
+        #     threshold = 0.005
 
     cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
 
@@ -4307,6 +4414,10 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
  
     data_to_plot = results.query('not passive').query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
+    if dropout_cleaning_threshold is not None:
+        print('Clipping dropout scores for cells with full model VE < '+str(dropout_cleaning_threshold))
+        data_to_plot.loc[data_to_plot['adj_variance_explained_full']<dropout_cleaning_threshold,'explained_variance'] = 0 
+
     if use_violin:
         plot1= sns.violinplot(
             data = data_to_plot,
@@ -4368,13 +4479,20 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
     ax.spines['right'].set_visible(False)
     if add_title:
         plt.title(run_params['version'])
-    if use_violin:
-        plt.savefig(run_params['figure_dir']+'/dropout_summary.svg')
+    if dropout_cleaning_threshold is not None:
+        extra ='_'+str(dropout_cleaning_threshold) 
+    elif not include_zero_cells:
+        extra ='_remove_'+str(exclusion_threshold)
     else:
-        filename = run_params['figure_dir']+'/dropout_summary_boxplot.svg'
+        extra=''
+    if use_violin:
+        filename = run_params['figure_dir']+'/dropout_summary'+extra+'.svg'
+        plt.savefig(filename)
+    else:
+        filename = run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'.svg'
         print('Figure saved to: '+filename)
         plt.savefig(filename)
-        plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot.png')
+        plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'.png')
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe() 
 
 def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,kernel_excitation=False,kernel=None):

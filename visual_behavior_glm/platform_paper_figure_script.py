@@ -204,6 +204,9 @@ stats_S11B = gvt.var_explained_by_experience(results_pivoted, run_params)
 # the figure legend contains the high level summary statistics
 r2 = gcm.compute_event_metrics(results_pivoted, run_params)
 
+# Panel D - Explained variance for matched and non-matched cells
+# Returns a pandas dataframe describing the explained variance by experience/cre-line/matched
+stats_S11D = gvt.var_explained_matched(results_pivoted, run_params)
 
 ## S12 - kernel images 
 # Generate the 6 average kernel panels

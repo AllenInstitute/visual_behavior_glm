@@ -213,10 +213,12 @@ if False: # Code snippets for doing analyses.
         dropouts_to_show=['licks','running','pupil','hits','misses'])
     gvt.plot_population_averages(results_pivoted, run_params,strict_experience_matching=True)
     gvt.plot_population_averages(results_pivoted, run_params,include_zero_cells=False)
+    gvt.plot_population_averages(results_pivoted, run_params,matched_with_variance_explained=True, matched_ve_threshold=0.05)
     gvt.plot_fraction_summary_population(results_pivoted, run_params)
     gvt.plot_population_averages_by_area(results_pivoted, run_params)
     gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISp')
     gvt.plot_population_averages_by_depth(results_pivoted,run_params, area='VISl')   
+
 
     # For task and omission breakdown, you need to load the results of version: 
     # 24_events_all_L2_optimize_by_session_task_and_omission_breakdown

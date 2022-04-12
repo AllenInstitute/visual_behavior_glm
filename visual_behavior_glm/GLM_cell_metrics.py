@@ -9,7 +9,7 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior.ophys.response_analysis.cell_metrics as cell_metrics
 
-def compute_event_metrics(results_pivoted,run_params,groups=['cre_line','equipment','targeted_structure','experience_level'],threshold=0):
+def compute_event_metrics(results_pivoted,run_params,groups=['cre_line','equipment','targeted_structure','experience_level'],threshold=0,savefig=False):
     if threshold !=0:
         results_pivoted = results_pivoted.query('(not passive) &(variance_explained_full > @threshold)').copy()
         label='_filtered'
@@ -19,7 +19,7 @@ def compute_event_metrics(results_pivoted,run_params,groups=['cre_line','equipme
     metrics_events = get_metrics(use_events=True)
     results_events = merge_cell_metrics_table(metrics_events,results_pivoted)
     r2_events      = compute_r2(results_events,groups=groups).rename(columns={'r2':'glm_events__metrics_events'})
-    evaluate_against_metrics(results_events.query('not passive'), ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=True,run_params=run_params,title='All cells\n'+run_params['version'],ylim=(0,100),label=label)
+    evaluate_against_metrics(results_events.query('not passive'), ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=savefig,run_params=run_params,title='All cells\n'+run_params['version'],ylim=(0,100),label=label)
     return r2_events
 
 def compute_all(results_pivoted_dff, results_pivoted_events,groups=['cre_line','equipment','targeted_structure','active']):

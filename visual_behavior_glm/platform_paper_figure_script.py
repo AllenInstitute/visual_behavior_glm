@@ -15,6 +15,10 @@
     visual_behavior_analysis origin/master, commit d37ba1bd
     AllenSDK origin/master version rc/2.13.4
 
+    Note that these functions will NOT save figures by default. All of the
+    functions have an input argument savefig=False that you can adjust to
+    save the figures.  
+
 '''
 
 ### Import packages

@@ -84,7 +84,7 @@ stats_D = gvt.plot_dropout_summary_population(results,run_params)
         "<cell type> matched data" is just for matched cells
         "<cell type> strict matched data" is available only if requested 
 '''
-stats_E = gvt.plot_population_averages(results_pivoted, run_params)  #TODO SAVEFIG
+stats_E = gvt.plot_population_averages(results_pivoted, run_params) 
 
 ## Panel F - Coding fraction by experience/cre
 # Returns a dataframe with rows for cre/experience, and columns with the fraction of
@@ -124,12 +124,12 @@ stats_S3B = gvt.plot_population_averages(results_pivoted, run_params,
     [<cell type> data][<feature>] is a pandas "describe()" of that dropout
 
 '''
-stats_S4 = gvt.plot_population_averages_by_area(results_pivoted, run_params) #TODO SAVEFIG
+stats_S4 = gvt.plot_population_averages_by_area(results_pivoted, run_params) 
 
 
 ## S5 - Depth V1
 stats_S5_V1 = gvt.plot_population_averages_by_depth(results_pivoted,run_params, 
-        area='VISp') #TODO SAVEFIG
+        area='VISp') 
 
 
 ## S5 - Depth LM

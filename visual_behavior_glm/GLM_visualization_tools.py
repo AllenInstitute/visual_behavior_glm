@@ -3539,7 +3539,7 @@ def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_
                 ax[index].set_title(feature,fontsize=12)
     return ax
 
-def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope",area='VISp'):
+def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope",area='VISp',savefig=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -3657,13 +3657,14 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
         plt.suptitle(cell_type+', '+area,fontsize=20)
         fig.tight_layout() 
         filename = run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg'
-        plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.png')
-        print('Figure saved to: '+filename)
-        plt.savefig(filename)
+        if savefig:
+            plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.png')
+            print('Figure saved to: '+filename)
+            plt.savefig(filename)
         summary[cell_type + ' stats'] = stats
     return summary
 
-def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope"):
+def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope",savefig=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -3773,9 +3774,10 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
         plt.suptitle(cell_type,fontsize=20)
         fig.tight_layout() 
         filename = run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.svg'
-        plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.png')
-        plt.savefig(filename)
-        print('Figure saved to: '+filename)
+        if savefig:
+            plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.png')
+            plt.savefig(filename)
+            print('Figure saved to: '+filename)
         summary[cell_type + ' stats'] = stats
     return summary
 
@@ -3789,7 +3791,7 @@ def get_matched_cells_with_ve(cells_table, results_pivoted,threshold):
     return cells_with_ve.index.values
 
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False,across_session=False,stats_on_across=True, matched_with_variance_explained=False,matched_ve_threshold=0):
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False,across_session=False,stats_on_across=True, matched_with_variance_explained=False,matched_ve_threshold=0,savefig=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -3880,8 +3882,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[0].set_ylabel('Coding Score',fontsize=20)
         plt.tight_layout()
         filename = run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg'
-        print('Figure saved to: '+filename)
-        plt.savefig(filename)   
+        if savefig:
+            print('Figure saved to: '+filename)
+            plt.savefig(filename)   
     
         # Iterate cell types and make a plot for each
         for cell_type in cell_types:
@@ -4003,8 +4006,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             plt.suptitle(cell_type,fontsize=18)
             fig.tight_layout()
             filename = run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg' 
-            plt.savefig(filename) 
-            print('Figure saved to: '+filename)
+            if savefig:
+                plt.savefig(filename) 
+                print('Figure saved to: '+filename)
 
     # Repeat the plots but transposed
     # Iterate cell types and make a plot for each
@@ -4197,8 +4201,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         elif across_session:
             extra = extra + '_stats_on_within'
         filename = run_params['figure_dir']+'/dropout_average_'+clean_feature.replace(' ','_')+extra+'.svg'
-        plt.savefig(filename)
-        print('Figure saved to: '+filename)
+        if savefig:
+            plt.savefig(filename)
+            print('Figure saved to: '+filename)
         summary_data[feature+' stats'] = stats
 
     return summary_data

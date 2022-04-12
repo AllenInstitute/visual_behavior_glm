@@ -15,6 +15,10 @@
     visual_behavior_analysis origin/master, commit d37ba1bd
     AllenSDK origin/master version rc/2.13.4
 
+    Note that these functions will NOT save figures by default. All of the
+    functions have an input argument savefig=False that you can adjust to
+    save the figures.  
+
 '''
 
 ### Import packages
@@ -124,12 +128,12 @@ stats_S3B = gvt.plot_population_averages(results_pivoted, run_params,
     [<cell type> data][<feature>] is a pandas "describe()" of that dropout
 
 '''
-stats_S4 = gvt.plot_population_averages_by_area(results_pivoted, run_params)
+stats_S4 = gvt.plot_population_averages_by_area(results_pivoted, run_params) 
 
 
 ## S5 - Depth V1
 stats_S5_V1 = gvt.plot_population_averages_by_depth(results_pivoted,run_params, 
-        area='VISp')
+        area='VISp') 
 
 
 ## S5 - Depth LM

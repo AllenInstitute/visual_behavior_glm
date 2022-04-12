@@ -618,7 +618,7 @@ def var_explained_matched(results_pivoted, run_params):
  
  
 
-def var_explained_by_experience(results_pivoted, run_params,threshold = 0):
+def var_explained_by_experience(results_pivoted, run_params,threshold = 0,savefig=False):
     
     if threshold != 0:
         results_pivoted = results_pivoted.query('(not passive) & (variance_explained_full > @threshold)').copy()
@@ -652,16 +652,17 @@ def var_explained_by_experience(results_pivoted, run_params,threshold = 0):
     plt.ylim(0,40)
     plt.tick_params(axis='both',labelsize=14)
     plt.tight_layout() 
-    if threshold !=0:
-        filename = run_params['figure_dir']+'/variance_explained_by_experience_filtered.svg'
-        plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience_filtered.png')
-        print('Figure saved to: ' + filename)
-        plt.savefig(filename)
-    else:
-        filename = run_params['figure_dir']+'/variance_explained_by_experience.svg'
-        plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.png')
-        print('Figure saved to: ' + filename)
-        plt.savefig(filename)
+    if savefig:
+        if threshold !=0:
+            filename = run_params['figure_dir']+'/variance_explained_by_experience_filtered.svg'
+            plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience_filtered.png')
+            print('Figure saved to: ' + filename)
+            plt.savefig(filename)
+        else:
+            filename = run_params['figure_dir']+'/variance_explained_by_experience.svg'
+            plt.savefig(run_params['figure_dir']+'/variance_explained_by_experience.png')
+            print('Figure saved to: ' + filename)
+            plt.savefig(filename)
     return results_pivoted.groupby(['cell_type','experience_level'])['variance_explained_percent'].describe()
 
 def compare_var_explained_by_version(results=None, fig=None, ax=None, test_data=True, figsize=(9,5), use_violin=True,cre=None,metric='Full',show_equipment=True,zoom_xlim=True,sort_by_signal=True):
@@ -1893,7 +1894,7 @@ def plot_perturbation(weights_df, run_params, kernel, drop_threshold=0,session_f
    
     return ax,kernel_means
 
-def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshold=0,drop_threshold=0):
+def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshold=0,drop_threshold=0,savefig=False):
     weights_df = weights_df.query('not passive').copy()
     
     extra=''
@@ -1911,24 +1912,26 @@ def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshol
     ax_f.set_ylim(new_y)
     ax_n.set_ylim(new_y)
     ax_np.set_ylim(new_y)
-    fig_f.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_familiar_kernel'+extra+'.svg')
-    fig_n.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_novel1_kernel'+extra+'.svg')
-    fig_np.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_novelp1_kernel'+extra+'.svg')
-    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_familiar_kernel'+extra+'.svg')
-    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_novel1_kernel'+extra+'.svg')
-    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_novelp1_kernel'+extra+'.svg')
+    if savefig:
+        fig_f.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_familiar_kernel'+extra+'.svg')
+        fig_n.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_novel1_kernel'+extra+'.svg')
+        fig_np.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_novelp1_kernel'+extra+'.svg')
+        print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_familiar_kernel'+extra+'.svg')
+        print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_novel1_kernel'+extra+'.svg')
+        print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_novelp1_kernel'+extra+'.svg')
 
     k, fig_v , ax_v =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Vip-IRES-Cre',compare=['experience_level'],threshold=threshold,drop_threshold=drop_threshold)   
     k, fig_s , ax_s =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Sst-IRES-Cre',compare=['experience_level'],threshold=threshold,drop_threshold=drop_threshold)   
     k, fig_e , ax_e =plot_kernel_comparison(weights_df,run_params,kernel,save_results=False,session_filter=['Familiar','Novel 1','Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=['experience_level'],threshold=threshold,drop_threshold=drop_threshold)   
-    fig_v.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_vip_kernel'+extra+'.svg')
-    fig_s.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel'+extra+'.svg')
-    fig_e.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
-    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_vip_kernel'+extra+'.svg')
-    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel'+extra+'.svg')
-    print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
+    if savefig:
+        fig_v.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_vip_kernel'+extra+'.svg')
+        fig_s.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel'+extra+'.svg')
+        fig_e.savefig(run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
+        print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_vip_kernel'+extra+'.svg')
+        print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_sst_kernel'+extra+'.svg')
+        print('Figure saved to: '+run_params['fig_kernels_dir']+'/'+kernel+'_exc_kernel'+extra+'.svg')
 
-def plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,kernel):
+def plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,kernel,savefig=False):
     mapper = {
         'Slc17a7-IRES2-Cre':'Excitatory',
         'Sst-IRES-Cre':'Sst Inhibitory',
@@ -1936,17 +1939,17 @@ def plot_kernel_comparison_by_kernel_excitation(weights_df, run_params,kernel):
         }
     nk = kernel.replace('all-','')
 
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'],set_title='Excitatory, Familiar, '+nk)
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'], set_title='Excitatory, Novel 1, '+nk)
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'],set_title='Excitatory, Novel >1, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'],set_title='Excitatory, Familiar, '+nk,save_results=savefig)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'], set_title='Excitatory, Novel 1, '+nk,save_results=savefig)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Slc17a7-IRES2-Cre',compare=[kernel+'_excited'],set_title='Excitatory, Novel >1, '+nk,save_results=savefig)
 
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'],set_title='Sst Inhibitory, Familiar, '+nk)
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'], set_title='Sst Inhibitory, Novel 1, '+nk)
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'],set_title='Sst Inhibitory, Novel >1, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'],set_title='Sst Inhibitory, Familiar, '+nk,save_results=savefig)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'], set_title='Sst Inhibitory, Novel 1, '+nk,save_results=savefig)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Sst-IRES-Cre',compare=[kernel+'_excited'],set_title='Sst Inhibitory, Novel >1, '+nk,save_results=savefig)
 
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'],set_title='Vip Inhibitory, Familiar, '+nk)
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'], set_title='Vip Inhibitory, Novel 1, '+nk)
-    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'],set_title='Vip Inhibitory, Novel >1, '+nk)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Familiar'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'],set_title='Vip Inhibitory, Familiar, '+nk,save_results=savefig)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel 1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'], set_title='Vip Inhibitory, Novel 1, '+nk,save_results=savefig)
+    plot_kernel_comparison(weights_df,run_params,kernel,session_filter=['Novel >1'],cell_filter='Vip-IRES-Cre',compare=[kernel+'_excited'],set_title='Vip Inhibitory, Novel >1, '+nk,save_results=savefig)
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,ax=None,fs1=20,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel'],threshold=0,set_title=None): 
     '''
@@ -2208,7 +2211,7 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot_err
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level',plot_dropout_sorted=True):  
+def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level',plot_dropout_sorted=True):  
     '''
         Plots the average kernel for each cell line. 
         Plots the heatmap of the kernels sorted by time. 
@@ -2593,7 +2596,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'exc':np.shape(slc)[1],
             }
 
-        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,session_filter=session_filter)
+        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,session_filter=session_filter,savefig=save_results)
         #zlims_test = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, kernel, run_params,ncells,session_filter=session_filter)
     else:
     
@@ -2648,7 +2651,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'sst':np.shape(sst_f)[1],
             'exc':np.shape(slc_f)[1],
             }
-        zlims = plot_kernel_heatmap(weights_sorted_f,time_vec, kernel, run_params,ncells_f,extra='full_model',zlims=zlims,session_filter=session_filter)
+        zlims = plot_kernel_heatmap(weights_sorted_f,time_vec, kernel, run_params,ncells_f,extra='full_model',zlims=zlims,session_filter=session_filter,savefig=save_results) 
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2700,11 +2703,11 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=True, drop_th
             'sst':np.shape(sst_df)[1],
             'exc':np.shape(slc_df)[1],
             }
-        zlims = plot_kernel_heatmap(weights_sorted_df,time_vec, kernel, run_params,ncells_df,extra='dropout',zlims=None,session_filter=session_filter)
-        zlims_test = plot_kernel_heatmap_with_dropout(vip_table_df, sst_table_df, slc_table_df,time_vec, kernel, run_params,ncells_df,session_filter=session_filter,zlims=zlims,extra='dropout')
+        zlims = plot_kernel_heatmap(weights_sorted_df,time_vec, kernel, run_params,ncells_df,extra='dropout',zlims=None,session_filter=session_filter,savefig=save_results)
+        zlims_test = plot_kernel_heatmap_with_dropout(vip_table_df, sst_table_df, slc_table_df,time_vec, kernel, run_params,ncells_df,session_filter=session_filter,zlims=zlims,extra='dropout',savefig=save_results)
 
-        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,zlims=zlims,session_filter=session_filter)
-        zlims_test = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, kernel, run_params,ncells,session_filter=session_filter,zlims=zlims)
+        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,zlims=zlims,session_filter=session_filter,savefig=save_results)
+        zlims_test = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, kernel, run_params,ncells,session_filter=session_filter,zlims=zlims,savefig=save_results)
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2781,7 +2784,7 @@ def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,session_filt
     for k in crashed:
         print('Crashed - '+k) 
 
-def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,session_filter=['Familiar','Novel 1','Novel >1']):
+def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,session_filter=['Familiar','Novel 1','Novel >1'],savefig=False):
     if ax==None:
         #fig,ax = plt.subplots(figsize=(8,4))
         height = 4
@@ -2829,11 +2832,12 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
         title = title + ', '+session_filter[0]
     ax.set_title(title,fontsize=20)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_'+extra+'.svg')
-    plt.savefig(filename) 
+    if savefig:
+        plt.savefig(filename) 
     return zlims
     #plt.tight_layout()
 
-def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,session_filter=['Familiar','Novel 1','Novel >1']):
+def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,session_filter=['Familiar','Novel 1','Novel >1'],savefig=False):
     if ax==None:
         #fig,ax = plt.subplots(figsize=(8,4))
         height = 4
@@ -2966,11 +2970,12 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
     dax3.set_xticks([])   
     #dax3.set_xticks([dax3.get_xlim()[1]/2])
     #dax3.set_xticklabels(['Coding\n Score'],rotation=-70,fontsize=16)
-    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.svg')
-    plt.savefig(filename) 
-    print('Figure saved to: '+filename)
-    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.png')
-    plt.savefig(filename) 
+    if savefig:
+        filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.svg')
+        plt.savefig(filename) 
+        print('Figure saved to: '+filename)
+        filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.png')
+        plt.savefig(filename) 
     return zlims
 
 def add_stimulus_bars(ax, kernel,alpha=0.1):
@@ -3534,7 +3539,7 @@ def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_
                 ax[index].set_title(feature,fontsize=12)
     return ax
 
-def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope",area='VISp'):
+def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope",area='VISp',savefig=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -3652,13 +3657,14 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
         plt.suptitle(cell_type+', '+area,fontsize=20)
         fig.tight_layout() 
         filename = run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg'
-        plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.png')
-        print('Figure saved to: '+filename)
-        plt.savefig(filename)
+        if savefig:
+            plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.png')
+            print('Figure saved to: '+filename)
+            plt.savefig(filename)
         summary[cell_type + ' stats'] = stats
     return summary
 
-def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope"):
+def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope",savefig=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -3768,9 +3774,10 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
         plt.suptitle(cell_type,fontsize=20)
         fig.tight_layout() 
         filename = run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.svg'
-        plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.png')
-        plt.savefig(filename)
-        print('Figure saved to: '+filename)
+        if savefig:
+            plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.png')
+            plt.savefig(filename)
+            print('Figure saved to: '+filename)
         summary[cell_type + ' stats'] = stats
     return summary
 
@@ -3784,7 +3791,7 @@ def get_matched_cells_with_ve(cells_table, results_pivoted,threshold):
     return cells_with_ve.index.values
 
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False,across_session=False,stats_on_across=True, matched_with_variance_explained=False,matched_ve_threshold=0):
+def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False,across_session=False,stats_on_across=True, matched_with_variance_explained=False,matched_ve_threshold=0,savefig=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -3875,8 +3882,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[0].set_ylabel('Coding Score',fontsize=20)
         plt.tight_layout()
         filename = run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg'
-        print('Figure saved to: '+filename)
-        plt.savefig(filename)   
+        if savefig:
+            print('Figure saved to: '+filename)
+            plt.savefig(filename)   
     
         # Iterate cell types and make a plot for each
         for cell_type in cell_types:
@@ -3998,8 +4006,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             plt.suptitle(cell_type,fontsize=18)
             fig.tight_layout()
             filename = run_params['figure_dir']+'/dropout_average_'+cell_type[0:3]+extra+'.svg' 
-            plt.savefig(filename) 
-            print('Figure saved to: '+filename)
+            if savefig:
+                plt.savefig(filename) 
+                print('Figure saved to: '+filename)
 
     # Repeat the plots but transposed
     # Iterate cell types and make a plot for each
@@ -4192,8 +4201,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         elif across_session:
             extra = extra + '_stats_on_within'
         filename = run_params['figure_dir']+'/dropout_average_'+clean_feature.replace(' ','_')+extra+'.svg'
-        plt.savefig(filename)
-        print('Figure saved to: '+filename)
+        if savefig:
+            plt.savefig(filename)
+            print('Figure saved to: '+filename)
         summary_data[feature+' stats'] = stats
 
     return summary_data
@@ -4242,7 +4252,7 @@ def test_significant_dropout_averages_by_depth(data,feature):
     return ttests
 
 
-def plot_dropout_individual_population(results, run_params,ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,use_single=False): 
+def plot_dropout_individual_population(results, run_params,ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,use_single=False,savefig=False): 
     '''
         Makes a bar plot that shows the population dropout summary by cre line for different regressors 
         palette , color palette to use. If None, uses gvt.project_colors()
@@ -4366,11 +4376,13 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
         filename = run_params['figure_dir']+'/dropout_individual_boxplot.svg'
         plt.savefig(run_params['figure_dir']+'/dropout_individual_boxplot.png')
 
-    plt.savefig(filename)
-    print('Figure saved to: '+filename)
+    if savefig:
+        plt.savefig(filename)
+        print('Figure saved to: '+filename)
+
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe()
 
-def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,dropout_cleaning_threshold=None, exclusion_threshold=None): 
+def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,dropout_cleaning_threshold=None, exclusion_threshold=None,savefig=False): 
     '''
         Makes a bar plot that shows the population dropout summary by cre line for different regressors 
         palette , color palette to use. If None, uses gvt.project_colors()
@@ -4485,17 +4497,18 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         extra ='_remove_'+str(exclusion_threshold)
     else:
         extra=''
-    if use_violin:
-        filename = run_params['figure_dir']+'/dropout_summary'+extra+'.svg'
-        plt.savefig(filename)
-    else:
-        filename = run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'.svg'
-        print('Figure saved to: '+filename)
-        plt.savefig(filename)
-        plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'.png')
+    if savefig:
+        if use_violin:
+            filename = run_params['figure_dir']+'/dropout_summary'+extra+'.svg'
+            plt.savefig(filename)
+        else:
+            filename = run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'.svg'
+            print('Figure saved to: '+filename)
+            plt.savefig(filename)
+            plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'.png')
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe() 
 
-def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,kernel_excitation=False,kernel=None):
+def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,kernel_excitation=False,kernel=None,savefig=False):
     if kernel_excitation:
         assert kernel is not None, "Need to name the excited kernel"
     else:
@@ -4568,16 +4581,17 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,ker
             ax[index].legend()
     ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=20)
     plt.tight_layout()
-    if kernel_excitation:
-        filename = run_params['figure_dir']+'/coding_fraction_'+kernel+'_summary.svg'  
-        plt.savefig(filename)  
-        plt.savefig(run_params['figure_dir']+'/coding_fraction_'+kernel+'_summary.png') 
-        print('Figure saved to: '+filename) 
-    else:
-        filename = run_params['figure_dir']+'/coding_fraction_summary.svg'
-        plt.savefig(filename)  
-        plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.png')  
-        print('Figure saved to: '+filename) 
+    if savefig:
+        if kernel_excitation:
+            filename = run_params['figure_dir']+'/coding_fraction_'+kernel+'_summary.svg'  
+            plt.savefig(filename)  
+            plt.savefig(run_params['figure_dir']+'/coding_fraction_'+kernel+'_summary.png') 
+            print('Figure saved to: '+filename) 
+        else:
+            filename = run_params['figure_dir']+'/coding_fraction_summary.svg'
+            plt.savefig(filename)  
+            plt.savefig(run_params['figure_dir']+'/coding_fraction_summary.png')  
+            print('Figure saved to: '+filename) 
     return summary_df 
 
 def make_cosyne_schematic(glm,cell=1028768972,t_range=5,time_to_plot=3291,alpha=.25):

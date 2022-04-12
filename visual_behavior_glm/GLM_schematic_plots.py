@@ -59,7 +59,7 @@ def get_example_style():
         }
     return style
 
-def plot_glm_example(g,cell_specimen_id,run_params,times=[1789,1799],add_stimulus=True):
+def plot_glm_example(g,cell_specimen_id,run_params,times=[1789,1799],add_stimulus=True,savefig=False):
     #OLD:oeid = 775614751,celldex=1
     # oeid: 967008471
     # cell_specimen_id: 1086492467
@@ -70,11 +70,11 @@ def plot_glm_example(g,cell_specimen_id,run_params,times=[1789,1799],add_stimulu
     kernel_names=['image0','image1','image2','image3','image4','image5','image6','image7']
     index_times=[np.where(g.fit['fit_trace_timestamps']>=times[0])[0][0],np.where(g.fit['fit_trace_timestamps']>times[1])[0][0]+1]
     include_events= g.fit['events_trace_arr'] is not None
-    plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events)
-    plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events,model='all-images')
-    plot_glm_example_dropouts(g,cell_specimen_id,style)
+    plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events,savefig=savefig)
+    plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events,model='all-images',savefig=savefig)
+    plot_glm_example_dropouts(g,cell_specimen_id,style,savefig=savefig)
     #ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,times,style)
-    plot_glm_example_inputs(g,times,style,run_params,add_stimulus=add_stimulus)
+    plot_glm_example_inputs(g,times,style,run_params,add_stimulus=add_stimulus,savefig=savefig)
     #plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df)
     ##gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
     ##gvt.plot_kernel_support(g,plot_bands=True,start=index_times[0],end=index_times[1])
@@ -104,7 +104,7 @@ def plot_glm_example_kernel_inner(g,cell_specimen_id, kernel_name,ax,style,palet
     ax.plot(timestamps, kernel,'-',label=kernel_name,linewidth=style['trace_linewidth'],color=palette_df.query('kernel_name == @kernel_name')['kernel_color'].values[0])
     return ax
 
-def plot_glm_example_dropouts(g,cell_specimen_id,style):
+def plot_glm_example_dropouts(g,cell_specimen_id,style,savefig=False):
 
     dropouts = g.dropout_summary.query('cell_specimen_id == @cell_specimen_id')[['dropout','adj_fraction_change_from_full']].sort_values(by='adj_fraction_change_from_full').copy().reset_index(drop=True)
     dropouts_to_plot = ['all-images','omissions','behavioral','running','pupil','licks','task','hits','misses']
@@ -124,7 +124,8 @@ def plot_glm_example_dropouts(g,cell_specimen_id,style):
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.set_xlim(0,1)
     
-    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_dropouts.svg')
+    if savefig:
+        plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_dropouts.svg')
 
 def get_kernel_duration(kernel, run_params,force_int=False):
     d1 = '('+str(run_params['kernels'][kernel]['offset'])
@@ -136,7 +137,7 @@ def get_kernel_duration(kernel, run_params,force_int=False):
     d = d1+d2
     return d.rjust(15) 
 
-def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True):
+def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True,savefig=False):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,6))
         fig = plt.figure(figsize=(9,6))
@@ -240,8 +241,9 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
         filename ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs_add_stimulus.svg'
     else:
         filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg'
-    print('Figure saved to: '+filename)
-    plt.savefig(filename)
+    if savefig:
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
 
 def plot_glm_example_components(g, cell_specimen_id, times, style):
     fig = plt.figure(figsize=(8,4))
@@ -287,7 +289,7 @@ def plot_glm_example_components(g, cell_specimen_id, times, style):
     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_components.svg')
     return ax.get_ylim(),palette_df
 
-def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax=None,model=None):
+def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax=None,model=None,savefig=False):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,3))
         fig = plt.figure(figsize=(8,4))
@@ -355,8 +357,9 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     else:
         filename='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg'
 
-    print('Figure saved to: '+filename)
-    plt.savefig(filename)
+    if savefig:
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
     return
 
 def plot_all_dropouts(VERSION):

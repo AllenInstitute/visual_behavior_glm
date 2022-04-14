@@ -837,15 +837,6 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # merge with dropouts
     weights_df = pd.merge(weights_df, results_pivoted, on=['cell_specimen_id', 'ophys_experiment_id'], suffixes=('_weights', ''))
 
-    # If we didn't compute dropout scores, then there won't be redundant columns, so the weights won't get appended with _weights
-    # if not np.any(['weights' in x for x in weights_df.columns.values]):
-    #     rename = {x: x+'_weights' for x in run_params['kernels'].keys()}
-    #     weights_df = weights_df.rename(columns=rename)
-    # rename = {x: x + '_weights' for x in run_params['kernels'].keys() if '_weights' not in x}
-    # rename = {x: x + '_weights' for x in weights_df.keys() if '_weights' not in x}
-    #
-    # weights_df = weights_df.rename(columns=rename)
-
     # Interpolate everything onto common time base
     kernels = [x for x in weights_df.columns if 'weights' in x]
     for kernel in tqdm(kernels, desc='Interpolating kernels'):

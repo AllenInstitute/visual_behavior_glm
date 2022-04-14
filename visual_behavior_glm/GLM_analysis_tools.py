@@ -829,9 +829,10 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
 
     # Merge all the session_dfs, and add more session level info
     weights_df = pd.concat(sessions,sort=False)
-    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) 
-   
-    rename = {x: x + '_weights' for x in weights_df.keys()[2:]}
+    # weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights',''))
+
+    # rename columns to include '_weights' to distinguish from the dropout scores
+    rename = {x: x + '_weights' for x in weights_df.keys()[2:]} # first two columns are csid and oeid, dont rename these
     weights_df = weights_df.rename(columns=rename)
     # merge with dropouts
     weights_df = pd.merge(weights_df, results_pivoted, on=['cell_specimen_id', 'ophys_experiment_id'], suffixes=('_weights', ''))
@@ -848,7 +849,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Interpolate everything onto common time base
     kernels = [x for x in weights_df.columns if 'weights' in x]
     for kernel in tqdm(kernels, desc='Interpolating kernels'):
-        weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
+        weights_df = interpolate_kernels(weights_df, run_params, kernel, normalize=normalize)
  
     print('Computing average kernels') 
     # Compute generic image kernel

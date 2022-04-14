@@ -831,11 +831,20 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     weights_df = pd.concat(sessions,sort=False)
     weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) 
    
+    rename = {x: x + '_weights' for x in weights_df.keys()[2:]}
+    weights_df = weights_df.rename(columns=rename)
+    # merge with dropouts
+    weights_df = pd.merge(weights_df, results_pivoted, on=['cell_specimen_id', 'ophys_experiment_id'], suffixes=('_weights', ''))
+
     # If we didn't compute dropout scores, then there won't be redundant columns, so the weights won't get appended with _weights
-    if not np.any(['weights' in x for x in weights_df.columns.values]):
-        rename = {x: x+'_weights' for x in run_params['kernels'].keys()}
-        weights_df = weights_df.rename(columns=rename)   
- 
+    # if not np.any(['weights' in x for x in weights_df.columns.values]):
+    #     rename = {x: x+'_weights' for x in run_params['kernels'].keys()}
+    #     weights_df = weights_df.rename(columns=rename)
+    # rename = {x: x + '_weights' for x in run_params['kernels'].keys() if '_weights' not in x}
+    # rename = {x: x + '_weights' for x in weights_df.keys() if '_weights' not in x}
+    #
+    # weights_df = weights_df.rename(columns=rename)
+
     # Interpolate everything onto common time base
     kernels = [x for x in weights_df.columns if 'weights' in x]
     for kernel in tqdm(kernels, desc='Interpolating kernels'):
@@ -1002,29 +1011,35 @@ def append_kernel_excitation(weights_df, results_pivoted):
         kernel_positive is the original coding score if the kernel was excited, otherwise 0
         kernel_negative is the original coding score if the kernel was inhibited, otherwise 0
         kernel_signed is kernel_positive - kernel_negative
-       
-    '''   
- 
-    results_pivoted = pd.merge(
-        results_pivoted,
-        weights_df[['identifier','omissions_excited','hits_excited','misses_excited','all-images_excited','task_excited']],
-        how = 'inner',
-        on = 'identifier',
-        validate='one_to_one'
-        )
- 
-    excited_kernels = ['omissions','hits','misses','task','all-images']
+
+    '''
+
+    results_pivoted = pd.merge(results_pivoted,
+                               weights_df[['cell_specimen_id',
+                                           'ophys_experiment_id',
+                                           'omissions_excited',
+                                           'hits_excited',
+                                           'misses_excited',
+                                           'all-images_excited',
+                                           'task_excited']],
+                               how='inner',
+                               on=['cell_specimen_id', 'ophys_experiment_id'],
+                               validate='one_to_one')
+
+    excited_kernels = ['omissions', 'hits', 'misses', 'task', 'all-images']
+    results_pivoted = results_pivoted.dropna()
     for kernel in excited_kernels:
-        results_pivoted[kernel+'_positive'] = results_pivoted[kernel]
-        results_pivoted[kernel+'_negative'] = results_pivoted[kernel]
-        results_pivoted.loc[results_pivoted[kernel+'_excited'] != True, kernel+'_positive'] = 0
-        results_pivoted.loc[results_pivoted[kernel+'_excited'] != False,kernel+'_negative'] = 0   
-        results_pivoted[kernel+'_signed'] = results_pivoted[kernel+'_positive'] - results_pivoted[kernel+'_negative']
+        if kernel in results_pivoted.keys():
+            results_pivoted[kernel + '_positive'] = results_pivoted[kernel]
+            results_pivoted[kernel + '_negative'] = results_pivoted[kernel]
+            results_pivoted.loc[results_pivoted[kernel + '_excited'] != True, kernel + '_positive'] = 0
+            results_pivoted.loc[results_pivoted[kernel +  '_excited'], kernel + '_negative'] = 0
+            results_pivoted[kernel + '_signed'] = results_pivoted[kernel + '_positive'] - results_pivoted[kernel + '_negative']
 
     return results_pivoted
-        
 
-def compute_over_fitting_proportion(results_full,run_params):
+
+def compute_over_fitting_proportion(results_full, run_params):
     '''
         Computes the over-fitting proportion for each cell on each dropout model:
         (train_ve - test_ve)/train_ve

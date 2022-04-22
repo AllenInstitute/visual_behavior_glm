@@ -363,23 +363,25 @@ def log_weights_matrix_to_mongo(glm):
     returns:
         None
     '''
+
     conn = db.Database('visual_behavior_data')
     lookup_table_document = {
-        'ophys_experiment_id':glm.ophys_experiment_id,
+        'ophys_experiment_id':int(glm.ophys_experiment_id),
         'glm_version':glm.version,
     }
     w_matrix_lookup_table = conn['ophys_glm']['weight_matrix_lookup_table']
     w_matrix_database = conn['ophys_glm_xarrays']
 
     if w_matrix_lookup_table.count_documents(lookup_table_document) >= 1:
-        lookup_result = list(w_matrix_lookup_table.find(lookup_table_document))[0]
         # if weights matrix for this experiment/version has already been logged, we need to replace it
+        lookup_result = list(w_matrix_lookup_table.find(lookup_table_document))[0]
 
         # get the id of the xarray
         w_matrix_id = lookup_result['w_matrix_id']
 
         # delete the existing xarray (both metadata and chunks)
         w_matrix_database['xarray.chunks'].delete_many({'meta_id':w_matrix_id})
+
         w_matrix_database['xarray.meta'].delete_many({'_id':w_matrix_id})
 
         # write the new weights matrix to mongo
@@ -394,10 +396,10 @@ def log_weights_matrix_to_mongo(glm):
 
         # write the weights matrix to mongo
         w_matrix_id = xarray_to_mongo(glm.W)
-
+        
         # add the id to the lookup table document
         lookup_table_document.update({'w_matrix_id': w_matrix_id})
-
+        
         # insert the lookup table document into the lookup table
         w_matrix_lookup_table.insert_one(db.clean_and_timestamp(lookup_table_document))
 
@@ -838,7 +840,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     kernels = [x for x in weights_df.columns if 'weights' in x]
     for kernel in tqdm(kernels, desc='Interpolating kernels'):
         weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
-  
+ 
     print('Computing average kernels') 
     # Compute generic image kernel
     weights_df['all-images_weights'] = weights_df.apply(lambda x: np.mean([
@@ -897,17 +899,20 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         ],axis=0),axis=1)
 
     # Make a metric of omission excitation/inhibition
-    #weights_df['omission_excited'] = [np.sum(x[0:24]) for x in weights_df['omissions_weights']
-    weights_df['omissions_excited'] = weights_df_24.apply(lambda x: omission_excitation(x['omissions_weights']),axis=1)
+    weights_df['omissions_excited'] = weights_df.apply(lambda x: kernel_excitation(x['omissions_weights']),axis=1)
+    weights_df['hits_excited']      = weights_df.apply(lambda x: kernel_excitation(x['hits_weights']),axis=1)
+    weights_df['misses_excited']    = weights_df.apply(lambda x: kernel_excitation(x['misses_weights']),axis=1)
+    weights_df['task_excited']      = weights_df.apply(lambda x: kernel_excitation(x['task_weights']),axis=1)
+    weights_df['all-images_excited']= weights_df.apply(lambda x: kernel_excitation(x['all-images_weights']),axis=1)
 
     # Return weights_df
     return weights_df 
 
-def omission_excitation(omissions):
-    if np.isnan(np.sum(omissions)):
+def kernel_excitation(kernel):
+    if np.isnan(np.sum(kernel)):
         return np.nan
     else:
-        return np.sum(omissions[0:24]) > 0
+        return np.sum(kernel[0:24]) > 0
 
 def compute_all_omissions(omissions):
     if np.isnan(np.sum(omissions[0])) or np.isnan(np.sum(omissions[1])):
@@ -987,20 +992,34 @@ def compute_weight_index(weights_df):
     weights_df['all-images_weights_index'] = weights_df['image0_weights_index'] + weights_df['image1_weights_index'] + weights_df['image2_weights_index'] + weights_df['image3_weights_index'] + weights_df['image4_weights_index'] +weights_df['image5_weights_index'] +weights_df['image6_weights_index'] +weights_df['image7_weights_index']
     return weights_df
 
-def append_omissions_excitation(weights_df, results_pivoted):
-    
+def append_kernel_excitation(weights_df, results_pivoted):
+    '''
+        Appends labels about kernel weights from weights_df onto results_pivoted
+        for some kernels, cells are labeled "excited" or "inhibited" if the average weight over 750ms after
+        the aligning event was positive (excited), or negative (inhibited)
+
+        Additionally computes three coding scores for each kernel:
+        kernel_positive is the original coding score if the kernel was excited, otherwise 0
+        kernel_negative is the original coding score if the kernel was inhibited, otherwise 0
+        kernel_signed is kernel_positive - kernel_negative
+       
+    '''   
+ 
     results_pivoted = pd.merge(
         results_pivoted,
-        weights_df[['identifier','omissions_excited']],
+        weights_df[['identifier','omissions_excited','hits_excited','misses_excited','all-images_excited','task_excited']],
         how = 'inner',
         on = 'identifier',
         validate='one_to_one'
         )
-
-    results_pivoted['omissions_positive'] = results_pivoted['omissions']
-    results_pivoted['omissions_negative'] = results_pivoted['omissions']
-    results_pivoted.loc[results_pivoted['omissions_excited'] != True, 'omissions_positive'] = 0
-    results_pivoted.loc[results_pivoted['omissions_excited'] != False,'omissions_negative'] = 0   
+ 
+    excited_kernels = ['omissions','hits','misses','task','all-images']
+    for kernel in excited_kernels:
+        results_pivoted[kernel+'_positive'] = results_pivoted[kernel]
+        results_pivoted[kernel+'_negative'] = results_pivoted[kernel]
+        results_pivoted.loc[results_pivoted[kernel+'_excited'] != True, kernel+'_positive'] = 0
+        results_pivoted.loc[results_pivoted[kernel+'_excited'] != False,kernel+'_negative'] = 0   
+        results_pivoted[kernel+'_signed'] = results_pivoted[kernel+'_positive'] - results_pivoted[kernel+'_negative']
 
     return results_pivoted
         
@@ -1579,7 +1598,9 @@ def check_cv_nans(fit):
 
 
 def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fraction_change_from_full',
-                 glm_version='19_events_all_L2_optimize_by_session',
+                 glm_version='24_events_all_L2_optimize_by_session',
+                 ophys_experiment_ids_to_use = None,
+                 drop_duplicated_cells = True,
                  cutoff=None, features=None, single=False, save_df=False,
                  path=None):
 
@@ -1605,6 +1626,14 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
     if save_df is True:
         assert path is not None, 'must provide path when saving file'
 
+    if path is None and save_df is True:
+        raise Warning('Please specify file path if you want to save df '
+                      'or set save_df to False. File will not be saved.')
+        save_df = False
+    elif path is not None and save_df is False:
+        raise Warning('Have to set save_df to True if you wish to save the file.')
+
+
     if results_pivoted is None:
         results_pivoted = build_pivoted_results_summary(value_to_use=model_output_type, results_summary=None,
                                              glm_version=glm_version, cutoff=cutoff)
@@ -1613,9 +1642,12 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
         results_pivoted = results_pivoted[results_pivoted['variance_explained_full']>cutoff]
         print('setting a cutoff')
 
+    if ophys_experiment_ids_to_use is not None:
+        results_pivoted= results_pivoted[results_pivoted['ophys_experiment_id'].isin(ophys_experiment_ids_to_use)]
+
     print('loaded glm results')
     if features is None:
-        features  = get_default_features(single=single)
+        features = get_default_features(single=single)
 
     # sort by date collected,
     results_pivoted = results_pivoted.sort_values('date_of_acquisition')
@@ -1633,8 +1665,14 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
     print('total N cells = {}'.format(len(df)))
     df = df.dropna()
     print('dropped NaN, now N = {}'.format(len(df)))
-    df = df.drop_duplicates()
-    print('dropped duplicated cells, keeping first, now N = {}'.format(len(df)))
+
+    if drop_duplicated_cells is True:
+        if len(df) == len(np.unique(df.index.values)):
+            print('No duplicated cells found')
+        elif len(df) > len(np.unique(df.index.values)):
+            print('found {} duplicated cells. But not removed. This needs to be fixed'.format(len(df) - len(np.unique(df.index.values))))
+        elif len(df) < len(np.unique(df.index.values)):
+            print('something weird happened!!')
 
     if save_df is True:
         filename = '{}.h5'.format(glm_version)

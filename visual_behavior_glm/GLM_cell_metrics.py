@@ -9,16 +9,17 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior.ophys.response_analysis.cell_metrics as cell_metrics
 
-def compute_event_metrics(results_pivoted,run_params,groups=['cre_line','equipment','targeted_structure','active','experience_level'],threshold=0):
+def compute_event_metrics(results_pivoted,run_params,groups=['cre_line','equipment','targeted_structure','experience_level'],threshold=0,savefig=False):
     if threshold !=0:
-        results_pivoted = results_pivoted.query('variance_explained_full > @threshold').copy()
+        results_pivoted = results_pivoted.query('(not passive) &(variance_explained_full > @threshold)').copy()
         label='_filtered'
     else:
+        results_pivoted = results_pivoted.query('not passive').copy()
         label=''
     metrics_events = get_metrics(use_events=True)
     results_events = merge_cell_metrics_table(metrics_events,results_pivoted)
     r2_events      = compute_r2(results_events,groups=groups).rename(columns={'r2':'glm_events__metrics_events'})
-    evaluate_against_metrics(results_events.query('not passive'), ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=True,run_params=run_params,title='All cells\n'+run_params['version'],ylim=(0,100),label=label)
+    evaluate_against_metrics(results_events.query('not passive'), ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=savefig,run_params=run_params,title='All cells\n'+run_params['version'],ylim=(0,100),label=label)
     return r2_events
 
 def compute_all(results_pivoted_dff, results_pivoted_events,groups=['cre_line','equipment','targeted_structure','active']):
@@ -41,7 +42,7 @@ def compute_all(results_pivoted_dff, results_pivoted_events,groups=['cre_line','
     r2_dff_dff['glm_events__metrics_events'] = r2_events_events['glm_events__metrics_events']
     return r2_dff_dff
 
-def compute_r2(results_metrics,groups=['cre_line']):
+def compute_r2(results_metrics,groups=['cre_line'],metric1='variance_explained_full',metric2='trace_mean_over_std'):
     '''
         Computes a table of r2 values for each group defined in groups
         Computes r2 between the trace_mean_over_std column and variance_explained_full
@@ -49,9 +50,9 @@ def compute_r2(results_metrics,groups=['cre_line']):
     '''
     nlevels = len(groups)
     g = results_metrics.groupby(groups)
-    r2 = g[['variance_explained_full','trace_mean_over_std']].corr().pow(2).round(decimals=3)
-    r2 = r2.drop('trace_mean_over_std',level=nlevels,axis=0).drop(columns=['variance_explained_full']).droplevel(nlevels)
-    r2 = r2.rename(columns={'trace_mean_over_std':'r2'})
+    r2 = g[[metric1,metric2]].corr().pow(2).round(decimals=3)
+    r2 = r2.drop(metric2,level=nlevels,axis=0).drop(columns=[metric1]).droplevel(nlevels)
+    r2 = r2.rename(columns={metric2:'r2'})
     r2['count'] = g.size()
     return r2
 
@@ -120,7 +121,7 @@ def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',
         plt.savefig(filepath)
         filepath = os.path.join(run_params['figure_dir'], 'variance_explained_vs_'+xmetric+'_'+label+'.svg') 
         plt.savefig(filepath)
-        print(filepath)
+        print('Figure saved to: '+filepath)
     
   
  

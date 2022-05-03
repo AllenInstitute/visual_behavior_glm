@@ -262,14 +262,11 @@ def stats(df,cre):
     table = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
     table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
     table = table.fillna(value=0)
-
-    # compute proportion
     depth_areas = table.columns.values
-    for da in depth_areas:
-        table[da] = table[da]/table[da].sum()
 
-    # get average for each cluster
-    table['mean'] = table.mean(axis=1)
+    # compute proportion for null hypothesis that areas have the same proportions
+    table['total_cells'] = table.sum(axis=1)
+    table['null_mean_proportion'] = table['total_cells']/np.sum(table['total_cells'])
 
     # second table of cell counts in each area/cluster
     table2 = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
@@ -278,12 +275,15 @@ def stats(df,cre):
 
     # compute estimated frequency of cells based on average fraction for each cluster
     for da in depth_areas:
-        table2[da+'_chance_count'] = table2[da].sum()*table['mean']
+        table2[da+'_chance_count'] = table2[da].sum()*table['null_mean_proportion']
 
     # perform chi-squared test
     for index in table2.index.values:
         f = table2.loc[index][['VISp_upper','VISp_lower','VISl_upper','VISl_lower']].values
         f_expected = table2.loc[index][['VISp_upper_chance_count','VISp_lower_chance_count','VISl_upper_chance_count','VISl_lower_chance_count']].values
+        
+        # Manually doing check here bc Im on old version of scipy
+        assert np.abs(np.sum(f) - np.sum(f_expected))<1, 'f and f_expected must be the same'
         out = chisquare(f,f_expected)
         table2.at[index, 'pvalue'] = out.pvalue
         table2.at[index, 'significant'] = out.pvalue < 0.05
@@ -308,7 +308,8 @@ def add_hochberg_correction(table):
     table = table.sort_values(by='pvalue').reset_index()
     
     # compute the corrected pvalue based on the rank of each test
-    table['imq'] = table.index.values/len(table)*0.05
+    # Need to use rank starting at 1
+    table['imq'] = (1+table.index.values)/len(table)*0.05
 
     # Find the largest pvalue less than its corrected pvalue
     # all tests above that are significant

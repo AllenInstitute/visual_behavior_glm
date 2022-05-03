@@ -308,7 +308,8 @@ def add_hochberg_correction(table):
     table = table.sort_values(by='pvalue').reset_index()
     
     # compute the corrected pvalue based on the rank of each test
-    table['imq'] = table.index.values/len(table)*0.05
+    # Need to use rank starting at 1
+    table['imq'] = (1+table.index.values)/len(table)*0.05
 
     # Find the largest pvalue less than its corrected pvalue
     # all tests above that are significant

@@ -47,6 +47,12 @@ def cluster_frequencies():
     plot_cluster_percentages(df)   
  
 def load_cluster_labels():
+    '''
+        - Loads a dataframe of cluster labels
+        - merges in cell table data 
+        - defines a `location` column with depth/area combinations
+        - drops clusters with less than 5 cells
+    '''
 
     # Load cluster labels
     filepath = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_plots/figure_4/24_events_all_L2_optimize_by_session/220223/cluster_ids_Slc17a7_10_Sst_6_Vip_12.hdf'
@@ -68,6 +74,10 @@ def load_cluster_labels():
     return df
 
 def plot_proportions(df,areas=None):
+    '''
+        Compute, then plot, the proportion of cells in each location within each cluster
+    '''
+    
     if areas is None:
         # Get areas
         areas = np.sort(df['location'].unique())   
@@ -88,7 +98,6 @@ def compute_proportion_cre(df, cre,areas):
         
         location must be a column of string names. The statistics are computed relative to whatever the location column contains
     '''
-
 
     # Count cells in each area/cluster
     table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
@@ -158,7 +167,6 @@ def plot_proportion_differences_cre(df,areas, fig,ax, cre):
         Fraction of cells per location, then
         subtract expected fraction (1/n)
     '''
-
     table = compute_proportion_differences_cre(df,cre,areas)
 
     # plot fractions

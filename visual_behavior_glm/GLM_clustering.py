@@ -14,6 +14,8 @@ def final(df, cre,areas=None):
 
         stats_table returns statistical tests on the proportion of cells in each location 
         Use 'bh_significant' unless you have a good reason to use the uncorrected tests
+
+        areas should be a list of the locations to look at.
     '''
     if areas is None:
         # Get areas

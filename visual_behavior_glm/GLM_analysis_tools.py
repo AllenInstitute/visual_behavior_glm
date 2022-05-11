@@ -1623,6 +1623,8 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
     Output:
         df (n cells by n selected features)
     '''
+    if save_df is True:
+        assert path is not None, 'must provide path when saving file'
 
     if path is None and save_df is True:
         raise Warning('Please specify file path if you want to save df '
@@ -1635,8 +1637,10 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
     if results_pivoted is None:
         results_pivoted = build_pivoted_results_summary(value_to_use=model_output_type, results_summary=None,
                                              glm_version=glm_version, cutoff=cutoff)
+        print('loading pivoted results')
     elif cutoff is not None:
         results_pivoted = results_pivoted[results_pivoted['variance_explained_full']>cutoff]
+        print('setting a cutoff')
 
     if ophys_experiment_ids_to_use is not None:
         results_pivoted= results_pivoted[results_pivoted['ophys_experiment_id'].isin(ophys_experiment_ids_to_use)]
@@ -1671,7 +1675,7 @@ def reshape_rspm_by_experience(results_pivoted = None, model_output_type='adj_fr
             print('something weird happened!!')
 
     if save_df is True:
-        filename = 'glm_output_v{}.h5'.format(glm_version)
+        filename = '{}.h5'.format(glm_version)
         full_path = os.path.join(path,filename)
         df.to_hdf(full_path, key='df', mode='w')
         print('saved df file')

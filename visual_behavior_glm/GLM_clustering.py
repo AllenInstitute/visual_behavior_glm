@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-filedir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/clustering/'
+filedir = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/clustering/'
 
 def final(df, cre):
     '''
@@ -41,7 +41,7 @@ def cluster_frequencies():
 def load_cluster_labels():
 
     # Load cluster labels
-    filepath = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_plots/figure_4/24_events_all_L2_optimize_by_session/220223/cluster_ids_Slc17a7_10_Sst_6_Vip_12.hdf'
+    filepath = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_plots/figure_4/24_events_all_L2_optimize_by_session/220223/cluster_ids_Slc17a7_10_Sst_6_Vip_12.hdf'
     df = pd.read_hdf(filepath, key='df')
 
     # load cell data
@@ -51,7 +51,7 @@ def load_cluster_labels():
 
     # Bin depths and annotate
     df['coarse_binned_depth'] = ['upper' if x < 250 else 'lower' for x in df['imaging_depth']]
-    df['coarse_binned_depth_area'] = df['targeted_structure']+'_'+df['coarse_binned_depth']
+    df['location'] = df['targeted_structure']+'_'+df['coarse_binned_depth']
 
     # Remove clusters with less than 5 cells
     df = df.drop(df.index[(df['cre_line']=="Sst-IRES-Cre")&(df['cluster_id']==6)])
@@ -73,7 +73,7 @@ def compute_proportion_cre(df, cre):
         Computes the proportion of cells in each cluster within each location
     '''
     # Count cells in each area/cluster
-    table = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
+    table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
     table = table.fillna(value=0)
 
@@ -118,7 +118,7 @@ def plot_proportion_differences(df):
 
 def compute_proportion_differences_cre(df, cre):
     # count cells in each area/cluster
-    table = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
+    table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
     table = table.fillna(value=0)
     nclusters = len(table.index.values)
@@ -209,7 +209,7 @@ def plot_cluster_percentage_cre(df,fig,ax, cre):
         Fraction of cells per area&depth 
     '''
     # count cells in each area/cluster
-    table = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
+    table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
     table = table.fillna(value=0)
 
@@ -222,7 +222,7 @@ def plot_cluster_percentage_cre(df,fig,ax, cre):
     table['mean'] = table.mean(axis=1)
 
     # build second table with cells in each area/cluster
-    table2 = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
+    table2 = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table2 = table2[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
     table2 = table2.fillna(value=0)
 
@@ -259,7 +259,7 @@ def stats(df,cre):
     '''    
 
     # compute cell counts in each area/cluster
-    table = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
+    table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
     table = table.fillna(value=0)
     depth_areas = table.columns.values
@@ -269,7 +269,7 @@ def stats(df,cre):
     table['null_mean_proportion'] = table['total_cells']/np.sum(table['total_cells'])
 
     # second table of cell counts in each area/cluster
-    table2 = df.query('cre_line == @cre').groupby(['cluster_id','coarse_binned_depth_area'])['cell_specimen_id'].count().unstack()
+    table2 = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table2 = table2[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
     table2 = table2.fillna(value=0)
 

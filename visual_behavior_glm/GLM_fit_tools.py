@@ -23,8 +23,6 @@ from sklearn.linear_model import SGDRegressor
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior.data_access.loading as loading
 import visual_behavior.data_access.reformat as reformat
-from visual_behavior.ophys.response_analysis.response_analysis import ResponseAnalysis
-from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
 
 def load_fit_experiment(ophys_experiment_id, run_params):
     '''
@@ -928,7 +926,6 @@ def L2_report(fit):
  
 def load_data(oeid, run_params):
     '''
-        Returns Visual Behavior ResponseAnalysis object
         Allen SDK dataset is an attribute of this object (session)
         Keyword arguments:
             oeid (int) -- ophys_experiment_id

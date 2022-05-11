@@ -19,7 +19,7 @@ def final(df, cre):
     stats_table = stats(df,cre)
     return proportion_table, stats_table
 
-def cluster_frequencies():
+def cluster_frequencies(areas=None):
     '''
         Generates 4 differn plots of clustering frequency/proportion analysis
         1. The proportions of each location (depth/area) in each cluster
@@ -33,7 +33,7 @@ def cluster_frequencies():
            but using a multiplicative perspective instead of a linear perspective. 
     '''
     df = load_cluster_labels()
-    plot_proportions(df)
+    plot_proportions(df,areas)
     plot_proportion_differences(df)
     plot_cluster_proportions(df)
     plot_cluster_percentages(df)   
@@ -59,90 +59,102 @@ def load_cluster_labels():
 
     return df
 
-def plot_proportions(df):
+def plot_proportions(df,areas=None):
+    if areas is None:
+        # Get areas
+        areas = np.sort(df['location'].unique())    
+
     fig, ax = plt.subplots(1,3,figsize=(8,4))
     fig.subplots_adjust(left=0.1, bottom=0.25, right=0.9, top=0.9, wspace=1)
-    plot_proportion_cre(df, fig, ax[2], 'Slc17a7-IRES2-Cre')
-    plot_proportion_cre(df, fig, ax[1], 'Sst-IRES-Cre')
-    plot_proportion_cre(df, fig, ax[0], 'Vip-IRES-Cre')
+    plot_proportion_cre(df,areas, fig, ax[2], 'Slc17a7-IRES2-Cre')
+    plot_proportion_cre(df,areas,  fig, ax[1], 'Sst-IRES-Cre')
+    plot_proportion_cre(df,areas,  fig, ax[0], 'Vip-IRES-Cre')
     plt.savefig(filedir+'cluster_proportions.svg')
     plt.savefig(filedir+'cluster_proportions.png')
 
-def compute_proportion_cre(df, cre):
+def compute_proportion_cre(df, cre,areas):
     '''
         Computes the proportion of cells in each cluster within each location
+        
+        location must be a column of string names. The statistics are computed relative to whatever the location column contains
     '''
+
+
     # Count cells in each area/cluster
     table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
-    table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
+    table = table[areas]
     table = table.fillna(value=0)
 
     # compute fraction in each area/cluster
-    depth_areas = table.columns.values
-    for da in depth_areas:
-        table[da] = table[da]/table[da].sum()
+    for a in areas:
+        table[a] = table[a]/table[a].sum()
     return table
 
-def plot_proportion_cre(df,fig,ax, cre):
+def plot_proportion_cre(df,areas, fig,ax, cre):
     '''
         Fraction of cells per area&depth 
     '''
-    table = compute_proportion_cre(df, cre)
+
+    # Get proportions
+    table = compute_proportion_cre(df, cre,areas)
 
     # plot proportions
     cbar = ax.imshow(table,cmap='Purples')
-    ax.set_xticks([0,1,2,3])
-    ax.set_xticklabels(table.columns.values,rotation=90)
     ax.set_ylabel('Cluster #',fontsize=16)  
     ax.set_title(mapper(cre),fontsize=16) 
-    fig.colorbar(cbar, ax=ax,label='fraction of cells per area & depth')
+    fig.colorbar(cbar, ax=ax,label='fraction of cells per location')
    
     # Add statistics 
-    table2 = stats(df, cre)
+    table2 = stats(df, cre,areas)
     for index in table2.index.values:
         if table2.loc[index]['bh_significant']:
             ax.plot(-1,index-1,'r*')
-    ax.set_xlim(-1.5,3.5)
-    ax.set_xticks([-1,0,1,2,3])
-    ax.set_xticklabels(np.concatenate([['p<0.05'],table.columns.values]),rotation=90)
+
+    num_areas = len(areas)
+    ax.set_xlim(-1.5,num_areas-.5)
+    ax.set_xticks(range(-1,num_areas))
+    ax.set_xticklabels(np.concatenate([['p<0.05'],areas]),rotation=90)
     ax.axvline(-0.5,color='k',linewidth=.5)
 
-def plot_proportion_differences(df):
+def plot_proportion_differences(df,areas=None):
+    if areas is None:
+        # Get areas
+        areas = np.sort(df['location'].unique())    
+
     fig, ax = plt.subplots(1,3,figsize=(8,4))
     fig.subplots_adjust(left=0.1, bottom=0.25, right=0.9, top=0.9, wspace=1)
-    plot_proportion_differences_cre(df, fig, ax[2], 'Slc17a7-IRES2-Cre')
-    plot_proportion_differences_cre(df, fig, ax[1], 'Sst-IRES-Cre')
-    plot_proportion_differences_cre(df, fig, ax[0], 'Vip-IRES-Cre')
+    plot_proportion_differences_cre(df, areas, fig, ax[2], 'Slc17a7-IRES2-Cre')
+    plot_proportion_differences_cre(df, areas, fig, ax[1], 'Sst-IRES-Cre')
+    plot_proportion_differences_cre(df, areas, fig, ax[0], 'Vip-IRES-Cre')
     plt.savefig(filedir+'cluster_proportion_differences.svg')
     plt.savefig(filedir+'cluster_proportion_differences.png')
 
-def compute_proportion_differences_cre(df, cre):
+def compute_proportion_differences_cre(df, cre,areas):
     # count cells in each area/cluster
     table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
-    table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
+    table = table[areas]
     table = table.fillna(value=0)
     nclusters = len(table.index.values)
 
-    # compute fraction in each area relative to expected fraction
-    depth_areas = table.columns.values
-    for da in depth_areas:
-        table[da] = table[da]/table[da].sum() - 1/nclusters
+    # compute fraction in each area relative to expected fraction 
+    for a in areas:
+        table[a] = table[a]/table[a].sum() - 1/nclusters
     return table
 
-def plot_proportion_differences_cre(df,fig,ax, cre):
+def plot_proportion_differences_cre(df,areas, fig,ax, cre):
     '''
         Fraction of cells per area & depth, then
         subtract expected fraction (1/n)
     '''
 
-    table = compute_proportion_differences_cre(df,cre)
+    table = compute_proportion_differences_cre(df,cre,areas)
 
     # plot fractions
     vmax = table.abs().max().max()
     cbar = ax.imshow(table,cmap='PRGn',vmin=-vmax,vmax=vmax)
-    fig.colorbar(cbar, ax=ax,label='fraction of cells per area & depth \nrelative to evenly distributed across clusters')
-    ax.set_xticks([0,1,2,3])
-    ax.set_xticklabels(table.columns.values,rotation=90)
+    fig.colorbar(cbar, ax=ax,label='fraction of cells per location \nrelative to evenly distributed across clusters')
+    ax.set_xticks(range(0,len(areas)))
+    ax.set_xticklabels(areas,rotation=90)
     ax.set_ylabel('Cluster #',fontsize=16)  
     ax.set_title(mapper(cre),fontsize=16) 
 
@@ -252,7 +264,7 @@ def plot_cluster_percentage_cre(df,fig,ax, cre):
     ax.set_xticklabels(np.concatenate([['p<0.05'],table.columns.values[0:4]]),rotation=90)
     ax.axvline(-0.5,color='k',linewidth=.5)
 
-def stats(df,cre):
+def stats(df,cre,areas):
     '''
         Performs chi-squared tests to asses whether the observed cell counts in each area/depth differ
         significantly from the average for that cluster. 
@@ -260,7 +272,7 @@ def stats(df,cre):
 
     # compute cell counts in each area/cluster
     table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
-    table = table[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
+    table = table[areas]
     table = table.fillna(value=0)
     depth_areas = table.columns.values
 
@@ -270,7 +282,7 @@ def stats(df,cre):
 
     # second table of cell counts in each area/cluster
     table2 = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
-    table2 = table2[['VISp_upper','VISp_lower','VISl_upper','VISl_lower']]
+    table2 = table2[areas]
     table2 = table2.fillna(value=0)
 
     # compute estimated frequency of cells based on average fraction for each cluster
@@ -278,9 +290,10 @@ def stats(df,cre):
         table2[da+'_chance_count'] = table2[da].sum()*table['null_mean_proportion']
 
     # perform chi-squared test
+    area_chance = [area+'_chance_count' for area in areas]
     for index in table2.index.values:
-        f = table2.loc[index][['VISp_upper','VISp_lower','VISl_upper','VISl_lower']].values
-        f_expected = table2.loc[index][['VISp_upper_chance_count','VISp_lower_chance_count','VISl_upper_chance_count','VISl_lower_chance_count']].values
+        f = table2.loc[index][areas].values
+        f_expected = table2.loc[index][area_chance].values
         
         # Manually doing check here bc Im on old version of scipy
         assert np.abs(np.sum(f) - np.sum(f_expected))<1, 'f and f_expected must be the same'
@@ -289,7 +302,7 @@ def stats(df,cre):
         table2.at[index, 'significant'] = out.pvalue < 0.05
 
     # Use Benjamini Hochberg Correction for multiple comparisons
-    table2 = add_hochberg_correction(table2)
+    table2 = add_hochberg_correction(table2) 
     return table2
 
 def mapper(cre):

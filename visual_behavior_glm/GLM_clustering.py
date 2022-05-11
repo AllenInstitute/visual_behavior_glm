@@ -136,6 +136,11 @@ def plot_proportion_cre(df,areas, fig,ax, cre):
     ax.axvline(-0.5,color='k',linewidth=.5)
 
 def plot_proportion_differences(df,areas=None):
+    '''
+        Computes, then plots, the proportion of cells in each location within each cluster
+        relative to a 1/n average distribution across n clusters. 
+    '''
+
     if areas is None:
         # Get areas
         areas = np.sort(df['location'].unique())    
@@ -151,6 +156,9 @@ def plot_proportion_differences(df,areas=None):
     plt.savefig(filedir+'cluster_proportion_differences.png')
 
 def compute_proportion_differences_cre(df, cre,areas):
+    '''
+        compute proportion differences relative to 1/n average
+    '''
     # count cells in each area/cluster
     table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table = table[areas]

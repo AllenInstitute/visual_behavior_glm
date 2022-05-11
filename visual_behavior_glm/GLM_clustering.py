@@ -205,11 +205,11 @@ def compute_cluster_proportion_cre(df, cre, areas):
     table = compute_proportion_cre(df, cre, areas)
 
     # get average proportion in each cluster
-    table['mean'] = table.mean(axis=1)
+    table['mean_cluster_proportion'] = table.mean(axis=1)
 
     # compute proportion in each area relative to cluster average
     for a in areas:
-        table[a] = table[a] - table['mean'] 
+        table[a] = table[a] - table['mean_cluster_proportion']
 
     # plot proportions
     table = table[areas]
@@ -269,7 +269,7 @@ def plot_cluster_percentage_cre(df, areas, fig, ax, cre):
         table[a] = table[a]/table[a].sum()
 
     # get average proportion in each cluster
-    table['mean'] = table.mean(axis=1)
+    table['mean_cluster_proportion'] = table.mean(axis=1)
 
     # build second table with cells in each area/cluster
     table2 = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
@@ -280,7 +280,7 @@ def plot_cluster_percentage_cre(df, areas, fig, ax, cre):
     # then add relative fraction of actual counts compared to chance counts
     # subtract 1 so 0=chance
     for a in areas:
-        table2[a+'_chance_count'] = table2[a].sum()*table['mean']
+        table2[a+'_chance_count'] = table2[a].sum()*table['mean_cluster_proportion']
         table2[a+'_rel_fraction'] = table2[a]/table2[a+'_chance_count']-1
    
     area_rel_fraction = [area+'_rel_fraction' for area in areas]

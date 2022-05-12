@@ -339,8 +339,7 @@ def stats(df, cre, areas):
         table2.at[index, 'significant'] = out.pvalue < 0.05
 
     # Use Benjamini Hochberg Correction for multiple comparisons
-    print(table2)
-    table2 = add_hochberg_correction(table2) 
+    table2 = add_hochberg_correction(table2)
     return table2
 
 def mapper(cre):

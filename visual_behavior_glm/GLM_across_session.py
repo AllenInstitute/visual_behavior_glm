@@ -87,7 +87,7 @@ def plot_dropout(across_df, dropout, ax):
     ax.tick_params(axis='both',labelsize=16)
 
 
-def load_cells(glm_version ='24_events_all_L2_optimize_by_session'):
+def load_cells(glm_version):
     '''
         Loads all cells that have across session coding scores computed.
         prints the cell_specimen_id for any cell that cannot be loaded.

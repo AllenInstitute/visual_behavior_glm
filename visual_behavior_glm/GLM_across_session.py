@@ -8,6 +8,12 @@ import visual_behavior.data_access.loading as loading
 import visual_behavior.data_access.utilities as utilities
 import matplotlib.pyplot as plt
 
+# TODO,
+# Check computation of dropout scores
+# Why does gvt.plot_population_averages have so many replace() calls
+# how many rows are in across_df?
+# shouldn't plot_population_averages give the same value as groupby.mean()
+    # maybe I'm filtering cells somewhere
 
 def make_across_run_params(glm_version):
     '''
@@ -19,7 +25,7 @@ def make_across_run_params(glm_version):
     run_params['figure_dir'] = figdir[:-1]
     return run_params
 
-def plot_across_summary(across_df,across_run_params):
+def plot_across_summary(across_df,across_run_params,savefig=False):
     '''
         Plots the population average dropout scores by experience and cre line,
         for the high level dropouts. Plots two versions, one with statistics 
@@ -27,9 +33,11 @@ def plot_across_summary(across_df,across_run_params):
         scores. 
     '''
     gvt.plot_population_averages(across_df, across_run_params, dropouts_to_show=[
-        'all-images_within','omissions_within','behavioral_within','task_within'],across_session=True,stats_on_across=True)
+        'all-images_within','omissions_within','behavioral_within','task_within'],
+        across_session=True,stats_on_across=True,savefig=savefig)
     gvt.plot_population_averages(across_df, across_run_params, dropouts_to_show=[
-        'all-images_within','omissions_within','behavioral_within','task_within'],across_session=True,stats_on_across=False)
+        'all-images_within','omissions_within','behavioral_within','task_within'],
+        across_session=True,stats_on_across=False,savefig=savefig)
 
 def fraction_same(df):
     '''

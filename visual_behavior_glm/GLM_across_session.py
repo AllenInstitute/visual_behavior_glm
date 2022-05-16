@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 def make_across_run_params(glm_version):
     '''
         Makes a dummy dictionary with the figure directory hard coded
+        This is only used as a quick fix for saving figures
     '''
     figdir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/figures/across_session/'
     run_params = {}
@@ -39,7 +40,7 @@ def plot_across_summary(across_df,across_run_params,savefig=False):
         'all-images_within','omissions_within','behavioral_within','task_within'],
         across_session=True,stats_on_across=False,savefig=savefig)
 
-def fraction_same(df):
+def fraction_same(across_df):
     '''
         Prints a groupby table of the fraction of cells with coding scores
         that are the same between within and across normalization
@@ -47,36 +48,35 @@ def fraction_same(df):
     dropouts = ['omissions','all-images','behavioral','task']
 
     for dropout in dropouts:
-        df[dropout+'_same'] = df[dropout+'_within'] == df[dropout+'_across']
-    x = df.groupby(['cre_line','experience_level'])[['omissions_same','all-images_same','behavioral_same','task_same']].mean()
+        across_df[dropout+'_same'] = across_df[dropout+'_within'] == across_df[dropout+'_across']
+    x = across_df.groupby(['cre_line','experience_level'])[['omissions_same','all-images_same','behavioral_same','task_same']].mean()
     print(x)
-    return df
+    return across_df
 
-def scatter_df(df,cell_type, across_run_params):
+def scatter_df(across_df,cell_type, across_run_params):
     '''
         Plots a scatter plot comparing within and across coding scores
         for each of the high level dropouts
     '''   
  
-    df = df.query('cell_type == @cell_type')
+    across_df = across_df.query('cell_type == @cell_type')
 
     fig, ax = plt.subplots(2,2,figsize=(11,8))
-    plot_dropout(df, 'omissions', ax[0,0])
-    plot_dropout(df, 'all-images', ax[0,1])
-    plot_dropout(df, 'behavioral', ax[1,0])
-    plot_dropout(df, 'task', ax[1,1])
+    plot_dropout(across_df, 'omissions', ax[0,0])
+    plot_dropout(across_df, 'all-images', ax[0,1])
+    plot_dropout(across_df, 'behavioral', ax[1,0])
+    plot_dropout(across_df, 'task', ax[1,1])
     fig.suptitle(cell_type, fontsize=20)
 
     plt.tight_layout()
     plt.savefig(across_run_params['figure_dir']+cell_type.replace(' ','_')+'_scatter.png')
-    #plt.savefig(figdir+cell_type.replace(' ','_')+'_scatter.svg')
 
-def plot_dropout(df, dropout, ax):
-    experience_levels = df['experience_level'].unique()
+def plot_dropout(across_df, dropout, ax):
+    experience_levels = across_df['experience_level'].unique()
     colors = gvt.project_colors()
     for elevel in experience_levels:
-        edf = df.query('experience_level == @elevel')
-        ax.plot(-edf[dropout+'_within'],-edf[dropout+'_across'],'o',color=colors[elevel])
+        eacross_df = across_df.query('experience_level == @elevel')
+        ax.plot(-eacross_df[dropout+'_within'],-eacross_df[dropout+'_across'],'o',color=colors[elevel])
     ax.set_xlabel(dropout+' within',fontsize=18)
     ax.set_ylabel(dropout+' across',fontsize=18)
     ax.tick_params(axis='both',labelsize=16)
@@ -131,15 +131,15 @@ def load_cells(cells='all', glm_version ='24_events_all_L2_optimize_by_session')
         except:
             fail_to_load.append(cell)
     print(str(len(fail_to_load))+' cells could not be loaded')
-    df = pd.concat(dfs)
-    df =  df.drop(columns = ['fit_index']).reset_index(drop=True)
+    across_df = pd.concat(dfs)
+    across_df =  across_df.drop(columns = ['fit_index']).reset_index(drop=True)
 
     cells_table = loading.get_cell_table(platform_paper_only=True).reset_index()
-    df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(df['ophys_experiment_id'],df['cell_specimen_id'])]
+    across_df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(across_df['ophys_experiment_id'],across_df['cell_specimen_id'])]
     cells_table['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(cells_table['ophys_experiment_id'],cells_table['cell_specimen_id'])]
-    df = pd.merge(df, cells_table, on='identifier',suffixes=('','_y'))
+    across_df = pd.merge(across_df, cells_table, on='identifier',suffixes=('','_y'))
     
-    return df, fail_to_load 
+    return across_df, fail_to_load 
 
 def compute_many_cells(cells,glm_version):
     ''' 

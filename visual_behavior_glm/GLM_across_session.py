@@ -53,10 +53,11 @@ def fraction_same(across_df):
     print(x)
     return across_df
 
-def scatter_df(across_df,cell_type, across_run_params):
+def scatter_df(across_df,cell_type, across_run_params,savefig=False):
     '''
         Plots a scatter plot comparing within and across coding scores
-        for each of the high level dropouts
+        for each of the high level dropouts for cells of <cell_type>
+
     '''   
  
     across_df = across_df.query('cell_type == @cell_type')
@@ -69,9 +70,13 @@ def scatter_df(across_df,cell_type, across_run_params):
     fig.suptitle(cell_type, fontsize=20)
 
     plt.tight_layout()
-    plt.savefig(across_run_params['figure_dir']+cell_type.replace(' ','_')+'_scatter.png')
+    if savefig:
+        plt.savefig(across_run_params['figure_dir']+cell_type.replace(' ','_')+'_scatter.png')
 
 def plot_dropout(across_df, dropout, ax):
+    ''' 
+        Helper function for scatter_df
+    '''
     experience_levels = across_df['experience_level'].unique()
     colors = gvt.project_colors()
     for elevel in experience_levels:
@@ -81,42 +86,28 @@ def plot_dropout(across_df, dropout, ax):
     ax.set_ylabel(dropout+' across',fontsize=18)
     ax.tick_params(axis='both',labelsize=16)
 
-def get_cell_list():
-    '''
-        Returns a list of cell_specimen_ids that are strictly matched
-        and therefore used in the clustering analysis and across session normalization
-    '''
-    cells_table = loading.get_cell_table(platform_paper_only=True)
-    cells_table = cells_table.query('not passive').copy()
-    cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
-    cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
-    return cells_table
- 
 
-def load_cells(cells='all', glm_version ='24_events_all_L2_optimize_by_session'):
+def load_cells(glm_version ='24_events_all_L2_optimize_by_session'):
     '''
         Loads all cells that have across session coding scores computed.
         prints the cell_specimen_id for any cell that cannot be loaded.
 
         ARGS
-        cells (str) if "examples" only returns the example cells
-                    otherwise returns all cells.
+        glm_version (str), name of glm version to use  
     
         RETURNS  
         df  - a dataframe containing the across and within session normalization
         fail_to_load - a list of cell_specimen_ids that could not be loaded    
     
     '''
-    if cells is 'examples':
-        # list of cells marked as examples
-        cells = [
-            1086490397, 1086490480, 1086490510, 108649118, 
-            1086559968, 1086559206, 1086551301, 1086490680, 
-            1086490289, 1086490441]
-    else:
-        # 3921 unique cells
-        print('Loading list of matched cells')
-        cells = get_cell_list()['cell_specimen_id'].unique()
+
+    # 3921 unique cells
+    print('Loading list of matched cells')
+    cells_table = loading.get_cell_table(platform_paper_only=True).reset_index()
+    cells_table = cells_table.query('not passive').copy()
+    cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
+    cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
+    cells = cells_table['cell_specimen_id'].unique()
 
     dfs = []
     fail_to_load = []
@@ -126,7 +117,6 @@ def load_cells(cells='all', glm_version ='24_events_all_L2_optimize_by_session')
             filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv' 
             score_df = pd.read_csv(filename)
             score_df['cell_specimen_id'] = cell
-            #score_df = score_df.reset_index()
             dfs.append(score_df)
         except:
             fail_to_load.append(cell)
@@ -134,7 +124,6 @@ def load_cells(cells='all', glm_version ='24_events_all_L2_optimize_by_session')
     across_df = pd.concat(dfs)
     across_df =  across_df.drop(columns = ['fit_index']).reset_index(drop=True)
 
-    cells_table = loading.get_cell_table(platform_paper_only=True).reset_index()
     across_df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(across_df['ophys_experiment_id'],across_df['cell_specimen_id'])]
     cells_table['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(cells_table['ophys_experiment_id'],cells_table['cell_specimen_id'])]
     across_df = pd.merge(across_df, cells_table, on='identifier',suffixes=('','_y'))

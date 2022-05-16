@@ -97,7 +97,7 @@ def load_cells(glm_version ='24_events_all_L2_optimize_by_session'):
     
         RETURNS  
         df  - a dataframe containing the across and within session normalization
-        fail_to_load - a list of cell_specimen_ids that could not be loaded    
+        fail_df - a dataframe containing cell_specimen_ids that could not be loaded    
     
     '''
 
@@ -121,14 +121,18 @@ def load_cells(glm_version ='24_events_all_L2_optimize_by_session'):
         except:
             fail_to_load.append(cell)
     print(str(len(fail_to_load))+' cells could not be loaded')
+
+    # concatenate into one data frame, and merge in cell table data
     across_df = pd.concat(dfs)
     across_df =  across_df.drop(columns = ['fit_index']).reset_index(drop=True)
-
     across_df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(across_df['ophys_experiment_id'],across_df['cell_specimen_id'])]
     cells_table['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(cells_table['ophys_experiment_id'],cells_table['cell_specimen_id'])]
-    across_df = pd.merge(across_df, cells_table, on='identifier',suffixes=('','_y'))
+    across_df = pd.merge(across_df, cells_table, on='identifier',suffixes=('','_y'),validate='one_to_one')
     
-    return across_df, fail_to_load 
+    # Construct dataframe of cells that could not load, for debugging purposes
+    fail_df = cells_table.query('cell_specimen_id in @fail_to_load')   
+ 
+    return across_df, fail_df 
 
 def compute_many_cells(cells,glm_version):
     ''' 
@@ -247,6 +251,9 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
     return score_df
         
 def print_df(score_df):
+    '''
+        Just useful for debugging
+    '''
     dropouts = ['omissions','all-images','behavioral','task']
     for d in dropouts:
         print(score_df[[d+'_within',d+'_across']])
@@ -268,7 +275,8 @@ def append_kernel_excitation_across(weights_df, across_df):
         across_df,_ = gas.load_cells()
         across_df = gas.append_kernel_excitation_across(weights_df, across_df) 
     '''   
- 
+
+    # Merge in three kernel metrics from weights_df 
     across_df = pd.merge(
         across_df,
         weights_df[['identifier','omissions_excited','all-images_excited','task_excited']],
@@ -277,6 +285,7 @@ def append_kernel_excitation_across(weights_df, across_df):
         validate='one_to_one'
         )
  
+    # Use kernel metrics to define signed coding scores
     excited_kernels = ['omissions','task','all-images']
     for kernel in excited_kernels:
         across_df[kernel+'_across_positive'] = across_df[kernel+'_across']

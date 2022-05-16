@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
@@ -7,28 +8,27 @@ import visual_behavior.data_access.loading as loading
 import visual_behavior.data_access.utilities as utilities
 import matplotlib.pyplot as plt
 
-figdir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/across_session/'
 
-def make_fake_run_params():
+def make_across_run_params(glm_version):
     '''
         Makes a dummy dictionary with the figure directory hard coded
     '''
+    figdir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/figures/across_session/'
     run_params = {}
-    run_params['version'] = '24_events_all_L2_optimize_by_session_across'
+    run_params['version'] = glm_version+'_across'
     run_params['figure_dir'] = figdir[:-1]
     return run_params
 
-def plot_across_summary(df):
+def plot_across_summary(across_df,across_run_params):
     '''
         Plots the population average dropout scores by experience and cre line,
         for the high level dropouts. Plots two versions, one with statistics 
         computed for the across session scores, the other for the within session 
         scores. 
     '''
-    run_params = make_fake_run_params()
-    gvt.plot_population_averages(df, run_params, dropouts_to_show=[
+    gvt.plot_population_averages(across_df, across_run_params, dropouts_to_show=[
         'all-images_within','omissions_within','behavioral_within','task_within'],across_session=True,stats_on_across=True)
-    gvt.plot_population_averages(df, run_params, dropouts_to_show=[
+    gvt.plot_population_averages(across_df, across_run_params, dropouts_to_show=[
         'all-images_within','omissions_within','behavioral_within','task_within'],across_session=True,stats_on_across=False)
 
 def fraction_same(df):
@@ -44,7 +44,7 @@ def fraction_same(df):
     print(x)
     return df
 
-def scatter_df(df,cell_type):
+def scatter_df(df,cell_type, across_run_params):
     '''
         Plots a scatter plot comparing within and across coding scores
         for each of the high level dropouts
@@ -60,7 +60,7 @@ def scatter_df(df,cell_type):
     fig.suptitle(cell_type, fontsize=20)
 
     plt.tight_layout()
-    plt.savefig(figdir+cell_type.replace(' ','_')+'_scatter.png')
+    plt.savefig(across_run_params['figure_dir']+cell_type.replace(' ','_')+'_scatter.png')
     #plt.savefig(figdir+cell_type.replace(' ','_')+'_scatter.svg')
 
 def plot_dropout(df, dropout, ax):
@@ -107,11 +107,13 @@ def load_cells(cells='all', glm_version ='24_events_all_L2_optimize_by_session')
             1086490289, 1086490441]
     else:
         # 3921 unique cells
+        print('Loading list of matched cells')
         cells = get_cell_list()['cell_specimen_id'].unique()
 
     dfs = []
     fail_to_load = []
-    for cell in cells:
+    print('Loading across session normalized dropout scores')
+    for cell in tqdm(cells):
         try:
             filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv' 
             score_df = pd.read_csv(filename)
@@ -119,8 +121,8 @@ def load_cells(cells='all', glm_version ='24_events_all_L2_optimize_by_session')
             #score_df = score_df.reset_index()
             dfs.append(score_df)
         except:
-            print(str(cell)+' could not be loaded')
             fail_to_load.append(cell)
+    print(str(len(fail_to_load))+' cells could not be loaded')
     df = pd.concat(dfs)
     df =  df.drop(columns = ['fit_index']).reset_index(drop=True)
 
@@ -131,14 +133,18 @@ def load_cells(cells='all', glm_version ='24_events_all_L2_optimize_by_session')
     
     return df, fail_to_load 
 
-def compute_many_cells(cells):
-    for cell in cells:
+def compute_many_cells(cells,glm_version):
+    ''' 
+        For each cell_specimen_id in cells, compute the across session normalized dropout scores
+        using the model in <glm_version>
+    ''' 
+    for cell in tqdm(cells):
         try:
-            data, score_df = across_session_normalization(cell)
+            data, score_df = across_session_normalization(cell,glm_version)
         except:
             print(str(cell) +' crashed')
  
-def across_session_normalization(cell_specimen_id =1086490680, glm_version='24_events_all_L2_optimize_by_session'):
+def across_session_normalization(cell_specimen_id, glm_version):
     '''
         Computes the across session normalization for a cell
         This is very slow because we have to load the design matrices for each object

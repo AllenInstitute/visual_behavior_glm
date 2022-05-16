@@ -14,6 +14,9 @@ import matplotlib.pyplot as plt
 # how many rows are in across_df?
 # shouldn't plot_population_averages give the same value as groupby.mean()
     # maybe I'm filtering cells somewhere
+# does fit_index ever get used?
+# assert that _across, _across_negative, _across_positive are always negative
+# does _across >= _within? I think it doesn't have to because of weird things, but investigate
 
 def make_across_run_params(glm_version):
     '''
@@ -128,7 +131,11 @@ def load_cells(glm_version):
     across_df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(across_df['ophys_experiment_id'],across_df['cell_specimen_id'])]
     cells_table['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(cells_table['ophys_experiment_id'],cells_table['cell_specimen_id'])]
     across_df = pd.merge(across_df, cells_table, on='identifier',suffixes=('','_y'),validate='one_to_one')
-    
+   
+    kernels=['all-images','task','omissions','behavioral']
+    for kernel in kernels:
+        assert np.all(across_df[kernel+'_across']<=0), "Dropout scores must be negative"
+ 
     # Construct dataframe of cells that could not load, for debugging purposes
     fail_df = cells_table.query('cell_specimen_id in @fail_to_load')   
  
@@ -294,4 +301,7 @@ def append_kernel_excitation_across(weights_df, across_df):
         across_df.loc[across_df[kernel+'_excited'] != False,kernel+'_across_negative'] = 0   
         across_df[kernel+'_across_signed'] = across_df[kernel+'_across_positive'] - across_df[kernel+'_across_negative']
 
+    
+    for kernel in excited_kernels:
+        assert np.all(across_df[kernel+'_across_positive']<=0), "Dropout scores must be negative"
     return across_df

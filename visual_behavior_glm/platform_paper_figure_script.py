@@ -29,7 +29,7 @@ import visual_behavior_glm.GLM_schematic_plots as gsm
 import visual_behavior_glm.GLM_cell_metrics as gcm
 import visual_behavior_glm.GLM_across_session as gas
 from visual_behavior_glm.glm import GLM
-import matplotlib.pyplt as plt
+import matplotlib.pyplot as plt
 plt.ion()
 
 

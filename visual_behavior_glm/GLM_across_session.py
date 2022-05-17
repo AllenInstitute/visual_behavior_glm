@@ -14,9 +14,6 @@ import matplotlib.pyplot as plt
 # how many rows are in across_df?
 # shouldn't plot_population_averages give the same value as groupby.mean()
     # maybe I'm filtering cells somewhere
-# does fit_index ever get used?
-# assert that _across, _across_negative, _across_positive are always negative
-# does _across >= _within? I think it doesn't have to because of weird things, but investigate
 
 def make_across_run_params(glm_version):
     '''
@@ -127,7 +124,7 @@ def load_cells(glm_version):
 
     # concatenate into one data frame, and merge in cell table data
     across_df = pd.concat(dfs)
-    across_df =  across_df.drop(columns = ['fit_index']).reset_index(drop=True)
+    across_df =  across_df.drop(columns = ['fit_index'],errors='ignore').reset_index(drop=True)
     across_df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(across_df['ophys_experiment_id'],across_df['cell_specimen_id'])]
     cells_table['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(cells_table['ophys_experiment_id'],cells_table['cell_specimen_id'])]
     across_df = pd.merge(across_df, cells_table, on='identifier',suffixes=('','_y'),validate='one_to_one')
@@ -218,7 +215,6 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
     for oeid in score_df.index.values:
         # Get the full comparison values and test values
         results_df = gft.build_dataframe_from_dropouts(data[str(oeid)+'_fit'], run_params)
-        score_df['fit_index'] = np.where(data[str(oeid)+'_fit']['fit_trace_arr']['cell_specimen_id'].values == cell_specimen_id)[0][0]
 
         # Iterate over dropouts
         for dropout in dropouts:

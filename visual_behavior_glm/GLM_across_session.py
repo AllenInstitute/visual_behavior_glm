@@ -9,6 +9,7 @@ import visual_behavior.data_access.utilities as utilities
 import matplotlib.pyplot as plt
 
 # TODO,
+# need to remove intermediate steps in across_df
 # Check computation of dropout scores
 # Why does gvt.plot_population_averages have so many replace() calls
 # how many rows are in across_df?
@@ -87,7 +88,7 @@ def plot_dropout(across_df, dropout, ax):
     ax.tick_params(axis='both',labelsize=16)
 
 
-def load_cells(glm_version):
+def load_cells(glm_version,clean_df=True):
     '''
         Loads all cells that have across session coding scores computed.
         prints the cell_specimen_id for any cell that cannot be loaded.
@@ -117,14 +118,14 @@ def load_cells(glm_version):
             filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv' 
             score_df = pd.read_csv(filename)
             score_df['cell_specimen_id'] = cell
-            dfs.append(score_df)
+            dfs.append(score_df.drop(columns=['fit_index'],errors='ignore'))
         except:
             fail_to_load.append(cell)
     print(str(len(fail_to_load))+' cells could not be loaded')
 
     # concatenate into one data frame, and merge in cell table data
-    across_df = pd.concat(dfs)
-    across_df =  across_df.drop(columns = ['fit_index'],errors='ignore').reset_index(drop=True)
+    across_df = pd.concat(dfs) 
+    across_df =  across_df.reset_index(drop=True)
     across_df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(across_df['ophys_experiment_id'],across_df['cell_specimen_id'])]
     cells_table['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(cells_table['ophys_experiment_id'],cells_table['cell_specimen_id'])]
     across_df = pd.merge(across_df, cells_table, on='identifier',suffixes=('','_y'),validate='one_to_one')
@@ -219,7 +220,7 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
         # Iterate over dropouts
         for dropout in dropouts:
             score_df.at[oeid, dropout] = results_df.loc[cell_specimen_id][dropout+'__avg_cv_adjvar_test']
-            score_df.at[oeid,dropout+'_fc'] = results_df.loc[cell_specimen_id][dropout+'__avg_cv_adjvar_test_full_comparison']
+            score_df.at[oeid, dropout+'_fc'] = results_df.loc[cell_specimen_id][dropout+'__avg_cv_adjvar_test_full_comparison']
             score_df.at[oeid, dropout+'_within'] = results_df.loc[cell_specimen_id][dropout+'__adj_dropout']
 
             # Get number of timestamps each kernel was active
@@ -251,7 +252,7 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
     # All done, cleanup
     if clean_df:
         score_df = score_df[clean_columns].copy()
-    return score_df
+    return score_df 
         
 def print_df(score_df):
     '''
@@ -259,7 +260,9 @@ def print_df(score_df):
     '''
     dropouts = ['omissions','all-images','behavioral','task']
     for d in dropouts:
-        print(score_df[[d+'_within',d+'_across']])
+        #print(score_df[[d,d+'_within',d+'_across']])
+        columns = [x for x in score_df.columns if d in x]
+        print(score_df[columns])
 
 def append_kernel_excitation_across(weights_df, across_df):
     '''
@@ -300,4 +303,5 @@ def append_kernel_excitation_across(weights_df, across_df):
     
     for kernel in excited_kernels:
         assert np.all(across_df[kernel+'_across_positive']<=0), "Dropout scores must be negative"
+        assert np.all(across_df[kernel+'_across_negative']<=0), "Dropout scores must be negative"
     return across_df

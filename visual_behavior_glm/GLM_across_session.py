@@ -1,15 +1,14 @@
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+
+import visual_behavior.data_access.loading as loading
+import visual_behavior.data_access.utilities as utilities
+
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
-import visual_behavior.data_access.loading as loading
-import visual_behavior.data_access.utilities as utilities
-import matplotlib.pyplot as plt
-
-# TODO,
-# Why does gvt.plot_population_averages have so many replace() calls
 
 def make_across_run_params(glm_version):
     '''
@@ -53,7 +52,6 @@ def scatter_df(across_df,cell_type, across_run_params,savefig=False):
     '''
         Plots a scatter plot comparing within and across coding scores
         for each of the high level dropouts for cells of <cell_type>
-
     '''   
  
     across_df = across_df.query('cell_type == @cell_type')
@@ -282,15 +280,19 @@ def compare_across_df(across_df,dropout):
 def append_kernel_excitation_across(weights_df, across_df):
     '''
         Appends labels about kernel weights from weights_df onto across_df 
-        for some kernels, cells are labeled "excited" or "inhibited" if the average weight over 750ms after
-        the aligning event was positive (excited), or negative (inhibited)
+        for some kernels, cells are labeled "excited" or "inhibited" if the 
+        average weight over 750ms after the aligning event was positive 
+        (excited), or negative (inhibited)
 
-        Note that the excited/inhibited labels do not depend on within or across session normalization
-        since they are based on the weights from the full model. 
+        Note that the excited/inhibited labels do not depend on within or   
+        across session normalization since they are based on the weights 
+        from the full model. 
 
         Additionally computes three coding scores for each kernel:
-        kernel_across_positive is the across coding score if the kernel was excited, otherwise 0
-        kernel_across_negative is the across coding score if the kernel was inhibited, otherwise 0
+        kernel_across_positive is the across coding score if the kernel 
+            was excited, otherwise 0
+        kernel_across_negative is the across coding score if the kernel 
+            was inhibited, otherwise 0
         kernel_across_signed is kernel_across_positive - kernel_across_negative
 
         across_df,_ = gas.load_cells()
@@ -314,8 +316,7 @@ def append_kernel_excitation_across(weights_df, across_df):
         across_df.loc[across_df[kernel+'_excited'] != True, kernel+'_across_positive'] = 0
         across_df.loc[across_df[kernel+'_excited'] != False,kernel+'_across_negative'] = 0   
         across_df[kernel+'_across_signed'] = across_df[kernel+'_across_positive'] - across_df[kernel+'_across_negative']
-
-    
+ 
     for kernel in excited_kernels:
         assert np.all(across_df[kernel+'_across_positive']<=0), "Dropout scores must be negative"
         assert np.all(across_df[kernel+'_across_negative']<=0), "Dropout scores must be negative"

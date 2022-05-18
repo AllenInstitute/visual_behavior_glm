@@ -9,7 +9,6 @@ import visual_behavior.data_access.utilities as utilities
 import matplotlib.pyplot as plt
 
 # TODO,
-# Check computation of dropout scores
 # Why does gvt.plot_population_averages have so many replace() calls
 # shouldn't plot_population_averages give the same value as groupby.mean()
     # maybe I'm filtering cells somewhere
@@ -138,6 +137,12 @@ def load_cells(glm_version,clean_df=True):
     kernels=['all-images','task','omissions','behavioral']
     for kernel in kernels:
         assert np.all(across_df[kernel+'_across']<=0), "Dropout scores must be negative"
+
+    # Assert that across session dropout scores are less than equal to within cells
+    # need to use a numerical tolerance because we divide by number of timesteps
+    tol = 1e-8
+    for kernel in kernels:
+        assert np.all(across_df[kernel+'_within'] <= across_df[kernel+'_across']+tol), 'Across session dropouts must be less than or equal to within session dropouts'
  
     # Construct dataframe of cells that could not load, for debugging purposes
     fail_df = cells_table.query('cell_specimen_id in @fail_to_load')   
@@ -266,6 +271,9 @@ def print_df(score_df):
         print(score_df[columns])
 
 def compare_across_df(across_df,dropout):
+    '''
+        Just for debugging
+    '''
     plt.figure()
     plt.plot(np.sort(across_df[dropout+'_within'])[::-1],'bo-',label='within')
     plt.plot(np.sort(across_df[dropout+'_across'])[::-1],'rx-',label='across')

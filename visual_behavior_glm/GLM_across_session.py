@@ -118,7 +118,12 @@ def load_cells(glm_version,clean_df=True):
             filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv' 
             score_df = pd.read_csv(filename)
             score_df['cell_specimen_id'] = cell
-            dfs.append(score_df.drop(columns=['fit_index'],errors='ignore'))
+            if clean_df:
+                columns = ['ophys_experiment_id','cell_specimen_id']+[x for x in score_df.columns if ('_within' in x) or ('_across' in x)]
+                score_df = score_df[columns]
+            else:
+                score_df = score_df.drop(columns=['fit_index'],errors='ignore')
+            dfs.append(score_df)
         except:
             fail_to_load.append(cell)
     print(str(len(fail_to_load))+' cells could not be loaded')
@@ -128,7 +133,7 @@ def load_cells(glm_version,clean_df=True):
     across_df =  across_df.reset_index(drop=True)
     across_df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(across_df['ophys_experiment_id'],across_df['cell_specimen_id'])]
     cells_table['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(cells_table['ophys_experiment_id'],cells_table['cell_specimen_id'])]
-    across_df = pd.merge(across_df, cells_table, on='identifier',suffixes=('','_y'),validate='one_to_one')
+    across_df = pd.merge(across_df.drop(columns=['ophys_experiment_id','cell_specimen_id']), cells_table, on='identifier',suffixes=('','_y'),validate='one_to_one')
    
     kernels=['all-images','task','omissions','behavioral']
     for kernel in kernels:

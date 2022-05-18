@@ -9,10 +9,8 @@ import visual_behavior.data_access.utilities as utilities
 import matplotlib.pyplot as plt
 
 # TODO,
-# need to remove intermediate steps in across_df
 # Check computation of dropout scores
 # Why does gvt.plot_population_averages have so many replace() calls
-# how many rows are in across_df?
 # shouldn't plot_population_averages give the same value as groupby.mean()
     # maybe I'm filtering cells somewhere
 
@@ -203,15 +201,13 @@ def get_across_session_data(run_params, cell_specimen_id):
     return data
 
 
-def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df = False):
+def compute_across_session_dropouts(data, run_params, cell_specimen_id):
     '''
         Computes the across session dropout scores
         data                a dictionary containing the session object, fit dictionary, 
                             and design matrix for each experiment
         run_params          the paramater dictionary for this version
         cell_speciemn_id    the cell to compute the dropout scores for
-        clean_df            (bool) if True, returns only the within and across session dropout scores, 
-                            otherwise returns intermediate values for error checking
     
     '''
 
@@ -241,10 +237,7 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
             score_df.at[oeid, dropout+'_timestamps'] = np.sum(np.sum(np.abs(X.values),axis=1) > 0)
 
     # Iterate over dropouts and compute coding scores
-    clean_columns = []
     for dropout in dropouts:
-        clean_columns.append(dropout+'_within')
-        clean_columns.append(dropout+'_across')
 
         # Adjust variance explained based on number of timestamps
         score_df[dropout+'_pt'] = score_df[dropout]/score_df[dropout+'_timestamps']   
@@ -260,9 +253,6 @@ def compute_across_session_dropouts(data, run_params, cell_specimen_id,clean_df 
         # Cleaning step for low VE dropouts
         score_df.loc[score_df[dropout+'_within'] == 0,dropout+'_across'] = 0
 
-    # All done, cleanup
-    if clean_df:
-        score_df = score_df[clean_columns].copy()
     return score_df 
         
 def print_df(score_df):

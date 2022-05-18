@@ -95,6 +95,7 @@ def load_cells(glm_version,clean_df=True):
 
         ARGS
         glm_version (str), name of glm version to use  
+        clean_df (bool), return just the final dropout scores, or include the intermediate values
     
         RETURNS  
         df  - a dataframe containing the across and within session normalization
@@ -134,7 +135,8 @@ def load_cells(glm_version,clean_df=True):
     across_df['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(across_df['ophys_experiment_id'],across_df['cell_specimen_id'])]
     cells_table['identifier'] = [str(x)+'_'+str(y) for (x,y) in zip(cells_table['ophys_experiment_id'],cells_table['cell_specimen_id'])]
     across_df = pd.merge(across_df.drop(columns=['ophys_experiment_id','cell_specimen_id']), cells_table, on='identifier',suffixes=('','_y'),validate='one_to_one')
-   
+
+    # Assert that dropout scores are negative   
     kernels=['all-images','task','omissions','behavioral']
     for kernel in kernels:
         assert np.all(across_df[kernel+'_across']<=0), "Dropout scores must be negative"
@@ -142,6 +144,10 @@ def load_cells(glm_version,clean_df=True):
     # Construct dataframe of cells that could not load, for debugging purposes
     fail_df = cells_table.query('cell_specimen_id in @fail_to_load')   
  
+    # Assert that we have the correct number of cells
+    assert len(across_df) + len(fail_df) == len(cells)*3, "incorrect number of cells"
+    assert len(across_df['cell_specimen_id'].unique())+len(fail_df['cell_specimen_id'].unique()) == len(cells), "incorrect number of cells"
+
     return across_df, fail_df 
 
 def compute_many_cells(cells,glm_version):
@@ -268,6 +274,14 @@ def print_df(score_df):
         #print(score_df[[d,d+'_within',d+'_across']])
         columns = [x for x in score_df.columns if d in x]
         print(score_df[columns])
+
+def compare_across_df(across_df,dropout):
+    plt.figure()
+    plt.plot(np.sort(across_df[dropout+'_within'])[::-1],'bo-',label='within')
+    plt.plot(np.sort(across_df[dropout+'_across'])[::-1],'rx-',label='across')
+    plt.ylabel('dropout score')
+    plt.xlabel('cell x session')
+    plt.legend()
 
 def append_kernel_excitation_across(weights_df, across_df):
     '''

@@ -3795,10 +3795,38 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
-        sharey (bool) if True, shares the same y axis across dropouts of the same cre line
-        include_zero_cells (bool) if False, requires cells have a minimum of 0.005 variance explained
-        boxplot (bool), if True, uses boxplot instead of pointplot. In general, very hard to read
-    '''  
+
+        dropouts_to_show (list of str), list of the dropout scores to show
+        sharey (bool) if True, shares the same y axis across dropouts of the 
+            same cre line
+        include_zero_cells (bool) if False, requires cells have a minimum of 
+            0.005 variance explained
+        boxplot (bool), if True, uses boxplot instead of pointplot. In general, 
+            very hard to read
+        add_stats (bool) adds anova followed by tukeyHD stats
+        extra (str) add an extra string to the filename
+        strict_experience_matching (bool) if True, require matched cells are 
+            strictly last familiar and first novel repeat, instead of just one 
+            session of each experience level
+        plot_by_cell_type (bool). Whether to make each row by cell type (True) 
+            or by dropout (False)
+        across_session (bool) Whether to compare within and across session dropouts. 
+            if True, then dropouts_to_show should be each dropout labeled as "_within"
+            and the corresponding "_across" must also be in results_pivoted
+        stats_on_across (bool) Only used if across_session = True. Whether to
+            perform and plot stats on the across session (True) or within session
+            (False) dropout scores. 
+        matched_with_variance_explained (bool) Compare with cells with 
+            variance_explained_full on at least one session about matched_ve_threshold
+        matched_ve_threshold (float) The threshold used by matched_with_variance_explained
+        savefig (bool) whether to save the figure or not
+        
+    ''' 
+    
+    # Check to make sure across/within dropouts are being called correctly 
+    if across_session:
+        assert np.all(['_within' in x for x in dropouts_to_show]), 'if across_session, then dropouts_to_show must be within session dropouts'
+        assert np.all([x.replace('_within','_across') in results_pivoted for x in dropouts_to_show]), 'across_session dropout not available'
 
     if not sharey:
         extra = extra+'_untied'
@@ -3819,6 +3847,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         else:
             results_pivoted[dropout] = results_pivoted[dropout].abs()
         if across_session:
+            # In addition to _within dropout, need to convert the corresponding across session dropout
             results_pivoted[dropout.replace('_within','_across')] = results_pivoted[dropout.replace('_within','_across')].abs()
     
     # Add additional columns about experience levels

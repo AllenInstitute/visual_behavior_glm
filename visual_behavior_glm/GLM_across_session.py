@@ -10,8 +10,6 @@ import matplotlib.pyplot as plt
 
 # TODO,
 # Why does gvt.plot_population_averages have so many replace() calls
-# shouldn't plot_population_averages give the same value as groupby.mean()
-    # maybe I'm filtering cells somewhere
 
 def make_across_run_params(glm_version):
     '''

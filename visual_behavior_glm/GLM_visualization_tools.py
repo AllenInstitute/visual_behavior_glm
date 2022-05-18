@@ -3798,7 +3798,12 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         sharey (bool) if True, shares the same y axis across dropouts of the same cre line
         include_zero_cells (bool) if False, requires cells have a minimum of 0.005 variance explained
         boxplot (bool), if True, uses boxplot instead of pointplot. In general, very hard to read
-    '''  
+    ''' 
+    
+    # Check to make sure across/within dropouts are being called correctly 
+    if across_session:
+        assert np.all(['_within' in x for x in dropouts_to_show]), 'if across_session, then dropouts_to_show must be within session dropouts'
+        assert np.all([x.replace('_within','_across') in results_pivoted for x in dropouts_to_show]), 'across_session dropout not available'
 
     if not sharey:
         extra = extra+'_untied'
@@ -3819,6 +3824,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         else:
             results_pivoted[dropout] = results_pivoted[dropout].abs()
         if across_session:
+            # In addition to _within dropout, need to convert the corresponding across session dropout
             results_pivoted[dropout.replace('_within','_across')] = results_pivoted[dropout.replace('_within','_across')].abs()
     
     # Add additional columns about experience levels

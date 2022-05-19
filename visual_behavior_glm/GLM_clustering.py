@@ -59,7 +59,7 @@ def load_cluster_labels():
     df = pd.read_hdf(filepath, key='df')
 
     # load cell data
-    cells_table = loading.get_cell_table(platform_paper_only=True).reset_index().drop_duplicates(subset='cell_specimen_id') # TODO 4x2
+    cells_table = loading.get_cell_table(platform_paper_only=True,include_4x2_data=False).reset_index().drop_duplicates(subset='cell_specimen_id')
     df = df.drop(columns=['labels','cre_line'])
     df = pd.merge(df, cells_table, on='cell_specimen_id',suffixes=('','_y'))  
 

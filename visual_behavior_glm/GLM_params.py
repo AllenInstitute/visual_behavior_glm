@@ -54,7 +54,7 @@ def define_kernels():
     return kernels
 
 
-def get_experiment_table(require_model_outputs = False):
+def get_experiment_table(require_model_outputs = False,include_4x2_data=False):
     """
     get a list of filtered experiments and associated attributes
     returns only experiments that have relevant project codes and have passed QC
@@ -68,7 +68,7 @@ def get_experiment_table(require_model_outputs = False):
     else:
         return experiments_table
 
-def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,update_version=False):
+def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,update_version=False,include_4x2_data=False):
     '''
         Freezes model files, parameters, and ophys experiment ids
         If the model iteration already exists, throws an error unless (update_version=True)
@@ -144,7 +144,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     
 
     # Define list of experiments to fit
-    experiment_table = get_experiment_table()
+    experiment_table = get_experiment_table(include_4x2_data=include_4x2_data)
     if TESTING:
         experiment_table = experiment_table.tail(5)
     experiment_table.to_csv(experiment_table_path)
@@ -210,6 +210,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
         'dropout_threshold':0.005,      # Minimum variance explained by full model
         'version_type':'production',      # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
+        'include_4x2_data':include_4x2_data,# If True, fits mesoscope 4 areas x 2 depth data
     } 
 
     # Define Kernels and dropouts

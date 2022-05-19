@@ -405,7 +405,7 @@ def log_weights_matrix_to_mongo(glm):
 
     conn.close()
 
-def get_experiment_table(glm_version): 
+def get_experiment_table(glm_version, include_4x2_data=False): 
     '''
     gets the experiment table
     appends the following:
@@ -415,10 +415,6 @@ def get_experiment_table(glm_version):
     
     Warning: this takes a couple of minutes to run.
     '''
-
-    run_params = glm_params.load_run_json(glm_version)
-    include_4x2_data = run_params['include_4x2_data']    
-
     experiment_table = loading.get_platform_paper_experiment_table(include_4x2_data=include_4x2_data).reset_index() 
     dropout_summary = retrieve_results({'glm_version':glm_version}, results_type='summary')
     stdout_summary = get_stdout_summary(glm_version)
@@ -533,7 +529,8 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
     include_4x2_data=False
     if 'glm_version' in search_dict: 
         run_params = glm_params.load_run_json(search_dict['glm_version'])
-        include_4x2_data = run_params['include_4x2_data']
+        if 'include_4x2_data' in run_params:
+            include_4x2_data = run_params['include_4x2_data']
 
     if len(results) > 0 and merge_in_experiment_metadata:
         if verbose:
@@ -834,11 +831,461 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Then pull the weights from each kernel into a dataframe
     sessions = []
     for index, oeid in enumerate(tqdm(oeids, desc='Iterating Sessions')):
-        session_df = process_session_to_df(oeid, run_params) 
+        session_df = process_session_to_df(oeid, run_params)
+        sessions.append(session_df)
 
-    # Determine if we need 4x2 data
+    # Merge all the session_dfs, and add more session level info
+    weights_df = pd.concat(sessions,sort=False)
+    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) 
+   
+    # If we didn't compute dropout scores, then there won't be redundant columns, so the weights won't get appended with _weights
+    if not np.any(['weights' in x for x in weights_df.columns.values]):
+        rename = {x: x+'_weights' for x in run_params['kernels'].keys()}
+        weights_df = weights_df.rename(columns=rename)   
+ 
+    # Interpolate everything onto common time base
+    kernels = [x for x in weights_df.columns if 'weights' in x]
+    for kernel in tqdm(kernels, desc='Interpolating kernels'):
+        weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
+ 
+    print('Computing average kernels') 
+    # Compute generic image kernel
+    weights_df['all-images_weights'] = weights_df.apply(lambda x: np.mean([
+        x['image0_weights'],
+        x['image1_weights'],
+        x['image2_weights'],
+        x['image3_weights'],       
+        x['image4_weights'],
+        x['image5_weights'],
+        x['image6_weights'],
+        x['image7_weights']
+        ],axis=0),axis=1)
+
+    # Compute preferred image kernel
+    weights_df['preferred_image_weights'] = weights_df.apply(lambda x: compute_preferred_kernel([
+        x['image0_weights'],
+        x['image1_weights'],
+        x['image2_weights'],
+        x['image3_weights'],       
+        x['image4_weights'],
+        x['image5_weights'],
+        x['image6_weights'],
+        x['image7_weights']
+        ]),axis=1) 
+
+    # make a combined omissions kernel
+    if 'post-omissions_weights' in weights_df:
+        weights_df['all-omissions_weights'] = weights_df.apply(lambda x: compute_all_omissions([
+        x['omissions_weights'],
+        x['post-omissions_weights']
+        ]),axis=1)
+    
+    if 'post-hits_weights' in weights_df:
+        weights_df['all-hits_weights'] = weights_df.apply(lambda x: compute_all_kernels([
+        x['hits_weights'],
+        x['post-hits_weights']
+        ]),axis=1)       
+        weights_df['all-misses_weights'] = weights_df.apply(lambda x: compute_all_kernels([
+        x['misses_weights'],
+        x['post-misses_weights']
+        ]),axis=1)
+        weights_df['all-passive_change_weights'] = weights_df.apply(lambda x: compute_all_kernels([
+        x['passive_change_weights'],
+        x['post-passive_change_weights']
+        ]),axis=1)
+        # Make a combined change kernel
+        weights_df['task_weights'] = weights_df.apply(lambda x: np.mean([
+            x['all-hits_weights'],
+            x['all-misses_weights'],
+            ],axis=0),axis=1)
+
+    # Make a combined change kernel
+    weights_df['task_weights'] = weights_df.apply(lambda x: np.mean([
+        x['hits_weights'],
+        x['misses_weights'],
+        ],axis=0),axis=1)
+
+    # Make a metric of omission excitation/inhibition
+    weights_df['omissions_excited'] = weights_df.apply(lambda x: kernel_excitation(x['omissions_weights']),axis=1)
+    weights_df['hits_excited']      = weights_df.apply(lambda x: kernel_excitation(x['hits_weights']),axis=1)
+    weights_df['misses_excited']    = weights_df.apply(lambda x: kernel_excitation(x['misses_weights']),axis=1)
+    weights_df['task_excited']      = weights_df.apply(lambda x: kernel_excitation(x['task_weights']),axis=1)
+    weights_df['all-images_excited']= weights_df.apply(lambda x: kernel_excitation(x['all-images_weights']),axis=1)
+
+    # Return weights_df
+    return weights_df 
+
+def kernel_excitation(kernel):
+    if np.isnan(np.sum(kernel)):
+        return np.nan
+    else:
+        return np.sum(kernel[0:24]) > 0
+
+def compute_all_omissions(omissions):
+    if np.isnan(np.sum(omissions[0])) or np.isnan(np.sum(omissions[1])):
+        return np.nan
+    
+    return np.concatenate(omissions)
+
+def compute_all_kernels(kernels):
+    if np.isnan(np.sum(kernels[0])) or np.isnan(np.sum(kernels[1])):
+        return np.nan
+    
+    return np.concatenate(kernels)
+
+def compute_preferred_kernel(images):
+    
+    # If all the weight kernels are nans
+    if np.ndim(images) ==1:
+        return images[0]
+    
+    # Find the kernel with the largest magnitude 
+    weight_amplitudes = np.sum(np.abs(images),axis=1)
+    return images[np.argmax(weight_amplitudes)] 
+
+def interpolate_kernels(weights_df, run_params, kernel_name,normalize=False):
+    '''
+        Interpolates all kernels onto the scientific time base
+        If the kernels are the wrong size for either scientifica or mesoscope, it sets them to NaN
+    '''   
+ 
+    # Select the kernel of interest
+    df = weights_df[kernel_name].copy()  
+    kernel = kernel_name.split('_weights')[0]
+
+    # Normalize each to its max value, if we are doing normalization
+    if normalize:
+        df = [x/np.max(np.abs(x)) for x in df.values]
+
+    # Interpolate
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
+    time_vecs = {}
+    time_vecs['scientifica'] = time_vec
+    time_vecs['mesoscope'] = meso_time_vec
+    length_mismatch = len(time_vec) != np.max(np.unique([np.size(x) for x in df]))
+    if ('image' in kernel_name) & length_mismatch:
+        time_vecs['scientifica'] = time_vecs['scientifica'][0:-1]
+        time_vecs['mesoscope'] = time_vecs['mesoscope'][0:-1]
+    if ('omissions' in kernel_name) & length_mismatch:
+        time_vecs['scientifica'] = time_vecs['scientifica'][0:-1]
+        time_vecs['mesoscope'] = time_vecs['mesoscope'][0:-1]
+    weights_df[kernel_name] = [weight_interpolation(x, time_vecs) for x in df]
+    return weights_df
+
+def weight_interpolation(weight_vec, time_vecs={}):
+    if np.size(weight_vec) ==1:
+        return weight_vec
+    elif len(weight_vec) == len(time_vecs['scientifica']):
+        return weight_vec
+    elif len(weight_vec) == len(time_vecs['mesoscope']):
+        return scipy.interpolate.interp1d(time_vecs['mesoscope'], weight_vec, fill_value='extrapolate',bounds_error=False)(time_vecs['scientifica'])
+    else:
+        return np.nan 
+
+def compute_weight_index(weights_df):
+    '''
+        Appends columns to the weight_df. One column for each kernel
+
+        The weight index is just the sum(abs(kernel))
+
+        Additionally creates the sume of the individual image kernels
+    '''
+    kernels = [x for x in weights_df.keys().values if '_weights' in x]
+    for k in kernels:
+        weights_df[k+'_index'] = [np.sum(np.abs(x)) for x in weights_df[k].values]
+    
+    weights_df['all-images_weights_index'] = weights_df['image0_weights_index'] + weights_df['image1_weights_index'] + weights_df['image2_weights_index'] + weights_df['image3_weights_index'] + weights_df['image4_weights_index'] +weights_df['image5_weights_index'] +weights_df['image6_weights_index'] +weights_df['image7_weights_index']
+    return weights_df
+
+def append_kernel_excitation(weights_df, results_pivoted):
+    '''
+        Appends labels about kernel weights from weights_df onto results_pivoted
+        for some kernels, cells are labeled "excited" or "inhibited" if the average weight over 750ms after
+        the aligning event was positive (excited), or negative (inhibited)
+
+        Additionally computes three coding scores for each kernel:
+        kernel_positive is the original coding score if the kernel was excited, otherwise 0
+        kernel_negative is the original coding score if the kernel was inhibited, otherwise 0
+        kernel_signed is kernel_positive - kernel_negative
+       
+    '''   
+ 
+    results_pivoted = pd.merge(
+        results_pivoted,
+        weights_df[['identifier','omissions_excited','hits_excited','misses_excited','all-images_excited','task_excited']],
+        how = 'inner',
+        on = 'identifier',
+        validate='one_to_one'
+        )
+ 
+    excited_kernels = ['omissions','hits','misses','task','all-images']
+    for kernel in excited_kernels:
+        results_pivoted[kernel+'_positive'] = results_pivoted[kernel]
+        results_pivoted[kernel+'_negative'] = results_pivoted[kernel]
+        results_pivoted.loc[results_pivoted[kernel+'_excited'] != True, kernel+'_positive'] = 0
+        results_pivoted.loc[results_pivoted[kernel+'_excited'] != False,kernel+'_negative'] = 0   
+        results_pivoted[kernel+'_signed'] = results_pivoted[kernel+'_positive'] - results_pivoted[kernel+'_negative']
+
+    return results_pivoted
+        
+
+def compute_over_fitting_proportion(results_full,run_params):
+    '''
+        Computes the over-fitting proportion for each cell on each dropout model:
+        (train_ve - test_ve)/train_ve
+        1 = completely overfit
+        0 = no over-fitting
+
+        Also computes the over-fitting proportion attributable to each dropout:
+        1-dropout_over_fit/full_over_fit
+        1 = This dropout was responsible for all the overfitting in the full model
+        0 = This dropout was responsible for none of the overfitting in the full model
+
+    '''
+    dropouts = set(run_params['dropouts'].keys())
+    for d in dropouts:
+        if d+'__avg_cv_var_train' in results_full.columns:
+            results_full[d+'__over_fit'] = (results_full[d+'__avg_cv_var_train']-results_full[d+'__avg_cv_var_test'])/(results_full[d+'__avg_cv_var_train'])
+    
+    dropouts.remove('Full')
+    for d in dropouts:
+        if d+'__avg_cv_var_train' in results_full.columns:
+            results_full[d+'__dropout_overfit_proportion'] = 1-results_full[d+'__over_fit']/results_full['Full__over_fit']
+    return
+
+
+def find_best_session(results_pivoted, session_number, mouse_id=None, novelty=False):
+    '''
+        If there are multiple retakes of the same ophys session type, picks one with most 
+        registered neurons.
+        If novelty is True, picks ophys session with prior exposure to session type = 0
+        Returns one ophys session id if there is one, returns None if there is none that meet
+        novelty criteria.
+
+        INPUT:
+        results_pivoted     glm output with each regressor as a column
+        mouse_id            pick one mouse id at a time
+        session_number      pick one session type at a time (1,2...6)
+        novelty             default = False, if set to True = not a retake
+
+        RETURNS:
+        session_number      ophys session number if one is found, None otherwise
+
+    '''
+    if mouse_id is not None:  # get glm from one mouse
+        df = results_pivoted[(results_pivoted['mouse_id'] == mouse_id) &
+                             (results_pivoted['session_number'] == session_number)]
+    else:
+        df = results_pivoted[results_pivoted['session_number']
+                             == session_number]
+
+    sessions = df['ophys_session_id'].unique()
+    #print('found {} session(s)...'.format(len(sessions)))
+
+
+    if len(sessions) == 1 and novelty == False:  # one session
+        session_to_use = sessions[0]
+
+    elif not list(sessions):  # no sessions
+        session_to_use = None
+
+    elif novelty == True:  # novel session
+        try:
+            session_to_use = df[df['prior_exposures_to_session_type'] == 0]['ophys_session_id'].unique()[0]
+        except:
+            print('no novel session, id = {}...'.format(df['ophys_session_id'].unique()))
+            session_to_use = None
+
+    else:  # go through sessions and find the one with most registered neurons
+        n_csids = 0  # number of cell specimen ids
+
+        for session in sessions:
+            n_csid = len(df[df['ophys_session_id'] == session]
+                         ['cell_specimen_id'])
+
+            if n_csid > n_csids:
+                n_csids = n_csid
+                session_to_use = session
+
+    return session_to_use
+
+
+def get_matched_cell_ids_across_sessions(results_pivoted_sel, session_numbers, novelty=None):
+    '''
+        Finds cells with the same cell ids across sessions
+        INPUT:
+        results_pivoted_sel     results_pivoted dataframe without retakes with cell_specimen_id,
+                                session_number, mouse_id, and ophys_session_id as columns
+        session_numbers         session numbers to compare 
+        novelty                 default None, if there are retakes, assumes novelty = True for ophys 4.
+                                Set to False if novelty of ophys 4 is not a priority
+
+        RETURNS:
+        matched_cell_ids        an array of cell specimen ids matched across sessions
+        ophys_session_ids       an array of ophys_session_ids, where the cell ids came from
+
+    '''
+
+    # check for retakes first. You cannot match cells if there are more than one of the same session type.
+    ophys_session_ids = []
+    tmp = results_pivoted_sel[['mouse_id', 'session_number']].drop_duplicates()
+    session_N = tmp.groupby(['mouse_id', 'session_number'])['session_number'].value_counts()
+
+    if session_N.unique() != [1]:
+
+        print('glm output contains retakes; cant match cells')
+        matched_cell_ids = None
+    else:
+
+        # start with all cell ids
+        matched_cell_ids = results_pivoted_sel['cell_specimen_id'].unique()
+
+        for session_number in session_numbers:
+            df = results_pivoted_sel[results_pivoted_sel['session_number'] == session_number]
+            matched_cell_ids = np.intersect1d(matched_cell_ids, df['cell_specimen_id'].values)
+            try:
+                ophys_session_ids.append(df['ophys_session_id'].unique()[0])
+            except:
+                print('no matches')
+
+    return matched_cell_ids, ophys_session_ids
+
+
+def drop_cells_with_nan(results_pivoted, regressor):
+    '''
+        Find cells that have NaN dropout scores in either one or more ophys sessions
+        and drop them in all ophys sessions. Returns glm df without those cells.
+
+        INPUT:
+        results_pivoted    glm output with regressors as columns
+        regressor          name of the regressor
+
+        RETURNS:
+        results_pivoted_without_nan 
+    '''
+    cell_with_nan = results_pivoted[results_pivoted[regressor].isnull()]['cell_specimen_id'].values
+    results_pivoted_without_nan = results_pivoted[~results_pivoted['cell_specimen_id'].isin(cell_with_nan)]
+    return results_pivoted_without_nan
+
+
+def get_matched_mouse_ids(results_pivoted, session_numbers):
+    '''
+        Find mouse ids that have matched ophys sessions.
+
+        INPUT:
+        results_pivoted     glm output with regressors as columns
+        ression_numbers     session numbers to match
+
+        RETURNS:
+        mouse_ids           an array with mouse ids that have all listed session numbers
+    '''
+
+    mouse_ids = results_pivoted['mouse_id'].unique()
+    for session_number in session_numbers:
+        mouse_id = results_pivoted[results_pivoted['session_number']
+                                   == session_number]['mouse_id'].unique()
+        mouse_ids = np.intersect1d(mouse_ids, mouse_id)
+    return mouse_ids
+
+
+def clean_glm_dropout_scores(results_pivoted, run_params, in_session_numbers=None): 
+    '''
+        Selects only neurons what are explained above threshold var. 
+        In_session_numbers allows you specify with sessions to check. 
+
+        INPUT: 
+        results_pivoted           glm output witt session_number and variance_explained_full as columns
+        in_session_numbers        an array of session number(s) to check. 
+
+        RETURNS:
+        results_pivoted_var glm output with cells above threshold of var explained, unmatched cells
+    '''
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']
+    else:
+        threshold = 0.005
+
+    good_cell_ids = results_pivoted[results_pivoted['variance_explained_full']
+                       > threshold]['cell_specimen_id'].unique()
+
+    if in_session_numbers is not None:
+        for session_number in in_session_numbers:
+            cell_ids = results_pivoted[(results_pivoted['session_number'] == session_number) &
+                                       (results_pivoted['variance_explained_full'] > threshold)]['cell_specimen_id'].unique()
+            good_cell_ids = np.intersect1d(good_cell_ids, cell_ids)
+    else:
+        good_cell_ids = results_pivoted[results_pivoted['variance_explained_full']
+                           > threshold]['cell_specimen_id'].unique()
+
+    results_pivoted_var = results_pivoted[results_pivoted['cell_specimen_id'].isin(
+        good_cell_ids)].copy()
+
+    return results_pivoted_var
+          
+def build_inventory_table(vrange=[18,20],return_inventories=False):
+    '''
+        Builds a table of all available GLM versions in the supplied range, and reports how many missing/fit experiments/rois in that version
+        
+        Optionally returns the list of missing experiments and rois
+    '''
+    versions = glm_params.get_versions(vrange=vrange)
+    inventories ={}
+    for v in versions:
+        inventories[v]=inventory_glm_version(v[2:])
+    if return_inventories:
+        return inventories_to_table(inventories),inventories    
+    else:
+        return inventories_to_table(inventories)
+
+def inventories_to_table(inventories):
+    '''
+        Helper function that takes a dictionary of version inventories and build a summary table
+    '''
+    summary = inventories.copy()
+    for version in summary:
+        for value in summary[version]:
+            summary[version][value] = len(summary[version][value])
+        summary[version]['Complete'] = (summary[version]['missing_experiments'] == 0 ) & (summary[version]['missing_rois'] == 0)
+        #summary[version]['Total Experiments'] = summary[version]['fit_experiments'] + summary[version]['extra_experiments']
+        #summary[version]['Total ROIs'] = summary[version]['fit_rois'] + summary[version]['extra_rois']
+    table = pd.DataFrame.from_dict(summary,orient='index')
+    if np.all(table['incomplete_experiments'] == 0):
+        table = table.drop(columns=['incomplete_experiments', 'additional_missing_cells'])
+    return table
+
+def inventory_glm_version(glm_version, valid_rois_only=True, platform_paper_only=True):
+    '''
+    checks to see which experiments and cell_roi_ids do not yet exist for a given GLM version
+    inputs:
+        glm_version: string
+        platform_paper_only: bool, if True, only count cells in the platform paper dataset 
+    returns: dict
+        {
+            'missing_experiments': a list of missing experiment IDs
+            'missing_rois': a list of missing cell_roi_ids
+            'incomplete_experiments': a list of experiments which exist, but for which the cell_roi_id list is incomplete
+        }
+    '''
+    # Get GLM results
+    glm_results = retrieve_results(
+        search_dict = {'glm_version': glm_version},
+        return_list = ['ophys_experiment_id', 'cell_specimen_id', 'cell_roi_id'],
+        merge_in_experiment_metadata=False,
+        remove_invalid_rois=False
+    )
+    if len(glm_results) == 0:
+        # Check for empty results
+        glm_results['ophys_experiment_id'] = [] 
+        glm_results['cell_specimen_id'] = [] 
+        glm_results['cell_roi_id'] = [] 
+
+    # determine if we need to get 4x2 data for this version
+    include_4x2_data=False
     run_params = glm_params.load_run_json(glm_version)
-    include_4x2_data = run_params['include_4x2_data']
+    if 'include_4x2_data' in run_params:
+        include_4x2_data = run_params['include_4x2_data']
  
     # Get list of cells in the dataset
     cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only,add_extra_columns=False,include_4x2_data=include_4x2_data).reset_index()

@@ -390,8 +390,6 @@ def load_run_json(version):
         run_params['fig_kernels_dir']    = os.path.join(run_params['figure_dir'], 'kernels')               
         run_params['fig_overfitting_dir']= os.path.join(run_params['figure_dir'], 'over_fitting_figures')
         run_params['fig_clustering_dir'] = os.path.join(run_params['figure_dir'], 'clustering')
-    if 'include_4x2_data' not in run_params:
-        run_params['include_4x2_data'] = False
     return run_params
 
 def describe_model_version(version):

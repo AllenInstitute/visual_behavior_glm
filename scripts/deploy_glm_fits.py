@@ -5,6 +5,7 @@ import time
 import pandas as pd
 import numpy as  np
 
+import visual_behavior_glm.GLM_params as glm_params
 from simple_slurm import Slurm
 import visual_behavior.database as db
 from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache
@@ -152,7 +153,12 @@ if __name__ == "__main__":
         cache_dir = r'//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_cache'
         cache = VisualBehaviorOphysProjectCache.from_s3_cache(cache_dir=cache_dir)
         experiments_table = cache.get_ophys_experiment_table()
-        experiments_table = experiments_table[(experiments_table.project_code!="VisualBehaviorMultiscope4areasx2d")&(experiments_table.reporter_line!="Ai94(TITL-GCaMP6s)")].reset_index()
+
+        run_params = glm_params.load_run_json(args.version)
+        if run_params['include_4x2_data']:
+            experiments_table = experiments_table[(experiments_table.reporter_line!="Ai94(TITL-GCaMP6s)")].reset_index()      
+        else:
+            experiments_table = experiments_table[(experiments_table.project_code!="VisualBehaviorMultiscope4areasx2d")&(experiments_table.reporter_line!="Ai94(TITL-GCaMP6s)")].reset_index()
     print('experiments table loaded')
 
     # get ROI count for each experiment

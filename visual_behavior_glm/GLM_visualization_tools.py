@@ -1131,8 +1131,7 @@ def get_title(ophys_experiment_id, cell_specimen_id, glm_version):
     '''
     generate a standardized figure title containing identifying information
     '''
-    run_params = glm_params.load_run_json(glm_version)
-    experiments_table = loading.get_filtered_ophys_experiment_table(include_4x2_data=run_params['include_4x2_data']).reset_index()
+    experiments_table = loading.get_filtered_ophys_experiment_table().reset_index()
 
     row = experiments_table.query('ophys_experiment_id == @ophys_experiment_id').iloc[0].to_dict()
     title = '{}_exp_id={}_{}_{}_depth={}_cell_id={}_glm_version={}'.format(

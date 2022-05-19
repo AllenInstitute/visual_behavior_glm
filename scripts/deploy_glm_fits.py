@@ -156,6 +156,7 @@ if __name__ == "__main__":
 
         run_params = glm_params.load_run_json(args.version)
         if run_params['include_4x2_data']:
+            print('including 4x2 data')
             experiments_table = experiments_table[(experiments_table.reporter_line!="Ai94(TITL-GCaMP6s)")].reset_index()      
         else:
             experiments_table = experiments_table[(experiments_table.project_code!="VisualBehaviorMultiscope4areasx2d")&(experiments_table.reporter_line!="Ai94(TITL-GCaMP6s)")].reset_index()

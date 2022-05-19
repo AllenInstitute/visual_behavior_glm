@@ -52,7 +52,8 @@ if False: # Code snippets for doing analyses.
         label='testing',
         username='alex', 
         src_path = src_path, 
-        TESTING=True
+        TESTING=True,
+        include_4x2_data=False
         )
    
 

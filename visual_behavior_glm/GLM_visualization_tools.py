@@ -575,7 +575,7 @@ def var_explained_matched(results_pivoted, run_params):
     results_pivoted['variance_explained_percent'] = results_pivoted['variance_explained_full']*100
 
     # load cells table to get matched cells
-    cells_table = loading.get_cell_table(platform_paper_only=True)
+    cells_table = loading.get_cell_table(platform_paper_only=True) # TODO 4x2
     cells_table = cells_table.query('not passive').copy()
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     matched_cells = cells_table.cell_specimen_id.unique()
@@ -1131,7 +1131,7 @@ def get_title(ophys_experiment_id, cell_specimen_id, glm_version):
     '''
     generate a standardized figure title containing identifying information
     '''
-    experiments_table = loading.get_filtered_ophys_experiment_table().reset_index()
+    experiments_table = loading.get_filtered_ophys_experiment_table().reset_index()# TODO 4x2
 
     row = experiments_table.query('ophys_experiment_id == @ophys_experiment_id').iloc[0].to_dict()
     title = '{}_exp_id={}_{}_{}_depth={}_cell_id={}_glm_version={}'.format(
@@ -3445,12 +3445,12 @@ def plot_population_perturbation(results_pivoted, run_params, dropouts_to_show =
         results_pivoted[dropout] = results_pivoted[dropout].abs()
 
     # Add additional columns about experience levels
-    experiments_table = loading.get_platform_paper_experiment_table()
+    experiments_table = loading.get_platform_paper_experiment_table() # TODO 4x2
     experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
     results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
    
     # Cells Matched across all three experience levels 
-    cells_table = loading.get_cell_table(platform_paper_only=True)
+    cells_table = loading.get_cell_table(platform_paper_only=True) # TODO 4x2
     cells_table = cells_table.query('not passive').copy()
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     matched_cells = cells_table.cell_specimen_id.unique()
@@ -3578,7 +3578,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
         results_pivoted[dropout] = results_pivoted[dropout].abs()
     
     # Add additional columns about experience levels
-    experiments_table = loading.get_platform_paper_experiment_table()
+    experiments_table = loading.get_platform_paper_experiment_table() # TODO 4x2
     experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
     results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
     
@@ -3697,7 +3697,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
         results_pivoted[dropout] = results_pivoted[dropout].abs()
     
     # Add additional columns about experience levels
-    experiments_table = loading.get_platform_paper_experiment_table()
+    experiments_table = loading.get_platform_paper_experiment_table() # TODO 4x2
     experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
     results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
    
@@ -3851,7 +3851,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             results_pivoted[dropout.replace('_within','_across')] = results_pivoted[dropout.replace('_within','_across')].abs()
     
     # Add additional columns about experience levels
-    experiments_table = loading.get_platform_paper_experiment_table()
+    experiments_table = loading.get_platform_paper_experiment_table() # TODO 4x2
     experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
     if across_session:
         results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id',suffixes=('','_y'))
@@ -3859,14 +3859,14 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
 
     # Cells Matched across all three experience levels 
-    cells_table = loading.get_cell_table(platform_paper_only=True)
+    cells_table = loading.get_cell_table(platform_paper_only=True) # TODO 4x2
     cells_table = cells_table.query('not passive').copy()
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     matched_cells = cells_table.cell_specimen_id.unique()
     
     # Strictly matched cells in the last familiar, and second novel session
     if strict_experience_matching:
-        cells_table = loading.get_cell_table(platform_paper_only=True)
+        cells_table = loading.get_cell_table(platform_paper_only=True) # TODO 4x2
         cells_table = cells_table.query('not passive').copy()
         cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
         cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)

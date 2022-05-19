@@ -3705,6 +3705,18 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     cell_types = results_pivoted.cell_type.unique()
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     colors = project_colors()
+    if run_params['include_4x2_data']:
+        areas = ['VISp','VISl','VISam','VISal']
+        area_colors = {"VISp":'black',"VISl":'gray','VISam':'blue','VISal':'red'}       
+        linestyles=['-','-','-','-']
+        markers=['o','o','o','o']
+        dodge=.25
+    else:
+        areas = ['VISp','VISl']
+        area_colors = {"VISp":'black',"VISl":'gray'}
+        linestyles=['-','-']
+        markers=['o','o']
+        dodge=False
     summary = {}
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
@@ -3726,12 +3738,12 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
                 y= feature,
                 hue='targeted_structure', 
                 order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
-                hue_order=["VISp","VISl"],
-                palette={"VISp":'black',"VISl":'gray'},
-                linestyles=['-','-'],
-                markers=['o','o'],
+                hue_order=areas,
+                palette=area_colors,
+                linestyles=linestyles,
+                markers=markers,
                 join=False,
-                dodge=False,
+                dodge=dodge,
                 ax=ax[index]
             )
             

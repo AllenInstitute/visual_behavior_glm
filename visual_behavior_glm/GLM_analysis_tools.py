@@ -525,8 +525,12 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
     if 'glm_version' in results.columns:
         results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
-    
-    include_4x2_data = False # TODO, need to pull from run_params
+   
+    include_4x2_data=False
+    if 'glm_version' in search_dict: 
+        run_params = glm_params.load_run_json(search_dict['glm_version'])
+        if 'include_4x2_data' in run_params:
+            include_4x2_data = run_params['include_4x2_data']
 
     if len(results) > 0 and merge_in_experiment_metadata:
         if verbose:
@@ -734,6 +738,7 @@ def get_experiment_inventory(results=None):
     adds a column to the experiments table for every GLM version called 'glm_version_{GLM_VERSION}_exists'
     column is boolean (True if experiment successfully fit for that version, False otherwise)
     '''
+    raise Exception('Outdated, do not use')
     def oeid_in_results(oeid, version):
         try:
             res = results['full'].loc[oeid]['glm_version']
@@ -749,7 +754,7 @@ def get_experiment_inventory(results=None):
         results = results_dict['full']
     results = results.set_index(['ophys_experiment_id'])
     
-    experiments_table = loading.get_platform_paper_experiment_table(add_extra_columns=False,include_4x2_data=False)# TODO 4x2
+    experiments_table = loading.get_platform_paper_experiment_table(add_extra_columns=False,include_4x2_data=False)
 
     for glm_version in results['glm_version'].unique():
         for oeid in experiments_table.index.values:
@@ -1277,7 +1282,10 @@ def inventory_glm_version(glm_version, valid_rois_only=True, platform_paper_only
         glm_results['cell_roi_id'] = [] 
 
     # determine if we need to get 4x2 data for this version
-    include_4x2_data = False # TODO   
+    include_4x2_data=False
+    run_params = glm_params.load_run_json(glm_version)
+    if 'include_4x2_data' in run_params:
+        include_4x2_data = run_params['include_4x2_data']
  
     # Get list of cells in the dataset
     cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only,add_extra_columns=False,include_4x2_data=include_4x2_data).reset_index()

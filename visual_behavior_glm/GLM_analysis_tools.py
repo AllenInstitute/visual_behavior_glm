@@ -834,7 +834,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Then pull the weights from each kernel into a dataframe
     sessions = []
     for index, oeid in enumerate(tqdm(oeids, desc='Iterating Sessions')):
-        session_df = process_session_to_df(oeid, include_4x2_data=False
+        session_df = process_session_to_df(oeid, run_params) 
 
     # Determine if we need 4x2 data
     run_params = glm_params.load_run_json(glm_version)

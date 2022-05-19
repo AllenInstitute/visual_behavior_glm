@@ -529,8 +529,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
     include_4x2_data=False
     if 'glm_version' in search_dict: 
         run_params = glm_params.load_run_json(search_dict['glm_version'])
-        if 'include_4x2_data' in run_params:
-            include_4x2_data = run_params['include_4x2_data']
+        include_4x2_data = run_params['include_4x2_data']
 
     if len(results) > 0 and merge_in_experiment_metadata:
         if verbose:
@@ -1284,8 +1283,7 @@ def inventory_glm_version(glm_version, valid_rois_only=True, platform_paper_only
     # determine if we need to get 4x2 data for this version
     include_4x2_data=False
     run_params = glm_params.load_run_json(glm_version)
-    if 'include_4x2_data' in run_params:
-        include_4x2_data = run_params['include_4x2_data']
+    include_4x2_data = run_params['include_4x2_data']
  
     # Get list of cells in the dataset
     cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only,add_extra_columns=False,include_4x2_data=include_4x2_data).reset_index()

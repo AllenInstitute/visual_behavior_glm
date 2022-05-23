@@ -227,6 +227,12 @@ def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     fit_trace_shuffle = np.copy(fit['fit_trace_arr'].values)
     max_shuffle = np.shape(fit_trace_shuffle)[0]
     
+    # Edge case with exactly 1 cell. don't perform shuffle
+    if fit['fit_trace_arr'].shape[1] <=1:
+        fit['var_shuffle_'+method] = var_shuffle
+        fit['var_shuffle_'+method+'_threshold'] = 0
+        return fit
+
     # Iterate over shuffles
     for count in tqdm(range(0, num_shuffles), total=num_shuffles, desc='    Shuffling by {}'.format(method)):
         if method == 'time':

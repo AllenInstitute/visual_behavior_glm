@@ -23,18 +23,18 @@ def get_versions(vrange=[15,20]):
 def define_kernels():
     kernels = {
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'num_weights':None, 'dropout':True, 'text': 'constant value'},
-        #'hits':         {'event':'hit',         'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
-        #'misses':       {'event':'miss',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
-        #'passive_change':   {'event':'passive_change','type':'discrete','length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
-        'hits':         {'event':'hit',         'type':'discrete',      'length':.75,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
-        'misses':       {'event':'miss',        'type':'discrete',      'length':.75,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
-        'passive_change':   {'event':'passive_change','type':'discrete','length':.75,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
-        'post-hits':    {'event':'hit',         'type':'discrete',      'length':1.5,   'offset':0.75,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
-        'post-misses':  {'event':'miss',        'type':'discrete',      'length':1.5,   'offset':0.75,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
-        'post-passive_change':  {'event':'passive_change','type':'discrete','length':1.5,   'offset':0.75,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
-        #'omissions':        {'event':'omissions',   'type':'discrete',  'length':3,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
-        'omissions':        {'event':'omissions',   'type':'discrete',  'length':0.75,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
-        'post-omissions':   {'event':'omissions',   'type':'discrete',  'length':2.25,   'offset':0.75,  'num_weights':None, 'dropout':True, 'text': 'images after omission'},
+        'hits':         {'event':'hit',         'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
+        'misses':       {'event':'miss',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
+        'passive_change':   {'event':'passive_change','type':'discrete','length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
+        #'hits':         {'event':'hit',         'type':'discrete',      'length':.75,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
+        #'misses':       {'event':'miss',        'type':'discrete',      'length':.75,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
+        #'passive_change':   {'event':'passive_change','type':'discrete','length':.75,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
+        #'post-hits':    {'event':'hit',         'type':'discrete',      'length':1.5,   'offset':0.75,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
+        #'post-misses':  {'event':'miss',        'type':'discrete',      'length':1.5,   'offset':0.75,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
+        #'post-passive_change': {'event':'passive_change','type':'discrete','length':1.5,   'offset':0.75,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
+        'omissions':        {'event':'omissions',   'type':'discrete',  'length':3,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
+        #'omissions':        {'event':'omissions',   'type':'discrete',  'length':0.75,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
+        #'post-omissions':   {'event':'omissions',   'type':'discrete',  'length':2.25,   'offset':0.75,  'num_weights':None, 'dropout':True, 'text': 'images after omission'},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.75,  'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image presentation'},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'normalized running speed'},
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'Z-scored pupil diameter'},
@@ -54,7 +54,7 @@ def define_kernels():
     return kernels
 
 
-def get_experiment_table(require_model_outputs = False):
+def get_experiment_table(require_model_outputs = False,include_4x2_data=False):
     """
     get a list of filtered experiments and associated attributes
     returns only experiments that have relevant project codes and have passed QC
@@ -62,13 +62,13 @@ def get_experiment_table(require_model_outputs = False):
     Keyword arguments:
     require_model_outputs (bool) -- if True, limits returned experiments to those that have been fit with behavior model
     """
-    experiments_table = loading.get_platform_paper_experiment_table()
+    experiments_table = loading.get_platform_paper_experiment_table(include_4x2_data=include_4x2_data) 
     if require_model_outputs:
         return experiments_table.query('model_outputs_available == True')
     else:
         return experiments_table
 
-def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,update_version=False):
+def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,update_version=False,include_4x2_data=False):
     '''
         Freezes model files, parameters, and ophys experiment ids
         If the model iteration already exists, throws an error unless (update_version=True)
@@ -144,7 +144,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     
 
     # Define list of experiments to fit
-    experiment_table = get_experiment_table()
+    experiment_table = get_experiment_table(include_4x2_data=include_4x2_data)
     if TESTING:
         experiment_table = experiment_table.tail(5)
     experiment_table.to_csv(experiment_table_path)
@@ -210,6 +210,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'image_kernel_overlap_tol':5,   # Number of timesteps image kernels are allowed to overlap during entire session.
         'dropout_threshold':0.005,      # Minimum variance explained by full model
         'version_type':'production',      # Should be either 'production' (run everything), 'standard' (run standard dropouts), 'minimal' (just full model)
+        'include_4x2_data':include_4x2_data,# If True, fits mesoscope 4 areas x 2 depth data
     } 
 
     # Define Kernels and dropouts
@@ -389,6 +390,8 @@ def load_run_json(version):
         run_params['fig_kernels_dir']    = os.path.join(run_params['figure_dir'], 'kernels')               
         run_params['fig_overfitting_dir']= os.path.join(run_params['figure_dir'], 'over_fitting_figures')
         run_params['fig_clustering_dir'] = os.path.join(run_params['figure_dir'], 'clustering')
+    if 'include_4x2_data' not in run_params:
+        run_params['include_4x2_data'] = False
     return run_params
 
 def describe_model_version(version):

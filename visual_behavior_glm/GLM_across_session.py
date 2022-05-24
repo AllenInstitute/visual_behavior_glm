@@ -98,7 +98,9 @@ def load_cells(glm_version,clean_df=True):
 
     # 3921 unique cells
     print('Loading list of matched cells')
-    cells_table = loading.get_cell_table(platform_paper_only=True).reset_index()
+    run_params = glm_params.load_run_json(glm_version)
+    include_4x2_data = run_params['include_4x2_data']
+    cells_table = loading.get_cell_table(platform_paper_only=True,include_4x2_data=include_4x2_data).reset_index()
     cells_table = cells_table.query('not passive').copy()
     cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
@@ -182,7 +184,8 @@ def get_across_session_data(run_params, cell_specimen_id):
     '''
 
     # Find which experiments this cell was in
-    cells_table = loading.get_cell_table(platform_paper_only=True)
+    include_4x2_data = run_params['include_4x2_data']
+    cells_table = loading.get_cell_table(platform_paper_only=True, include_4x2_data=include_4x2_data)
     cells_table = cells_table.query('not passive').copy()
     cells_table = cells_table[cells_table['cell_specimen_id'] == cell_specimen_id]
     cells_table = cells_table.query('last_familiar_active or first_novel or second_novel_active')

@@ -28,7 +28,7 @@ if __name__ == "__main__":
         print('making folder {}'.format(stdout_location))
         os.mkdir(stdout_location)
     print('stdout files will be at {}'.format(stdout_location))
-    cell_table = gas.get_cell_list()
+    cell_table = gas.get_cell_list(glm_version)
     cell_ids = cell_table['cell_specimen_id'].unique()
 
     job_count = 0

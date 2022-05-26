@@ -90,7 +90,7 @@ def get_cell_list(glm_version):
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     return cells_table
 
-def load_cells(glm_version,clean_df=True):
+def load_cells(glm_version,clean_df=True,v=''):
     '''
         Loads all cells that have across session coding scores computed.
         prints the cell_specimen_id for any cell that cannot be loaded.
@@ -115,7 +115,7 @@ def load_cells(glm_version,clean_df=True):
     print('Loading across session normalized dropout scores')
     for cell in tqdm(cells):
         try:
-            filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv' 
+            filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+v+'.csv' # TODO DEBUG
             score_df = pd.read_csv(filename)
             score_df['cell_specimen_id'] = cell
             if clean_df:

@@ -12,8 +12,8 @@ import visual_behavior_glm.GLM_across_session as gas
 parser = argparse.ArgumentParser(description='deploy glm fits to cluster')
 parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='path to conda environment to use')
 
-def already_fit(cell_id):
-    filepath = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/across_session/"+str(cell_id)+".csv"
+def already_fit(cell_id,glm_version):
+    filepath = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_"+glm_version+"/across_session/"+str(cell_id)+"_v2.csv" # TODO DEBUG
     return os.path.exists(filepath) 
 
 if __name__ == "__main__":
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
     python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/across_session.py"
-
+    glm_version = '24_events_all_L2_optimize_by_session'
     stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
     stdout_location = os.path.join(stdout_basedir, 'job_records_across_session')
     if not os.path.exists(stdout_location):
@@ -33,12 +33,12 @@ if __name__ == "__main__":
 
     job_count = 0
 
-    job_string = "--cell {}"
+    job_string = "--cell {} --version {}"
 
     n_cell_ids = len(cell_ids)
 
     for cell_id in cell_ids:
-        if already_fit(cell_id):
+        if already_fit(cell_id,glm_version):
             print('already fit, skipping')
         else:
             job_count += 1
@@ -60,7 +60,7 @@ if __name__ == "__main__":
                 partition="braintv"
             )
     
-            args_string = job_string.format(cell_id)
+            args_string = job_string.format(cell_id,glm_version)
             slurm.sbatch('{} {} {}'.format(
                     python_executable,
                     python_file,

@@ -199,7 +199,7 @@ def get_across_session_data(run_params, cell_specimen_id):
     glm_version = run_params['version']
     for oeid in oeids: 
         print('Loading oeid: '+str(oeid))
-        run_params = glm_params.load_run_json(glm_version) # TODO DEBUG
+        run_params = glm_params.load_run_json(glm_version) 
         session, fit, design = gft.load_fit_experiment(oeid, run_params)       
         data[str(oeid)+'_session'] = session
         data[str(oeid)+'_fit'] = fit

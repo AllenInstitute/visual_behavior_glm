@@ -90,7 +90,7 @@ def get_cell_list(glm_version):
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     return cells_table
 
-def load_cells(glm_version,clean_df=True,v=''): # TODO DEBUG
+def load_cells(glm_version,clean_df=True): 
     '''
         Loads all cells that have across session coding scores computed.
         prints the cell_specimen_id for any cell that cannot be loaded.
@@ -115,7 +115,7 @@ def load_cells(glm_version,clean_df=True,v=''): # TODO DEBUG
     print('Loading across session normalized dropout scores')
     for cell in tqdm(cells):
         try:
-            filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+v+'.csv' # TODO DEBUG
+            filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv' 
             score_df = pd.read_csv(filename)
             score_df['cell_specimen_id'] = cell
             if clean_df:
@@ -176,7 +176,7 @@ def across_session_normalization(cell_specimen_id, glm_version):
     run_params = glm_params.load_run_json(glm_version)
     data = get_across_session_data(run_params,cell_specimen_id)
     score_df = compute_across_session_dropouts(data, run_params, cell_specimen_id)
-    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell_specimen_id)+'_v2.csv' # TODO DEBUG
+    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell_specimen_id)+'.csv' 
     score_df.to_csv(filename)
 
     return data, score_df

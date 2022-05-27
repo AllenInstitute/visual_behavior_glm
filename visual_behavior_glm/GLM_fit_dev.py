@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import visual_behavior_glm.GLM_clustering as gc
+import visual_behavior_glm.GLM_across_session as gas
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
@@ -51,7 +52,8 @@ if False: # Code snippets for doing analyses.
         label='testing',
         username='alex', 
         src_path = src_path, 
-        TESTING=True
+        TESTING=True,
+        include_4x2_data=False
         )
    
 
@@ -115,7 +117,7 @@ if False: # Code snippets for doing analyses.
     inventory17 = gat.inventory_glm_version('17_dff_all_L2_optimize_by_session')
     
     # Get a table for GLM versions in the range "vrange"
-    inventory_table = gat.build_inventory_table(vrange=[15,20])
+    inventory_table = gat.build_inventory_table(vrange=[24,25])
 
     # Compare two model versions
     versions = [x[2:] for x in inventory_table.index.values[-2:]]
@@ -293,23 +295,29 @@ if False: # Code snippets for doing analyses.
     #####################
 
     # compute the across session dropout for a single cell
-    data, score_df = gas.across_session_normalization(cell_specimen_id)
+    data, score_df = gas.across_session_normalization(cell_specimen_id,version)
     
+    # compute many cells
+    gas.compute_many_cells(cells, version)   
+ 
     # Load all cells that have across session normalization
-    across_df, fail_to_load = gas.load_cells(cells='all')
-
-    # plot a scatter plot of the within vs across scores
-    gas.scatter_df(across_df, 'Excitatory')
-    
-    # print a groupby table of the fraction of cells with unchanged (across vs within)
-    # dropout scores
-    gas.fraction_same(across_df)
-    
-    # Plot the population averages across experience/cre line
-    gas.plot_across_summary(across_df) 
+    version = '24_events_all_L2_optimize_by_session'
+    across_run_params = gas.make_across_run_params(version)
+    across_df, fail_to_load = gas.load_cells(glm_version=version)
 
     # Add kernel excitation labels
     across_df = gas.append_kernel_excitation_across(weights_df, across_df)
+
+    # Plot the population averages across experience/cre line
+    gas.plot_across_summary(across_df, across_run_params) 
+
+    # plot a scatter plot of the within vs across scores
+    # Not very useful
+    gas.scatter_df(across_df, 'Excitatory',across_run_params)
+    
+    # print a groupby table of the fraction of cells with unchanged (across vs within)
+    # not very useful
+    gas.fraction_same(across_df) 
 
     # Clustering Analysis
     #####################

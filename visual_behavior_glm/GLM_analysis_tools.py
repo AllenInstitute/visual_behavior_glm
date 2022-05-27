@@ -405,7 +405,7 @@ def log_weights_matrix_to_mongo(glm):
 
     conn.close()
 
-def get_experiment_table(glm_version):
+def get_experiment_table(glm_version, include_4x2_data=False): 
     '''
     gets the experiment table
     appends the following:
@@ -415,7 +415,7 @@ def get_experiment_table(glm_version):
     
     Warning: this takes a couple of minutes to run.
     '''
-    experiment_table = loading.get_platform_paper_experiment_table().reset_index() # Need to fix
+    experiment_table = loading.get_platform_paper_experiment_table(include_4x2_data=include_4x2_data).reset_index() 
     dropout_summary = retrieve_results({'glm_version':glm_version}, results_type='summary')
     stdout_summary = get_stdout_summary(glm_version)
 
@@ -525,12 +525,17 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
     if 'glm_version' in results.columns:
         results['glm_version'] = results['glm_version'].astype(str)
     conn.close()
+   
+    include_4x2_data=False
+    if 'glm_version' in search_dict: 
+        run_params = glm_params.load_run_json(search_dict['glm_version'])
+        include_4x2_data = run_params['include_4x2_data']
 
     if len(results) > 0 and merge_in_experiment_metadata:
         if verbose:
             print('Merging in experiment metadata')
         # get experiment table, merge in details of each experiment
-        experiment_table = loading.get_platform_paper_experiment_table(add_extra_columns=add_extra_columns).reset_index()
+        experiment_table = loading.get_platform_paper_experiment_table(add_extra_columns=add_extra_columns, include_4x2_data=include_4x2_data).reset_index() 
         results = results.merge(
             experiment_table, 
             left_on='ophys_experiment_id',
@@ -546,7 +551,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         if verbose:
             print('Loading cell table to remove invalid rois')
         if 'cell_roi_id' in results:
-            cell_table = loading.get_cell_table(platform_paper_only=True,add_extra_columns=False).reset_index()
+            cell_table = loading.get_cell_table(platform_paper_only=True,add_extra_columns=False,include_4x2_data=include_4x2_data).reset_index() 
             good_cell_roi_ids = cell_table.cell_roi_id.unique()
             results = results.query('cell_roi_id in @good_cell_roi_ids')
         elif allow_old_rois:
@@ -557,7 +562,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
         if verbose:
             print('Loading cell table to remove valid rois')
         if 'cell_roi_id' in results:
-            cell_table = loading.get_cell_table(platform_paper_only=True,add_extra_columns=False).reset_index()
+            cell_table = loading.get_cell_table(platform_paper_only=True,add_extra_columns=False,include_4x2_data=include_4x2_data).reset_index() 
             good_cell_roi_ids = cell_table.cell_roi_id.unique()
             results = results.query('cell_roi_id not in @good_cell_roi_ids')
         elif allow_old_rois:
@@ -732,6 +737,7 @@ def get_experiment_inventory(results=None):
     adds a column to the experiments table for every GLM version called 'glm_version_{GLM_VERSION}_exists'
     column is boolean (True if experiment successfully fit for that version, False otherwise)
     '''
+    raise Exception('Outdated, do not use')
     def oeid_in_results(oeid, version):
         try:
             res = results['full'].loc[oeid]['glm_version']
@@ -747,7 +753,7 @@ def get_experiment_inventory(results=None):
         results = results_dict['full']
     results = results.set_index(['ophys_experiment_id'])
     
-    experiments_table = loading.get_platform_paper_experiment_table(add_extra_columns=False)
+    experiments_table = loading.get_platform_paper_experiment_table(add_extra_columns=False,include_4x2_data=False)
 
     for glm_version in results['glm_version'].unique():
         for oeid in experiments_table.index.values:
@@ -1280,9 +1286,14 @@ def inventory_glm_version(glm_version, valid_rois_only=True, platform_paper_only
         glm_results['ophys_experiment_id'] = [] 
         glm_results['cell_specimen_id'] = [] 
         glm_results['cell_roi_id'] = [] 
-    
+
+    # determine if we need to get 4x2 data for this version
+    include_4x2_data=False
+    run_params = glm_params.load_run_json(glm_version)
+    include_4x2_data = run_params['include_4x2_data']
+ 
     # Get list of cells in the dataset
-    cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only,add_extra_columns=False).reset_index()
+    cell_table = loading.get_cell_table(platform_paper_only=platform_paper_only,add_extra_columns=False,include_4x2_data=include_4x2_data).reset_index()
 
     # get list of rois and experiments we have fit
     total_experiments = glm_results['ophys_experiment_id'].unique()

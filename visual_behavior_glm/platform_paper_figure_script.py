@@ -27,8 +27,9 @@ import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_schematic_plots as gsm
 import visual_behavior_glm.GLM_cell_metrics as gcm
+import visual_behavior_glm.GLM_across_session as gas
 from visual_behavior_glm.glm import GLM
-import matplotlib.pyplt as plt
+import matplotlib.pyplot as plt
 plt.ion()
 
 
@@ -285,5 +286,13 @@ gvt.kernel_evaluation(weights_df, run_params, 'running', session_filter=['Famili
 gvt.kernel_evaluation(weights_df, run_params, 'running', session_filter=['Novel 1'])
 gvt.kernel_evaluation(weights_df, run_params, 'running', session_filter=['Novel >1'])
 
+
+# S19 - Across Session normalized average dropout scores
+across_run_params = gas.make_across_run_params(VERSION)
+across_df, fail_to_load = gas.load_cells(glm_version=VERSION)
+across_df = gas.append_kernel_excitation_across(weights_df, across_df)
+
+# Plot the population averages across experience/cre line
+gas.plot_across_summary(across_df, across_run_params) 
 
 

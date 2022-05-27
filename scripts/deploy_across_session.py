@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description='deploy glm fits to cluster')
 parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='path to conda environment to use')
 
 def already_fit(cell_id,glm_version):
-    filepath = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_"+glm_version+"/across_session/"+str(cell_id)+"_v2.csv" # TODO DEBUG
+    filepath = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_"+glm_version+"/across_session/"+str(cell_id)+".csv" 
     return os.path.exists(filepath) 
 
 if __name__ == "__main__":

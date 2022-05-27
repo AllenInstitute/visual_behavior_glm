@@ -332,13 +332,3 @@ def append_kernel_excitation_across(weights_df, across_df):
     return across_df
 
 
-def filter_results_pivoted(results_pivoted, across_df):
-    ''' 
-        Filter results_pivoted based on the cells in across_df
-        Just useful for looking at other dropout scores
-    '''
-
-    identifier = across_df['identifier'].unique()
-    results_pivoted_across = results_pivoted.query('identifier in @identifier').copy()
-    return results_pivoted_across
-

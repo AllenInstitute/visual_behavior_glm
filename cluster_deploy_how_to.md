@@ -1,23 +1,21 @@
 # This document details my current workflow for deploying model fits for every experiment to the cluster
-dougo  
-8/7/2020
+dougo - 8/7/2020
+alexpiet - 06/09/2022
 
 ## The basic workflow is as follows:
 
 ### Ensure that the run_json for the version you want to deploy is up to date in the frozen model folder
-
-To do that, I run the `scripts/delete_rebuild_run_json.py` script. It can be run from the command line with the following syntax:
-
-    $ python delete_rebuild_run_json.py --version {VERSION NAME} --label {LABEL TEXT} --src-path {PATH TO SOURCE CODE}
     
-I've found it unwieldy to type all of those options at the command line, so I've been editing the defaults in the .py file, then simply running it without any command line arguments as:
-
-    $ delete_rebuild_run_json.py
-    
-### Create a branch with the name of the version
-
-Maybe this is overkill, but I've been trying to create a branch for each named version to make it easy to come back later to the exact code for that version.
-
+    $ import visual_glm_params.GLM_params as glm_params
+    $ glm_params.make_run_json(
+        <version>,
+        label=<text description>,
+        username=<your name>,
+        src_path=<src_path>,
+        TESTING=False,
+        include_4x2=<your choice>
+        )   
+ 
 ### Run a test fit locally
 
 The `scripts/fit_glm.py` script will fit the model and log the results to mongo. To make sure there aren't any code bugs before deploying all 1000+ jobs to the cluster, I've been running a test version locally using the following syntax at the command line:
@@ -49,9 +47,13 @@ The arguments are as follows:
 For example, I'd call this script from the hpc-login command line as follows:
 
     $ python deploy_glm_fits.py --env visual_behavior --version 5_L2_fixed_lambda=1 --src_path /home/dougo/code/visual_behavior_glm 
-    
+
+Or, you can modify the bash script that executes those functions, so you dont need to remember them
+
+    $ ./deploy_glm_fits.sh   
+ 
 ### Check job status
 
 You can see the status of all jobs by typing the following at the hpc-login command line
 
-    $ qstat -u {USERNAME}
+    $ squeue -u {USERNAME}

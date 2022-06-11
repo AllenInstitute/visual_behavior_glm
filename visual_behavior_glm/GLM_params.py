@@ -102,7 +102,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     job_dir                 = os.path.join(output_dir, 'log_files')
     json_path               = os.path.join(output_dir, 'run_params.json')
     experiment_table_path   = os.path.join(output_dir, 'experiment_table_v_'+str(VERSION)+'.csv')
-    beh_model_dir           = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/model_output/'
+    beh_model_dir           = '/allen/programs/braintv/workgroups/nc-ophys/saaketh.medepalli/behavior/model_output/'
 
     if not update_version:
         os.mkdir(output_dir)

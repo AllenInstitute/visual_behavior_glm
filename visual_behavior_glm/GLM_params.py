@@ -25,7 +25,7 @@ def define_kernels():
         'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'num_weights':None, 'dropout':True, 'text': 'constant value'},
         'hits':         {'event':'hit',         'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
         'misses':       {'event':'miss',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
-        'passive_change':   {'event':'passive_change','type':'discrete','length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
+        #'passive_change':   {'event':'passive_change','type':'discrete','length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
         #'hits':         {'event':'hit',         'type':'discrete',      'length':.75,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
         #'misses':       {'event':'miss',        'type':'discrete',      'length':.75,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
         #'passive_change':   {'event':'passive_change','type':'discrete','length':.75,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},

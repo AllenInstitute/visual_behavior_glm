@@ -6,7 +6,7 @@ alexpiet - 06/09/2022
 
 ### Ensure that the run_json for the version you want to deploy is up to date in the frozen model folder
     
-    $ import visual_glm_params.GLM_params as glm_params
+    $ import visual_behavior_glm.GLM_params as glm_params
     $ glm_params.make_run_json(
         <version>,
         label=<text description>,

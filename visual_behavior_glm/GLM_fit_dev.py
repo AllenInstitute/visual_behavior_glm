@@ -46,11 +46,11 @@ if False: # Code snippets for doing analyses.
     # Make run JSON
     #####################
     VERSION = 1
-    src_path = '/allen/programs/braintv/workgroups/nc-ophys/alex.piet/GLM/visual_behavior_glm/' 
+    src_path = '/home/saaketh.medepalli/visual_behavior_glm' 
     glm_params.make_run_json(
         VERSION,
         label='testing',
-        username='alex', 
+        username='saaketh.medepalli', 
         src_path = src_path, 
         TESTING=True,
         include_4x2_data=False
@@ -76,7 +76,7 @@ if False: # Code snippets for doing analyses.
     #####################
 
     # To run just one session:
-    run_params = glm_params.load_run_json('4_L2_optimize_by_cell')
+    run_params = glm_params.load_run_json('50_medepalli_test')
     oeid = run_params['ophys_experiment_ids'][-1]
 
     # Fit results

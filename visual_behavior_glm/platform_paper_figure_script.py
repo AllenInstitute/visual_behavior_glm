@@ -35,9 +35,13 @@ plt.ion()
 
 
 ### Define model version
-VERSION = '24_events_all_L2_optimize_by_session'
+VERSION = '50_medepalli_test'
 
-
+### Main paper figures
+## Panel A - Example inputs and outputs
+# Load example experiment, which takes a few minutes
+oeid = 957759566 
+g=GLM(oeid, VERSION, use_previous_fit=True, log_results=True, log_weights=True)
 
 ### Load data
 # This function requires access to Allen Institute internal resources
@@ -45,31 +49,27 @@ VERSION = '24_events_all_L2_optimize_by_session'
 # Takes abouts 10 minutes to load and process data
 run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
 
-
-
-### Main paper figures
-## Panel A - Example inputs and outputs
-# Load example experiment, which takes a few minutes
-oeid = 967008471
-g=GLM(oeid, VERSION, use_previous_fit=True, log_results=False, log_weights=False)
-
 # Plot Inputs and model outputs for an example cell
-cell_specimen_id = 1086492467
-gsm.plot_glm_example(g,cell_specimen_id, run_params)
+# cell_specimen_id = g.dropout_summary['cell_specimen_id'][0]
+# gsm.plot_glm_example(g,cell_specimen_id, run_params, savefig=True)
+print('\nPanel A Complete!\n')
 
 ## Panel B - Omission kernel heatmap for familiar sessions
 # This generates several figures, Panel B is `omissions_heatmap_with_dropout_Familiar.svg`
 gvt.kernel_evaluation(weights_df, run_params, 'omissions', session_filter=['Familiar'])
+print('\nPanel B Complete!\n')
 
 ## Panel C - Omission kernels for each experience level
 # This generates 6 figures,  3 by experience, and 3 by cre-line
 # only the 3 by experience are used in the main figure
-gvt.plot_kernel_comparison_by_experience(weights_df, run_params, 'omissions')
+gvt.plot_kernel_comparison_by_experience(weights_df, run_params, 'omissions', savefig=True)
+print('\nPanel C Complete!\n')
 
 ## Panel D - Dropout summaries
 # Returns a dataframe with rows for cre/dropout, and columns describing
 # the dropout score
-stats_D = gvt.plot_dropout_summary_population(results,run_params) 
+stats_D = gvt.plot_dropout_summary_population(results,run_params, savefig=True) 
+print('\nPanel D Complete!\n')
 
 ## Panel E - Dropout averages for experience and cre-line
 '''
@@ -89,13 +89,14 @@ stats_D = gvt.plot_dropout_summary_population(results,run_params)
         "<cell type> matched data" is just for matched cells
         "<cell type> strict matched data" is available only if requested 
 '''
-stats_E = gvt.plot_population_averages(results_pivoted, run_params) 
+stats_E = gvt.plot_population_averages(results_pivoted, run_params, savefig=True) 
+print('\nPanel E Complete!\n')
 
 ## Panel F - Coding fraction by experience/cre
 # Returns a dataframe with rows for cre/experience, and columns with the fraction of
 # cells coding for each regressor, and the CI value (which is the value +/- from the mean)
-stats_F = gvt.plot_fraction_summary_population(results_pivoted, run_params)
-
+stats_F = gvt.plot_fraction_summary_population(results_pivoted, run_params, savefig=True)
+print('\nPanel F Complete!\n')
 
 
 ### Supplemental figures
@@ -212,6 +213,7 @@ r2 = gcm.compute_event_metrics(results_pivoted, run_params)
 # Panel D - Explained variance for matched and non-matched cells
 # Returns a pandas dataframe describing the explained variance by experience/cre-line/matched
 stats_S11D = gvt.var_explained_matched(results_pivoted, run_params)
+
 
 ## S12 - kernel images 
 # Generate the 6 average kernel panels

@@ -35,12 +35,12 @@ plt.ion()
 
 
 ### Define model version
-VERSION = '50_medepalli_test'
+VERSION = '50_medepalli_complete_test'
 
 ### Main paper figures
 ## Panel A - Example inputs and outputs
 # Load example experiment, which takes a few minutes
-oeid = 957759566 
+oeid = 792815735  
 g=GLM(oeid, VERSION, use_previous_fit=True, log_results=True, log_weights=True)
 
 ### Load data
@@ -50,13 +50,13 @@ g=GLM(oeid, VERSION, use_previous_fit=True, log_results=True, log_weights=True)
 run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
 
 # Plot Inputs and model outputs for an example cell
-# cell_specimen_id = g.dropout_summary['cell_specimen_id'][0]
-# gsm.plot_glm_example(g,cell_specimen_id, run_params, savefig=True)
+cell_specimen_id = g.dropout_summary['cell_specimen_id'][0]
+gsm.plot_glm_example(g,cell_specimen_id, run_params, savefig=True)
 print('\nPanel A Complete!\n')
 
 ## Panel B - Omission kernel heatmap for familiar sessions
 # This generates several figures, Panel B is `omissions_heatmap_with_dropout_Familiar.svg`
-gvt.kernel_evaluation(weights_df, run_params, 'omissions', session_filter=['Familiar'])
+# gvt.kernel_evaluation(weights_df, run_params, 'omissions', session_filter=['Familiar'])
 print('\nPanel B Complete!\n')
 
 ## Panel C - Omission kernels for each experience level

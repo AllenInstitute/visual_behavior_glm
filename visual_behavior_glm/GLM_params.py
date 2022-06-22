@@ -32,7 +32,7 @@ def define_kernels():
         #'post-hits':    {'event':'hit',         'type':'discrete',      'length':1.5,   'offset':0.75,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
         #'post-misses':  {'event':'miss',        'type':'discrete',      'length':1.5,   'offset':0.75,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
         #'post-passive_change': {'event':'passive_change','type':'discrete','length':1.5,   'offset':0.75,    'num_weights':None, 'dropout':True, 'text': 'passive session image change'},
-        'omissions':        {'event':'omissions',   'type':'discrete',  'length':3,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
+        'each_omission':        {'event':'each-omission',   'type':'discrete',  'length':3,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
         #'omissions':        {'event':'omissions',   'type':'discrete',  'length':0.75,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
         #'post-omissions':   {'event':'omissions',   'type':'discrete',  'length':2.25,   'offset':0.75,  'num_weights':None, 'dropout':True, 'text': 'images after omission'},
         'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.75,  'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image presentation'},

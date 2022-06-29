@@ -561,7 +561,7 @@ def pc_component_heatmap(pca, figsize=(18,4)):
 
 def var_explained_matched(results_pivoted, run_params):
     # Remove passive sessions
-    results_pivoted = results_pivoted.query('not passive').copy()
+    results_pivoted = results_pivoted.query('passive==False').copy()
     colors = project_colors()
     colors['Matched'] = 'k'
     colors['Non-matched'] = 'gray'
@@ -576,7 +576,7 @@ def var_explained_matched(results_pivoted, run_params):
 
     # load cells table to get matched cells
     cells_table = loading.get_cell_table(platform_paper_only=True,include_4x2_data=run_params['include_4x2_data']) 
-    cells_table = cells_table.query('not passive').copy()
+    cells_table = cells_table.query('passive==False').copy()
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     matched_cells = cells_table.cell_specimen_id.unique()
     results_pivoted['matched'] = ['Matched' if x in np.array(matched_cells) else 'Non-matched' for x in results_pivoted['cell_specimen_id']]
@@ -621,9 +621,9 @@ def var_explained_matched(results_pivoted, run_params):
 def var_explained_by_experience(results_pivoted, run_params,threshold = 0,savefig=False):
     
     if threshold != 0:
-        results_pivoted = results_pivoted.query('(not passive) & (variance_explained_full > @threshold)').copy()
+        results_pivoted = results_pivoted.query('(passive==False) & (variance_explained_full > @threshold)').copy()
     else:
-         results_pivoted = results_pivoted.query('not passive').copy()   
+         results_pivoted = results_pivoted.query('passive==False').copy()   
 
     colors = project_colors()
     mapper = {
@@ -1895,7 +1895,7 @@ def plot_perturbation(weights_df, run_params, kernel, drop_threshold=0,session_f
     return ax,kernel_means
 
 def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshold=0,drop_threshold=0,savefig=False):
-    weights_df = weights_df.query('not passive').copy()
+    weights_df = weights_df.query('passive==False').copy()
     
     extra=''
     if threshold !=0:
@@ -2071,10 +2071,10 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
 
     # Applying hard thresholds to dataset
     if kernel in weights_df:
-        weights = weights_df.query('(not passive)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
+        weights = weights_df.query('(passive==False)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
         use_dropouts=True
     else:
-        weights = weights_df.query('(not passive)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold)'.format(filter_sessions_on))
+        weights = weights_df.query('(passive==False)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold)'.format(filter_sessions_on))
         print('Dropouts not included, cannot use drop filter')
         use_dropouts=False
 
@@ -2346,10 +2346,12 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
     # don't apply overall VE, or dropout threshold limits here, since we look at the effects of those criteria below. 
     # we do remove NaN dropouts here
     if kernel in weights_df:
-        weights = weights_df.query('(passive==False)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > 0) & ({1} <= 0)'.format(filter_sessions_on, kernel))
+        # weights = weights_df.query('(passive==False)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > 0) & ({1} <= 0)'.format(filter_sessions_on, kernel))
+        weights = weights_df.query('passive==False')
         use_dropouts=True
     else:
-        weights = weights_df.query('(passive==False)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > 0)'.format(filter_sessions_on)) 
+        # weights = weights_df.query('(passive==False)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > 0)'.format(filter_sessions_on)) 
+        weights = weights_df.query('passive==False')
         print('Dropouts not included, cannot use drop filter')
         use_dropouts=False
 
@@ -3436,9 +3438,9 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 def plot_population_perturbation(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False, include_zero_cells=True):
     # Filter for cells with low variance explained
     if include_zero_cells:
-        results_pivoted = results_pivoted.query('not passive').copy()       
+        results_pivoted = results_pivoted.query('passive==False').copy()       
     else:
-        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(passive==False)').copy()    
 
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
@@ -3451,7 +3453,7 @@ def plot_population_perturbation(results_pivoted, run_params, dropouts_to_show =
    
     # Cells Matched across all three experience levels 
     cells_table = loading.get_cell_table(platform_paper_only=True, include_4x2_data=run_params['include_4x2_data'])
-    cells_table = cells_table.query('not passive').copy()
+    cells_table = cells_table.query('passive==False').copy()
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     matched_cells = cells_table.cell_specimen_id.unique()
 
@@ -3565,10 +3567,10 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
  
     # Filter for cells with low variance explained
     if include_zero_cells:
-        results_pivoted = results_pivoted.query('not passive').copy()       
+        results_pivoted = results_pivoted.query('passive==False').copy()       
     else:
         extra = extra + '_no_zero_cells'
-        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(passive==False)').copy()
     
     # Add binned depth
     results_pivoted['coarse_binned_depth'] = [coarse_bin_depth(x) for x in results_pivoted['imaging_depth']]   
@@ -3687,10 +3689,10 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
  
     # Filter for cells with low variance explained
     if include_zero_cells:
-        results_pivoted = results_pivoted.query('not passive').copy()       
+        results_pivoted = results_pivoted.query('passive==False').copy()       
     else:
         extra = extra + '_no_zero_cells'
-        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(passive==False)').copy()
      
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
@@ -3847,10 +3849,10 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
  
     # Filter for cells with low variance explained
     if include_zero_cells:
-        results_pivoted = results_pivoted.query('not passive').copy()       
+        results_pivoted = results_pivoted.query('passive==False').copy()       
     else:
         extra = extra + '_no_zero_cells'
-        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(passive==False)').copy()    
 
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
@@ -3872,14 +3874,14 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
     # Cells Matched across all three experience levels 
     cells_table = loading.get_cell_table(platform_paper_only=True,include_4x2_data=run_params['include_4x2_data'])
-    cells_table = cells_table.query('not passive').copy()
+    cells_table = cells_table.query('passive==False').copy()
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     matched_cells = cells_table.cell_specimen_id.unique()
     
     # Strictly matched cells in the last familiar, and second novel session
     if strict_experience_matching:
         cells_table = loading.get_cell_table(platform_paper_only=True,include_4x2_data=run_params['include_4x2_data'])
-        cells_table = cells_table.query('not passive').copy()
+        cells_table = cells_table.query('passive==False').copy()
         cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
         cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
         strict_matched_cells = cells_table.cell_specimen_id.unique()
@@ -4340,7 +4342,7 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
     if use_single:
         dropouts_to_show = [x if x=='' else 'single-'+x for x in dropouts_to_show]
  
-    data_to_plot = results.query('not passive').query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
+    data_to_plot = results.query('passive==False').query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     if use_violin:
         plot1= sns.violinplot(
@@ -4465,7 +4467,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
     if ('post-passive_change' in results.dropout.unique())&('passive_change' in dropouts_to_show):
        dropouts_to_show = ['all-passive_change' if x == 'passive_change' else x for x in dropouts_to_show]
  
-    data_to_plot = results.query('not passive').query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
+    data_to_plot = results.query('passive==False').query('dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
     if dropout_cleaning_threshold is not None:
         print('Clipping dropout scores for cells with full model VE < '+str(dropout_cleaning_threshold))
@@ -4556,7 +4558,7 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,ker
         assert kernel is None, "Kernel Excitation is False, you should not provide a named kernel"
 
     # compute coding fractions
-    results_pivoted = results_pivoted.query('not passive').copy()
+    results_pivoted = results_pivoted.query('passive==False').copy()
     results_pivoted['code_anything'] = results_pivoted['variance_explained_full'] > run_params['dropout_threshold'] 
     results_pivoted['code_images'] = results_pivoted['code_anything'] & (results_pivoted['all-images'] < 0)
     results_pivoted['code_omissions'] = results_pivoted['code_anything'] & (results_pivoted['omissions'] < 0)
@@ -5504,9 +5506,9 @@ def clustering_kernels(weights_df, run_params, kernel,just_coding=False,pca_by_e
 
     for index, cre_line in enumerate(cre_lines):
         if just_coding:
-            weights = weights_df.query('(cre_line == @cre_line) & (ophys_session_id not in @problem_sessions) &(not passive)&({0} <0)'.format(kernel)).copy()       
+            weights = weights_df.query('(cre_line == @cre_line) & (ophys_session_id not in @problem_sessions) &(passive==False)&({0} <0)'.format(kernel)).copy()       
         else:
-            weights = weights_df.query('(cre_line == @cre_line) & (ophys_session_id not in @problem_sessions) &(not passive)').copy()
+            weights = weights_df.query('(cre_line == @cre_line) & (ophys_session_id not in @problem_sessions) &(passive==False)').copy()
         weights = weights[~weights[kernel+'_weights'].isnull()]
         
         # Do PCA across experience levels

@@ -12,3 +12,9 @@ Untitled*
 
 # pyc files
 *.pyc
+
+#log files from Slurm
+*.log
+
+#swp files
+*.swp

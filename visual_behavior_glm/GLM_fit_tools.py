@@ -1573,24 +1573,9 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         event = run_params['kernels'][kernel_name]['event']
         if event == 'licks':
             event_times = session.licks['timestamps'].values
-        elif event == 'lick_bouts':
-            licks = session.licks
-            licks['pre_ILI'] = licks['timestamps'] - licks['timestamps'].shift(fill_value=-10)
-            licks['post_ILI'] = licks['timestamps'].shift(periods=-1,fill_value=5000) - licks['timestamps']
-            licks['bout_start'] = licks['pre_ILI'] > run_params['lick_bout_ILI']
-            licks['bout_end'] = licks['post_ILI'] > run_params['lick_bout_ILI']
-            assert np.sum(licks['bout_start']) == np.sum(licks['bout_end']), "Lick bout splitting failed"
-            
-            # We are making an array of in-lick-bout-event-times by tiling timepoints every <min_interval> seconds. 
-            # If a lick is the end of a bout, the bout-event-times continue <min_time_per_bout> after the lick
-            # Otherwise, we tile the duration of the post_ILI
-            event_times = np.concatenate([np.arange(x[0],x[0]+run_params['min_time_per_bout'],run_params['min_interval']) if x[2] else
-                                        np.arange(x[0],x[0]+x[1],run_params['min_interval']) for x in 
-                                        zip(licks['timestamps'], licks['post_ILI'], licks['bout_end'])]) 
         elif event == 'rewards':
             event_times = session.rewards['timestamps'].values
         elif event == 'change':
-            #event_times = session.trials.query('go')['change_time'].values # This method drops auto-rewarded changes
             event_times = session.stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]
         elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
@@ -1614,6 +1599,8 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = np.concatenate([event_times,[event_times[-1]+.75]])
         elif event == 'omissions':
             event_times = session.stimulus_presentations.query('omitted')['start_time'].values
+        elif (len(event) > 8) & (event[0:8] == 'omission'):
+            event_times = session.stimulus_presentations.query('omitted '.format(int(event[-1])))['start_time'].values #TODO 
         elif (len(event)>5) & (event[0:5] == 'image') & ('change' not in event):
             event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
         elif (len(event)>5) & (event[0:5] == 'image') & ('change' in event):
@@ -1625,9 +1612,6 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         if len(event_times) < 5: # HARD CODING THIS VALUE HERE
             raise Exception('\tLess than minimum number of events: '+str(len(event_times)) +' '+event)
     
-        # Ensure minimum number of events in preferred engagement state
-        check_by_engagement_state(run_params, fit, event_times,event)
-
     except Exception as e:
         print('\tError encountered while adding kernel for '+kernel_name+'. Attemping to continue without this kernel.' )
         print(e)
@@ -1647,12 +1631,8 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         )        
         return design       
     else:
-        events_vec, timestamps = np.histogram(event_times, bins=fit['fit_trace_bins'])
+        events_vec, timestamps = np.histogram(event_times, bins=fit['fit_trace_bins']) # Bins times of the occurrence of a certain feature based on fit_trace_bins 
     
-        if (event == 'lick_bouts') or (event == 'licks'): 
-            # Force this to be 0 or 1, since we purposefully over-tiled the space. 
-            events_vec[events_vec > 1] = 1
-
         if np.max(events_vec) > 1:
             raise Exception('Had multiple events in the same timebin, {}'.format(kernel_name))
 
@@ -1666,6 +1646,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
 
         return design
 
+# Some mice not actively engaged in the task based on the lack of involvement in the task (measured by the number of rewards consumed in the task)
 def check_by_engagement_state(run_params, fit,event_times,event):
     if not run_params['split_on_engagement']:
         return
@@ -1800,7 +1781,6 @@ class DesignMatrix(object):
         offset_samples = int(np.floor(self.ophys_frame_rate*offset))
 
         this_kernel = toeplitz(events, kernel_length_samples, offset_samples)
-    
         self.kernel_dict[label] = {
             'kernel':this_kernel,
             'kernel_length_samples':kernel_length_samples,
@@ -1882,15 +1862,15 @@ def toeplitz(events, kernel_length_samples,offset_samples):
         events (np.array of 1/0): Array with 1 if the event happened at that time, and 0 otherwise.
         kernel_length_samples (int): How many kernel parameters
     Returns
-        np.array, size(len(events), kernel_length_samples) of 1/0
+        np.array, size(kernel_length_samples, len(event)) of 1/0
     '''
 
     total_len = len(events)
     events = np.concatenate([events, np.zeros(kernel_length_samples)])
     arrays_list = [events]
-    for i in range(kernel_length_samples-1):
-        arrays_list.append(np.roll(events, i+1))
-    this_kernel= np.vstack(arrays_list)
+    for i in range(1, kernel_length_samples):
+        arrays_list.append(np.roll(events, i))
+    this_kernel= np.vstack(arrays_list) # 1st col is event in first time bin only, 2nd col is event in 1st time bin in second row, event in 2nd time bin in first row ... last col is event in total_len - kernel_length_samples bin in last row and event in total_len bin in first row
 
     #Pad with zeros, roll offset_samples, and truncate to length
     if offset_samples < 0:
@@ -2122,7 +2102,6 @@ def variance_ratio(fit_trace_arr, W, X):
 
 def masked_variance_ratio(fit_trace_arr, W, X, mask): 
     '''
-    Computes the fraction of variance in fit_trace_arr explained by the linear model Y = X*W
     but only looks at the timepoints in mask
     
     fit_trace_arr: (n_timepoints, n_cells)

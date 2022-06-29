@@ -782,19 +782,18 @@ def run_pca(dropout_matrix, n_components=40, deal_with_nans='fill_with_zero'):
     return pca
     
 
-def process_session_to_df(oeid, run_params):
+def process_session_to_df(oeid, run_params, index):
     '''
         For the ophys_experiment_id, loads the weight matrix, and builds a dataframe
         organized by cell_id and kernel 
     '''
     # Get weights
     W = get_weights_matrix_from_mongo(int(oeid), run_params['version'])
-    
+
     # Make Dataframe with cell and experiment info
     session_df  = pd.DataFrame()
     session_df['cell_specimen_id'] = W.cell_specimen_id.values
     session_df['ophys_experiment_id'] = [int(oeid)]*len(W.cell_specimen_id.values)  
-    
     # For each kernel, extract the weights for this kernel
     for k in run_params['kernels']:
         weight_names = [w for w in W.weights.values if w.startswith(k)]
@@ -825,13 +824,15 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     oeids = results_pivoted['ophys_experiment_id'].unique() 
     if len(oeids) == 0:
         return None
+    print('\nweights_df: collected oeids')
 
     # For each experiment, get the weight matrix from mongo (slow)
     # Then pull the weights from each kernel into a dataframe
     sessions = []
     for index, oeid in enumerate(tqdm(oeids, desc='Iterating Sessions')):
-        session_df = process_session_to_df(oeid, run_params)
+        session_df = process_session_to_df(oeid, run_params, index)
         sessions.append(session_df)
+    print('\nweights_df: processed all sessions to df\n')    
 
     # Merge all the session_dfs, and add more session level info
     weights_df = pd.concat(sessions,sort=False)
@@ -845,7 +846,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Interpolate everything onto common time base
     kernels = [x for x in weights_df.columns if 'weights' in x]
     for kernel in tqdm(kernels, desc='Interpolating kernels'):
-        weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
+      weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
  
     print('Computing average kernels') 
     # Compute generic image kernel
@@ -859,6 +860,15 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         x['image6_weights'],
         x['image7_weights']
         ],axis=0),axis=1)
+
+    weights_df['all-omissions_weights'] = weights_df.apply(lambda x: np.mean([x['omission0_weights'],
+  x['omission1_weights'],
+  x['omission2_weights'],
+  x['omission3_weights'],
+  x['omission4_weights'],
+  x['omission5_weights'],
+  x['omission6_weights'],
+  x['omission7_weights']], axis=0), axis=1)
 
     # Compute preferred image kernel
     weights_df['preferred_image_weights'] = weights_df.apply(lambda x: compute_preferred_kernel([

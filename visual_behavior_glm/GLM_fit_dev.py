@@ -334,15 +334,19 @@ if False: # Code snippets for doing analyses.
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)
+    print('\nProcessed run_params\n')
     results = gat.retrieve_results(
         search_dict={'glm_version':VERSION},
         results_type='summary'
         )
+    print('\nProcessed results\n')
     results_pivoted = gat.build_pivoted_results_summary(
         'adj_fraction_change_from_full',
         results_summary=results
         )
-    weights_df = gat.build_weights_df(run_params, results_pivoted)  
+    print('\nProcessed results_pivoted\n')
+    weights_df = gat.build_weights_df(run_params, results_pivoted)
+    print('\nProcessed weights dataframe\n')  
     return run_params, results, results_pivoted, weights_df
 
 def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):

@@ -885,7 +885,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     print("All the recorded weights:", weights_df.columns)
     
     #  make a combined omissions kernel
-     if 'post-omissions_weights' in weights_df:
+    if 'post-omissions_weights' in weights_df:
         weights_df['all-omissions_weights'] = weights_df.apply(lambda x: compute_all_omissions([
         x['all-omissions_weights'],
         x['post-omissions_weights']

@@ -41,7 +41,6 @@ print('\nVersion Specified!\n')
 ### Main paper figures
 ## Panel A - Example inputs and outputs
 # Load example experiment, which takes a few minutes
-<<<<<<< HEAD
 # oeid = 792815735  
 # g=GLM(oeid, VERSION, use_previous_fit=True, log_results=True, log_weights=True)
 

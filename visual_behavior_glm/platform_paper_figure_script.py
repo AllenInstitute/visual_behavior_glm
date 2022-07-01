@@ -58,7 +58,7 @@ print('\nSkipping Panel A...\n')
 
 ## Panel B - Omission kernel heatmap for familiar sessions
 # This generates several figures, Panel B is `omissions_heatmap_with_dropout_Familiar.svg`
-# gvt.kernel_evaluation(weights_df, run_params, 'omissions', session_filter=['Familiar'])
+gvt.kernel_evaluation(weights_df, run_params, 'omission0', session_filter=['Familiar'])
 print('\nPanel B Complete!\n')
 
 ## Panel C - Omission kernels for each experience level

@@ -881,11 +881,13 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         x['image6_weights'],
         x['image7_weights']
         ]),axis=1) 
-
-    # make a combined omissions kernel
-    if 'post-omissions_weights' in weights_df:
+    
+    print("All the recorded weights:", weights_df.columns)
+    
+    #  make a combined omissions kernel
+     if 'post-omissions_weights' in weights_df:
         weights_df['all-omissions_weights'] = weights_df.apply(lambda x: compute_all_omissions([
-        x['omissions_weights'],
+        x['all-omissions_weights'],
         x['post-omissions_weights']
         ]),axis=1)
     
@@ -915,7 +917,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
         ],axis=0),axis=1)
 
     # Make a metric of omission excitation/inhibition
-    weights_df['omissions_excited'] = weights_df.apply(lambda x: kernel_excitation(x['omissions_weights']),axis=1)
+    weights_df['omissions_excited'] = weights_df.apply(lambda x: kernel_excitation(x['all-omissions_weights']),axis=1)
     weights_df['hits_excited']      = weights_df.apply(lambda x: kernel_excitation(x['hits_weights']),axis=1)
     weights_df['misses_excited']    = weights_df.apply(lambda x: kernel_excitation(x['misses_weights']),axis=1)
     weights_df['task_excited']      = weights_df.apply(lambda x: kernel_excitation(x['task_weights']),axis=1)

@@ -1600,11 +1600,16 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'omissions':
             event_times = session.stimulus_presentations.query('omitted')['start_time'].values
         elif (len(event) > 8) & (event[0:8] == 'omission'):
-            event_times = session.stimulus_presentations.query('omitted '.format(int(event[-1])))['start_time'].values #TODO 
+            omission_num = int(event[-1])
+            session.stimulus_presentations['prev_image_index'] = session.stimulus_presentations['image_index'].shift(periods=1)
+            event_times = session.stimulus_presentations.query('prev_image_index == {} & omitted'.format(omission_num))['start_time'].values
+            del session.stimulus_presentations['prev_image_index'] 
+            if omission_num == 0:
+                print(event_times)
         elif (len(event)>5) & (event[0:5] == 'image') & ('change' not in event):
             event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
         elif (len(event)>5) & (event[0:5] == 'image') & ('change' in event):
-            event_times = session.stimulus_presentations.query('is_change & (image_index == {})'.format(int(event[-1])))['start_time'].values
+            event_times = session.stimulus_presentations.query('is_change & (image_index == {}'.format(int(event[-1])))['start_time'].values
         else:
             raise Exception('\tCould not resolve kernel label')
 
@@ -1781,6 +1786,7 @@ class DesignMatrix(object):
         offset_samples = int(np.floor(self.ophys_frame_rate*offset))
 
         this_kernel = toeplitz(events, kernel_length_samples, offset_samples)
+        
         self.kernel_dict[label] = {
             'kernel':this_kernel,
             'kernel_length_samples':kernel_length_samples,
@@ -1791,6 +1797,17 @@ class DesignMatrix(object):
             'ind_stop':self.running_stop+kernel_length_samples
             }
         self.running_stop += kernel_length_samples
+        
+        if label == 'omission0':
+            np.set_printoptions(threshold=np.inf)
+            print(this_kernel.T[950:1000])
+            print('Displaying design matrix for omission0 kernel...')
+            plt.clf()
+            plt.imshow(this_kernel.T[950:1000], aspect='auto', interpolation='nearest')
+            plt.xlabel('Position of window (reversed)')
+            plt.ylabel('Time bin of output')
+            plt.colorbar()
+            plt.savefig('/home/saaketh.medepalli/visual_behavior_glm/visual_behavior_glm/omission0_design.png')
 
 def split_by_engagement(design, run_params, session, fit):
     '''

@@ -41,6 +41,7 @@ print('\nVersion Specified!\n')
 ### Main paper figures
 ## Panel A - Example inputs and outputs
 # Load example experiment, which takes a few minutes
+<<<<<<< HEAD
 # oeid = 792815735  
 # g=GLM(oeid, VERSION, use_previous_fit=True, log_results=True, log_weights=True)
 
@@ -58,7 +59,7 @@ print('\nSkipping Panel A...\n')
 
 ## Panel B - Omission kernel heatmap for familiar sessions
 # This generates several figures, Panel B is `omissions_heatmap_with_dropout_Familiar.svg`
-gvt.kernel_evaluation(weights_df, run_params, 'omissions', session_filter=['Familiar'])
+# gvt.kernel_evaluation(weights_df, run_params, 'omissions', session_filter=['Familiar'])
 print('\nPanel B Complete!\n')
 
 ## Panel C - Omission kernels for each experience level

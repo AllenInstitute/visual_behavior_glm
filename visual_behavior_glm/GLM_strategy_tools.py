@@ -5,21 +5,18 @@ import matplotlib.pyplot as plt
 import visual_behavior_glm.GLM_visualization_tools as gvt
 from scipy.stats import linregress
 
-BEH_STRATEGY_OUTPUT = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/behavior_model_output/_summary_table.pkl'
-# TODO
-# set up regression against prior_exposure_to_omissions
-# Separate computation and plotting code
-# analyze engaged/disengaged separatation 
-# set up folder for saving figures
-# set up automatic figure saving
-# save fits dictionary somewhere
-# on scatter plot, add binned values on regression
-# on scatter plot, include regression values (r^2 and slope)
-# disengaged regression has nans
-# set up regression by exposure number
-# maybe try regressing against hit/miss difference?
-# what filtering do we need to do on cells and sessions?
+def add_behavior_metrics(df,summary_df):
+    '''
+        Merges the behavioral summary table onto the dataframe passed in 
+    '''  
+    out_df = pd.merge(df, summary_df,on='behavior_session_id',suffixes=('','_ophys_table'))
+    out_df['strategy'] = ['visual' if x else 'timing' \
+        for x in out_df['visual_strategy_session']]
+    return out_df
 
+
+
+##### DEV BELOW HERE
 def make_strategy_figures(VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):
     
     # Analysis Dataframes 
@@ -154,22 +151,6 @@ def plot_strategy(results_beh, run_params,ym='omissions'):
         fits=scatter_by_cell(results_beh,run_params,cre_line=cre, ymetric=ym,ymetric_threshold=-0.1, sessions=[0,1,2,3], use_prior_omissions=True, plot_single=True, title=cre+', familiar',area = ['VISp'])
 
 
-
-def get_ophys_summary_table():
-    '''
-        Loads the behavior summary file
-    '''
-    return pd.read_pickle(BEH_STRATEGY_OUTPUT) 
-
-def add_behavior_metrics(df):
-    '''
-        Merges the behavioral summary table onto the dataframe passed in 
-    '''  
-    ophys = get_ophys_summary_table()
-    out_df = pd.merge(df, ophys, on='behavior_session_id',suffixes=('','_ophys_table'))
-    out_df['strategy'] = ['visual' if x else 'timing' for x in out_df['visual_strategy_session']]
-    return out_df
-
 def scatter_dataset(results_beh, run_params,threshold=0,ymetric_threshold=0, xmetric='strategy_dropout_index', ymetric='omissions',sessions=[1,3,4,6],use_prior_omissions=False,image_set='familiar',area=['VISp','VISl'],use_prior_image_set=False):
     fig, ax = plt.subplots(3,len(sessions)+1, figsize=(18,10))
     fits = {}
@@ -221,11 +202,11 @@ def scatter_by_session(results_beh, run_params, cre_line=None, threshold=0,ymetr
 
 def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0, ymetric_threshold=0, sessions=[1],xmetric='strategy_dropout_index',ymetric='omissions',title='',nbins=10,ax=None,row_start=False,col_start=False,use_prior_omissions = False,plot_single=False,image_set='familiar',area=['VISp','VISl'],use_prior_image_set=False,equipment=['mesoscope','scientifica']):
     if use_prior_omissions: 
-        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_omissions_ophys_table in @sessions)&(familiar == @image_set)&(targeted_structure in @area)&(equipment in @equipment)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_omissions_ophys_table in @sessions)&(familiar == @image_set)&(targeted_structure in @area)&(equipment_name in @equipment)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
     elif use_prior_image_set:
-        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_image_set_ophys_table in @sessions)&(familiar == @image_set)&(targeted_structure in @area)&(equipment in @equipment)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(prior_exposures_to_image_set_ophys_table in @sessions)&(familiar == @image_set)&(targeted_structure in @area)&(equipment_name in @equipment)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
     else:
-        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(session_number in @sessions)&(targeted_structure in @area)&(equipment in @equipment)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
+        g = results_beh.query('(cre_line == @cre_line)& (variance_explained_full > @threshold)&(session_number in @sessions)&(targeted_structure in @area)&(equipment_name in @equipment)').dropna(axis=0, subset=[ymetric,xmetric]).copy()
     if ymetric_threshold != 0:
         print('filtering')
         g = g[g[ymetric] < ymetric_threshold]

@@ -29,5 +29,11 @@ results_beh = gst.add_behavior_metrics(results_pivoted,summary_df)
 weights_beh = gst.add_behavior_metrics(weights_df,summary_df)
 
 # Do analysis
-scatter_by_session(results_beh, run_params, cre_line ='Slc17a7-IRES2-Cre',ymetric='hits') 
-scatter_by_session(results_beh, run_params, cre_line ='Vip-IRES-Cre',ymetric='omissions')
+gst.scatter_by_session(results_beh, run_params, 
+    cre_line ='Slc17a7-IRES2-Cre',ymetric='hits') 
+gst.scatter_by_session(results_beh, run_params, 
+    cre_line ='Vip-IRES-Cre',ymetric='omissions')
+
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params)
+gst.compare_cre_kernels(weights_beh, run_params)
+gst.plot_strategy()

@@ -209,4 +209,4 @@ if __name__ == "__main__":
                     args_string,
                 )
             )
-            time.sleep(0.001)
+            time.sleep(0.002)

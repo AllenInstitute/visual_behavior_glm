@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=om_sp    # Job name
+#SBATCH --job-name=vis_res    # Job name
 #SBATCH --mail-type=END,FAIL          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=saaketh.medepalli@alleninstitute.org     # Where to send mail  
 #SBATCH --ntasks=1                    # Run on a single CPU

@@ -22,17 +22,16 @@ def get_versions(vrange=[15,20]):
 
 def define_kernels():
     kernels = {
-        'images':     {'event': 'images', 'type':'discrete', 'length': 0.75, 'offset': -0.5, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
-        'omissions': {'event': 'omissions', 'type':'discrete', 'length': 0.75, 'offset': -0.5, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
-        #'intercept':    {'event':'intercept',   'type':'continuous',    'length':0,     'offset':0,     'num_weights':None, 'dropout':True, 'text': 'constant value'},   
-        #'hits':         {'event':'hit',         'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
-        #'misses':       {'event':'miss',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
-        #'each-image-omission':        {'event':'each-image-omission',   'type':'discrete',  'length':0.5,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
-        #'each-image':   {'event':'each-image',  'type':'discrete',      'length':0.5,  'offset':-0.5,     'num_weights':None, 'dropout':True, 'text': 'image presentation'},
-        #'post-omissions':   {'event':'omissions',   'type':'discrete',  'length':2.25,   'offset':0.75,  'num_weights':None, 'dropout':True, 'text': 'images after omission'},
-        #'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'normalized running speed'},
-        #'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'Z-scored pupil diameter'},
-        #'licks':        {'event':'licks',       'type':'discrete',      'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'mouse lick'},
+        # 'images':     {'event': 'images', 'event_type': 'full', 'type':'discrete', 'length': 0.75, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
+        # 'omissions': {'event': 'omissions', 'event_type': 'full', 'type':'discrete', 'length': 1.5, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
+        'intercept':    {'event':'intercept', 'type':'continuous',    'length':0,     'offset':0,     'num_weights':None, 'dropout':True, 'text': 'constant value'},   
+        'hits':         {'event':'hit',         'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
+        'misses':       {'event':'miss',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
+        'each-image-omission':        {'event':'each-image-omission',  'event_type': 'onset',  'type':'discrete',  'length':3,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
+        'each-image':   {'event':'each-image',  'event_type': 'onset', 'type':'discrete',      'length':0.75,  'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image presentation'},
+        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'normalized running speed'},
+        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'Z-scored pupil diameter'},
+        'licks':        {'event':'licks',       'type':'discrete',      'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'mouse lick'},
         #'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'num_weights':None,  'dropout':True, 'text': 'behavioral model weights'},
         #'lick_model':   {'event':'lick_model',  'type':'continuous',    'length':2,     'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'lick probability from video'},
         #'groom_model':  {'event':'groom_model', 'type':'continuous',    'length':2,     'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'groom probability from video'},
@@ -170,7 +169,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'ElasticNet': False,            # If True, uses the best L1/L2 value for each session
         'ElasticNet_nalphas':40,        #
         'ElasticNet_nL1_ratios':40,     #
-        'L2_optimize_by_cre': False,    # If True, uses the best L2 value for each cell
+        'L2_optimize_by_cre': False,    # If True, uses the best L2 value for each cre-line
         'L2_optimize_by_cell': False,    # If True, uses the best L2 value for each cell
         'L2_optimize_by_session': True, # If True, uses the best L2 value for this session
         'L2_use_fixed_value': False,    # If True, uses the hard coded L2_fixed_lambda  
@@ -268,12 +267,6 @@ def process_kernels(kernels):
         for index, val in enumerate(range(0,8)):
             kernels['omission' + str(val)] = copy(specs)
             kernels['omission' + str(val)]['event'] = 'omission' + str(val)
-    if 'beh_model' in kernels:
-        specs = kernels.pop('beh_model')
-        weight_names = ['bias','task0','omissions1','timing1D']
-        for index, val in enumerate(weight_names):
-            kernels['model_' + str(val)] = copy(specs)
-            kernels['model_' + str(val)]['event'] = 'model_' + str(val)
     if 'each-image-pred' in kernels:
         specs = kernels.pop('each-image-pred')
         for val in range(0, 8):
@@ -303,10 +296,11 @@ def define_dropouts(kernels,run_params):
         # Define the nested_models
         dropout_definitions={
             'all-images':           ['image0','image1','image2','image3','image4','image5','image6','image7'],
+            'all-omissions':        ['omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 'omission6', 'omission7'],
             'task':                 ['hits','misses','passive_change','post-hits','post-misses','post-passive_change'],
-            'behavioral':           ['running','pupil','licks'],
-            }
-        
+            'behavioral':           ['running','pupil','licks'],    
+        }
+             
         if 'post-omissions' in kernels:
             dropout_definitions['all-omissions'] = ['omissions','post-omissions']
         if 'post-hits' in kernels:

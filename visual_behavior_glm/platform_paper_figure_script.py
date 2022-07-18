@@ -35,7 +35,7 @@ plt.ion()
 
 
 ### Define model version
-VERSION = '51_medepalli_omission_specific'
+VERSION = '54_medepalli_omission_specific'
 print('\nVersion Specified!\n')
 
 ### Main paper figures
@@ -58,20 +58,22 @@ print('\nSkipping Panel A...\n')
 
 ## Panel B - Omission kernel heatmap for familiar sessions
 # This generates several figures, Panel B is `omissions_heatmap_with_dropout_Familiar.svg`
-gvt.kernel_evaluation(weights_df, run_params, 'omission0', session_filter=['Familiar'])
+gvt.kernel_evaluation(weights_df, run_params,'all-omissions', savefig=True, cell_filter='vip')
 print('\nPanel B Complete!\n')
+# print('\nSkipping Panel B\n')
 
 ## Panel C - Omission kernels for each experience level
 # This generates 6 figures,  3 by experience, and 3 by cre-line
 # only the 3 by experience are used in the main figure
-# gvt.plot_kernel_comparison_by_experience(weights_df, run_params, 'omissions', savefig=True)
-# print('\nPanel C Complete!\n')
-print('\nSkipping Panel C...\n')
+breakpoint()
+gvt.plot_kernel_comparison_by_experience(weights_df, run_params, ['intercept', 'running', 'licks', 'pupil', 'image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'all-images', 'omissions'], savefig=True)
+print('\nPanel C Complete!\n')
+# print('\nSkipping Panel C...\n')
 
 ## Panel D - Dropout summaries
 # Returns a dataframe with rows for cre/dropout, and columns describing
 # the dropout score
-# stats_D = gvt.plot_dropout_summary_population(results,run_params, savefig=True) 
+# stats_D = gvt.plot_dropout_summary_population(results, run_params, dropouts_to_show=['all-images', 'all-omissions', 'behavioral'], savefig=True) 
 # print('\nPanel D Complete!\n')
 print('\nSkipping Panel D...\n')
 
@@ -93,7 +95,7 @@ print('\nSkipping Panel D...\n')
         "<cell type> matched data" is just for matched cells
         "<cell type> strict matched data" is available only if requested 
 '''
-# stats_E = gvt.plot_population_averages(results_pivoted, run_params, savefig=True) 
+# stats_E = gvt.plot_population_averages(results_pivoted, run_params, dropouts_to_show=['all-images', 'all-omissions', 'behavioral'], savefig=True) 
 # print('\nPanel E Complete!\n')
 print('\nSkipping Panel E...\n')
 

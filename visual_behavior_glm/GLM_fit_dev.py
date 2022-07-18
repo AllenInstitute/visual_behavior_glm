@@ -337,7 +337,7 @@ def get_analysis_dfs(VERSION):
     print('\nProcessed run_params\n')
     results = gat.retrieve_results(
         search_dict={'glm_version':VERSION},
-        results_type='summary'
+        results_type='summary' # 1 row per unique cell/session BUT VE, fraction_change_from_full, absolute_change_from_full metrics only calculated on TEST data
         )
     print('\nProcessed results\n')
     results_pivoted = gat.build_pivoted_results_summary(
@@ -349,6 +349,7 @@ def get_analysis_dfs(VERSION):
     print('\nProcessed weights dataframe\n')  
     return run_params, results, results_pivoted, weights_df
 
+ 
 def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):
     
     # Analysis Dataframes 

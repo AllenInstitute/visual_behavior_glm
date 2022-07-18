@@ -5,6 +5,7 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import scipy 
+import math
 from tqdm import tqdm
 from copy import copy
 import matplotlib.pyplot as plt
@@ -88,7 +89,7 @@ def check_weight_lengths(fit,design):
         consistent with the number of timesteps per stimulus
     '''
     num_weights_per_stimulus = fit['stimulus_interpolation']['timesteps_per_stimulus']
-    num_weights_design = len([x for x in design.get_X().weights.values if x.startswith('image0')])
+    num_weights_design = len([x for x in design.get_X().weights.values if x.startswith('image')])
     assert num_weights_design == num_weights_per_stimulus, "Number of weights in design matrix is incorrect"
     if ('dropouts' in fit) and ('train_weights' in fit['dropouts']['Full']):
         num_weights_fit = len([x for x in fit['dropouts']['Full']['train_weights'].weights.values if x.startswith('image0')])
@@ -150,8 +151,8 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
-    check_weight_lengths(fit,design)
-
+    # check_weight_lengths(fit,design)
+    
     # Check Interpolation onto stimulus timestamps
     if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
         check_image_kernel_alignment(design,run_params)
@@ -177,7 +178,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     # Iterate over model selections
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
-    check_weight_lengths(fit,design)
+    # check_weight_lengths(fit,design)
 
     # Perform shuffle analysis, with two shuffle methods
     if (not NO_DROPOUTS) and (fit['ok_to_fit_preferred_engagement']) and (run_params['version_type'] == 'production'):
@@ -282,16 +283,12 @@ def evaluate_ridge(fit, design,run_params,session):
     elif not fit['ok_to_fit_preferred_engagement']:
         print('\tSkipping ridge evaluation because insufficient preferred engagement timepoints')
         fit['avg_L2_regularization'] = np.nan      
-        fit['cell_L2_regularization'] = np.empty((fit['fit_trace_arr'].shape[1],))
-        fit['L2_test_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
-        fit['L2_train_cv'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
-        fit['L2_at_grid_min'] = np.empty((fit['fit_trace_arr'].shape[1],))
-        fit['L2_at_grid_max'] = np.empty((fit['fit_trace_arr'].shape[1],))
-        fit['cell_L2_regularization'][:] = np.nan
-        fit['L2_test_cv'][:] = np.nan
-        fit['L2_train_cv'][:] =np.nan
-        fit['L2_at_grid_min'][:] =np.nan
-        fit['L2_at_grid_max'][:] =np.nan
+	# Where fit['fit_trace_arr'].shape[1] gives the # cells (when fitting by cell)
+        fit['cell_L2_regularization'] = np.full((fit['fit_trace_arr'].shape[1],), np.nan)
+        fit['L2_test_cv'] = np.full((fit['fit_trace_arr'].shape[1],), np.nan) 
+        fit['L2_train_cv'] = np.full((fit['fit_trace_arr'].shape[1],), np.nan) 
+        fit['L2_at_grid_min'] = np.full((fit['fit_trace_arr'].shape[1],), np.nan)
+        fit['L2_at_grid_max'] = np.full((fit['fit_trace_arr'].shape[1],), np.nan)
     elif run_params['ElasticNet']:
         print('Evaluating a grid of regularization values for Lasso')
         fit = evaluate_lasso(fit, design, run_params)
@@ -400,27 +397,17 @@ def evaluate_models(fit, design, run_params):
             coords = {  'weights':[], 
                         'cell_specimen_id':cellids}
             )
-        fit['dropouts']['Full']['cv_weights']      = np.empty((0,fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
-        fit['dropouts']['Full']['cv_var_train']    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
-        fit['dropouts']['Full']['cv_var_test']     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
-        fit['dropouts']['Full']['cv_adjvar_train'] = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
-        fit['dropouts']['Full']['cv_adjvar_test']  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
-        fit['dropouts']['Full']['cv_adjvar_train_full_comparison'] = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
-        fit['dropouts']['Full']['cv_adjvar_test_full_comparison']  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        fit['dropouts']['Full']['cv_weights']      = np.full((0,fit['fit_trace_arr'].shape[1], len(fit['splits'])), np.nan) 
+        fit['dropouts']['Full']['cv_var_train']    = np.full((fit['fit_trace_arr'].shape[1], len(fit['splits'])), np.nan)
+        fit['dropouts']['Full']['cv_var_test']     = np.full((fit['fit_trace_arr'].shape[1], len(fit['splits'])), np.nan)
+        fit['dropouts']['Full']['cv_adjvar_train'] = np.full((fit['fit_trace_arr'].shape[1], len(fit['splits'])), np.nan)
+        fit['dropouts']['Full']['cv_adjvar_test']  = np.full((fit['fit_trace_arr'].shape[1], len(fit['splits'])), np.nan)
+        fit['dropouts']['Full']['cv_adjvar_train_full_comparison'] = np.full((fit['fit_trace_arr'].shape[1], len(fit['splits'])), np.nan)
+        fit['dropouts']['Full']['cv_adjvar_test_full_comparison']  = np.full((fit['fit_trace_arr'].shape[1], len(fit['splits'])), np.nan)
         fit['dropouts']['Full']['train_weights'] = dummy_weights # Needs to be xarray
-        fit['dropouts']['Full']['train_variance_explained']    = np.empty((fit['fit_trace_arr'].shape[1],)) 
-        fit['dropouts']['Full']['train_adjvariance_explained'] = np.empty((fit['fit_trace_arr'].shape[1],)) 
-        fit['dropouts']['Full']['full_model_train_prediction'] = np.empty((0,fit['fit_trace_arr'].shape[1]))
-        fit['dropouts']['Full']['cv_weights'][:]      = np.nan
-        fit['dropouts']['Full']['cv_var_train'][:]    = np.nan
-        fit['dropouts']['Full']['cv_var_test'][:]     = np.nan
-        fit['dropouts']['Full']['cv_adjvar_train'][:] = np.nan
-        fit['dropouts']['Full']['cv_adjvar_test'][:]  = np.nan
-        fit['dropouts']['Full']['cv_adjvar_train_full_comparison'][:] = np.nan
-        fit['dropouts']['Full']['cv_adjvar_test_full_comparison'][:]  = np.nan
-        fit['dropouts']['Full']['train_variance_explained'][:]    = np.nan 
-        fit['dropouts']['Full']['train_adjvariance_explained'][:] = np.nan 
-        fit['dropouts']['Full']['full_model_train_prediction'][:] = np.nan  
+        fit['dropouts']['Full']['train_variance_explained']    = np.full((fit['fit_trace_arr'].shape[1],), np.nan) 
+        fit['dropouts']['Full']['train_adjvariance_explained'] = np.full((fit['fit_trace_arr'].shape[1],), np.nan) 
+        fit['dropouts']['Full']['full_model_train_prediction'] = np.full((0,fit['fit_trace_arr'].shape[1]), np.nan)
         return fit
     if run_params['L2_use_fixed_value'] or run_params['L2_optimize_by_session'] or run_params['L2_optimize_by_cre']:
         print('Using a constant regularization value across all cells')
@@ -570,9 +557,9 @@ def evaluate_models_different_ridge(fit,design,run_params):
         for cell_index, cell_value in tqdm(enumerate(fit['fit_trace_arr']['cell_specimen_id'].values),total=len(fit['fit_trace_arr']['cell_specimen_id'].values),desc='   Fitting Cells'):
 
             fit_trace = fit['fit_trace_arr'][:,cell_index]
-            Wall = fit_cell_regularized(X_inner,fit_trace, X,fit['cell_L2_regularization'][cell_index])     
-            var_explain = variance_ratio(fit_trace, Wall,X)
-            adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
+            Wall = fit_cell_regularized(X_inner, fit_trace, X, fit['cell_L2_regularization'][cell_index])     
+            var_explain = variance_ratio(fit_trace, Wall, X)
+            adjvar_explain = masked_variance_ratio(fit_trace, Wall, X, mask) 
             all_weights[:,cell_index] = Wall
             all_var_explain[cell_index] = var_explain
             all_adjvar_explain[cell_index] = adjvar_explain
@@ -1219,7 +1206,7 @@ def interpolate_to_stimulus(fit, session, run_params):
     fit['fit_trace_bins']   = new_bins
    
     # Use the number of timesteps per stimulus to define the image kernel length so we get no overlap 
-    kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7', 'omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 'omission6', 'omission7']
     if 'post-omissions' in run_params['kernels']:
         kernels_to_limit_per_image_cycle.append('omissions')
     if 'post-hits' in run_params['kernels']:
@@ -1592,22 +1579,38 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = session.stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]           
         elif event == 'images':
-            event_times = session.stimulus_presentations.query('not omitted')['start_time'].values
+            event_type = run_params['kernels'][event]['event_type'] 
+            if event_type == 'full' or event_type == 'onset':
+                event_times = session.stimulus_presentations.query('not omitted')['start_time'].values
+            else:
+                event_times = session.stimulus_presentations.query('not omitted')['stop_time'].values
         elif event == 'image_expectation':
             event_times = session.stimulus_presentations['start_time'].values
             # Append last image
             event_times = np.concatenate([event_times,[event_times[-1]+.75]])
         elif event == 'omissions':
-            event_times = session.stimulus_presentations.query('omitted')['start_time'].values
+            event_type = run_params['kernels'][event]['event_type'] 
+            if event_type == 'full' or event_type == 'onset':
+                event_times = session.stimulus_presentations.query('omitted')['start_time'].values
+            else:
+                event_times = session.stimulus_presentations.query('omitted')['stop_time'].values 
         elif (len(event) > 8) & (event[0:8] == 'omission'):
+            event_type = run_params['kernels'][event]['event_type']
             omission_num = int(event[-1])
-            session.stimulus_presentations['prev_image_index'] = session.stimulus_presentations['image_index'].shift(periods=1)
-            event_times = session.stimulus_presentations.query('prev_image_index == {} & omitted'.format(omission_num))['start_time'].values
-            del session.stimulus_presentations['prev_image_index'] 
-            if omission_num == 0:
-                print(event_times)
+            if event_type == 'full' or event_type == 'onset':
+                session.stimulus_presentations['prev_image_index'] = session.stimulus_presentations['image_index'].shift(periods=1)
+                event_times = session.stimulus_presentations.query('prev_image_index == {} & omitted'.format(omission_num))['start_time'].values
+                del session.stimulus_presentations['prev_image_index'] 
+            else:
+                session.stimulus_presentations['next_image_index'] = session.stimulus_presentations['image_index'].shift(periods=-1)
+                event_times = session.stimulus_presentations.query('next_image_index == {} & omitted'.format(omission_num))['stop_time'].values
+                del session.stimulus_presentations['next_image_index'] 
         elif (len(event)>5) & (event[0:5] == 'image') & ('change' not in event):
-            event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
+            event_type = run_params['kernels'][event]['event_type']
+            if event_type == 'full' or event_type == 'onset':
+                event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
+            else:
+                event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['stop_time'].values
         elif (len(event)>5) & (event[0:5] == 'image') & ('change' in event):
             event_times = session.stimulus_presentations.query('is_change & (image_index == {}'.format(int(event[-1])))['start_time'].values
         else:
@@ -1636,11 +1639,31 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         )        
         return design       
     else:
+        # Add event occurrence for the event throughout its duration ONLY for the omission-specific/omissions and image-specific/images features
+        if (kernel_name.startswith('image')  or  kernel_name.startswith('omission')) and run_params['kernels'][kernel_name]['event_type'] == 'full':
+            event_times_start = event_times
+            avg_event_len = 0.75
+            avg_timestamp_len = np.average(np.diff(fit['fit_trace_timestamps']))
+            # TODO: How long should the while loop be to avoid errors with length during analysis
+            event_times = np.empty(0)
+            start = 0
+            # Add all times of the event until 750 ms after event start
+            while start < avg_event_len and not math.isclose(start, avg_event_len):
+                event_times = np.append(event_times, event_times_start + start)
+                start += avg_timestamp_len
         events_vec, timestamps = np.histogram(event_times, bins=fit['fit_trace_bins']) # Bins times of the occurrence of a certain feature based on fit_trace_bins 
-    
+        
+        # Correction to adjust for extra events for each event (since the fit trace bins are not exactly equal in size) 
+        corrections = np.where(events_vec == 2)[0].tolist()
+        for ind in corrections:
+             if events_vec[ind - 1] == 0:
+                 events_vec[ind - 1] += 1
+             elif events_vec[ind + 1] == 0:
+                 events_vec[ind + 1] += 1     
+             events_vec[ind] -= 1
+ 
         if np.max(events_vec) > 1:
             raise Exception('Had multiple events in the same timebin, {}'.format(kernel_name))
-
         design.add_kernel(
             events_vec, 
             run_params['kernels'][kernel_name]['length'], 
@@ -1648,7 +1671,6 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             offset=run_params['kernels'][kernel_name]['offset'],
             num_weights=run_params['kernels'][kernel_name]['num_weights']
         )   
-
         return design
 
 # Some mice not actively engaged in the task based on the lack of involvement in the task (measured by the number of rewards consumed in the task)
@@ -1797,17 +1819,6 @@ class DesignMatrix(object):
             'ind_stop':self.running_stop+kernel_length_samples
             }
         self.running_stop += kernel_length_samples
-        
-        if label == 'omission0':
-            np.set_printoptions(threshold=np.inf)
-            print(this_kernel.T[950:1000])
-            print('Displaying design matrix for omission0 kernel...')
-            plt.clf()
-            plt.imshow(this_kernel.T[950:1000], aspect='auto', interpolation='nearest')
-            plt.xlabel('Position of window (reversed)')
-            plt.ylabel('Time bin of output')
-            plt.colorbar()
-            plt.savefig('/home/saaketh.medepalli/visual_behavior_glm/visual_behavior_glm/omission0_design.png')
 
 def split_by_engagement(design, run_params, session, fit):
     '''
@@ -2048,7 +2059,7 @@ def fit_regularized(fit_trace_arr, X, lam):
             )
     return W_xarray
 
-def fit_cell_regularized(X_cov,fit_trace_arr, X, lam):
+def fit_cell_regularized(X_cov, fit_trace_arr, X, lam):
     '''
     Analytical OLS solution with added L2 regularization penalty. 
 

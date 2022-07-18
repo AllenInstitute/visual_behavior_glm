@@ -2,6 +2,7 @@ import os
 import bz2
 import scipy
 import pickle
+import math
 import _pickle as cPickle
 import warnings
 import numpy as np
@@ -496,7 +497,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
                 All derived values (`variance_explained`, `fraction_change_from_full`, `absolute_change_from_full`) 
                 are calculated only on test data, not train data.
         return_list - a list of columns to return. Returning fewer columns speeds queries
-        merge_in_experiment_metadata - boolan which, if True, merges in data from experiment table
+        merge_in_experiment_metadata - boolean which, if True, merges in data from experiment table
         remove_invalid_rois - bool
             if True, removes invalid rois from the returned results
             if False, includes the invalid rois in the returned results
@@ -789,17 +790,18 @@ def process_session_to_df(oeid, run_params, index):
     '''
     # Get weights
     W = get_weights_matrix_from_mongo(int(oeid), run_params['version'])
-
+    
     # Make Dataframe with cell and experiment info
-    session_df  = pd.DataFrame()
+    session_df = pd.DataFrame()
     session_df['cell_specimen_id'] = W.cell_specimen_id.values
     session_df['ophys_experiment_id'] = [int(oeid)]*len(W.cell_specimen_id.values)  
     # For each kernel, extract the weights for this kernel
     for k in run_params['kernels']:
-        weight_names = [w for w in W.weights.values if w.startswith(k)]
+        weight_names = [w for w in W.weights.values if w.startswith(k)] # All of the kernels associated with that particular kernel (across all cells in the specific image)
         
         # Check if this kernel was in this model
         if len(weight_names) > 0:
+            # Loads the weights from W into the dataframe for those specific kernels associated with k (shape of (# cells in OEID, length of weight))
             session_df[k] = W.loc[dict(weights=weight_names)].values.T.tolist()
     return session_df
 
@@ -835,10 +837,10 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     print('\nweights_df: processed all sessions to df\n')    
 
     # Merge all the session_dfs, and add more session level info
-    weights_df = pd.concat(sessions,sort=False)
+    weights_df = pd.concat(sessions,sort=False) # Merge all cells in each oeid row-wise
     weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) 
-   
-    # If we didn't compute dropout scores, then there won't be redundant columns, so the weights won't get appended with _weights
+    
+    # If we didn't compute dropout scores, then there won't be redundant columns, so the weights won't get appended with _weights (in that case, if none of them have _weights, add that for all kernels in run_params)
     if not np.any(['weights' in x for x in weights_df.columns.values]):
         rename = {x: x+'_weights' for x in run_params['kernels'].keys()}
         weights_df = weights_df.rename(columns=rename)   
@@ -846,44 +848,47 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Interpolate everything onto common time base
     kernels = [x for x in weights_df.columns if 'weights' in x]
     for kernel in tqdm(kernels, desc='Interpolating kernels'):
-      weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
+        weights_df = interpolate_kernels(weights_df, run_params, kernel,normalize=normalize)
  
     print('Computing average kernels') 
-    # Compute generic image kernel
-    weights_df['all-images_weights'] = weights_df.apply(lambda x: np.mean([
-        x['image0_weights'],
-        x['image1_weights'],
-        x['image2_weights'],
-        x['image3_weights'],       
-        x['image4_weights'],
-        x['image5_weights'],
-        x['image6_weights'],
-        x['image7_weights']
-        ],axis=0),axis=1)
-
-    weights_df['all-omissions_weights'] = weights_df.apply(lambda x: np.mean([x['omission0_weights'],
-  x['omission1_weights'],
-  x['omission2_weights'],
-  x['omission3_weights'],
-  x['omission4_weights'],
-  x['omission5_weights'],
-  x['omission6_weights'],
-  x['omission7_weights']], axis=0), axis=1)
-
-    # Compute preferred image kernel
-    weights_df['preferred_image_weights'] = weights_df.apply(lambda x: compute_preferred_kernel([
-        x['image0_weights'],
-        x['image1_weights'],
-        x['image2_weights'],
-        x['image3_weights'],       
-        x['image4_weights'],
-        x['image5_weights'],
-        x['image6_weights'],
-        x['image7_weights']
-        ]),axis=1) 
+    if 'image0_weights' in weights_df:
+        # Compute generic image kernel (average of all the individual image kernels) - averages over each of the eight image weights for each kernel weight for each cell across all the oeids (some cells will be nans causing the entire average to be nan)
+        weights_df['all-images_weights'] = weights_df.apply(lambda x: np.nanmean([
+          x['image0_weights'],
+          x['image1_weights'],
+          x['image2_weights'],
+          x['image3_weights'],       
+          x['image4_weights'],
+          x['image5_weights'],
+          x['image6_weights'],
+          x['image7_weights']
+          ],axis=0),axis=1)
+        
+        # Compute preferred image kernel
+        weights_df['preferred_image_weights'] = weights_df.apply(lambda x: compute_preferred_kernel([
+          x['image0_weights'],
+          x['image1_weights'],
+          x['image2_weights'],
+          x['image3_weights'],       
+          x['image4_weights'],
+          x['image5_weights'],
+          x['image6_weights'],
+          x['image7_weights']
+          ]),axis=1) 
     
+    # The function here is the nanmean, which performs the mean of all the numpy arrays of the omission weights across the rows (reducing all the rows, leaving one array of length 23) -> this entire operation is performed on each row (axis=1) 
+    if 'omission0_weights' in weights_df:
+       weights_df['all-omissions_weights'] = weights_df.apply(lambda x: np.nanmean([x['omission0_weights'],
+        x['omission1_weights'],
+        x['omission2_weights'],
+        x['omission3_weights'],
+        x['omission4_weights'],
+        x['omission5_weights'],
+        x['omission6_weights'],
+        x['omission7_weights']], axis=0), axis=1)
+   
     print("All the recorded weights:", weights_df.columns)
-    
+
     #  make a combined omissions kernel
     if 'post-omissions_weights' in weights_df:
         weights_df['all-omissions_weights'] = weights_df.apply(lambda x: compute_all_omissions([
@@ -911,17 +916,18 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
             ],axis=0),axis=1)
 
     # Make a combined change kernel
-    weights_df['task_weights'] = weights_df.apply(lambda x: np.mean([
-        x['hits_weights'],
-        x['misses_weights'],
-        ],axis=0),axis=1)
+    if 'task_weights' in weights_df:
+        weights_df['task_weights'] = weights_df.apply(lambda x: np.mean([
+            x['hits_weights'],
+            x['misses_weights'],
+            ], axis=0),axis=1)
 
     # Make a metric of omission excitation/inhibition
-    weights_df['omissions_excited'] = weights_df.apply(lambda x: kernel_excitation(x['all-omissions_weights']),axis=1)
-    weights_df['hits_excited']      = weights_df.apply(lambda x: kernel_excitation(x['hits_weights']),axis=1)
-    weights_df['misses_excited']    = weights_df.apply(lambda x: kernel_excitation(x['misses_weights']),axis=1)
-    weights_df['task_excited']      = weights_df.apply(lambda x: kernel_excitation(x['task_weights']),axis=1)
-    weights_df['all-images_excited']= weights_df.apply(lambda x: kernel_excitation(x['all-images_weights']),axis=1)
+    # weights_df['omissions_excited'] = weights_df.apply(lambda x: kernel_excitation(x['all-omissions_weights']),axis=1)
+    # weights_df['hits_excited']      = weights_df.apply(lambda x: kernel_excitation(x['hits_weights']),axis=1)
+    # weights_df['misses_excited']    = weights_df.apply(lambda x: kernel_excitation(x['misses_weights']),axis=1)
+    # weights_df['task_excited']      = weights_df.apply(lambda x: kernel_excitation(x['task_weights']),axis=1)
+    # weights_df['all-images_excited']= weights_df.apply(lambda x: kernel_excitation(x['all-images_weights']),axis=1)
 
     # Return weights_df
     return weights_df 
@@ -968,32 +974,40 @@ def interpolate_kernels(weights_df, run_params, kernel_name,normalize=False):
     if normalize:
         df = [x/np.max(np.abs(x)) for x in df.values]
 
-    # Interpolate
+    # Interpolate the kernels (currently split across meso and scientifica timescales onto single timebase)
     time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2)
     meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
     time_vecs = {}
     time_vecs['scientifica'] = time_vec
     time_vecs['mesoscope'] = meso_time_vec
+    
+    # the size of one of the cell kernels must match either the corresponding mesoscope or scientifica dimensions
     length_mismatch = len(time_vec) != np.max(np.unique([np.size(x) for x in df]))
     if ('image' in kernel_name) & length_mismatch:
         time_vecs['scientifica'] = time_vecs['scientifica'][0:-1]
         time_vecs['mesoscope'] = time_vecs['mesoscope'][0:-1]
-    if ('omissions' in kernel_name) & length_mismatch:
+    if ('omission' in kernel_name) & length_mismatch:
         time_vecs['scientifica'] = time_vecs['scientifica'][0:-1]
         time_vecs['mesoscope'] = time_vecs['mesoscope'][0:-1]
-    weights_df[kernel_name] = [weight_interpolation(x, time_vecs) for x in df]
+    # Interpolate each cell kernel on to scientifica
+    weights_df[kernel_name] = [weight_interpolation(x, kernel_name, time_vecs) for x in df]
     return weights_df
 
-def weight_interpolation(weight_vec, time_vecs={}):
-    if np.size(weight_vec) ==1:
+def weight_interpolation(weight_vec, kernel_name, time_vecs={}):
+    # Case for intercept (single weight or bias)
+    if np.size(weight_vec) == 1 and kernel_name == 'intercept_weights':
         return weight_vec
+    elif not isinstance(weight_vec, list) and math.isnan(weight_vec):
+        return [np.nan] * time_vecs['scientifica'] # Return list of nans so that nanmean can be taken over it (single nan and list cannot be summed together) for the averaged kernel
+    # Common base is scientifica
     elif len(weight_vec) == len(time_vecs['scientifica']):
         return weight_vec
+    # Interpolate mesoscope onto scientifica
     elif len(weight_vec) == len(time_vecs['mesoscope']):
         return scipy.interpolate.interp1d(time_vecs['mesoscope'], weight_vec, fill_value='extrapolate',bounds_error=False)(time_vecs['scientifica'])
     else:
-        return np.nan 
+        return [np.nan] * time_vecs['scientifica'] # Same reasoning as above
 
 def compute_weight_index(weights_df):
     '''

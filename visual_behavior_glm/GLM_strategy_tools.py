@@ -8,29 +8,20 @@ from scipy.stats import linregress
 def add_behavior_metrics(df,summary_df):
     '''
         Merges the behavioral summary table onto the dataframe passed in 
-    '''  
-    out_df = pd.merge(df, summary_df,on='behavior_session_id',suffixes=('','_ophys_table'))
+    ''' 
+    behavior_columns = ['behavior_session_id','visual_strategy_session',
+        'strategy_dropout_index','dropout_task0','dropout_omissions1',
+        'dropout_omissions','dropout_timing1D']
+    out_df = pd.merge(df, summary_df[behavior_columns],
+        on='behavior_session_id',
+        suffixes=('','_ophys_table'),
+        validate='many_to_one')
     out_df['strategy'] = ['visual' if x else 'timing' \
         for x in out_df['visual_strategy_session']]
     return out_df
 
 
-
 ##### DEV BELOW HERE
-def make_strategy_figures(VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):
-    
-    # Analysis Dataframes 
-    #####################
-    if run_params is None:
-        print('loading data')
-        run_params, results, results_pivoted, weights_df, full_results = get_analysis_dfs(VERSION)
-        print('making figues')
-    results_beh = add_behavior_metrics(results_pivoted.copy())
-    weights_beh = add_behavior_metrics(weights_df.copy())
-  
-    scatter_by_session(results_beh, run_params, cre_line ='Slc17a7-IRES2-Cre',ymetric='hits') 
-    scatter_by_session(results_beh, run_params, cre_line ='Vip-IRES-Cre',ymetric='omissions')
-
 def make_average_image(weights_df,run_params):
     weights_df['image_weights'] = weights_df.apply(
         lambda x: np.mean([

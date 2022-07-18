@@ -33,7 +33,11 @@ gst.scatter_by_session(results_beh, run_params,
     cre_line ='Slc17a7-IRES2-Cre',ymetric='hits') 
 gst.scatter_by_session(results_beh, run_params, 
     cre_line ='Vip-IRES-Cre',ymetric='omissions')
-
 gst.plot_kernels_by_strategy_by_session(weights_beh, run_params)
+gst.plot_kernels_by_strategy_by_omission_exposure(weights_beh, run_params)
 gst.compare_cre_kernels(weights_beh, run_params)
 gst.plot_strategy()
+
+
+
+

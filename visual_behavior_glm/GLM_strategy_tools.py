@@ -60,9 +60,9 @@ def plot_kernels_by_strategy_by_omission_exposure(weights_beh, run_params,
     ym='omissions',cre_line = 'Vip-IRES-Cre',compare=['strategy']):
     # by omission exposures
     sessions = [[0,1,2,3],[0],[1,2,3,4]]
-    filter_sessions_on =['prior_exposures_to_omissions_ophys_table',\
-        'prior_exposures_to_image_set_ophys_table',\
-        'prior_exposures_to_image_set_ophys_table']
+    filter_sessions_on =['prior_exposures_to_omissions',\
+        'prior_exposures_to_image_set',\
+        'prior_exposures_to_image_set']
     image_set = [['familiar'],['novel'],['novel']]
     fig, ax = plt.subplots(2,len(sessions),figsize=(len(sessions)*3,6),sharey=True)
     for dex, session in enumerate(sessions):
@@ -70,13 +70,13 @@ def plot_kernels_by_strategy_by_omission_exposure(weights_beh, run_params,
         out = gvt.plot_kernel_comparison(weights_beh, run_params, ym, 
             save_results = False,threshold=0, drop_threshold = 0, 
             session_filter = session, cell_filter = cre_line,area_filter=['VISp'], 
-            compare=compare, normalize=False, plot_errors=True,save_kernels=False,
+            compare=compare, plot_errors=True,save_kernels=False,
             ax=ax[0,dex],fs1=14,fs2=12,show_legend=show_legend,
             filter_sessions_on = filter_sessions_on[dex],image_set=image_set[dex]) 
         out = gvt.plot_kernel_comparison(weights_beh, run_params, ym, 
             save_results = False,threshold=0, drop_threshold = 0, 
             session_filter = session, cell_filter = cre_line,area_filter=['VISl'], 
-            compare=compare, normalize=False, plot_errors=True,save_kernels=False,
+            compare=compare, plot_errors=True,save_kernels=False,
             ax=ax[1,dex],fs1=14,fs2=12,show_legend=False,
             filter_sessions_on = filter_sessions_on[dex],image_set=image_set[dex])
         if dex == 0:
@@ -101,7 +101,11 @@ def plot_kernels_by_strategy_by_omission_exposure(weights_beh, run_params,
     return ax
 
 # TODO, need to update
-def compare_cre_kernels(weights_beh, run_params, ym='omissions',compare=['strategy'],equipment_filter='all',title='',sessions=[0,1,2,3],image_set='familiar',filter_sessions_on='prior_exposures_to_omissions'):
+def compare_cre_kernels(weights_beh, run_params, ym='omissions',
+    compare=['strategy'],equipment_filter='all',title='',
+    sessions=['Familiar','Novel 1','Novel >1'],image_set='familiar',
+    filter_sessions_on='experience_level'):
+
     cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
     fig, ax = plt.subplots(1,len(cres),figsize=(len(sessions)*3,4),sharey=True)
     for dex, cre in enumerate(cres):
@@ -269,14 +273,14 @@ def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0,
     if use_prior_omissions: 
         g = results_beh.query('(cre_line == @cre_line)& \
             (variance_explained_full > @threshold)&\
-            (prior_exposures_to_omissions_ophys_table in @sessions)&\
+            (prior_exposures_to_omissions in @sessions)&\
             (familiar == @image_set)&(targeted_structure in @area)&\
             (equipment_name in @equipment)').\
             dropna(axis=0, subset=[ymetric,xmetric]).copy()
     elif use_prior_image_set:
         g = results_beh.query('(cre_line == @cre_line)&\
             (variance_explained_full > @threshold)&\
-            (prior_exposures_to_image_set_ophys_table in @sessions)&\
+            (prior_exposures_to_image_set in @sessions)&\
             (familiar == @image_set)&(targeted_structure in @area)&\
             (equipment_name in @equipment)').\
             dropna(axis=0, subset=[ymetric,xmetric]).copy()

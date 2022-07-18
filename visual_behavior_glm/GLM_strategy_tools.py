@@ -22,31 +22,6 @@ def add_behavior_metrics(df,summary_df):
 
 
 ##### DEV BELOW HERE
-def make_average_image(weights_df,run_params):
-    weights_df['image_weights'] = weights_df.apply(
-        lambda x: np.mean([
-            x['image0_weights'],
-            x['image1_weights'],
-            x['image2_weights'],
-            x['image3_weights'],
-            x['image4_weights'],
-            x['image5_weights'],
-            x['image6_weights'],
-            x['image7_weights']],
-            axis=0),axis=1)
-    weights_df['image'] = weights_df.apply(
-        lambda x: np.mean([
-            x['image0'],
-            x['image1'],
-            x['image2'],
-            x['image3'],
-            x['image4'],
-            x['image5'],
-            x['image6'],
-            x['image7']],
-            axis=0),axis=1)
-    run_params['kernels']['image'] = run_params['kernels']['image0']
-    return weights_df
 
 def plot_kernels_by_strategy_by_session(weights_beh, run_params, ym='omissions',cre_line = 'Vip-IRES-Cre',compare=['strategy']):
     # By Session number

@@ -34,14 +34,14 @@ def plot_kernels_by_strategy_by_session(weights_beh, run_params, ym='omissions',
     for dex, session in enumerate(sessions):
         show_legend = dex == len(sessions) - 1
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
-            save_results = False,threshold=0, drop_threshold = 0, 
+            threshold=0, drop_threshold = 0, 
             session_filter = [session], cell_filter = cre_line,
             area_filter=['VISp'], compare=compare, plot_errors=True,
             save_kernels=False,ax=ax[0,dex],fs1=14,fs2=12,
             show_legend=show_legend,filter_sessions_on = filter_sessions_on,
             image_set=image_set) 
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
-            save_results = False,threshold=0, drop_threshold = 0, 
+            threshold=0, drop_threshold = 0, 
             session_filter = [session], cell_filter = cre_line,
             area_filter=['VISl'], compare=compare, plot_errors=True,
             save_kernels=False,ax=ax[1,dex],fs1=14,fs2=12,show_legend=False,
@@ -70,13 +70,13 @@ def plot_kernels_by_strategy_by_omission_exposure(weights_beh, run_params,
     for dex, session in enumerate(sessions):
         show_legend = dex == len(sessions) - 1
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
-            save_results = False,threshold=0, drop_threshold = 0, 
+            threshold=0, drop_threshold = 0, 
             session_filter = session, cell_filter = cre_line,area_filter=['VISp'], 
             compare=compare, plot_errors=True,save_kernels=False,
             ax=ax[0,dex],fs1=14,fs2=12,show_legend=show_legend,
             filter_sessions_on = filter_sessions_on[dex],image_set=image_set[dex]) 
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
-            save_results = False,threshold=0, drop_threshold = 0, 
+            threshold=0, drop_threshold = 0, 
             session_filter = session, cell_filter = cre_line,area_filter=['VISl'], 
             compare=compare, plot_errors=True,save_kernels=False,
             ax=ax[1,dex],fs1=14,fs2=12,show_legend=False,
@@ -107,33 +107,35 @@ def plot_kernels_by_strategy_by_omission_exposure(weights_beh, run_params,
 def compare_cre_kernels(weights_beh, run_params, ym='omissions',
     compare=['strategy'],equipment_filter='all',title='',
     sessions=['Familiar','Novel 1','Novel >1'],image_set='familiar',
-    filter_sessions_on='experience_level'):
+    filter_sessions_on='experience_level',savefig=False):
 
     cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
-    fig, ax = plt.subplots(1,len(cres),figsize=(len(sessions)*3,4),sharey=True)
+    fig, ax = plt.subplots(1,len(cres),figsize=(len(sessions)*4,4),sharey=True)
     for dex, cre in enumerate(cres):
         show_legend = dex == len(cres) - 1
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
-            save_results = False,threshold=0, drop_threshold = 0, 
+            threshold=0, drop_threshold = 0, 
             session_filter = sessions, cell_filter = cre,area_filter=['VISp'], 
             compare=compare, plot_errors=True,save_kernels=False,ax=ax[dex],
-            fs1=14,fs2=12,show_legend=show_legend,filter_sessions_on=filter_sessions_on,
+            show_legend=show_legend,filter_sessions_on=filter_sessions_on,
             image_set=image_set,equipment_filter=equipment_filter) 
-        ax[dex].set_title(cre)
+        ax[dex].set_title(string_mapper(cre),fontsize=16)
 
     if (equipment_filter == 'all')&(title==""):
-        ax[0].set_ylabel('V1\n'+ax[0].get_ylabel())
+        ax[0].set_ylabel('V1\n'+ax[0].get_ylabel(),fontsize=16)
     elif title != '':
-        ax[0].set_ylabel('V1 - '+title+'\n'+ax[0].get_ylabel())
+        ax[0].set_ylabel('V1 - '+title+'\n'+ax[0].get_ylabel(),fontsize=16)
     else:
-        ax[0].set_ylabel('V1 - '+equipment_filter+'\n'+ax[0].get_ylabel())
+        ax[0].set_ylabel('V1 - '+equipment_filter+'\n'+ax[0].get_ylabel(),fontsize=16)
     if 'binned_strategy' in compare:
         ax[2].legend(labels=['Most Timing','Partial Timing','Partial Visual',\
             'Most Visual'],loc='upper left',bbox_to_anchor=(1.05,1),
             title=' & '.join(compare),handlelength=4)
     plt.tight_layout()
-    filename = ym+'_by_cre_line_'+'_'.join(compare)+'_'+equipment_filter
-    save_figure(fig,run_params['version'], ym, filename)
+
+    if savefig:
+        filename = ym+'_by_cre_line_'+'_'.join(compare)+'_'+equipment_filter
+        save_figure(fig,run_params['version'], ym, filename)
 
 
 def plot_strategy(results_beh, run_params,ym='omissions'):
@@ -355,6 +357,14 @@ def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0,
         save_figure(plt.gcf(),run_params['version'], ymetric, filename)
     return x    
 
+def string_mapper(string):
+    d = {
+        'Vip-IRES-Cre':'Vip Inhibitory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Slc17a7-IRES2-Cre':'Excitatory',
+    }
+    return d[string]
+
 def save_figure(fig,model_version, ymetric, filename):
     glm_dir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
     if not os.path.isdir(glm_dir + 'v_'+model_version +'/figures/strategy'):
@@ -367,38 +377,40 @@ def save_figure(fig,model_version, ymetric, filename):
         '/'+filename+".png")
     print('Figure saved to: '+filename)
 
-def strategy_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],compare=['cre_line'],plot_errors=False,save_kernels=False,fig=None, ax=None,fs1=20,fs2=16,show_legend=True,filter_sessions_on='experience_level',image_set=['familiar','novel'],threshold=0,set_title=None): 
+def strategy_kernel_comparison(weights_df, run_params, kernel, drop_threshold=0,
+    session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",
+    depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],
+    compare=['cre_line'],plot_errors=False,save_kernels=False,fig=None, 
+    ax=None,fs1=16,fs2=12,show_legend=True,filter_sessions_on='experience_level',
+    image_set=['familiar','novel'],threshold=0,set_title=None): 
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
 
         INPUTS:
         run_params              = glm_params.load_run_params(<version>) 
-        results_pivoted         = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+        results_pivoted         = gat.build_pivoted_results_summary(
+            'adj_fraction_change_from_full',results_summary=results)
         weights_df              = gat.build_weights_df(run_params, results_pivoted)
         kernel                  The name of the kernel to be plotted
-        save_results            if True, saves a figure to the directory in run_params['output_dir']
-        drop_threshold,         the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
+        drop_threshold,         the minimum adj_fraction_change_from_full 
+                                for the dropout model of just dropping this kernel
         session_filter,         The list of session numbers to include
-        equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both 
+        equipment_filter,       "scientifica" or "mesoscope" filter, anything 
+                                else plots both 
         cell_filter,            "sst","vip","slc", anything else plots all types
         area_filter,            the list of targeted_structures to include
-        compare (list of str)   list of categorical labels in weights_df to split on and compare
-                                First entry of compare determines color of the line, second entry determines linestyle
-        plot_errors (bool)      if True, plots a shaded error bar for each group of cells
-    
+        compare (list of str)   list of categorical labels in weights_df to 
+                                split on and compare
+                                First entry of compare determines color of the 
+                                line, second entry determines linestyle
+        plot_errors (bool)      if True, plots a shaded error bar for each group of cells 
     '''
     version = run_params['version']
     filter_string = ''
     problem_sessions = gvt.get_problem_sessions()   
     weights_df = weights_df.copy()
-    
-    #if 'dropout_threshold' in run_params:
-    #    threshold = run_params['dropout_threshold']
-    #else:
-    #    threshold = 0.005
-    #threshold = 0
- 
+     
     # Filter by Equipment
     equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
     if equipment_filter == "scientifica": 
@@ -427,26 +439,37 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, save_results=True
         filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
     if area_filter != ['VISp','VISl']:
         filter_string+='_area_'+'_'.join(area_filter)
-    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.svg')
+    filename = os.path.join(run_params['fig_kernels_dir'],kernel+\
+        '_comparison_by_'+'_and_'.join(compare)+filter_string+'.svg')
 
     # Set up time vectors.
     if kernel in ['preferred_image', 'all-images']:
         run_params['kernels'][kernel] = run_params['kernels']['image0'].copy()
     if kernel == 'all-omissions':
         run_params['kernels'][kernel] = run_params['kernels']['omissions'].copy()
-        run_params['kernels'][kernel]['length'] = run_params['kernels']['omissions']['length'] + run_params['kernels']['post-omissions']['length']
+        run_params['kernels'][kernel]['length'] = \
+            run_params['kernels']['omissions']['length'] +\
+            run_params['kernels']['post-omissions']['length']
     if kernel == 'all-hits':
         run_params['kernels'][kernel] = run_params['kernels']['hits'].copy()
-        run_params['kernels'][kernel]['length'] = run_params['kernels']['hits']['length'] + run_params['kernels']['post-hits']['length']   
+        run_params['kernels'][kernel]['length'] = \
+            run_params['kernels']['hits']['length'] + \
+            run_params['kernels']['post-hits']['length']   
     if kernel == 'all-misses':
         run_params['kernels'][kernel] = run_params['kernels']['misses'].copy()
-        run_params['kernels'][kernel]['length'] = run_params['kernels']['misses']['length'] + run_params['kernels']['post-misses']['length']   
+        run_params['kernels'][kernel]['length'] = \
+            run_params['kernels']['misses']['length'] + \
+            run_params['kernels']['post-misses']['length']   
     if kernel == 'all-passive_change':
         run_params['kernels'][kernel] = run_params['kernels']['passive_change'].copy()
-        run_params['kernels'][kernel]['length'] = run_params['kernels']['passive_change']['length'] + run_params['kernels']['post-passive_change']['length']   
+        run_params['kernels'][kernel]['length'] = \
+            run_params['kernels']['passive_change']['length'] + \
+            run_params['kernels']['post-passive_change']['length']   
     if kernel == 'task':
         run_params['kernels'][kernel] = run_params['kernels']['hits'].copy()   
-    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], \
+        run_params['kernels'][kernel]['offset'] + \
+        run_params['kernels'][kernel]['length'],1/31)
     time_vec = np.round(time_vec,2) 
     if 'image' in kernel:
         time_vec = time_vec[:-1]
@@ -487,10 +510,27 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, save_results=True
 
     # Applying hard thresholds to dataset
     if kernel in weights_df:
-        weights = weights_df.query('(not passive)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold) & ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
+        weights = weights_df.query('(not passive)&\
+            (targeted_structure in @area_filter)&\
+            (cre_line in @cell_list)&\
+            (equipment_name in @equipment_list)&\
+            ({0} in @session_filter)&\
+            (ophys_session_id not in @problem_sessions)&\
+            (imaging_depth < @depth_filter[1])&\
+            (imaging_depth > @depth_filter[0])&\
+            (variance_explained_full > @threshold)&\
+            ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
         use_dropouts=True
     else:
-        weights = weights_df.query('(not passive)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > @threshold)'.format(filter_sessions_on))
+        weights = weights_df.query('(not passive)&\
+            (targeted_structure in @area_filter)&\
+            (cre_line in @cell_list)&\
+            (equipment_name in @equipment_list)&\
+            ({0} in @session_filter) &\
+            (ophys_session_id not in @problem_sessions) &\
+            (imaging_depth < @depth_filter[1]) &\
+            (imaging_depth > @depth_filter[0])&\
+            (variance_explained_full > @threshold)'.format(filter_sessions_on))
         print('Dropouts not included, cannot use drop filter')
         use_dropouts=False
 
@@ -503,10 +543,12 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, save_results=True
         post_horz_offset = 2.5
         vertical_offset = .75
         fig = plt.figure(figsize=(width,height))
-        h = [Size.Fixed(pre_horz_offset),Size.Fixed(width-pre_horz_offset-post_horz_offset)]
+        h = [Size.Fixed(pre_horz_offset),\
+            Size.Fixed(width-pre_horz_offset-post_horz_offset)]
         v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
-        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+        ax = fig.add_axes(divider.get_position(),\
+            axes_locator=divider.new_locator(nx=1,ny=1))  
     
     # Define color scheme for project
     colors = gvt.project_colors()
@@ -540,10 +582,11 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, save_results=True
             query_str = '&'.join(['('+x[0]+'==\"'+x[1]+'\")' for x in zip(compare,group)])
             linestyle = lines.setdefault(np.mod(dex,num_2nd),'-')
             color = colors.setdefault(group[0],(100/255,100/255,100/255)) 
-    
+         
         # Filter for this group, and plot
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
-        k=strategy_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, plot_errors=plot_errors) 
+        k=strategy_kernel_comparison_inner(ax,weights_dfiltered,group,\
+            color,linestyle, time_vec, plot_errors=plot_errors) 
         outputs[group]=k
 
     # Clean Plot, and add details
@@ -560,17 +603,13 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, save_results=True
                 'Vip-IRES-Cre':'Vip Inhibitory'
                 }
             session_title=mapper[session_title]
-
-    
-        #plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
         plt.title(kernel+' kernels, '+session_title,fontsize=fs1)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
-    #ax.axvline(0, color='k',linestyle='--',alpha=0.25)
-    ax.set_ylabel('Kernel Weights',fontsize=fs1)      
+
     if kernel == 'omissions':
         ax.set_xlabel('Time from omission (s)',fontsize=fs1)
     elif kernel in ['hits','misses']:
-        ax.set_xlabel('Time from image change (s)',fontsize=fs1)
+        ax.set_xlabel('Time from change (s)',fontsize=fs1)
     else:
         ax.set_xlabel('Time (s)',fontsize=fs1)
 
@@ -578,25 +617,15 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, save_results=True
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     gvt.add_stimulus_bars(ax,kernel,alpha=.1)
-    plt.tick_params(axis='both',labelsize=fs2)
+    ax.xaxis.set_tick_params(labelsize=fs2)
+    ax.yaxis.set_tick_params(labelsize=fs2)
     if show_legend:
-        ax.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare).replace('_',' '),handlelength=4)
+        ax.legend(title=' & '.join(compare).replace('_',' '),handlelength=4)
  
-    ## Final Clean up and Save
-    #plt.tight_layout()
-    if save_results:
-        print('Figure Saved to: '+filename)
-        plt.savefig(filename) 
-    if save_kernels:
-        outputs['time'] = time_vec
-        filename2 = os.path.join(run_params['fig_kernels_dir'],kernel+'_comparison_by_'+'_and_'.join(compare)+filter_string+'.pkl')
-        print('Kernels Saved to: '+filename2)
-        file_temp = open(filename2,'wb')
-        pickle.dump(outputs, file_temp)
-        file_temp.close()
     return outputs, fig,ax
 
-def strategy_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot_errors=True,linewidth=4,alpha=.25):
+def strategy_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec,\
+    plot_errors=True,linewidth=4,alpha=.25):
     '''
         Plots the average kernel for the cells in df
         
@@ -606,7 +635,6 @@ def strategy_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot
         color, the line color for this group of cells
         linestyle, the line style for this group of cells
         time_vec, the time basis to plot on
-        meso_time_vec, the time basis for mesoscope kernels (will be interpolated to time_vec)
         plot_errors (bool), if True, plots a shaded error bar
         linewidth, the width of the mean line
         alpha, the alpha for the shaded error bar
@@ -624,8 +652,12 @@ def strategy_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot
     
     # Plot mean and error bar
     if plot_errors:
-        ax.fill_between(time_vec, df_norm.mean(axis=0)-df_norm.std(axis=0)/np.sqrt(df_norm.shape[0]), df_norm.mean(axis=0)+df_norm.std(axis=0)/np.sqrt(df_norm.shape[0]),facecolor=color, alpha=alpha)   
-    ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
+        ax.fill_between(time_vec, 
+            df_norm.mean(axis=0)-df_norm.std(axis=0)/np.sqrt(df_norm.shape[0]), 
+            df_norm.mean(axis=0)+df_norm.std(axis=0)/np.sqrt(df_norm.shape[0]),
+            facecolor=color, alpha=alpha)   
+    ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,
+        color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
 

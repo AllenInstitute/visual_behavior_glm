@@ -113,6 +113,8 @@ def project_colors():
         'post omission strategy':color_interpolate(tab20(6),tab20(7),5,6),
         'task strategy':color_interpolate(tab20(6),tab20(7),5,7),
         'timing strategy':color_interpolate(tab20(6),tab20(7),5,8),
+        'visual':'darkorange',
+        'timing':'blue',
         'image0':color_interpolate(tab20(1), tab20(3),8,0),
         'image1':color_interpolate(tab20(1), tab20(3),8,1),
         'image2':color_interpolate(tab20(1), tab20(3),8,2),

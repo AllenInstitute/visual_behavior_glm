@@ -28,6 +28,11 @@ bouts_df = po.build_bout_table(licks_df)
 results_beh = gst.add_behavior_metrics(results_pivoted,summary_df)
 weights_beh = gst.add_behavior_metrics(weights_df,summary_df)
 
+# Kernel plots
+gst.compare_cre_kernels(weights_beh, run_params,ym='omissions')
+gst.compare_cre_kernels(weights_beh, run_params,ym='hits')
+gst.compare_cre_kernels(weights_beh, run_params,ym='misses')
+
 # Run, need updates
 gst.plot_kernels_by_strategy_by_session(weights_beh, run_params)
 gst.compare_cre_kernels(weights_beh, run_params)

@@ -28,10 +28,40 @@ bouts_df = po.build_bout_table(licks_df)
 results_beh = gst.add_behavior_metrics(results_pivoted,summary_df)
 weights_beh = gst.add_behavior_metrics(weights_df,summary_df)
 
-# Kernel plots
+# Omission Kernel Plots 
 gst.compare_cre_kernels(weights_beh, run_params,ym='omissions')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='omissions', cre_line='Vip-IRES-Cre')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='omissions', cre_line='Sst-IRES-Cre')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='omissions', cre_line='Slc17a7-IRES2-Cre')
+
+# Hit Kernel Plots 
 gst.compare_cre_kernels(weights_beh, run_params,ym='hits')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='hits', cre_line='Vip-IRES-Cre')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='hits', cre_line='Sst-IRES-Cre')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='hits', cre_line='Slc17a7-IRES2-Cre')
+
+# Miss Kernel Plots
 gst.compare_cre_kernels(weights_beh, run_params,ym='misses')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='misses', cre_line='Vip-IRES-Cre')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='misses', cre_line='Sst-IRES-Cre')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='misses', cre_line='Slc17a7-IRES2-Cre')
+
+# Image Kernel Plots
+gst.compare_cre_kernels(weights_beh, run_params,ym='all_images')
+
+# Preferred Image Kernel Plots
+gst.compare_cre_kernels(weights_beh, run_params,ym='preferred-image')
+
+
 
 # Run, need updates
 gst.plot_kernels_by_strategy_by_session(weights_beh, run_params)

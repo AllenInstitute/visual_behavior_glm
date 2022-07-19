@@ -30,26 +30,26 @@ def plot_kernels_by_strategy_by_session(weights_beh, run_params, ym='omissions',
     filter_sessions_on ='experience_level'
 
     image_set = ['familiar','novel']
-    fig, ax = plt.subplots(2,len(sessions),figsize=(len(sessions)*3,6),sharey=True)
+    fig, ax = plt.subplots(2,len(sessions),figsize=(len(sessions)*4,6),sharey=True)
     for dex, session in enumerate(sessions):
         show_legend = dex == len(sessions) - 1
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
             threshold=0, drop_threshold = 0, 
             session_filter = [session], cell_filter = cre_line,
             area_filter=['VISp'], compare=compare, plot_errors=True,
-            save_kernels=False,ax=ax[0,dex],fs1=14,fs2=12,
+            save_kernels=False,ax=ax[0,dex],fs1=16,fs2=12,
             show_legend=show_legend,filter_sessions_on = filter_sessions_on,
             image_set=image_set) 
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
             threshold=0, drop_threshold = 0, 
             session_filter = [session], cell_filter = cre_line,
             area_filter=['VISl'], compare=compare, plot_errors=True,
-            save_kernels=False,ax=ax[1,dex],fs1=14,fs2=12,show_legend=False,
+            save_kernels=False,ax=ax[1,dex],fs1=16,fs2=12,show_legend=False,
             filter_sessions_on = filter_sessions_on,image_set=image_set) 
-        ax[0,dex].set_title('Session '+str(session))
+        ax[0,dex].set_title(str(session),fontsize=16)
         if dex == 0:
-            ax[0,0].set_ylabel('V1 '+cre_line+'\n'+ax[0,0].get_ylabel())
-            ax[1,0].set_ylabel('LM\n'+ax[1,0].get_ylabel())
+            ax[0,0].set_ylabel('V1\n'+ax[0,0].get_ylabel(),fontsize=16)
+            ax[1,0].set_ylabel('LM\n'+ax[1,0].get_ylabel(),fontsize=16)
 
     plt.tight_layout()
     if savefig:
@@ -590,20 +590,6 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, drop_threshold=0,
         outputs[group]=k
 
     # Clean Plot, and add details
-    if set_title is not None:
-        plt.title(set_title, fontsize=fs1)
-    else:
-        session_filter = [str(x) for x in session_filter]
-        session_title = '_'.join(session_filter)
-        if len(session_filter) > 1:
-            session_title=cell_filter
-            mapper = {
-                'Slc17a7-IRES2-Cre':'Excitatory',
-                'Sst-IRES-Cre':'Sst Inhibitory',
-                'Vip-IRES-Cre':'Vip Inhibitory'
-                }
-            session_title=mapper[session_title]
-        plt.title(kernel+' kernels, '+session_title,fontsize=fs1)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
 
     if kernel == 'omissions':

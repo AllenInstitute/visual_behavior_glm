@@ -1,4 +1,6 @@
 src/__pycache__
+src/
+visual_behavior_glm/__pycache__/
 
 # vs code
 .idea/

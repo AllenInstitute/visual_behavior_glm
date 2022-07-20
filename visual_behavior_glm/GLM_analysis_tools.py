@@ -304,11 +304,11 @@ def log_results_to_mongo(glm):
     
     conn = db.Database('visual_behavior_data')
 
-    # Prevents from creating duplicate rows (simply updates old copy instead with the following keys used as checks)
+    # Prevents from creating duplicate rows (simply updates old copy instead with the following keys used as checks), assuming same structure as original df
     keys_to_check = {
         'results_full':['ophys_experiment_id','cell_specimen_id','glm_version'],
         'results_summary':['ophys_experiment_id','cell_specimen_id', 'dropout','glm_version'],
-        'results_prediction':['ophys_experiment_id','cell_specimen_id','glm_version']
+        'results_prediction':['ophys_experiment_id','glm_version']
     }
 
     for df, collection in zip([full_results, results_summary, prediction_results], ['results_full', 'results_summary', 'results_prediction']):

@@ -337,7 +337,7 @@ def get_analysis_dfs(VERSION):
     print('\nProcessed run_params\n')
     results = gat.retrieve_results(
         search_dict={'glm_version':VERSION},
-        results_type='full' # 1 row per unique cell/session BUT VE, fraction_change_from_full, absolute_change_from_full metrics only calculated on TEST data
+        results_type='summary' # 1 row per unique cell/session BUT VE, fraction_change_from_full, absolute_change_from_full metrics only calculated on TEST data
         )
     print('\nProcessed results\n')
     results_pivoted = gat.build_pivoted_results_summary(

@@ -105,7 +105,8 @@ class GLM(object):
         # TODO, need more documentation here
         # we only know the path for loading GLM_fit_tools after loading the run_params
         # therefore, we have to import here, and set the module as an attribute
-        import_dir = self.run_params['model_freeze_dir'].rstrip('/')
+        # import_dir = self.run_params['model_freeze_dir'].rstrip('/')
+        import_dir = '/home/saaketh.medepalli/visual_behavior_glm/visual_behavior_glm/'
         module_name = 'GLM_fit_tools'
         file_path = os.path.join(import_dir, module_name+'.py')
         print('importing {} from {}'.format(module_name, file_path))
@@ -139,7 +140,7 @@ class GLM(object):
         '''
         self.results = self.gft.build_dataframe_from_dropouts(self.fit,self.run_params)
         self.dropout_summary = gat.generate_results_summary(self)
-        self.predictions = self.gft.build_predictions(self.fit, self.run_params)         
+        self.predictions = self.gft.build_predictions_dataframe_from_dropouts(self.fit, self.run_params)         
 
         # add roi_ids
         self.dropout_summary = self.dropout_summary.merge(
@@ -156,13 +157,6 @@ class GLM(object):
             how='left'
         )
     
-        self.predictions = self.predictions.merge(
-            self.session.cell_specimen_table[['cell_roi_id']],
-            left_on='cell_specimen_id',
-            right_index=True,
-            how='left'
-        )
- 
     def get_cells_above_threshold(self, threshold=None): 
         '''
             Returns a list of cells whose full model variance explained is above some threshold

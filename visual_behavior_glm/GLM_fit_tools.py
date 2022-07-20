@@ -45,7 +45,7 @@ def load_fit_experiment(ophys_experiment_id, run_params):
     
     # num_weights gets populated during stimulus interpolation
     # configuring it here so the design matrix gets re-generated consistently
-    kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
+    kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7', 'omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 'omission6', 'omission7']
     if 'post-omissions' in run_params['kernels']:
         kernels_to_limit_per_image_cycle.append('omissions')
     if 'post-hits' in run_params['kernels']:
@@ -89,7 +89,7 @@ def check_weight_lengths(fit,design):
         consistent with the number of timesteps per stimulus
     '''
     num_weights_per_stimulus = fit['stimulus_interpolation']['timesteps_per_stimulus']
-    num_weights_design = len([x for x in design.get_X().weights.values if x.startswith('image')])
+    num_weights_design = len([x for x in design.get_X().weights.values if x.startswith('image0')])
     assert num_weights_design == num_weights_per_stimulus, "Number of weights in design matrix is incorrect"
     if ('dropouts' in fit) and ('train_weights' in fit['dropouts']['Full']):
         num_weights_fit = len([x for x in fit['dropouts']['Full']['train_weights'].weights.values if x.startswith('image0')])
@@ -179,12 +179,15 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
     # check_weight_lengths(fit,design)
-
+    breakpoint()
+    
     # Perform shuffle analysis, with two shuffle methods
+    '''
     if (not NO_DROPOUTS) and (fit['ok_to_fit_preferred_engagement']) and (run_params['version_type'] == 'production'):
         print('Evaluating shuffle fits')
         fit = evaluate_shuffle(fit, design, method='cells')
         fit = evaluate_shuffle(fit, design, method='time')
+    '''
 
     # Save fit dictionary to compressed pickle file
     print('Saving fit dictionary')
@@ -732,7 +735,7 @@ def get_mask(dropout,design):
 def build_dataframe_from_dropouts(fit,run_params):
     '''
         INPUTS:
-        threshold (0.005 default) is the minimum amount of variance explained by the full model. The minimum amount of variance explained by a dropout model        
+        threshold (0.005 default) is the minimum amount of variance explained by the full model. The minimum amount of variance explained by a dropout model          fit, run_params dictionaries
 
         Returns a dataframe with 
         Index: Cell specimen id
@@ -895,6 +898,16 @@ def build_dataframe_from_dropouts(fit,run_params):
         results['Full__cell_L2_regularization'] = fit['cell_L2_regularization']   
 
     return results
+
+def build_predictions_dataframe_from_dropouts(fit, run_params):
+    
+    single_feats = [feat for feat in fit['dropouts'].keys() if feat.startswith("single")]
+    # TODO: If I average over the cells in an experiment and add it as an array then it'll be HUGE (I could also average and directly find the event aligned timestamp here) - add numpy array to dataframe 
+    breakpoint()
+    # Create dataframe with each column corresponding to individual feature and element as the numpy array with the predicted response from that column
+    results = pd.DataFrame({feat[7:]: [np.mean(fit['dropouts'][feat]['full_model_train_prediction'], axis=1)] for feat in single_feats})
+    return results
+
 
 def L2_report(fit):
     '''

@@ -10,7 +10,8 @@ def add_behavior_metrics(df,summary_df):
     ''' 
     behavior_columns = ['behavior_session_id','visual_strategy_session',
         'strategy_dropout_index','dropout_task0','dropout_omissions1',
-        'dropout_omissions','dropout_timing1D']
+        'dropout_omissions','dropout_timing1D','strategy_labels_with_none',
+        'strategy_labels_with_mixed']
     out_df = pd.merge(df, summary_df[behavior_columns],
         on='behavior_session_id',
         suffixes=('','_ophys_table'),

@@ -99,7 +99,7 @@ class GLM(object):
             print('logging W matrix to mongo')
             gat.log_weights_matrix_to_mongo(self)
             print('done logging W matrix to mongo')
-ii        print('done building GLM object')
+        print('done building GLM object')
 
     def _import_glm_fit_tools(self):
         # TODO, need more documentation here

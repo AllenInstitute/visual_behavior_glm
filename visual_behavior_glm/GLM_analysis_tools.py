@@ -109,9 +109,10 @@ def build_kernel_df(glm, cell_specimen_id):
     # return the concatenated dataframe (concatenating a list of dataframes makes a single dataframe)
     return pd.concat(kernel_df)
 
+# Dataframe returned in 'summary' mode 
 def generate_results_summary(glm):
-    nonadj_dropout_summary = generate_results_summary_nonadj(glm)
-    adj_dropout_summary = generate_results_summary_adj(glm)
+    nonadj_dropout_summary = generate_results_summary_nonadj(glm) # Variance without masking over the zero windows
+    adj_dropout_summary = generate_results_summary_adj(glm) # Variance including masking
 
     dropout_summary = pd.merge(
         nonadj_dropout_summary, 
@@ -286,28 +287,35 @@ def log_results_to_mongo(glm):
     '''
     full_results = glm.results.reset_index()
     results_summary = glm.dropout_summary
-
+    prediction_results = glm.predictions
+ 
     full_results['glm_version'] = str(glm.version)
     results_summary['glm_version'] = str(glm.version)
+    prediction_results['glm_version'] = str(glm.version)
 
     results_summary['ophys_experiment_id'] = glm.ophys_experiment_id
-    results_summary['ophys_session_id'] = glm.ophys_session_id
+    results_summary['ophys_session_id'] = glm.ophys_session_id    
 
     full_results['ophys_experiment_id'] = glm.ophys_experiment_id
     full_results['ophys_session_id'] = glm.ophys_session_id
 
+    prediction_results['ophys_experiment_id'] = glm.ophys_experiment_id
+    prediction_results['ophys_session_id'] = glm.ophys_session_id
+    
     conn = db.Database('visual_behavior_data')
 
+    # Prevents from creating duplicate rows (simply updates old copy instead with the following keys used as checks)
     keys_to_check = {
         'results_full':['ophys_experiment_id','cell_specimen_id','glm_version'],
-        'results_summary':['ophys_experiment_id','cell_specimen_id', 'dropout','glm_version']
+        'results_summary':['ophys_experiment_id','cell_specimen_id', 'dropout','glm_version'],
+        'results_prediction':['ophys_experiment_id','cell_specimen_id','glm_version']
     }
 
-    for df,collection in zip([full_results, results_summary], ['results_full','results_summary']):
+    for df, collection in zip([full_results, results_summary, prediction_results], ['results_full', 'results_summary', 'results_prediction']):
         coll = conn['ophys_glm'][collection]
 
         for idx,row in df.iterrows():
-            entry = row.to_dict()
+            entry = row.to_dict() # Entry for the first cell with all the rows to be entered into database
             db.update_or_create(
                 coll,
                 db.clean_and_timestamp(entry),
@@ -931,6 +939,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
 
     # Return weights_df
     return weights_df 
+
 
 def kernel_excitation(kernel):
     if np.isnan(np.sum(kernel)):

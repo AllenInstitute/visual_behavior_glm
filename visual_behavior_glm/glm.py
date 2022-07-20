@@ -139,6 +139,7 @@ class GLM(object):
         '''
         self.results = self.gft.build_dataframe_from_dropouts(self.fit,self.run_params)
         self.dropout_summary = gat.generate_results_summary(self)
+        self.predictions = self.gft.build_predictions(self.fit, self.run_params)         
 
         # add roi_ids
         self.dropout_summary = self.dropout_summary.merge(
@@ -151,6 +152,13 @@ class GLM(object):
         self.results = self.results.merge(
             self.session.cell_specimen_table[['cell_roi_id']],
             left_index=True,
+            right_index=True,
+            how='left'
+        )
+    
+        self.predictions = self.predictions.merge(
+            self.session.cell_specimen_table[['cell_roi_id']],
+            left_on='cell_specimen_id',
             right_index=True,
             how='left'
         )

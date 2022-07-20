@@ -35,7 +35,7 @@ plt.ion()
 
 
 ### Define model version
-VERSION = '54_medepalli_omission_specific'
+VERSION = '54_medepalli_omission_specific_comparison_original'
 print('\nVersion Specified!\n')
 
 ### Main paper figures
@@ -58,15 +58,15 @@ print('\nSkipping Panel A...\n')
 
 ## Panel B - Omission kernel heatmap for familiar sessions
 # This generates several figures, Panel B is `omissions_heatmap_with_dropout_Familiar.svg`
-gvt.kernel_evaluation(weights_df, run_params,'all-omissions', savefig=True, cell_filter='vip')
+gvt.kernel_evaluation(weights_df, run_params,'all-omissions', savefig=True)
 print('\nPanel B Complete!\n')
 # print('\nSkipping Panel B\n')
 
 ## Panel C - Omission kernels for each experience level
 # This generates 6 figures,  3 by experience, and 3 by cre-line
 # only the 3 by experience are used in the main figure
-breakpoint()
-gvt.plot_kernel_comparison_by_experience(weights_df, run_params, ['intercept', 'running', 'licks', 'pupil', 'image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'all-images', 'omissions'], savefig=True)
+# breakpoint()
+gvt.plot_kernel_comparison_by_experience(weights_df, run_params, ['intercept', 'running', 'licks', 'pupil', 'image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'all-images', 'omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 'omission6', 'omission7', 'all-omissions'], savefig=True)
 print('\nPanel C Complete!\n')
 # print('\nSkipping Panel C...\n')
 

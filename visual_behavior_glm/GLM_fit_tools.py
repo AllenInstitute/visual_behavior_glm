@@ -164,18 +164,18 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     print('Setting up CV')
     fit = setup_cv(fit,run_params)
 
-    # Determine Regularization Strength
+    # Determine best regularization strength using cross-validation with all the features
     print('Evaluating Regularization values')
     fit = evaluate_ridge(fit, design, run_params,session)
 
-    # Set up kernels to drop for model selection
+    # Set up kernels to drop for model selection (copy the dropouts from run_params into fit)
     print('Setting up model selection dropout')
     fit['dropouts'] = copy(run_params['dropouts'])
     if NO_DROPOUTS:
         # Cancel dropouts if we are in debugging mode
         fit['dropouts'] = {'Full':copy(fit['dropouts']['Full'])}
     
-    # Iterate over model selections
+    # Drops each kernel as specified in run_params and refits the model with the best regularization parameter for the full model, then does the same with the is_single kernels (with intercept included) 
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
     # check_weight_lengths(fit,design)
@@ -640,14 +640,16 @@ def evaluate_models_same_ridge(fit, design, run_params):
         Full_X = design.get_X(kernels=fit['dropouts']['Full']['kernels'])
 
         # Fit on full dataset for references as training fit
-        fit_trace = fit['fit_trace_arr']
-        Wall = fit_regularized(fit_trace, X,fit['avg_L2_regularization'])     
-        var_explain = variance_ratio(fit_trace, Wall,X)
-        adjvar_explain = masked_variance_ratio(fit_trace, Wall,X, mask) 
+        fit_trace = fit['fit_trace_arr'] # Ground truth dF/F or spiking events
+        Wall = fit_regularized(fit_trace, X, fit['avg_L2_regularization']) # Applies regularized ordinary least squares solution to ground truth and input     
+        var_explain = variance_ratio(fit_trace, Wall, X) # Finds the variance of the residual and returns how much that differs from the variance of GT
+ 
+        adjvar_explain = masked_variance_ratio(fit_trace, Wall, X, mask) # Finds variance of the residual ONLY for those timestamps where the feature window was not empty for that timestamp 
+ 
         fit['dropouts'][model_label]['train_weights'] = Wall
         fit['dropouts'][model_label]['train_variance_explained']    = var_explain
         fit['dropouts'][model_label]['train_adjvariance_explained'] = adjvar_explain
-        fit['dropouts'][model_label]['full_model_train_prediction'] = X.values @ Wall.values
+        fit['dropouts'][model_label]['full_model_train_prediction'] = X.values @ Wall.values # Predicted response (N, C) from the kernels specified in the design matrix for this key in fit['dropouts'] 
 
         # Iterate CV
         cv_var_train = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
@@ -658,6 +660,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
         cv_adjvar_test_fc= np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))  
         cv_weights = np.empty((np.shape(Wall)[0], np.shape(Wall)[1], len(fit['splits'])))
 
+        # TODO: WHY are we doing Train/Test split when evaluating dropout scores and single feature predictions?? We're not doing any cross-validation (the L2-reg strength has already been decided...
         for index, test_split in tqdm(enumerate(fit['splits']), total=len(fit['splits']), desc='    Fitting model, {}'.format(model_label)):
             train_split = np.sort(np.concatenate([split for i, split in enumerate(fit['splits']) if i!=index])) 
             X_test = X[test_split,:]
@@ -707,7 +710,7 @@ def get_mask(dropout,design):
         design      DesignMatrix object
     
         RETURNS:
-        mask, a boolean vector for the indicies with support
+        mask, a boolean vector for the indices with support
 
         if the dropout is_single, then support is defined by the included kernels
         if the dropout is not is_single, then support is defined by the dropped kernels
@@ -1733,7 +1736,7 @@ class DesignMatrix(object):
             X = self.get_X() 
         else:
             X = self.get_X(kernels=kernels) 
-        mask = np.any(~(X==0), axis=1)
+        mask = np.any(~(X==0), axis=1) # Since axis=1 corresponds to the entire window for that timestamp, mask returned returns True if at least one value in the window is not 0
         return mask.values
     
     def trim_X(self,boolean_mask):
@@ -2142,10 +2145,10 @@ def masked_variance_ratio(fit_trace_arr, W, X, mask):
 
     # Define variance function that lets us isolate the mask timepoints
     def my_var(trace, support_mask):
-        if len(np.shape(trace)) ==1:
+        if len(np.shape(trace)) == 1:
             trace = trace.values[:,np.newaxis]
-        mu = np.mean(trace,axis=0)
-        return np.mean((trace[support_mask,:]-mu)**2,axis=0)
+        mu = np.mean(trace, axis=0)
+        return np.mean((trace[support_mask,:]-mu)**2,axis=0) # Variance of trace parameter only at the support_mask timestamps 
 
     var_total = my_var(fit_trace_arr, mask)#Total variance in the ophys trace for each cell
     var_resid = my_var(fit_trace_arr-Y, mask)#Residual variance in the difference between the model and data

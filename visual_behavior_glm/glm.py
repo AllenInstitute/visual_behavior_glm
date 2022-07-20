@@ -31,7 +31,7 @@ class GLM(object):
         inputs (List): if use_inputs, this must be a list of session, fit, and design objects
     '''
 
-    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, 
+    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True, log_attributes=False, use_previous_fit=False, 
                 recompute=True, use_inputs=False, inputs=None, NO_DROPOUTS=False, TESTING=False):
         
         self.version = version
@@ -99,6 +99,10 @@ class GLM(object):
             print('logging W matrix to mongo')
             gat.log_weights_matrix_to_mongo(self)
             print('done logging W matrix to mongo')
+        if log_attributes:
+            print('logging session, design objects to mongo')
+            gat.log_attributes_to_mongo(self)
+            print('done logging session, design objects to mongo')
         print('done building GLM object')
 
     def _import_glm_fit_tools(self):

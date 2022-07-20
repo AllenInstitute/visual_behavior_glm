@@ -347,6 +347,7 @@ def get_analysis_dfs(VERSION):
     print('\nProcessed results_pivoted\n')
     weights_df = gat.build_weights_df(run_params, results_pivoted)
     print('\nProcessed weights dataframe\n')  
+    # session, design = gat.retrieve_attributes(VERSION)
     return run_params, results, results_pivoted, weights_df
 
  

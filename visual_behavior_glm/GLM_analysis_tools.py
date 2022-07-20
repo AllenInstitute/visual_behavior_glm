@@ -405,6 +405,34 @@ def log_weights_matrix_to_mongo(glm):
         w_matrix_lookup_table.insert_one(db.clean_and_timestamp(lookup_table_document))
 
     conn.close()
+'''
+def log_attributes_to_mongo(glm):
+    '''
+    a method for logging the session and design objects to mongo
+
+    input:
+        GLM object
+    returns:
+        None
+    '''
+
+    conn = db.Database('visual_behavior_data')
+    attribute_lookup = conn['ophys_glm']['attributes']
+    breakpoint() 
+    attributes = pd.DataFrame({'session': [glm.session], 
+                               'design': [glm.design],
+                               'version': [glm.version],
+                               'ophys_experiment_id': [str(glm.oeid)]},
+                               index=[str(glm.oeid)])
+    keys_to_check = ['ophys_experiment_id', 'version']
+    entry = attributes.to_dict()
+    db.update_or_create(
+                attribute_lookup,
+                db.clean_and_timestamp(entry),
+                keys_to_check=keys_to_check
+            )
+    conn.close()
+'''
 
 def get_experiment_table(glm_version, include_4x2_data=False): 
     '''

@@ -179,7 +179,6 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
     # check_weight_lengths(fit,design)
-    breakpoint()
     
     # Perform shuffle analysis, with two shuffle methods
     '''
@@ -902,8 +901,6 @@ def build_dataframe_from_dropouts(fit,run_params):
 def build_predictions_dataframe_from_dropouts(fit, run_params):
     
     single_feats = [feat for feat in fit['dropouts'].keys() if feat.startswith("single")]
-    # TODO: If I average over the cells in an experiment and add it as an array then it'll be HUGE (I could also average and directly find the event aligned timestamp here) - add numpy array to dataframe 
-    breakpoint()
     # Create dataframe with each column corresponding to individual feature and element as the numpy array with the predicted response from that column
     results = pd.DataFrame({feat[7:]: [np.mean(fit['dropouts'][feat]['full_model_train_prediction'], axis=1)] for feat in single_feats})
     return results

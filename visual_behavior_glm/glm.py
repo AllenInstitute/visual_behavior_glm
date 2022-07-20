@@ -99,14 +99,13 @@ class GLM(object):
             print('logging W matrix to mongo')
             gat.log_weights_matrix_to_mongo(self)
             print('done logging W matrix to mongo')
-        print('done building GLM object')
+ii        print('done building GLM object')
 
     def _import_glm_fit_tools(self):
         # TODO, need more documentation here
         # we only know the path for loading GLM_fit_tools after loading the run_params
         # therefore, we have to import here, and set the module as an attribute
-        # import_dir = self.run_params['model_freeze_dir'].rstrip('/')
-        import_dir = '/home/saaketh.medepalli/visual_behavior_glm/visual_behavior_glm/'
+        import_dir = self.run_params['model_freeze_dir'].rstrip('/')
         module_name = 'GLM_fit_tools'
         file_path = os.path.join(import_dir, module_name+'.py')
         print('importing {} from {}'.format(module_name, file_path))

@@ -46,14 +46,14 @@ def string_mapper(string):
 ## Kernel plots
 ################################################################################
 
-# TODO, need to update
 def plot_kernels_by_strategy_by_session(weights_beh, run_params, ym='omissions',
     cre_line = 'Vip-IRES-Cre',compare=['strategy_labels'],savefig=False):
+
     # By Session number
     sessions = ['Familiar','Novel 1', 'Novel >1']
     filter_sessions_on ='experience_level'
-
     image_set = ['familiar','novel']
+
     fig, ax = plt.subplots(2,len(sessions),figsize=(len(sessions)*4,6),sharey=True)
     for dex, session in enumerate(sessions):
         show_legend = dex == len(sessions) - 1
@@ -81,71 +81,31 @@ def plot_kernels_by_strategy_by_session(weights_beh, run_params, ym='omissions',
         save_figure(fig,run_params['version'], ym, filename)
 
 
-# TODO, need to update
-def plot_kernels_by_strategy_by_omission_exposure(weights_beh, run_params, 
-    ym='omissions',cre_line = 'Vip-IRES-Cre',compare=['strategy_labels']):
-    # by omission exposures
-    sessions = [[0,1,2,3],[0],[1,2,3,4]]
-    filter_sessions_on =['prior_exposures_to_omissions',\
-        'prior_exposures_to_image_set',\
-        'prior_exposures_to_image_set']
-    image_set = [['familiar'],['novel'],['novel']]
-    fig, ax = plt.subplots(2,len(sessions),figsize=(len(sessions)*3,6),sharey=True)
-    for dex, session in enumerate(sessions):
-        show_legend = dex == len(sessions) - 1
-        out = strategy_kernel_comparison(weights_beh, run_params, ym, 
-            threshold=0, drop_threshold = 0, 
-            session_filter = session, cell_filter = cre_line,area_filter=['VISp'], 
-            compare=compare, plot_errors=True,save_kernels=False,
-            ax=ax[0,dex],fs1=14,fs2=12,show_legend=show_legend,
-            filter_sessions_on = filter_sessions_on[dex],image_set=image_set[dex]) 
-        out = strategy_kernel_comparison(weights_beh, run_params, ym, 
-            threshold=0, drop_threshold = 0, 
-            session_filter = session, cell_filter = cre_line,area_filter=['VISl'], 
-            compare=compare, plot_errors=True,save_kernels=False,
-            ax=ax[1,dex],fs1=14,fs2=12,show_legend=False,
-            filter_sessions_on = filter_sessions_on[dex],image_set=image_set[dex])
-        if dex == 0:
-            ax[0,0].set_ylabel('V1, '+cre_line+'\nAvg. Kernel ($\Delta f/f)$')
-            ax[1,0].set_ylabel('LM\nAvg. Kernel ($\Delta f/f)$')
-        else:
-            ax[0,dex].set_ylabel('Avg. Kernel ($\Delta f/f)$')
-            ax[1,dex].set_ylabel('Avg. Kernel ($\Delta f/f)$')
-        if dex in [0]:
-            ax[0,dex].set_title('Familiar Images')
-        elif dex == 1:
-            ax[0,dex].set_title('Novel 1')       
-        else:
-            ax[0,dex].set_title('Novel > 1')
-    if 'binned_strategy' in compare:
-        ax[0,3].legend(labels=['Most Timing','Middle','Most Visual'],
-            loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare),
-            handlelength=4)
-        plt.tight_layout()
-    filename = ym+'_by_exposure_'+cre_line+'_'+'_'.join(compare)
-    save_figure(fig,run_params['version'], ym, filename)
-    plt.tight_layout()
-    return ax
-
-# TODO, need to update
 def compare_cre_kernels(weights_beh, run_params, ym='omissions',
     compare=['strategy_labels'],equipment_filter='all',area_filter=['VISp','VISl'],
     sessions=['Familiar','Novel 1','Novel >1'],image_set='familiar',
     filter_sessions_on='experience_level',savefig=False):
 
     cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
-    fig, ax = plt.subplots(1,len(cres),figsize=(len(sessions)*4,4),sharey=True)
+    fig, ax = plt.subplots(2,len(cres),figsize=(len(sessions)*4,6),sharey=True)
     for dex, cre in enumerate(cres):
         show_legend = dex == len(cres) - 1
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
             threshold=0, drop_threshold = 0, 
-            session_filter = sessions, cell_filter = cre,area_filter=area_filter, 
-            compare=compare, plot_errors=True,save_kernels=False,ax=ax[dex],
+            session_filter = sessions, cell_filter = cre,area_filter=area_filter[0], 
+            compare=compare, plot_errors=True,save_kernels=False,ax=ax[0,dex],
             show_legend=show_legend,filter_sessions_on=filter_sessions_on,
             image_set=image_set,equipment_filter=equipment_filter) 
-        ax[dex].set_title(string_mapper(cre),fontsize=16)
+        out = strategy_kernel_comparison(weights_beh, run_params, ym, 
+            threshold=0, drop_threshold = 0, 
+            session_filter = sessions, cell_filter = cre,area_filter=area_filter[1], 
+            compare=compare, plot_errors=True,save_kernels=False,ax=ax[1,dex],
+            show_legend=show_legend,filter_sessions_on=filter_sessions_on,
+            image_set=image_set,equipment_filter=equipment_filter) 
+        ax[0,dex].set_title(string_mapper(cre),fontsize=16)
 
-    ax[0].set_ylabel('Kernel Weights',fontsize=16)
+    ax[0,0].set_ylabel('V1 Kernel Weights',fontsize=16)
+    ax[1,0].set_ylabel('V1 Kernel Weights',fontsize=16)
     plt.tight_layout()
 
     if savefig:
@@ -296,7 +256,6 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, drop_threshold=0,
             (imaging_depth > @depth_filter[0])&\
             (variance_explained_full > @threshold)&\
             ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
-        use_dropouts=True
     else:
         weights = weights_df.query('(not passive)&\
             (targeted_structure in @area_filter)&\
@@ -307,8 +266,6 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, drop_threshold=0,
             (imaging_depth < @depth_filter[1]) &\
             (imaging_depth > @depth_filter[0])&\
             (variance_explained_full > @threshold)'.format(filter_sessions_on))
-        print('Dropouts not included, cannot use drop filter')
-        use_dropouts=False
 
     # Plotting settings
     if ax is None:

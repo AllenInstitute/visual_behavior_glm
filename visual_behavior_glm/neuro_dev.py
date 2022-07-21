@@ -56,17 +56,22 @@ gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
     ym='misses', cre_line='Slc17a7-IRES2-Cre')
 
 # Image Kernel Plots
-gst.compare_cre_kernels(weights_beh, run_params,ym='all_images')
+gst.compare_cre_kernels(weights_beh, run_params,ym='all-images')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='all-images', cre_line='Vip-IRES-Cre')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='all-images', cre_line='Sst-IRES-Cre')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='all-images', cre_line='Slc17a7-IRES2-Cre')
 
 # Preferred Image Kernel Plots
-gst.compare_cre_kernels(weights_beh, run_params,ym='preferred-image')
-
-
-
-# Run, need updates
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params)
-gst.compare_cre_kernels(weights_beh, run_params)
-gst.plot_kernels_by_strategy_by_omission_exposure(weights_beh, run_params)
+gst.compare_cre_kernels(weights_beh, run_params,ym='preferred_image')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='preferred_image', cre_line='Vip-IRES-Cre')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='preferred_image', cre_line='Sst-IRES-Cre')
+gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
+    ym='preferred_image', cre_line='Slc17a7-IRES2-Cre')
 
 # currently crash 
 gst.scatter_by_cell(results_beh, run_params)

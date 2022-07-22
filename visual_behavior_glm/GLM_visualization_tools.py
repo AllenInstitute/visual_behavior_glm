@@ -2097,6 +2097,11 @@ def plot_event_aligned_responses(run_params, results, event, kernels=['all'],
             raise Exception('Invalid Cell Type in Filter')
 
     oeids = results['ophys_experiment_id'].unique()
+
+    event_aligned_response_dict = dict.fromkeys([cell for cell in cell_filter])
+    for cell in cell_filter:
+        event_aligned_response_dict[cell] = dict.fromkeys([session for session in session_filter])
+
     for oeid in tqdm(oeids):
         curr = results.query(
             'ophys_experiment_id == @oeid & '
@@ -2124,6 +2129,7 @@ def plot_event_aligned_responses(run_params, results, event, kernels=['all'],
             timestamps = event_times['timestamps']
             event_occ_times = timestamps[event_occ_ind].values
 
+            event_aligned_dfs = pd.DataFrame()
             for neuron in range(num_neurons):
                 curr_pred = pred[:, neuron]
                 y_hat = pd.DataFrame({'y_hat': curr_pred})
@@ -2133,9 +2139,16 @@ def plot_event_aligned_responses(run_params, results, event, kernels=['all'],
                                                             event_times=event_occ_times,
                                                             t_start=time_start, t_end=time_end,
                                                             output_format='tidy')
-                fig, ax = plt.subplots()
-                sns.lineplot(data=event_aligned_df, x='time', y='y_hat', ax=ax, ci='sd')
-                plt.savefig('test_aligned.png')
+                if neuron == 0:
+                    event_aligned_dfs = event_aligned_df
+                else:
+                    event_aligned_dfs.append(event_aligned_df)
+
+                # TODO: Depending on type of session/cell append to the existing dictionary or initialize dictionary element
+
+                # fig, ax = plt.subplots()
+                # sns.lineplot(data=event_aligned_dfs, x='time', y='y_hat', ax=ax, ci='sd')
+                # plt.savefig('test_aligned.png')
             
             # TODO: Need to somehow accumulate all the event aligned responses for each cre-line, session
             # combination, then average & plot

@@ -2082,6 +2082,8 @@ def plot_event_aligned_responses(run_params, results, event, kernels=['all'],
 
     """
     from mindscope_utilities.general_utilities import event_triggered_response
+    
+    assert(event.startswith('image') or event.startswith('omission'))
 
     # Mapping of cell keyword to Cre line
     for ind, cell in enumerate(cell_filter):
@@ -2105,32 +2107,42 @@ def plot_event_aligned_responses(run_params, results, event, kernels=['all'],
         if not curr.empty and curr_fit is not None:
             if len(kernels) == 1:
                 if kernels[0] == 'all':
-                    predicted = curr_fit['dropouts']['Full']['full_model_train_prediction']
+                    pred = curr_fit['dropouts']['Full']['full_model_train_prediction']
                 else:
-                    predicted = curr_fit['pred_response']['single-' + kernels[0]]['full_model_train_predictions']
-            predicted_avg = np.mean(predicted, axis=1)
-            predicted_std = np.std(predicted, axis=1)
-            timestamps = event_times['timestamps']
-            y_hat = pd.DataFrame({'y_hat': predicted_avg})
-            data = pd.concat([timestamps, y_hat], axis=1)
+                    pred = curr_fit['pred_response']['single-' + kernels[0]]
+            num_neurons = pred.shape[1]
 
             # TODO: mindscope function takes in TIMES, not event encodings (1 where high, 0 not) -> need to convert OR sample timestamps where 1
+            # Assuming events passed in are either image or omission related
             event_times = gat.load_event_times_h5(run_params, oeid)
-            if event == 'omissions':
-                omission_cols = [col for col in event_times.columns if col.startswith('omission')]
-                events_df = event_times[omission_cols].sum(axis=1)
-            elif event == 'images':
-                image_cols = [col for col in event_times.columns if col.startswith('image')]
-                events_df = event_times[image_cols].sum(axis=1)
+            if event == 'omissions' or event == 'images':
+                event_cols = [col for col in event_times.columns if col.startswith(event[:-1])]
+                events_df = event_times[event_cols].sum(axis=1)
             else:
                 events_df = event_times[event]
-            # Now create stimulus aligned response using mindscope utilities function, then plot
-            event_aligned_df = event_triggered_response(data, t='timestamps', y='y_hat',
-                                                        event_times=events_df.values,
-                                                        t_start=time_start, t_end=time_end,
-                                                        output_format='tidy', interpolate='False')
+            event_occ_ind = np.argwhere(events_df.values > 0).squeeze()
+            timestamps = event_times['timestamps']
+            event_occ_times = timestamps[event_occ_ind].values
+
+            for neuron in range(num_neurons):
+                curr_pred = pred[:, neuron]
+                y_hat = pd.DataFrame({'y_hat': curr_pred})
+                data = pd.concat([timestamps, y_hat], axis=1)
+                # Now create stimulus aligned response using mindscope utilities function, then plot
+                event_aligned_df = event_triggered_response(data, t='timestamps', y='y_hat',
+                                                            event_times=event_occ_times,
+                                                            t_start=time_start, t_end=time_end,
+                                                            output_format='tidy')
+                fig, ax = plt.subplots()
+                sns.lineplot(data=event_aligned_df, x='time', y='y_hat', ax=ax, ci='sd')
+                plt.savefig('test_aligned.png')
+            
             # TODO: Need to somehow accumulate all the event aligned responses for each cre-line, session
             # combination, then average & plot
+            
+            # Need to average over event aligned responses
+            # predicted_avg = np.mean(predicted, axis=1)
+            # predicted_std = np.std(predicted, axis=1)
             
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,

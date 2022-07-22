@@ -35,7 +35,7 @@ plt.ion()
 
 
 ### Define model version
-VERSION = '54_medepalli_omission_specific'
+VERSION = '55_medepalli_omission_specific_analysis'
 print('\nVersion Specified!\n')
 
 ### Main paper figures
@@ -51,7 +51,6 @@ print('\nVersion Specified!\n')
 run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
 
 
-# Need to fix because empty fit is passing through
 gvt.plot_event_aligned_responses(run_params, results, event='omissions')
 print('\nEvent-aligned responses test complete!\n')
 

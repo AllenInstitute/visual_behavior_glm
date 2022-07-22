@@ -2107,7 +2107,7 @@ def plot_event_aligned_responses(run_params, results, event, kernels=['all'],
                 if kernels[0] == 'all':
                     predicted = curr_fit['dropouts']['Full']['full_model_train_prediction']
                 else:
-                    predicted = curr_fit['dropouts']['single-' + kernels[0]]['full_model_train_predictions']
+                    predicted = curr_fit['pred_response']['single-' + kernels[0]]['full_model_train_predictions']
             predicted_avg = np.mean(predicted, axis=1)
             predicted_std = np.std(predicted, axis=1)
             timestamps = event_times['timestamps']

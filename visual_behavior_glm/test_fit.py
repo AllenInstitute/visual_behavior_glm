@@ -3,7 +3,7 @@ import GLM_analysis_tools as gat
 import pandas as pd
 import os
 
-version = '54_medepalli_omission_specific'
+version = '55_medepalli_omission_specific_analysis'
 run_params = glm_params.load_run_json(version)
 oeid = 938002083 
 

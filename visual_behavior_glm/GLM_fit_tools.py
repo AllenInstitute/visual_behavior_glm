@@ -7,7 +7,7 @@ import pandas as pd
 import scipy 
 import math
 from tqdm import tqdm
-from copy import copy
+from copy import copy, deepcopy
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.linear_model import ElasticNetCV
@@ -143,7 +143,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Processing df/f data
     print('Processing df/f data')
-    fit, run_params = extract_and_annotate_ophys(session,run_params, TESTING=TESTING)
+    fit, run_params = extract_and_annotate_ophys(session, run_params, TESTING=TESTING)
 
     # Make Design Matrix
     print('Build Design Matrix')
@@ -170,7 +170,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Set up kernels to drop for model selection
     print('Setting up model selection dropout')
-    fit['dropouts'] = copy(run_params['dropouts'])
+    fit['dropouts'] = deepcopy(run_params['dropouts'])
     if NO_DROPOUTS:
         # Cancel dropouts if we are in debugging mode
         fit['dropouts'] = {'Full': copy(fit['dropouts']['Full'])}
@@ -180,7 +180,6 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     fit = evaluate_models(fit, design, run_params)
     check_weight_lengths(fit, design)
     
-    breakpoint()
     # Produce predicted responses and store in the fit dictionary
     print('Producing predicted responses')
     fit = predicted_responses(oeid, fit, design, run_params)
@@ -224,13 +223,18 @@ def predicted_responses(oeid, fit, design, run_params):
                                                 run_params=run_params,
                                                 use_mongo=False,
                                                 full_weights=fit['dropouts']['Full']['train_weights'])
-    # NEED TO ALSO FIT INTERCEPT HERE
-    for label in run_params['dropouts'].keys():
+
+    # DOES run_params also contain all the results for other versions????
+    # Must be to do with SHALLOW copy instead of DEEP copy
+    # ALSO kernels not being stored properly (WRONG kernel list)???
+    fit['pred_response'] = {}
+    num_keys = len(list(run_params['dropouts'].keys()))
+    for label in tqdm(run_params['dropouts'].keys(), total=num_keys):
         if label == 'intercept' or run_params['dropouts'][label]['is_single']:
             if label == 'intercept':
                 kernel_list = ['intercept']
             else:
-                kernel_list = run_params['dropouts']['single-'+label]['kernels']
+                kernel_list = run_params['dropouts'][label]['kernels']
                 kernel_list.remove('intercept')
             
             # Get Design Matrix for specified kernels
@@ -242,7 +246,7 @@ def predicted_responses(oeid, fit, design, run_params):
             
             # Get predicted response and store
             curr_pred = this_design @ curr_weights
-            fit['single'][label]['response'] = curr_pred
+            fit['pred_response'][label] = curr_pred
     return fit          
                 
 def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
@@ -394,15 +398,15 @@ def evaluate_lasso(fit, design, run_params):
             split_train_ve = []
             model = LassoLars( #Fill in values
                 alpha=alpha_val,
-                fit_intercept = False,
+                fit_intercept=False,
                 normalize=False,
                 max_iter=1000,
                 )
             for split_index, split in enumerate(lasso_splits):
                 train_y = y[split[0]]
                 test_y = y[split[1]]
-                train_x = x[split[0],:]
-                test_x = x[split[1],:]
+                train_x = x[split[0], :]
+                test_x = x[split[1], :]
                 train_y = np.asfortranarray(train_y)
                 train_x = np.asfortranarray(train_x)
                 model.fit(train_x,train_y)
@@ -477,17 +481,17 @@ def evaluate_models_lasso(fit,design,run_params):
         Full_X = design.get_X(kernels=fit['dropouts']['Full']['kernels'])
 
         # Iterate CV
-        cv_var_train    = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
-        cv_var_test     = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cv_var_train = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        cv_var_test = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))
         cv_adjvar_train = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
-        cv_adjvar_test  = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
+        cv_adjvar_test = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
         cv_adjvar_train_fc = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits']))) 
-        cv_adjvar_test_fc= np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))  
-        cv_weights      = np.empty((np.shape(X)[1], fit['fit_trace_arr'].shape[1], len(fit['splits'])))
-        all_weights     = np.empty((np.shape(X)[1], fit['fit_trace_arr'].shape[1]))
+        cv_adjvar_test_fc = np.empty((fit['fit_trace_arr'].shape[1], len(fit['splits'])))  
+        cv_weights = np.empty((np.shape(X)[1], fit['fit_trace_arr'].shape[1], len(fit['splits'])))
+        all_weights = np.empty((np.shape(X)[1], fit['fit_trace_arr'].shape[1]))
         all_var_explain = np.empty((fit['fit_trace_arr'].shape[1]))
         all_adjvar_explain = np.empty((fit['fit_trace_arr'].shape[1]))
-        all_prediction  = np.empty(fit['fit_trace_arr'].shape)
+        all_prediction = np.empty(fit['fit_trace_arr'].shape)
         X_test_array = []   # Cache the intermediate steps for each cell
         X_train_array = []
 
@@ -734,8 +738,8 @@ def evaluate_models_same_ridge(fit, design, run_params):
 
     return fit 
 
-def get_mask(dropout,design):
-    '''
+def get_mask(dropout, design):
+    """
         For the dropout dictionary returns the mask of where the kernels have support in the design matrix.
         Ignores the support of the intercept regressor
     
@@ -751,15 +755,15 @@ def get_mask(dropout,design):
 
         if the dropout is_single, then support is defined by the included kernels
         if the dropout is not is_single, then support is defined by the dropped kernels
-    '''
+    """
     if dropout['is_single']:
         # Support is defined by the included kernels
-        kernels=dropout['kernels']
+        kernels = dropout['kernels']
     else:
         # Support is defined by the dropped kernels
-        kernels=dropout['dropped_kernels']
+        kernels = dropout['dropped_kernels']
     
-    # Need to remove 'intercept'
+    # Need to remove 'intercept' (because the support is defined everywhere)
     if 'intercept' in kernels:
         kernels.remove('intercept')    
 
@@ -767,14 +771,14 @@ def get_mask(dropout,design):
     return design.get_mask(kernels=kernels)
 
 def build_dataframe_from_dropouts(fit,run_params):
-    '''
+    """
         INPUTS:
         threshold (0.005 default) is the minimum amount of variance explained by the full model. The minimum amount of variance explained by a dropout model        
 
         Returns a dataframe with 
         Index: Cell specimen id
         Columns: Average (across CV folds) variance explained on the test and training sets for each model defined in fit['dropouts']
-    '''
+    """
         
     cellids = fit['fit_trace_arr']['cell_specimen_id'].values
     results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
@@ -1798,10 +1802,10 @@ class DesignMatrix(object):
         param_labels = []
         for kernel_name in kernels:
             kernels_to_use.append(self.kernel_dict[kernel_name]['kernel'])
-            param_labels.append(self.make_labels(   kernel_name, 
-                                                    np.shape(self.kernel_dict[kernel_name]['kernel'])[0], 
-                                                    self.kernel_dict[kernel_name]['offset_samples'],
-                                                    self.kernel_dict[kernel_name]['kernel_length_samples'] ))
+            param_labels.append(self.make_labels(kernel_name, 
+                                                np.shape(self.kernel_dict[kernel_name]['kernel'])[0], 
+                                                self.kernel_dict[kernel_name]['offset_samples'],
+                                                self.kernel_dict[kernel_name]['kernel_length_samples']))
 
         X = np.vstack(kernels_to_use) 
         x_labels = np.hstack(param_labels)
@@ -1810,9 +1814,9 @@ class DesignMatrix(object):
 
         X_array = xr.DataArray(
             X, 
-            dims =('weights','timestamps'), 
-            coords = {  'weights':x_labels, 
-                        'timestamps':self.events['timestamps']}
+            dims=('weights', 'timestamps'), 
+            coords={'weights': x_labels, 
+                        'timestamps': self.events['timestamps']}
             )
         return X_array.T
 

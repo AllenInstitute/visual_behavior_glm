@@ -86,7 +86,8 @@ def plot_kernels_by_strategy_by_session(weights_beh, run_params, ym='omissions',
 def compare_cre_kernels(weights_beh, run_params, ym='omissions',
     compare=['strategy_labels'],equipment_filter='all',area_filter=['VISp','VISl'],
     sessions=['Familiar','Novel 1','Novel >1'],image_set='familiar',
-    filter_sessions_on='experience_level',savefig=False,sharey=False):
+    filter_sessions_on='experience_level',savefig=False,sharey=False,
+    depth_filter=[0,1000]):
 
     cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
     fig, ax = plt.subplots(2,len(cres),figsize=(len(sessions)*4,6),sharey=sharey)
@@ -97,13 +98,15 @@ def compare_cre_kernels(weights_beh, run_params, ym='omissions',
             session_filter = sessions, cell_filter = cre,area_filter=area_filter[0], 
             compare=compare, plot_errors=True,save_kernels=False,ax=ax[0,dex],
             show_legend=show_legend,filter_sessions_on=filter_sessions_on,
-            image_set=image_set,equipment_filter=equipment_filter) 
+            image_set=image_set,equipment_filter=equipment_filter,
+            depth_filter=depth_filter) 
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
             threshold=0, drop_threshold = 0, 
             session_filter = sessions, cell_filter = cre,area_filter=area_filter[1], 
             compare=compare, plot_errors=True,save_kernels=False,ax=ax[1,dex],
             show_legend=show_legend,filter_sessions_on=filter_sessions_on,
-            image_set=image_set,equipment_filter=equipment_filter) 
+            image_set=image_set,equipment_filter=equipment_filter,
+            depth_filter=depth_filter) 
         ax[0,dex].set_title(string_mapper(cre),fontsize=16)
 
     ax[0,0].set_ylabel('V1 Kernel Weights',fontsize=16)

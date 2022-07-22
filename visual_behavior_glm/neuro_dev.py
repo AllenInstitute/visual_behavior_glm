@@ -28,10 +28,7 @@ bouts_df = po.build_bout_table(licks_df)
 results_beh = gst.add_behavior_metrics(results_pivoted,summary_df)
 weights_beh = gst.add_behavior_metrics(weights_df,summary_df)
 
-
-
-
-# Omission Kernel Plots 
+# Kernel Plots 
 gst.compare_cre_kernels(weights_beh, run_params,ym='omissions')
 gst.compare_cre_kernels(weights_beh, run_params,ym='omissions',
     compare=['strategy_labels_with_mixed'])
@@ -42,50 +39,11 @@ gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
 gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
     ym='omissions', cre_line='Slc17a7-IRES2-Cre')
 
-# Hit Kernel Plots 
-gst.compare_cre_kernels(weights_beh, run_params,ym='hits')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='hits', cre_line='Vip-IRES-Cre')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='hits', cre_line='Sst-IRES-Cre')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='hits', cre_line='Slc17a7-IRES2-Cre')
-
-# Miss Kernel Plots
-gst.compare_cre_kernels(weights_beh, run_params,ym='misses')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='misses', cre_line='Vip-IRES-Cre')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='misses', cre_line='Sst-IRES-Cre')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='misses', cre_line='Slc17a7-IRES2-Cre')
-
-# Image Kernel Plots
-gst.compare_cre_kernels(weights_beh, run_params,ym='all-images')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='all-images', cre_line='Vip-IRES-Cre')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='all-images', cre_line='Sst-IRES-Cre')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='all-images', cre_line='Slc17a7-IRES2-Cre')
-
-# Preferred Image Kernel Plots
-gst.compare_cre_kernels(weights_beh, run_params,ym='preferred_image')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='preferred_image', cre_line='Vip-IRES-Cre')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='preferred_image', cre_line='Sst-IRES-Cre')
-gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
-    ym='preferred_image', cre_line='Slc17a7-IRES2-Cre')
-
-# currently crash 
+# Dropout Scatter plots
 gst.scatter_by_cell(results_beh, run_params)
-gst.scatter_dataset(results_beh, run_params)
-gst.scatter_by_session(results_beh, run_params, 
-    cre_line ='Slc17a7-IRES2-Cre',ymetric='hits') 
-gst.scatter_by_session(results_beh, run_params, 
+gst.scatter_by_experience(results_beh, run_params, 
     cre_line ='Vip-IRES-Cre',ymetric='omissions')
-gst.plot_strategy(results_beh, run_params)
+gst.scatter_dataset(results_beh, run_params)
 
 
 

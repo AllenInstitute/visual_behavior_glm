@@ -1,7 +1,7 @@
 import os 
 import json
 import numpy as np
-from copy import copy
+from copy import copy, deepcopy
 import datetime
 import shutil
 
@@ -24,7 +24,7 @@ def define_kernels():
     kernels = {
         # 'images':     {'event': 'images', 'event_type': 'full', 'type':'discrete', 'length': 0.75, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
         # 'omissions': {'event': 'omissions', 'event_type': 'full', 'type':'discrete', 'length': 1.5, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
-        'intercept':    {'event':'intercept', 'type':'continuous',    'length':0,     'offset':0,     'num_weights':None, 'dropout':True, 'text': 'constant value'},   
+        'intercept':    {'event':'intercept', 'type':'continuous',    'length':0,     'offset':0,     'num_weights':None, 'dropout':True, 'text': 'constant value'},
         # 'hits':         {'event':'hit',         'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
         # 'misses':       {'event':'miss',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
         'each-image-omission':        {'event':'each-image-omission',  'event_type': 'full',  'type':'discrete',  'length':0.75,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
@@ -205,7 +205,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     # Define Kernels and dropouts
     kernels = define_kernels()
     kernels = process_kernels(kernels)
-    dropouts = define_dropouts(kernels,run_params)
+    dropouts = define_dropouts(kernels, run_params)
     run_params['kernels']=kernels
     run_params['dropouts']=dropouts
 
@@ -216,7 +216,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     c = run_params['L2_use_fixed_value']
     d = run_params['L2_optimize_by_cre']
     e = run_params['ElasticNet']
-    assert np.sum([a,b,c,d,e]) == 1, \
+    assert np.sum([a, b, c, d, e]) == 1, \
         "Must select one and only one regularization option: ElasticNet, L2_optimize_by_cre, L2_optimize_by_cell, L2_optimize_by_session, or L2_use_fixed_value" 
 
     # Check L2 Fixed value parameters 
@@ -275,7 +275,7 @@ def process_kernels(kernels):
 
     return kernels
 
-def define_dropouts(kernels,run_params):
+def define_dropouts(kernels, run_params):
     '''
         Creates a dropout dictionary. Each key is the label for the dropout, and the value is a list of kernels to include
         Creates a dropout for each kernel by removing just that kernel.
@@ -284,32 +284,34 @@ def define_dropouts(kernels,run_params):
     '''
 
     # Define full model
-    dropouts = {'Full': {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}}
+    dropouts = {'Full': {'kernels': list(kernels.keys()),'dropped_kernels':[],'is_single':False}}
 
-    if run_params['version_type'] in ['production','standard']:
+    if run_params['version_type'] in ['production', 'standard']:
         # Remove each kernel one-by-one
-        for kernel in [kernel for kernel in kernels.keys() if kernels[kernel]['dropout']]:
-            dropouts[kernel]={'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
-            dropouts[kernel]['kernels'].remove(kernel)
-            dropouts[kernel]['dropped_kernels'].append(kernel)
+        for kernel in kernels.keys():
+            if kernels[kernel]['dropout']:
+                dropouts[kernel] = {'kernels': list(kernels.keys()), 'dropped_kernels': [], 'is_single': False}
+                dropouts[kernel]['kernels'].remove(kernel)
+                dropouts[kernel]['dropped_kernels'].append(kernel)
 
         # Define the nested_models
-        dropout_definitions={
-            'all-images':           ['image0','image1','image2','image3','image4','image5','image6','image7'],
-            'all-omissions':        ['omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 'omission6', 'omission7'],
-            'task':                 ['hits','misses','passive_change','post-hits','post-misses','post-passive_change'],
-            'behavioral':           ['running','pupil','licks'],    
+        dropout_definitions = {
+            'all-images':           ['image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7'],
+            'all-omissions':        ['omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 
+                                     'omission6', 'omission7'],
+             # 'task':                 ['hits', 'misses', 'passive_change', 'post-hits', 'post-misses', 'post-passive_change'],
+            'behavioral':           ['running', 'pupil', 'licks']    
         }
-             
+
         if 'post-omissions' in kernels:
             dropout_definitions['all-omissions'] = ['omissions','post-omissions']
         if 'post-hits' in kernels:
-            dropout_definitions['all-hits']=            ['hits','post-hits']
-            dropout_definitions['all-misses']=          ['misses','post-misses']
-            dropout_definitions['all-passive_change']=  ['passive_change','post-passive_change']
-            dropout_definitions['post-task']=           ['post-hits','post-misses','post-passive_change']
-            dropout_definitions['task']=                ['hits','misses','passive_change']
-            dropout_definitions['all-task']=            ['hits','misses','passive_change','post-hits','post-misses','post-passive_change']
+            dropout_definitions['all-hits'] = ['hits','post-hits']
+            dropout_definitions['all-misses'] = ['misses','post-misses']
+            dropout_definitions['all-passive_change'] = ['passive_change','post-passive_change']
+            dropout_definitions['post-task'] = ['post-hits','post-misses','post-passive_change']
+            dropout_definitions['task'] = ['hits','misses','passive_change']
+            dropout_definitions['all-task'] = ['hits','misses','passive_change','post-hits','post-misses','post-passive_change']
 
         # Add all face_motion_energy individual kernels to behavioral, and as a group model
         # Number of PCs is variable, so we have to treat it differently
@@ -323,17 +325,18 @@ def define_dropouts(kernels,run_params):
     
     # Adds single kernel dropouts:
     if run_params['version_type'] == 'production':
-        for drop in [drop for drop in dropouts.keys()]:
-            if (drop != 'Full') & (drop != 'intercept'):
+        orig_dropouts = list(dropouts.keys())
+        for drop in orig_dropouts:
+            if drop != 'Full' and drop != 'intercept':
                 # Make a list of kernels by taking the difference between the kernels in 
                 # the full model, and those in the dropout specified by this kernel.
                 # This formulation lets us do single kernel dropouts for things like beh_model,
                 # or all-images
 
-                kernels = set(dropouts['Full']['kernels'])-set(dropouts[drop]['kernels'])
-                kernels.add('intercept') # We always include the intercept
+                kernels = set(dropouts['Full']['kernels']) - set(dropouts[drop]['kernels'])
+                kernels.add('intercept')
                 dropped_kernels = set(dropouts['Full']['kernels']) - kernels
-                dropouts['single-'+drop] = {'kernels':list(kernels),'dropped_kernels':list(dropped_kernels),'is_single':True} 
+                dropouts['single-'+drop] = {'kernels': list(kernels), 'dropped_kernels': list(dropped_kernels), 'is_single': True}
    
     # Check to make sure no kernels got lost in the mix 
     for drop in dropouts.keys():
@@ -350,7 +353,7 @@ def set_up_dropouts(dropouts,kernels,dropout_name, kernel_list):
         kernel_list,    list of kernels to be dropped from this nested model
     '''
 
-    dropouts[dropout_name] = {'kernels':list(kernels.keys()),'dropped_kernels':[],'is_single':False}
+    dropouts[dropout_name] = {'kernels': list(kernels.keys()), 'dropped_kernels': [], 'is_single': False}
 
     for k in kernel_list:
         if k in kernels:

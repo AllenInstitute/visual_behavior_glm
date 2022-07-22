@@ -89,7 +89,7 @@ class GLM(object):
                 all_events = self.session.events.loc[csid]['filtered_events']
                 # only include events during task (excluding gray screens at beginning/end)
                 first_index = np.where(self.session.ophys_timestamps >= self.timestamps[0])[0][0]
-                self.fit['events_trace_arr'][:,idx] = all_events[first_index:first_index + len(self.timestamps)]
+                self.fit['events_trace_arr'][:, idx] = all_events[first_index:first_index + len(self.timestamps)]
 
         if log_results:
             print('logging results to mongo')

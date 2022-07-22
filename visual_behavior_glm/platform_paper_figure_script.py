@@ -48,9 +48,12 @@ print('\nVersion Specified!\n')
 # This function requires access to Allen Institute internal resources
 # I should save out these dataframes to a file
 # Takes about 10 minutes to load and process data
-# run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
-run_params, session, design, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
+run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
 
+
+# Need to fix because empty fit is passing through
+gvt.plot_event_aligned_responses(run_params, results, event='omissions')
+print('\nEvent-aligned responses test complete!\n')
 
 # Plot Inputs and model outputs for an example cell
 # cell_specimen_id = g.dropout_summary['cell_specimen_id'][0]

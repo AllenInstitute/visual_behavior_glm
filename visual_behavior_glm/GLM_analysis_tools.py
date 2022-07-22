@@ -22,15 +22,15 @@ def load_fit_pkl(run_params, ophys_experiment_id):
     '''
         Loads the fit dictionary from the pkl file dumped by fit_experiment.
         Attempts to load the compressed pickle file if it exists, otherwise loads the uncompressed file
-    
+
         Inputs:
         run_params, the dictionary of parameters for this version
         ophys_experiment_id, the oeid to load the fit for
-    
+
         Returns:
         the fit dictionary if it exists
 
-    ''' 
+    '''
 
     filenamepkl = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pkl')
     filenamepbz2 = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pbz2')
@@ -45,6 +45,30 @@ def load_fit_pkl(run_params, ophys_experiment_id):
         return fit
     else:
         return None
+
+def load_event_times_h5(run_params, ophys_experiment_id):
+    '''
+        Loads the h5 dataframe from the HDF file saved at the end of the experiment fitting containing event times.
+        If it doesn't exist at the expected output directory from the fit, returns None        
+ 
+        Inputs:
+        run_params, the dictionary of parameters for this version
+        ophys_experiment_id, the oeid to load the experiment event times for
+    
+        Returns:
+        the event times as a dataframe 
+
+    ''' 
+
+    filenameh5 = os.path.join(run_params['experiment_output_dir'], 'event_times_' +  str(ophys_experiment_id) + '.h5')
+
+    if os.path.isfile(filenameh5):
+        event_times = pd.read_hdf(filenameh5, "df")
+        return event_times
+    else:
+        return None
+
+
 
 def log_error(error_dict, keys_to_check = []):
     '''
@@ -405,7 +429,7 @@ def log_weights_matrix_to_mongo(glm):
         w_matrix_lookup_table.insert_one(db.clean_and_timestamp(lookup_table_document))
 
     conn.close()
-'''
+
 def log_attributes_to_mongo(glm):
     '''
     a method for logging the session and design objects to mongo
@@ -432,7 +456,6 @@ def log_attributes_to_mongo(glm):
                 keys_to_check=keys_to_check
             )
     conn.close()
-'''
 
 def get_experiment_table(glm_version, include_4x2_data=False): 
     '''
@@ -811,13 +834,16 @@ def run_pca(dropout_matrix, n_components=40, deal_with_nans='fill_with_zero'):
     return pca
     
 
-def process_session_to_df(oeid, run_params, index):
-    '''
+def process_session_to_df(oeid, run_params, use_mongo=True, full_weights=None):
+    """
         For the ophys_experiment_id, loads the weight matrix, and builds a dataframe
         organized by cell_id and kernel 
-    '''
-    # Get weights
-    W = get_weights_matrix_from_mongo(int(oeid), run_params['version'])
+    """
+    # Get weights (second option is for producing df for predicted responses)
+    if use_mongo:
+        W = get_weights_matrix_from_mongo(int(oeid), run_params['version'])
+    else:
+        W = full_weights
     
     # Make Dataframe with cell and experiment info
     session_df = pd.DataFrame()
@@ -860,7 +886,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     # Then pull the weights from each kernel into a dataframe
     sessions = []
     for index, oeid in enumerate(tqdm(oeids, desc='Iterating Sessions')):
-        session_df = process_session_to_df(oeid, run_params, index)
+        session_df = process_session_to_df(oeid, run_params)
         sessions.append(session_df)
     print('\nweights_df: processed all sessions to df\n')    
 

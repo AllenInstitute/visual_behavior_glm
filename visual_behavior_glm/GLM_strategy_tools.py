@@ -86,10 +86,10 @@ def plot_kernels_by_strategy_by_session(weights_beh, run_params, ym='omissions',
 def compare_cre_kernels(weights_beh, run_params, ym='omissions',
     compare=['strategy_labels'],equipment_filter='all',area_filter=['VISp','VISl'],
     sessions=['Familiar','Novel 1','Novel >1'],image_set='familiar',
-    filter_sessions_on='experience_level',savefig=False):
+    filter_sessions_on='experience_level',savefig=False,sharey=False):
 
     cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
-    fig, ax = plt.subplots(2,len(cres),figsize=(len(sessions)*4,6),sharey=True)
+    fig, ax = plt.subplots(2,len(cres),figsize=(len(sessions)*4,6),sharey=sharey)
     for dex, cre in enumerate(cres):
         show_legend = dex == len(cres) - 1
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
@@ -268,7 +268,7 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, drop_threshold=0,
             (imaging_depth < @depth_filter[1]) &\
             (imaging_depth > @depth_filter[0])&\
             (variance_explained_full > @threshold)'.format(filter_sessions_on))
-    return weights
+
 
     # Plotting settings
     if ax is None:

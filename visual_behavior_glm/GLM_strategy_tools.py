@@ -717,10 +717,11 @@ def strategy_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,
 ################################################################################
 
 def scatter_dataset(results_beh, run_params,threshold=0,ymetric_threshold=0, 
-    xmetric='strategy_dropout_index', ymetric='omissions',sessions=[],
-    use_prior_omissions=False,area=['VISp','VISl'],use_prior_image_set=False):
+    xmetric='strategy_dropout_index', ymetric='omissions',depth=[0,1000],
+    sessions=['Familiar','Novel 1','Novel >1'],area=['VISp','VISl'],
+    use_prior_omissions=False,use_prior_image_set=False):
 
-    fig, ax = plt.subplots(3,4, figsize=(16,10))
+    fig, ax = plt.subplots(3,len(sessions)+1, figsize=(15,8))
     fits = {}
     cres = ['Slc17a7-IRES2-Cre', 'Vip-IRES-Cre','Sst-IRES-Cre']
     ymins = []
@@ -729,31 +730,22 @@ def scatter_dataset(results_beh, run_params,threshold=0,ymetric_threshold=0,
         col_start = dex == 0
         fits[cre] = scatter_by_experience(results_beh, run_params, cre_line = cre, 
             threshold=threshold, ymetric_threshold=ymetric_threshold, 
-            xmetric=xmetric, ymetric=ymetric, ax = ax[dex,:],
+            xmetric=xmetric, ymetric=ymetric, ax = ax[dex,:], depth=depth,
             col_start=col_start,use_prior_omissions=use_prior_omissions,
             area=area,use_prior_image_set=use_prior_image_set)
         ymins.append(fits[cre]['yrange'][0])
         ymaxs.append(fits[cre]['yrange'][1])
-    
+   
+    # make consistent axes 
     for dex, cre in enumerate(cres):
         ax[dex,-1].set_ylim(np.min(ymins),np.max(ymaxs))
   
-    #if use_prior_omissions:
-    #   filename = xmetric+'_by_'+ymetric+'_dataset_'+'_'.join(area)+\
-    #    '_by_omission_exposures_'+''.join([str(x) for x in sessions])+\
-    #    '_threshold_'+str(threshold)+'_ymetric_threshold_'+\
-    #    str(ymetric_threshold)+'_image_set_'+image_set
-    #else:
-    #    filename = xmetric+'_by_'+ymetric+'_dataset_'+'_'.join(area)+\
-    #    '_by_session_number_'+''.join([str(x) for x in sessions])+\
-    #    '_threshold_'+str(threshold)+'_ymetric_threshold_'+str(ymetric_threshold)
-    #save_figure(fig,run_params['version'], ymetric, filename)
     return fits
 
 def scatter_by_experience(results_beh, run_params, cre_line=None, threshold=0,
     ymetric_threshold=0,xmetric='strategy_dropout_index',ymetric='omissions',
     sessions=['Familiar','Novel 1','Novel >1'],ax=None,col_start=False,
-    use_prior_omissions=False,image_set='familiar',area=['VISp','VISl'],
+    use_prior_omissions=False,area=['VISp','VISl'], depth=[0,1000],
     use_prior_image_set=False):
 
     if ax is None:
@@ -764,10 +756,10 @@ def scatter_by_experience(results_beh, run_params, cre_line=None, threshold=0,
         row_start = dex == 0
         fits[str(s)] = scatter_by_cell(results_beh,run_params, cre_line=cre_line,
             threshold=threshold,ymetric_threshold=ymetric_threshold, 
-            xmetric=xmetric, ymetric=ymetric,title='Session '+str(s),
+            xmetric=xmetric, ymetric=ymetric,title=str(s),
             experience_level=[s],
             ax=ax[dex],row_start=row_start,col_start=col_start,
-            use_prior_omissions=use_prior_omissions, 
+            use_prior_omissions=use_prior_omissions,depth=depth,
             area=area,use_prior_image_set=use_prior_image_set)
 
     ax[-1].axhline(0, linestyle='--',color='k',alpha=.25)   
@@ -780,6 +772,8 @@ def scatter_by_experience(results_beh, run_params, cre_line=None, threshold=0,
     ax[-1].set_title(cre_line,fontsize=16)
     ax[-1].spines['top'].set_visible(False)
     ax[-1].spines['right'].set_visible(False)
+    ax[-1].tick_params(axis='y',labelsize=12)
+    ax[-1].tick_params(axis='x',labelsize=16)
     plt.tight_layout()
 
     fits['yrange'] = ax[-1].get_ylim()
@@ -790,12 +784,17 @@ def scatter_by_experience(results_beh, run_params, cre_line=None, threshold=0,
     fits['glm_version'] = run_params['version'] 
     return fits 
 
-def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0, 
+def scatter_by_cell(results_beh, run_params, cre_line='Vip-IRES-Cre', threshold=0, 
     ymetric_threshold=0, sessions=[],xmetric='strategy_dropout_index',
     ymetric='omissions',title='',nbins=10,ax=None,row_start=False,
     col_start=False,use_prior_omissions = False,plot_single=False,
     experience_level=['Familiar'],area=['VISp','VISl'],use_prior_image_set=False,
-    equipment=["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"],savefig=False):
+    equipment=["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"],savefig=False,
+    depth=[0,1000]):
+
+    if plot_single:
+        row_start=True
+        col_start=True
 
     if use_prior_omissions: 
         g = results_beh.query('(cre_line == @cre_line)&\
@@ -803,6 +802,8 @@ def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0,
             (prior_exposures_to_omissions in @sessions)&\
             (experience_level in @experience_level)&\
             (targeted_structure in @area)&\
+            (imaging_depth >= @depth[0])&\
+            (imaging_depth <= @depth[1])&\
             (equipment_name in @equipment)').\
             dropna(axis=0, subset=[ymetric,xmetric]).copy()
     elif use_prior_image_set:
@@ -811,6 +812,8 @@ def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0,
             (prior_exposures_to_image_set in @sessions)&\
             (experience_level in @experience_level)&\
             (targeted_structure in @area)&\
+            (imaging_depth >= @depth[0])&\
+            (imaging_depth <= @depth[1])&\
             (equipment_name in @equipment)').\
             dropna(axis=0, subset=[ymetric,xmetric]).copy()
     else:
@@ -818,6 +821,8 @@ def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0,
             (variance_explained_full > @threshold)&\
             (experience_level in @experience_level)&\
             (targeted_structure in @area)&\
+            (imaging_depth >= @depth[0])&\
+            (imaging_depth <= @depth[1])&\
             (equipment_name in @equipment)').\
             dropna(axis=0, subset=[ymetric,xmetric]).copy()
 
@@ -835,12 +840,8 @@ def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0,
     
     # Plot Raw data
     ax.plot(g[xmetric], g[ymetric],'ko',alpha=.1,label='raw data')
-    ax.set_xlabel(xmetric,fontsize=16)
     ax.set_xlim(results_beh[xmetric].min(), results_beh[xmetric].max())
-    if row_start:
-        ax.set_ylabel(cre_line +'\n'+ymetric,fontsize=16)
-    else:
-        ax.set_ylabel(ymetric,fontsize=16)
+    ax.set_ylim(-1,0)
 
     # Plot binned data
     g['binned_xmetric'] = pd.cut(g[xmetric],nbins,labels=False) 
@@ -854,36 +855,17 @@ def scatter_by_cell(results_beh, run_params, cre_line=None, threshold=0,
     x = linregress(g[xmetric], g[ymetric])
     label = 'r = '+str(np.round(x.rvalue,4))+'\np = '+str(np.round(x.pvalue,decimals=4))
     ax.plot(g[xmetric], x[1]+x[0]*g[xmetric],'r-',label=label)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
 
     # Clean up
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.tick_params(axis='both',labelsize=12)
+    ax.set_xlabel(xmetric,fontsize=16)   
     if col_start:
         ax.set_title(title,fontsize=16)
-    if savefig:
-        if plot_single:
-            ax.set_title(title)
-            ax.legend()
-            plt.tight_layout()
-            if use_prior_omissions:
-                filename = run_params['version']+'_'+xmetric+'_by_'+ymetric+'_'+\
-                    cre_line+'_'+'_'.join(area)+'_by_omission_exposures_'+\
-                    ''.join([str(x) for x in sessions])+'_threshold_'+str(threshold)+\
-                    '_ymetric_threshold_'+str(ymetric_threshold)+'_image_set_'+image_set
-            elif use_prior_image_set:
-                filename = run_params['version']+'_'+xmetric+'_by_'+ymetric+'_'+\
-                    cre_line+'_'+'_'.join(area)+'_by_image_exposures_'+\
-                    ''.join([str(x) for x in sessions])+'_threshold_'+\
-                    str(threshold)+'_ymetric_threshold_'+str(ymetric_threshold)+\
-                    '_image_set_'+image_set
-            else:
-                filename = run_params['version']+'_'+xmetric+'_by_'+ymetric+'_'+\
-                    cre_line+'_'+'_'.join(area)+'_by_session_number_'+\
-                    ''.join([str(x) for x in sessions])+'_threshold_'+\
-                    str(threshold)+'_ymetric_threshold_'+str(ymetric_threshold)
-            if len(equipment) == 1:
-                filename += '_'+equipment[0]
-            save_figure(plt.gcf(),run_params['version'], ymetric, filename)
+    if row_start:
+        ax.set_ylabel(cre_line +'\n'+ymetric,fontsize=16)
+
     return x    
 
 

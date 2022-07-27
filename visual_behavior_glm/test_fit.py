@@ -2,23 +2,23 @@ import visual_behavior_glm.GLM_params as glm_params
 import GLM_analysis_tools as gat
 import pandas as pd
 import os
+import time
+
+version = '56_medepalli_omission_specific_analysis_test'
+run_params = glm_params.load_run_json(version)
+oeid = 938002083
+
+start = time.time()
+pred_responses = gat.load_pred_responses_pkl(run_params, oeid)
+end = time.time()
+print('For version {}, it takes {:.4f} to load fit dict'.format(version, end-start)) 
+
 
 version = '55_medepalli_omission_specific_analysis'
 run_params = glm_params.load_run_json(version)
-oeid = 938002083 
+oeid = 1003444808
 
+start = time.time()
 fit = gat.load_fit_pkl(run_params, oeid)
-
-filenameh5 = os.path.join(run_params['experiment_output_dir'], 'event_times_' + str(oeid) + '.h5')
-if os.path.isfile(filenameh5):
-    event_times = pd.read_hdf(filenameh5, "df")
-
-oeid2 = 929653474 
-
-fit2 = gat.load_fit_pkl(run_params, oeid2)
-
-filenameh5 = os.path.join(run_params['experiment_output_dir'], 'event_times_' + str(oeid2) + '.h5')
-if os.path.isfile(filenameh5):
-    event_times2 = pd.read_hdf(filenameh5, "df")
-
-
+end = time.time()
+print('\nTime to load fit dictionary for {}: {} seconds'.format(oeid, end-start))

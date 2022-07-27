@@ -2068,22 +2068,26 @@ def plot_kernel_comparison_by_kernel_excitation(weights_df, run_params, kernel, 
                            save_results=savefig)
 
 
-def plot_event_aligned_responses(run_params, results, event, kernels=['all'],
-                                 session_filter=['Familiar', 'Novel 1', 'Novel >1'], cell_filter=['vip', 'sst', 'slc'],
-                                 event_stimulus='onset', time_start=-1, time_end=1, savefig=False):
+def plot_event_aligned_responses(run_params, event_aligned_dfs, kernels='total', savefig=False,
+                                 session_filter=['Familiar', 'Novel 1', 'Novel >1'],
+                                 cell_filter=['vip', 'sst', 'slc'], equipment_filter='all',
+                                 area_filter=['VISp', 'VISl'], depth_filter=[0, 1000]):
     """
         Creates len(cell_filter) x len(session_filter) subplots showing the specified event
         aligned response from the specified kernels.
-        The time window is defined by time_start before the event onset until time_stop sfter the event onset.
+        The time window is defined by time_start before the event onset until time_stop after the event onset.
 
         INPUTS:
         run_params            = JSON file from glm_params.load_run_json(VERSION)
-        kernels               = kernels to use for fitting
+        results               = results dataframe from gat.retrieve_results
+        kernels               = kernels to use for fitting (can be list of lists where for each element e,
+                                a plot will be produced using the kernels in e)
+                                (e.g. ['total', ['image0', 'image6'], ['all-images', 'all-omissions'], 'behavioral'])
+                                will produce 4 plots, with the first being the predicted response for all kernels,
+                                the second being the predicted response for just image0 and image6, etc.
 
-    """
-    from mindscope_utilities.general_utilities import event_triggered_response
-    
-    assert(event.startswith('image') or event.startswith('omission'))
+
+    """     
 
     # Mapping of cell keyword to Cre line
     for ind, cell in enumerate(cell_filter):
@@ -2096,66 +2100,55 @@ def plot_event_aligned_responses(run_params, results, event, kernels=['all'],
         else:
             raise Exception('Invalid Cell Type in Filter')
 
-    oeids = results['ophys_experiment_id'].unique()
+    # In platform_figure script, plot this for kernels: 'all', 'ground-truth', 'non-behavioral', 'behavioral', 'all-omissions', 'all-images'
 
-    event_aligned_response_dict = dict.fromkeys([cell for cell in cell_filter])
-    for cell in cell_filter:
-        event_aligned_response_dict[cell] = dict.fromkeys([session for session in session_filter])
+    fig, axs = plt.subplots(len(cell_filter), len(session_filter), sharex='col', sharey='row', figsize=(12, 8))
+    pad = 5
 
-    for oeid in tqdm(oeids):
-        curr = results.query(
-            'ophys_experiment_id == @oeid & '
-            'cre_line in @cell_filter & '
-            'experience_level in @session_filter & '
-            'passive == False')
-        curr_fit = gat.load_fit_pkl(run_params, oeid)
-        if not curr.empty and curr_fit is not None:
-            if len(kernels) == 1:
-                if kernels[0] == 'all':
-                    pred = curr_fit['dropouts']['Full']['full_model_train_prediction']
-                else:
-                    pred = curr_fit['pred_response']['single-' + kernels[0]]
-            num_neurons = pred.shape[1]
+    for ax, session in zip(axs[0], session_filter):
+        ax.annotate(session, xy=(0.5, 1), xytext=(0, pad),
+                    xycoords='axes fraction', textcoords='offset points',
+                    size='large', ha='center', va='baseline')
+    for ax, cell in zip(axs[:, 0], cell_filter):
+        ax.annotate(cell[:3], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
+                    xycoords=ax.yaxis.label, textcoords='offset points',
+                    size='large', ha='right', va='center')
 
-            # TODO: mindscope function takes in TIMES, not event encodings (1 where high, 0 not) -> need to convert OR sample timestamps where 1
-            # Assuming events passed in are either image or omission related
-            event_times = gat.load_event_times_h5(run_params, oeid)
-            if event == 'omissions' or event == 'images':
-                event_cols = [col for col in event_times.columns if col.startswith(event[:-1])]
-                events_df = event_times[event_cols].sum(axis=1)
-            else:
-                events_df = event_times[event]
-            event_occ_ind = np.argwhere(events_df.values > 0).squeeze()
-            timestamps = event_times['timestamps']
-            event_occ_times = timestamps[event_occ_ind].values
+    fig.tight_layout()
+    fig.subplots_adjust(left=0.15, top=0.95, bottom=0.1)
 
-            event_aligned_dfs = pd.DataFrame()
-            for neuron in range(num_neurons):
-                curr_pred = pred[:, neuron]
-                y_hat = pd.DataFrame({'y_hat': curr_pred})
-                data = pd.concat([timestamps, y_hat], axis=1)
-                # Now create stimulus aligned response using mindscope utilities function, then plot
-                event_aligned_df = event_triggered_response(data, t='timestamps', y='y_hat',
-                                                            event_times=event_occ_times,
-                                                            t_start=time_start, t_end=time_end,
-                                                            output_format='tidy')
-                if neuron == 0:
-                    event_aligned_dfs = event_aligned_df
-                else:
-                    event_aligned_dfs.append(event_aligned_df)
+    # Plot for all nine with 3x3 subplots and querying
+    for cell_ind, cell in enumerate(cell_filter):
+        for session_ind, session in enumerate(session_filter):
+            if session_ind == 0:
+                axs[cell_ind, session_ind].set_ylabel('df/f response')
+            if cell_ind == len(cell_filter) - 1:
+                axs[cell_ind, session_ind].set_xlabel('time after event (s)')
 
-                # TODO: Depending on type of session/cell append to the existing dictionary or initialize dictionary element
+            curr_events = event_aligned_dfs.query('cre_line == @cell & '
+                                                    'experience_level == @session & '
+                                                    'passive == False')
+            num_cells = len(curr_events['cell_specimen_id'].unique())
+            curr_events = curr_events.iloc[:, :3]
 
-                # fig, ax = plt.subplots()
-                # sns.lineplot(data=event_aligned_dfs, x='time', y='y_hat', ax=ax, ci='sd')
-                # plt.savefig('test_aligned.png')
-            
-            # TODO: Need to somehow accumulate all the event aligned responses for each cre-line, session
-            # combination, then average & plot
-            
-            # Need to average over event aligned responses
-            # predicted_avg = np.mean(predicted, axis=1)
-            # predicted_std = np.std(predicted, axis=1)
+            curr_events_avg = curr_events.groupby('window_pos').mean()
+            curr_events_se = curr_events.groupby('window_pos').std() / (num_cells ** 0.5)
+            axs[cell_ind, session_ind].plot(curr_events_avg['time'], curr_events_avg['y_hat'])
+            axs[cell_ind, session_ind].fill_between(curr_events_avg['time'],
+                                                    curr_events_avg['y_hat'] - curr_events_se['y_hat'],
+                                                    curr_events_avg['y_hat'] + curr_events_se['y_hat'],
+                                                    alpha=0.5)
+
+    if savefig:
+        plt.savefig(run_params['figure_dir'] + '/' + str(kernels) + '_event_aligned_response.png')
+
+
+
+    # Make sure window_pos is correct (then average over window_pos using groupby/mean)
+    # Also find standard deviation and then divide by sqrt(number of unique cell ids) to get standard error
+    # Plot average response with shaded region of standard error
+
+    # Plot and save figures for kernels='all', 'ground-truth', 'behavioral', 'non-behavioral', 'image-specific', 'image-specific omission'        
             
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,

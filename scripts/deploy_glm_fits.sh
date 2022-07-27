@@ -9,6 +9,8 @@
 #SBATCH --partition braintv         # Partition used for processing
 #SBATCH --tmp=10G                     # Request the amount of space your jobs needs on /scratch/fast
 
+export PYTHONPATH=$PYTHONPATH:/home/saaketh.medepalli/mindscope_utilities
+
 python deploy_glm_fits.py --version 55_medepalli_omission_specific_analysis --env-path /allen/aics/apps/hpc_shared/mod/anaconda3-5.3.0/envs/visual_behavior_glm --src-path /home/saaketh.medepalli/visual_behavior_glm --job-start-fraction 0.0 --job-end-fraction 1.0
 
  

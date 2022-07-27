@@ -50,8 +50,14 @@ print('\nVersion Specified!\n')
 # Takes about 10 minutes to load and process data
 run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
 
+kernels = 'total'
+event_aligned_df = gat.build_pred_responses(run_params, results_pivoted, event='omissions', kernels=kernels,
+                                            time_start=-1, time_end=1)
+event_aligned_df.to_hdf(run_params['experiment_output_dir'] + '/' + kernels + '_event_aligned_df.h5',
+                                    key=kernels)
+print('\nSaved {} dataframe'.format(kernels))
+gvt.plot_event_aligned_responses(run_params, event_aligned_df, kernels=kernels, savefig=True)
 
-gvt.plot_event_aligned_responses(run_params, results, event='omissions')
 print('\nEvent-aligned responses test complete!\n')
 
 # Plot Inputs and model outputs for an example cell
@@ -62,17 +68,16 @@ print('\nSkipping Panel A...\n')
 
 ## Panel B - Omission kernel heatmap for familiar sessions
 # This generates several figures, Panel B is `omissions_heatmap_with_dropout_Familiar.svg`
-gvt.kernel_evaluation(weights_df, run_params,'all-omissions', savefig=True, cell_filter='vip')
-print('\nPanel B Complete!\n')
-# print('\nSkipping Panel B\n')
+# gvt.kernel_evaluation(weights_df, run_params,'all-omissions', savefig=True, cell_filter='vip')
+# print('\nPanel B Complete!\n')
+print('\nSkipping Panel B\n')
 
 ## Panel C - Omission kernels for each experience level
 # This generates 6 figures,  3 by experience, and 3 by cre-line
 # only the 3 by experience are used in the main figure
-breakpoint()
-gvt.plot_kernel_comparison_by_experience(weights_df, run_params, ['intercept', 'running', 'licks', 'pupil', 'image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'all-images', 'omissions'], savefig=True)
-print('\nPanel C Complete!\n')
-# print('\nSkipping Panel C...\n')
+# gvt.plot_kernel_comparison_by_experience(weights_df, run_params, ['intercept', 'running', 'licks', 'pupil', 'image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'all-images', 'omissions'], savefig=True)
+# print('\nPanel C Complete!\n')
+print('\nSkipping Panel C...\n')
 
 ## Panel D - Dropout summaries
 # Returns a dataframe with rows for cre/dropout, and columns describing

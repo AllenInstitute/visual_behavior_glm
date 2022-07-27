@@ -182,7 +182,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     
     # Produce predicted responses and store in the fit dictionary
     print('Producing predicted responses')
-    fit = predicted_responses(oeid, fit, design, run_params)
+    pred_responses = predicted_responses(oeid, fit, design, run_params)
 
     # Perform shuffle analysis, with two shuffle methods
     if (not NO_DROPOUTS) and (fit['ok_to_fit_preferred_engagement']) and (run_params['version_type'] == 'production'):
@@ -194,9 +194,14 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     print('Saving fit dictionary')
     fit['failed_kernels'] = run_params['failed_kernels']
     fit['failed_dropouts'] = run_params['failed_dropouts']
-    filepath = os.path.join(run_params['experiment_output_dir'],str(oeid)+'.pbz2')
+    filepath = os.path.join(run_params['experiment_output_dir'], str(oeid)+'.pbz2')
     with bz2.BZ2File(filepath, 'w') as f:
         cPickle.dump(fit, f)
+
+    print('Saving predicted responses dictionary')
+    filepath = os.path.join(run_params['experiment_output_dir'], str(oeid) + '_pred_responses.pbz2')
+    with bz2.BZ2File(filepath, 'w') as f:
+        cPickle.dump(pred_responses, f)
 
     # Save Event Table
     if run_params['version_type'] == 'production':
@@ -224,30 +229,37 @@ def predicted_responses(oeid, fit, design, run_params):
                                                 use_mongo=False,
                                                 full_weights=fit['dropouts']['Full']['train_weights'])
 
-    # DOES run_params also contain all the results for other versions????
-    # Must be to do with SHALLOW copy instead of DEEP copy
-    # ALSO kernels not being stored properly (WRONG kernel list)???
-    fit['pred_response'] = {}
+    pred_response = {}
     num_keys = len(list(run_params['dropouts'].keys()))
     for label in tqdm(run_params['dropouts'].keys(), total=num_keys):
         if label == 'intercept' or run_params['dropouts'][label]['is_single']:
             if label == 'intercept':
+                label = 'single-intercept'
                 kernel_list = ['intercept']
             else:
                 kernel_list = run_params['dropouts'][label]['kernels']
                 kernel_list.remove('intercept')
             
             # Get Design Matrix for specified kernels
-            this_design = design.get_X(kernels=kernel_list).values # Shape (N, K_i)
+            this_design = design.get_X(kernels=kernel_list).values  # Shape (N, K_i)
             
             # Get weights for specified kernels
             curr_weights_df = session_df[kernel_list].sum(axis=1)
-            curr_weights = np.array([np.array(x) for x in curr_weights_df]).T # Shape (K_i, C)
+            curr_weights = np.array([np.array(x) for x in curr_weights_df]).T  # Shape (K_i, C)
             
             # Get predicted response and store
             curr_pred = this_design @ curr_weights
-            fit['pred_response'][label] = curr_pred
-    return fit          
+            pred_response[label[7:]] = curr_pred
+
+        # Add non-behavioral residual as it contains important information
+        if label == 'single-behavioral':
+            pred_response['non-behavioral'] = \
+                fit['fit_trace_arr'].values - pred_response['behavioral']
+
+    pred_response['ground-truth'] = fit['fit_trace_arr'].values
+    pred_response['total'] = fit['dropouts']['Full']['full_model_train_prediction']
+
+    return pred_response
                 
 def evaluate_shuffle(fit, design, method='cells', num_shuffles=50):
     """

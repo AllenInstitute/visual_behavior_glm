@@ -3,6 +3,7 @@ import bz2
 import scipy
 import pickle
 import math
+import time
 import _pickle as cPickle
 import warnings
 import numpy as np
@@ -32,22 +33,46 @@ def load_fit_pkl(run_params, ophys_experiment_id):
 
     '''
 
-    filenamepkl = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pkl')
-    filenamepbz2 = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pbz2')
+    filenamepkl = os.path.join(run_params['experiment_output_dir'], str(ophys_experiment_id)+'.pkl')
+    filenamepbz2 = os.path.join(run_params['experiment_output_dir'], str(ophys_experiment_id)+'.pbz2')
 
     if os.path.isfile(filenamepbz2):
         fit = bz2.BZ2File(filenamepbz2, 'rb')
         fit = cPickle.load(fit)
         return fit
     elif os.path.isfile(filenamepkl):
-        with open(filenamepkl,'rb') as f:
+        with open(filenamepkl, 'rb') as f:
             fit = pickle.load(f)
         return fit
     else:
         return None
 
+def load_pred_responses_pkl(run_params, ophys_experiment_id):
+    """
+        Loads the pred_responses dictionary from the pkl file dumped by fit_experiment.
+        Attempts to load the compressed pickle file if it exists
+
+        Inputs:
+        run_params, the dictionary of parameters for this version
+        ophys_experiment_id, the oeid to load the fit for
+
+        Returns:
+        the pred responses dictionary if it exists
+
+    """
+
+    filename_pbz2 = os.path.join(run_params['experiment_output_dir'], str(ophys_experiment_id)+'_pred_responses.pbz2')
+
+    if os.path.isfile(filename_pbz2):
+        fit = bz2.BZ2File(filename_pbz2, 'rb')
+        fit = cPickle.load(fit)
+        return fit
+    else:
+        return None
+
+
 def load_event_times_h5(run_params, ophys_experiment_id):
-    '''
+    """
         Loads the h5 dataframe from the HDF file saved at the end of the experiment fitting containing event times.
         If it doesn't exist at the expected output directory from the fit, returns None        
  
@@ -58,7 +83,7 @@ def load_event_times_h5(run_params, ophys_experiment_id):
         Returns:
         the event times as a dataframe 
 
-    ''' 
+    """ 
 
     filenameh5 = os.path.join(run_params['experiment_output_dir'], 'event_times_' +  str(ophys_experiment_id) + '.h5')
 
@@ -67,8 +92,6 @@ def load_event_times_h5(run_params, ophys_experiment_id):
         return event_times
     else:
         return None
-
-
 
 def log_error(error_dict, keys_to_check = []):
     '''
@@ -229,9 +252,9 @@ def generate_results_summary_nonadj(glm):
     return pd.concat(results_summary_list)
 
 def generate_results_summary_non_cleaned(glm):
-    '''
+    """
         Returns a dataframe with summary information from the glm object
-    '''
+    """
     # Preserving the old functionality for now, but filtering out the adjusted variance columns
     test_cols = [col for col in glm.results.columns if (col.endswith('test') & ('adj' not in col))]
     results_summary_list = []
@@ -254,6 +277,115 @@ def generate_results_summary_non_cleaned(glm):
         results_summary_list.append(results_summary)
     return pd.concat(results_summary_list)
 
+
+def build_pred_responses(run_params, results_pivoted, event, kernels='total', time_start=-1, time_end=1,
+                         save_df=False):
+    """
+            Returns dataframe containing the time of the windows and the predicted responses during each window
+            for all cells across all OEIDs, also storing session/experiment/cell attributes 
+            The time window is defined by time_start before the event onset until time_stop after the event onset.
+            
+            INPUTS:
+            run_params            = JSON file from glm_params.load_run_json(VERSION)
+            results               = results dataframe from gat.retrieve_results(search_dict...)
+            event                 = event to align all of the predicted responses around
+            kernels               = kernels to use to produce predicted response 
+                                    ('all' - use all kernels, 'behavioral' - use running, pupil and licking kernels,
+                                     'all-images' - use all image kernels, 'all-omissions' - use all omission kernels)
+                                    Note: Can also define a list of kernels to produce response from
+                                          multiple separate kernels
+            time_start            = time to start the window around each event in the experiment
+                                    (e.g. time_start=-1 means to start window 1 second before each event)
+            time_end              =  time to end the window around each event in the experiment
+                                    (e.g. time_end=1 means to end the window 1 second after each event)
+        """
+    from mindscope_utilities.general_utilities import event_triggered_response
+
+    # Only dealing with discrete events right now
+    assert(event.startswith('image') or event.startswith('omission'))
+
+    # All oeids with recorded results
+    oeids = results_pivoted['ophys_experiment_id'].unique()
+
+    event_aligned_dfs = pd.DataFrame()
+    if save_df:
+        complete_event_aligned_dfs = pd.DataFrame()
+    # Loop through all experiments
+    for oeid in tqdm(oeids):
+        # Load pickle file containing the fit dictionary, change this to load pred_responses dictionary NOT fit
+        curr_fit = load_fit_pkl(run_params, oeid)
+        if curr_fit is not None:
+            if not isinstance(kernels, list):
+                # Change control block to single line of code with v_56
+                if kernels == 'total':
+                    pred = curr_fit['dropouts']['Full']['full_model_train_prediction']
+                elif kernels == 'ground-truth':
+                    pred = curr_fit['fit_trace_arr'].values
+                else:
+                    pred = curr_fit['pred_response']['single-' + kernels]
+            else:
+                pred = None
+                for kernel in kernels:
+                    if pred is None:
+                        pred = curr_fit['pred_response']['single-' + kernel]
+                    else:
+                        pred += curr_fit['pred_response']['single-' + kernel]
+            # Number of cells for current experiment
+            num_neurons = pred.shape[1]
+
+            # Assuming events passed in are either image or omission related
+            event_times = load_event_times_h5(run_params, oeid)
+            if event == 'omissions' or event == 'images':
+                event_cols = [col for col in event_times.columns if col.startswith(event[:-1])]
+                events_df = event_times[event_cols].sum(axis=1)
+            else:
+                events_df = event_times[event]
+            event_occ_ind = np.argwhere(events_df.values > 0).squeeze()
+            timestamps = event_times['timestamps']
+            event_occ_times = timestamps[event_occ_ind].values
+
+            for neuron in range(num_neurons):
+                curr_pred = pred[:, neuron]
+                y_hat = pd.DataFrame({'y_hat': curr_pred})
+                data = pd.concat([timestamps, y_hat], axis=1)
+                # Now create stimulus aligned response using mindscope_utilities function
+                event_aligned_df = event_triggered_response(data, t='timestamps', y='y_hat',
+                                                            event_times=event_occ_times,
+                                                            t_start=time_start, t_end=time_end,
+                                                            output_format='tidy')
+
+                event_len = len(event_aligned_df.query('event_number == 0'))
+                num_events = event_aligned_df['event_number'].tolist()[-1] + 1
+                trial_ind = np.arange(event_len)
+                event_aligned_df['window_pos'] = np.tile(trial_ind, num_events)
+                if save_df:
+                    complete_event_aligned_dfs = pd.concat([complete_event_aligned_dfs, event_aligned_df], axis=0)
+
+                event_aligned_df_single = event_aligned_df.groupby('window_pos').mean()
+                event_aligned_df_single['window_pos'] = trial_ind
+                event_aligned_df_single.drop(labels=['event_number', 'original_index', 'event_time'], 
+                                             axis=1, 
+                                             inplace=True)
+                
+                attr = results_pivoted.query('ophys_experiment_id == @oeid').iloc[[neuron], 48:]
+                # Maybe a better way?? How to add metadata to each group of rows for each cell in each experiment??
+                attr_repeated = pd.concat([attr] * event_len, ignore_index=True)
+                attr_event_aligned_df = pd.concat([event_aligned_df_single, attr_repeated], axis=1)
+
+                if save_df:
+                    # Taking wayyy too long...just add cell id instead?
+                    attr = attr.iloc[:, 0]
+                    complete_attr_repeated = pd.concat([attr] * len(complete_event_aligned_dfs), ignore_index=False)
+                    complete_event_aligned_dfs = pd.concat([complete_event_aligned_dfs, complete_attr_repeated], axis=1)
+
+                event_aligned_dfs = pd.concat([event_aligned_dfs, attr_event_aligned_df], axis=0)
+
+    if save_df:
+        complete_event_aligned_dfs.to_hdf(run_params['experiment_output_dir'] + '/' + kernels + '_event_aligned_df.h5',
+                                          key=kernels)
+    # Also save dataframe with all the y_hats for all trials across all neurons (h5 file)
+    return event_aligned_dfs
+        
 
 def identify_dominant_dropouts(data, cluster_column_name, cols_to_search):
     '''
@@ -891,8 +1023,9 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
     print('\nweights_df: processed all sessions to df\n')    
 
     # Merge all the session_dfs, and add more session level info
-    weights_df = pd.concat(sessions,sort=False) # Merge all cells in each oeid row-wise
-    weights_df = pd.merge(weights_df,results_pivoted, on = ['cell_specimen_id','ophys_experiment_id'],suffixes=('_weights','')) 
+    weights_df = pd.concat(sessions, sort=False) # Merge all cells in each oeid row-wise
+    weights_df = pd.merge(weights_df, results_pivoted, on=['cell_specimen_id', 'ophys_experiment_id'], 
+                          suffixes=('_weights','')) 
     
     # If we didn't compute dropout scores, then there won't be redundant columns, so the weights won't get appended with _weights (in that case, if none of them have _weights, add that for all kernels in run_params)
     if not np.any(['weights' in x for x in weights_df.columns.values]):
@@ -916,7 +1049,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
           x['image5_weights'],
           x['image6_weights'],
           x['image7_weights']
-          ],axis=0),axis=1)
+          ], axis=0), axis=1)
         
         # Compute preferred image kernel
         weights_df['preferred_image_weights'] = weights_df.apply(lambda x: compute_preferred_kernel([
@@ -928,7 +1061,7 @@ def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=
           x['image5_weights'],
           x['image6_weights'],
           x['image7_weights']
-          ]),axis=1) 
+          ]), axis=1) 
     
     # The function here is the nanmean, which performs the mean of all the numpy arrays of the omission weights across the rows (reducing all the rows, leaving one array of length 23) -> this entire operation is performed on each row (axis=1) 
     if 'omission0_weights' in weights_df:

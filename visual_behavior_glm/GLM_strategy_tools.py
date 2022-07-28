@@ -3,6 +3,8 @@ import copy
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import visual_behavior.data_access.loading as loading
+import visual_behavior.data_access.utilities as utilities
 import visual_behavior_glm.GLM_visualization_tools as gvt
 from scipy.stats import linregress
 import seaborn as sns
@@ -1160,6 +1162,483 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,
             print('Figure saved to: '+filename) 
     return summary_df 
 
+
+def plot_population_averages(results_pivoted, run_params, 
+    dropouts_to_show = ['all-images','omissions','behavioral','task'],
+    sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,
+    extra='',strict_experience_matching=False,plot_by_cell_type=False,
+    across_session=False,stats_on_across=True, matched_with_variance_explained=False,
+    matched_ve_threshold=0,savefig=False):
+    '''
+        Plots the average dropout scores for each cre line, on each experience level. 
+        Includes all cells, and matched only cells. 
+
+        dropouts_to_show (list of str), list of the dropout scores to show
+        sharey (bool) if True, shares the same y axis across dropouts of the 
+            same cre line
+        include_zero_cells (bool) if False, requires cells have a minimum of 
+            0.005 variance explained
+        boxplot (bool), if True, uses boxplot instead of pointplot. In general, 
+            very hard to read
+        add_stats (bool) adds anova followed by tukeyHD stats
+        extra (str) add an extra string to the filename
+        strict_experience_matching (bool) if True, require matched cells are 
+            strictly last familiar and first novel repeat, instead of just one 
+            session of each experience level
+        plot_by_cell_type (bool). Whether to make each row by cell type (True) 
+            or by dropout (False)
+        across_session (bool) Whether to compare within and across session dropouts. 
+            if True, then dropouts_to_show should be each dropout labeled as "_within"
+            and the corresponding "_across" must also be in results_pivoted
+        stats_on_across (bool) Only used if across_session = True. Whether to
+            perform and plot stats on the across session (True) or within session
+            (False) dropout scores. 
+        matched_with_variance_explained (bool) Compare with cells with 
+            variance_explained_full on at least one session about matched_ve_threshold
+        matched_ve_threshold (float) threshold used by matched_with_variance_explained
+        savefig (bool) whether to save the figure or not
+        
+    ''' 
+    
+    # Check to make sure across/within dropouts are being called correctly 
+    if across_session:
+        assert np.all(['_within' in x for x in dropouts_to_show]), \
+            'if across_session, then dropouts_to_show must be within session dropouts'
+        assert np.all([x.replace('_within','_across') in results_pivoted for x\
+             in dropouts_to_show]), 'across_session dropout not available'
+
+    if not sharey:
+        extra = extra+'_untied'
+    if include_zero_cells:
+        extra = extra+'_with_zero_cells'
+ 
+    # Filter for cells with low variance explained
+    if include_zero_cells:
+        results_pivoted = results_pivoted.query('not passive').copy()       
+    else:
+        extra = extra + '_no_zero_cells'
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)\
+            &(not passive)').copy()    
+
+    # Convert dropouts to positive values
+    for dropout in dropouts_to_show:
+        if '_signed' in dropout:
+            results_pivoted[dropout] = -results_pivoted[dropout]
+        else:
+            results_pivoted[dropout] = results_pivoted[dropout].abs()
+        if across_session:
+            results_pivoted[dropout.replace('_within','_across')] = \
+                results_pivoted[dropout.replace('_within','_across')].abs()
+    
+    # Add additional columns about experience levels
+    experiments_table = loading.get_platform_paper_experiment_table(\
+        include_4x2_data=run_params['include_4x2_data'])
+    experiment_table_columns = experiments_table.reset_index()\
+        [['ophys_experiment_id','last_familiar_active','second_novel_active',\
+        'cell_type','binned_depth']]
+    if across_session:
+        results_pivoted = results_pivoted.merge(experiment_table_columns, \
+            on='ophys_experiment_id',suffixes=('','_y'))
+    else:
+        results_pivoted = results_pivoted.merge(experiment_table_columns, \
+            on='ophys_experiment_id')
+
+    # Cells Matched across all three experience levels 
+    cells_table = loading.get_cell_table(platform_paper_only=True,\
+        include_4x2_data=run_params['include_4x2_data'])
+    cells_table = cells_table.query('not passive').copy()
+    cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(\
+        cells_table)
+    matched_cells = cells_table.cell_specimen_id.unique()
+    
+    # Strictly matched cells in the last familiar, and second novel session
+    if strict_experience_matching:
+        cells_table = loading.get_cell_table(platform_paper_only=True,\
+            include_4x2_data=run_params['include_4x2_data'])
+        cells_table = cells_table.query('not passive').copy()
+        cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
+        cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
+        strict_matched_cells = cells_table.cell_specimen_id.unique()
+        extra = extra + "_strict_matched"
+
+    if matched_with_variance_explained:
+        matched_cells_with_ve = get_matched_cells_with_ve(cells_table, \
+            results_pivoted,matched_ve_threshold)
+        extra = extra + "_matched_with_ve_"+str(matched_ve_threshold)
+
+    # plotting variables
+    #cell_types = results_pivoted.cell_type.unique()
+    cell_types = ['Vip Inhibitory','Sst Inhibitory','Excitatory']
+    experience_levels = np.sort(results_pivoted.experience_level.unique())
+    colors = gvt.project_colors()
+
+    if plot_by_cell_type:
+        # make combined across cre line plot
+        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+        for index, feature in enumerate(dropouts_to_show):
+            # plots three cre-lines in standard colors
+            ax[index] = sns.pointplot(
+                data = results_pivoted,
+                x = 'experience_level',
+                y= feature,
+                hue='cre_line',
+                hue_order = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre'],
+                order=experience_levels,
+                palette = colors,
+                join=True,
+                ax=ax[index],
+                legend=False,
+            )
+            ax[index].get_legend().remove()
+            ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
+            ax[index].set_title(feature,fontsize=20)
+            ax[index].set_ylabel('')
+            ax[index].set_xlabel('')
+            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].tick_params(axis='x',labelsize=16)
+            ax[index].tick_params(axis='y',labelsize=16)
+        ax[0].set_ylabel('Coding Score',fontsize=20)
+        plt.tight_layout()
+        filename = run_params['figure_dir']+'/dropout_average_combined'+extra+'.svg'
+        if savefig:
+            print('Figure saved to: '+filename)
+            plt.savefig(filename)   
+    
+        # Iterate cell types and make a plot for each
+        for cell_type in cell_types:
+            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+            all_data = results_pivoted.query('cell_type ==@cell_type')
+            matched_data = all_data.query('cell_specimen_id in @matched_cells')
+            if strict_experience_matching:
+                strict_matched_data = all_data\
+                    .query('cell_specimen_id in @strict_matched_cells') 
+            if matched_with_variance_explained:
+                matched_cells_with_ve_data = all_data\
+                    .query('cell_specimen_id in @matched_cells_with_ve')
+
+            stats = {}
+            # Iterate dropouts and plot each by experience
+            for index, feature in enumerate(dropouts_to_show):
+                anova, tukey = gvt.test_significant_dropout_averages(all_data,feature)
+                stats[feature]=(anova, tukey)
+                # Plot all cells in active sessions
+                if boxplot:
+                    ax[index] = sns.boxplot(
+                        data = all_data,
+                        x = 'experience_level',
+                        y= feature,
+                        hue='experience_level',
+                        order=['Familiar','Novel 1','Novel >1', 'dummy'],
+                        hue_order=experience_levels,
+                        palette = colors,
+                        showfliers=False,
+                        ax=ax[index]
+                    )
+                else:
+                    ax[index] = sns.pointplot(
+                        data = all_data,
+                        x = 'experience_level',
+                        y= feature,
+                        hue='experience_level', 
+                        order=['Familiar','Novel 1','Novel >1', 'dummy'], 
+                        hue_order=experience_levels,
+                        palette = colors,
+                        join=False,
+                        ax=ax[index]
+                    )
+    
+                all_cell_points = list(ax[index].get_children())
+                for x in all_cell_points:
+                    x.set_zorder(1000)
+                
+                # Plot cells in matched active sessions
+                ax[index] = sns.pointplot(
+                    data = matched_data,
+                    x = 'experience_level',
+                    y=feature,
+                    order=experience_levels,
+                    color='lightgray',
+                    join=True,
+                    ax=ax[index],
+                )
+    
+                if strict_experience_matching:
+                    # Plot cells in matched active sessions
+                    ax[index] = sns.pointplot(
+                        data = strict_matched_data,
+                        x = 'experience_level',
+                        y=feature,
+                        order=experience_levels,
+                        color='navajowhite',
+                        join=True,
+                        ax=ax[index],
+                    )
+                if matched_with_variance_explained:
+                    # Plot cells in matched active sessions
+                    ax[index] = sns.pointplot(
+                        data = matched_cells_with_ve_data,
+                        x = 'experience_level',
+                        y=feature,
+                        order=experience_levels,
+                        color='navajowhite',
+                        join=True,
+                        ax=ax[index],
+                    )
+                 
+                if index !=3:
+                    ax[index].get_legend().remove() 
+                #ax[index].axhline(0,color='k',linestyle='--',alpha=.25)
+                ax[index].set_title(feature,fontsize=20)
+                ax[index].set_ylabel('')
+                ax[index].set_xlabel('')
+                ax[index].set_xticks([0,1,2])
+                ax[index].set_xticklabels(experience_levels, rotation=90)
+                ax[index].set_xlim(-.5,2.5)
+                ax[index].tick_params(axis='x',labelsize=16)
+                ax[index].tick_params(axis='y',labelsize=16)
+                ax[index].set_ylim(bottom=0)
+                ax[index].spines['top'].set_visible(False)
+                ax[index].spines['right'].set_visible(False)
+                ax[index].yaxis.set_major_formatter(\
+                    mpl.ticker.FormatStrFormatter('%.2f'))
+    
+            if add_stats:
+                ytop = ax[0].get_ylim()[1]
+                y1 = ytop
+                y1h = ytop*1.05
+                y2 = ytop*1.1
+                y2h = ytop*1.15
+    
+                for index, feature in enumerate(dropouts_to_show):
+                    (anova, tukey) = stats[feature]
+                    if anova.pvalue<0.05:
+                        for tindex, row in tukey.iterrows():
+                            if row.x2-row.x1 > 1:
+                                y = y2
+                                yh = y2h
+                            else:
+                                y = y1
+                                yh = y1h 
+                            if row.reject:
+                                ax[index].plot([row.x1,row.x1,row.x2,row.x2],\
+                                    [y,yh,yh,y],'k-')
+                                ax[index].text(np.mean([row.x1,row.x2]),yh, '*')
+                    ax[index].set_ylim(0,ytop*1.2)
+            ax[0].set_ylabel('Coding Score',fontsize=18)
+            plt.suptitle(cell_type,fontsize=18)
+            fig.tight_layout()
+            filename = run_params['figure_dir']+'/dropout_average_'+\
+                cell_type[0:3]+extra+'.svg' 
+            if savefig:
+                plt.savefig(filename) 
+                print('Figure saved to: '+filename)
+
+    # Repeat the plots but transposed
+    # Iterate cell types and make a plot for each
+    summary_data = {}
+    for index, feature in enumerate(dropouts_to_show):   
+        fig, ax = plt.subplots(1,4,figsize=(10.8,4), sharey=sharey) 
+
+        ax[3] = sns.pointplot(
+            data = results_pivoted,
+            x = 'experience_level',
+            y= feature,
+            hue='cre_line',
+            hue_order = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre'],
+            order=experience_levels,
+            palette = colors,
+            join=True,
+            ax=ax[3],
+            legend=False,
+        )
+        ax[3].get_legend().remove()
+        ax[3].axhline(0,color='k',linestyle='--',alpha=.25)
+        ax[3].set_title('Combined',fontsize=20)
+        ax[3].set_ylabel('')
+        ax[3].set_xlabel('')
+        ax[3].set_xticklabels(experience_levels, rotation=90)
+        ax[3].tick_params(axis='x',labelsize=16)
+        ax[3].tick_params(axis='y',labelsize=16)
+        ax[3].spines['top'].set_visible(False)
+        ax[3].spines['right'].set_visible(False)
+
+        summary_data[feature + ' data'] = {}
+        stats = {}
+        # Iterate dropouts and plot each by experience
+        for cindex, cell_type in enumerate(cell_types):
+            all_data = results_pivoted.query('cell_type ==@cell_type')
+            matched_data = all_data.query('cell_specimen_id in @matched_cells')
+            if strict_experience_matching:
+                strict_matched_data = all_data\
+                    .query('cell_specimen_id in @strict_matched_cells')
+            if matched_with_variance_explained:
+                matched_cells_with_ve_data = all_data\
+                    .query('cell_specimen_id in @matched_cells_with_ve')
+            if across_session & stats_on_across:
+                stats_feature = feature.replace('_within','_across')
+            else:
+                stats_feature = feature
+            if matched_with_variance_explained:
+                anova, tukey = gvt.test_significant_dropout_averages(\
+                    matched_cells_with_ve_data,stats_feature)
+            else:
+                anova, tukey = gvt.test_significant_dropout_averages(\
+                    all_data,stats_feature)
+            stats[cell_type]=(anova, tukey)
+            summary_data[feature+' data'][cell_type+' all data'] = \
+                all_data.groupby(['experience_level'])[feature].describe()
+            summary_data[feature+' data'][cell_type+' matched data'] = \
+                matched_data.groupby(['experience_level'])[feature].describe()
+            # Plot all cells in active sessions
+            if boxplot:
+                ax[cindex] = sns.boxplot(
+                    data = all_data,
+                    x = 'experience_level',
+                    y= feature,
+                    hue='experience_level',
+                    order=['Familiar','Novel 1','Novel >1', 'dummy'], 
+                    hue_order=experience_levels,
+                    palette = colors,
+                    showfliers=False,
+                    ax=ax[cindex]
+                )
+            else:
+                if not across_session:
+                    ax[cindex] = sns.pointplot(
+                        data = all_data,
+                        x = 'experience_level',
+                        y= feature,
+                        hue='experience_level', 
+                        order=['Familiar','Novel 1','Novel >1', 'dummy'], 
+                        hue_order=experience_levels,
+                        palette = colors,
+                        join=False,
+                        ax=ax[cindex]
+                    )
+
+            all_cell_points = list(ax[cindex].get_children())
+            for x in all_cell_points:
+                x.set_zorder(1000)
+            
+            # Plot cells in matched active sessions
+            ax[cindex] = sns.pointplot(
+                data = matched_data,
+                x = 'experience_level',
+                y=feature,
+                order=experience_levels,
+                color='lightgray',
+                join=True,
+                ax=ax[cindex],
+            )
+
+            if across_session:
+                ax[cindex] = sns.pointplot(
+                    data = all_data,
+                    x = 'experience_level',
+                    y=feature.replace('_within','_across'),
+                    order=experience_levels,
+                    color='yellowgreen',
+                    join=True,
+                    ax=ax[cindex],
+                )               
+
+            if strict_experience_matching:
+                # Plot cells in matched active sessions
+                summary_data[feature+' data'][cell_type+' strict matched data'] = \
+                    strict_matched_data.groupby(['experience_level'])[feature].describe()
+                ax[cindex] = sns.pointplot(
+                    data = strict_matched_data,
+                    x = 'experience_level',
+                    y=feature,
+                    order=experience_levels,
+                    color='navajowhite',
+                    join=True,
+                    ax=ax[cindex],
+                )
+            if matched_with_variance_explained:
+                # Plot cells in matched active sessions
+                ax[cindex] = sns.pointplot(
+                    data = matched_cells_with_ve_data,
+                    x = 'experience_level',
+                    y=feature,
+                    order=experience_levels,
+                    color='navajowhite',
+                    join=True,
+                    ax=ax[cindex],
+                )
+             
+           
+ 
+            if (cindex !=3 )&( not across_session):
+                ax[cindex].get_legend().remove() 
+            if '_signed' in feature:
+                ax[cindex].axhline(0,color='k',linestyle='--',alpha=.25)
+            ax[cindex].set_title(cell_type,fontsize=20)
+            ax[cindex].set_ylabel('')
+            ax[cindex].set_xlabel('')
+            ax[cindex].set_xticks([0,1,2])
+            ax[cindex].set_xticklabels(experience_levels, rotation=90)
+            ax[cindex].set_xlim(-.5,2.5)
+            ax[cindex].tick_params(axis='x',labelsize=16)
+            ax[cindex].tick_params(axis='y',labelsize=16)
+            #ax[cindex].set_ylim(bottom=0)
+            ax[cindex].spines['top'].set_visible(False)
+            ax[cindex].spines['right'].set_visible(False)
+            ax[cindex].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+
+        if add_stats:
+            ytop = ax[0].get_ylim()[1]
+            y1 = ytop
+            y1h = ytop*1.05
+            y2 = ytop*1.1
+            y2h = ytop*1.15
+            if across_session & stats_on_across:
+                stats_color = 'olivedrab'
+            elif matched_with_variance_explained:
+                stats_color='navajowhite'
+            else:
+                stats_color='k'
+
+            for cindex, cell_type in enumerate(cell_types):
+                (anova, tukey) = stats[cell_type]
+                if anova.pvalue<0.05:
+                    for tindex, row in tukey.iterrows():
+                        if row.x2-row.x1 > 1:
+                            y = y2
+                            yh = y2h
+                        else:
+                            y = y1
+                            yh = y1h 
+                        if row.reject:
+                            ax[cindex].plot([row.x1,row.x1,row.x2,row.x2],\
+                                [y,yh,yh,y],'-',color=stats_color)
+                            ax[cindex].text(np.mean([row.x1,row.x2]),yh, '*')
+                #ax[index].set_ylim(0,ytop*1.2)
+        clean_feature = feature.replace('all-images','images')
+        clean_feature = clean_feature.replace('_positive',' excited')
+        clean_feature = clean_feature.replace('_negative',' inhibited')
+        clean_feature = clean_feature.replace('_within','')
+        clean_feature = clean_feature.replace('_', ' ')
+        ax[0].set_ylabel(clean_feature+'\nCoding Score',fontsize=20)
+        plt.suptitle(clean_feature,fontsize=18)
+        if '_signed' not in feature:
+            ax[0].set_ylim(bottom=0)
+            ax[1].set_ylim(bottom=0)
+            ax[2].set_ylim(bottom=0)
+            ax[3].set_ylim(bottom=0)
+        fig.tight_layout() 
+        if across_session & stats_on_across:
+            extra = extra + '_stats_on_across'
+        elif across_session:
+            extra = extra + '_stats_on_within'
+        filename = run_params['figure_dir']+'/dropout_average_'\
+            +clean_feature.replace(' ','_')+extra+'.svg'
+        if savefig:
+            plt.savefig(filename)
+            print('Figure saved to: '+filename)
+        summary_data[feature+' stats'] = stats
+
+    return summary_data
 
 
 

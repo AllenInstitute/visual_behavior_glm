@@ -31,6 +31,7 @@ weights_beh = gst.add_behavior_metrics(weights_df,summary_df)
 
 # Basic plots
 gst.plot_dropout_summary_population(results_beh, run_params)
+gst.plot_fraction_summary_population(results_pivoted_beh, run_params)
 
 # Kernel Plots 
 gst.compare_cre_kernels(weights_beh, run_params,ym='omissions')

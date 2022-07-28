@@ -1015,5 +1015,151 @@ def plot_dropout_summary_population(results, run_params,
         plt.savefig(filename)
 
 
+def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,
+    kernel_excitation=False,kernel=None,savefig=False):
+    if kernel_excitation:
+        assert kernel is not None, "Need to name the excited kernel"
+    else:
+        assert kernel is None, "Kernel Excitation is False, you should \
+            not provide a named kernel"
+
+    # compute coding fractions
+    results_pivoted = results_pivoted.query('not passive').copy()
+    results_pivoted['code_anything'] = results_pivoted['variance_explained_full'] \
+        > run_params['dropout_threshold'] 
+    results_pivoted['code_images'] = results_pivoted['code_anything'] \
+        & (results_pivoted['all-images'] < 0)
+    results_pivoted['code_omissions'] = results_pivoted['code_anything'] \
+        & (results_pivoted['omissions'] < 0)
+    results_pivoted['code_behavioral'] = results_pivoted['code_anything'] \
+        & (results_pivoted['behavioral'] < 0)
+    results_pivoted['code_task'] = results_pivoted['code_anything'] \
+        & (results_pivoted['task'] < 0)
+
+    cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    results_pivoted['cre_line_strat'] = [x[0]+' '+x[1] for x in \
+        zip(results_pivoted['cre_line'], results_pivoted['strategy_labels'])]
+
+    summary_df = results_pivoted.groupby(['cre_line_strat','experience_level'])\
+        [['code_anything','code_images','code_omissions','code_behavioral',\
+        'code_task']].mean()
+
+    # Compute Confidence intervals
+    summary_df['n'] = results_pivoted.groupby(['cre_line_strat','experience_level'])\
+        [['code_anything','code_images','code_omissions','code_behavioral',\
+        'code_task']].count()['code_anything']
+    summary_df['code_images_ci'] = 1.96*np.sqrt((summary_df['code_images']\
+        *(1-summary_df['code_images']))/summary_df['n'])
+    summary_df['code_omissions_ci'] = 1.96*np.sqrt((summary_df['code_omissions']\
+        *(1-summary_df['code_omissions']))/summary_df['n'])
+    summary_df['code_behavioral_ci'] = 1.96*np.sqrt((summary_df['code_behavioral']\
+        *(1-summary_df['code_behavioral']))/summary_df['n'])
+    summary_df['code_task_ci'] = 1.96*np.sqrt((summary_df['code_task']\
+        *(1-summary_df['code_task']))/summary_df['n'])
+
+    if kernel_excitation:
+        results_pivoted['code_'+kernel] = results_pivoted['code_anything'] \
+            & (results_pivoted[kernel] < 0)
+        results_pivoted['code_'+kernel+'_excited'] = results_pivoted['code_anything'] \
+            & (results_pivoted[kernel] < 0) & (results_pivoted[kernel+'_excited'])    
+        results_pivoted['code_'+kernel+'_inhibited'] = results_pivoted['code_anything'] \
+            & (results_pivoted[kernel] < 0) & (results_pivoted[kernel+'_excited']==False)
+        summary_df = results_pivoted.groupby(['cre_line_strat','experience_level'])\
+            [['code_anything','code_'+kernel,'code_'+kernel+'_excited',\
+            'code_'+kernel+'_inhibited']].mean()
+        summary_df['n'] = results_pivoted.groupby(['cre_line_strat','experience_level'])\
+            [['code_anything','code_'+kernel,'code_'+kernel+'_excited',\
+            'code_'+kernel+'_inhibited']].count()['code_anything']
+        summary_df['code_'+kernel+'_ci'] = 1.96*np.sqrt((summary_df['code_'+kernel]*\
+            (1-summary_df['code_'+kernel]))/summary_df['n'])
+        summary_df['code_'+kernel+'_excited_ci'] = 1.96*np.sqrt((summary_df['code_'+\
+            kernel+'_excited']*(1-summary_df['code_'+kernel+'_excited']))\
+            /summary_df['n'])
+        summary_df['code_'+kernel+'_inhibited_ci'] = 1.96*np.sqrt((\
+            summary_df['code_'+kernel+'_inhibited']*(1-summary_df['code_'+kernel\
+            +'_inhibited']))/summary_df['n'])
+
+    # plotting variables
+    experience_levels = np.sort(results_pivoted.experience_level.unique())
+    colors = gvt.project_colors()
+
+    if kernel_excitation:
+        coding_groups = ['code_'+kernel,'code_'+kernel+'_excited','code_'\
+            +kernel+'_inhibited']   
+        titles = [kernel.replace('all-images','images'), 'excited','inhibited']
+    else:
+        coding_groups = ['code_images','code_omissions','code_behavioral','code_task']
+        titles = ['images','omissions','behavioral','task']
+
+    # make combined across cre line plot
+    if kernel_excitation:
+        fig, ax = plt.subplots(1,len(coding_groups),figsize=(8.1,4), sharey=sharey)
+    else:
+        fig, ax = plt.subplots(1,len(coding_groups),figsize=(10.8,4), sharey=sharey)
+    for index, feature in enumerate(coding_groups):
+        # plots three cre-lines in standard colors
+        ax[index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre visual'][feature],'-',\
+            color=colors['Vip-IRES-Cre visual'],label='Vip visual',linewidth=3)
+        ax[index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre timing'][feature],'-',\
+            color=colors['Vip-IRES-Cre timing'],label='Vip timing',linewidth=3)
+        ax[index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre visual'][feature],'-',\
+            color=colors['Sst-IRES-Cre visual'],label='Sst visual',linewidth=3)
+        ax[index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre timing'][feature],'-',\
+            color=colors['Sst-IRES-Cre timing'],label='Sst timing',linewidth=3)
+        ax[index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre visual'][feature],\
+            '-',color=colors['Slc17a7-IRES2-Cre visual'],label='Exc visual',linewidth=3)
+        ax[index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre timing'][feature],\
+            '-',color=colors['Slc17a7-IRES2-Cre timing'],label='Exc timing',linewidth=3)
+        
+        ax[index].errorbar([0,1,2], summary_df.loc['Vip-IRES-Cre visual'][feature],\
+            yerr=summary_df.loc['Vip-IRES-Cre visual'][feature+'_ci'],\
+            color=colors['Vip-IRES-Cre visual'],linewidth=3)
+        ax[index].errorbar([0,1,2], summary_df.loc['Vip-IRES-Cre timing'][feature],\
+            yerr=summary_df.loc['Vip-IRES-Cre timing'][feature+'_ci'],\
+            color=colors['Vip-IRES-Cre timing'],linewidth=3)
+
+        ax[index].errorbar([0,1,2], summary_df.loc['Sst-IRES-Cre visual'][feature],\
+            yerr=summary_df.loc['Sst-IRES-Cre visual'][feature+'_ci'],\
+            color=colors['Sst-IRES-Cre visual'],linewidth=3)
+        ax[index].errorbar([0,1,2], summary_df.loc['Sst-IRES-Cre timing'][feature],\
+            yerr=summary_df.loc['Sst-IRES-Cre timing'][feature+'_ci'],\
+            color=colors['Sst-IRES-Cre timing'],linewidth=3)
+
+        ax[index].errorbar([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre visual'][feature],\
+            yerr=summary_df.loc['Slc17a7-IRES2-Cre visual'][feature+'_ci'],\
+            color=colors['Slc17a7-IRES2-Cre visual'],linewidth=3)
+        ax[index].errorbar([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre timing'][feature],\
+            yerr=summary_df.loc['Slc17a7-IRES2-Cre timing'][feature+'_ci'],\
+            color=colors['Slc17a7-IRES2-Cre timing'],linewidth=3)
+
+
+        ax[index].set_title(titles[index],fontsize=20)
+        ax[index].set_ylabel('')
+        ax[index].set_xlabel('')
+        ax[index].set_xticks([0,1,2])
+        ax[index].set_xticklabels(experience_levels, rotation=90)
+        ax[index].tick_params(axis='x',labelsize=16)
+        ax[index].tick_params(axis='y',labelsize=16)
+        ax[index].spines['top'].set_visible(False)
+        ax[index].spines['right'].set_visible(False)
+        ax[index].set_xlim(-.5,2.5)
+        ax[index].set_ylim(bottom=0)
+        if index ==3:
+            ax[index].legend()
+    ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=20)
+    plt.tight_layout()
+    if savefig:
+        if kernel_excitation:
+            filename = run_params['figure_dir']+'/strategy/coding_fraction_'+kernel\
+                +'_summary.svg'  
+            plt.savefig(filename)  
+            print('Figure saved to: '+filename) 
+        else:
+            filename = run_params['figure_dir']+'/strategy/coding_fraction_summary.svg'
+            plt.savefig(filename)  
+            print('Figure saved to: '+filename) 
+    return summary_df 
+
+
 
 

@@ -151,7 +151,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
-    check_weight_lengths(fit,design)
+    check_weight_lengths(fit, design)
     
     # Check Interpolation onto stimulus timestamps
     # if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
@@ -198,6 +198,13 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     with bz2.BZ2File(filepath, 'w') as f:
         cPickle.dump(fit, f)
 
+    # Save design matrix to compressed pickle file
+    print('Saving design matrix')
+    filepath = os.path.join(run_params['experiment_output_dir'], str(oeid) + '_design.pbz2')
+    with bz2.BZ2File(filepath, 'w') as f:
+        cPickle.dump(design, f)
+
+    # Save predicted responses dictionary (just in case) to compressed pickle file
     print('Saving predicted responses dictionary')
     filepath = os.path.join(run_params['experiment_output_dir'], str(oeid) + '_pred_responses.pbz2')
     with bz2.BZ2File(filepath, 'w') as f:
@@ -206,8 +213,8 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     # Save Event Table
     if run_params['version_type'] == 'production':
         print('Saving Events Table')
-        filepath = os.path.join(run_params['experiment_output_dir'],'event_times_'+str(oeid)+'.h5')
-        pd.DataFrame(design.events).to_hdf(filepath,key='df')
+        filepath = os.path.join(run_params['experiment_output_dir'], 'event_times_'+str(oeid)+'.h5')
+        pd.DataFrame(design.events).to_hdf(filepath, key='df')
 
     # Pack up
     print('Finished') 
@@ -578,14 +585,14 @@ def evaluate_models_lasso(fit,design,run_params):
 
 
 def evaluate_models_different_ridge(fit,design,run_params):
-    '''
+    """
         Fits and evaluates each model defined in fit['dropouts']
-           
-        For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
+
+        For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained.
             It does this for the entire dataset as test and train. As well as CV, saving each test/train split
 
         Each cell uses a different L2 value defined in fit['cell_L2_regularization']
-    '''
+    """
     for model_label in fit['dropouts'].keys():
 
         # Set up design matrix for this dropout
@@ -679,15 +686,15 @@ def evaluate_models_different_ridge(fit,design,run_params):
 
 
 def evaluate_models_same_ridge(fit, design, run_params):
-    '''
+    """
         Fits and evaluates each model defined in fit['dropouts']
-    
-        For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained. 
+
+        For each model, it creates the design matrix, finds the optimal weights, and saves the variance explained.
             It does this for the entire dataset as test and train. As well as CV, saving each test/train split
-    
-        All cells use the same regularization value defined in fit['avg_L2_regularization']  
-        
-    '''
+
+        All cells use the same regularization value defined in fit['avg_L2_regularization']
+
+    """
     for model_label in fit['dropouts'].keys():
 
         # Set up design matrix for this dropout
@@ -750,6 +757,7 @@ def evaluate_models_same_ridge(fit, design, run_params):
 
     return fit 
 
+
 def get_mask(dropout, design):
     """
         For the dropout dictionary returns the mask of where the kernels have support in the design matrix.
@@ -781,6 +789,7 @@ def get_mask(dropout, design):
 
     # Get mask from design matrix object 
     return design.get_mask(kernels=kernels)
+
 
 def build_dataframe_from_dropouts(fit,run_params):
     """
@@ -949,6 +958,7 @@ def build_dataframe_from_dropouts(fit,run_params):
 
     return results
 
+
 def L2_report(fit):
     '''
         Evaluates how well the L2 grid worked. Plots the train/test error across L2 Values to visually see the best value
@@ -974,12 +984,12 @@ def L2_report(fit):
     return results
  
 def load_data(oeid, run_params):
-    '''
+    """
         Allen SDK dataset is an attribute of this object (session)
         Keyword arguments:
             oeid (int) -- ophys_experiment_id
             run_params (dict) -- dictionary of parameters
-    '''
+    """
 
     if ('include_invalid_rois' in run_params):
         include_invalid_rois = (run_params['include_invalid_rois'])
@@ -990,12 +1000,13 @@ def load_data(oeid, run_params):
 
     return dataset
 
+
 def process_behavior_predictions(session, ophys_timestamps=None, cutoff_threshold=0.01):
-    '''
+    """
     Returns a dataframe of licking/grooming behavior derived from behavior videos
     All columns are interpolated onto ophys timestamps
     cutoff_threshold = threshold below which probabilities will be set to 0
-    '''
+    """
     behavior_predictions = pd.DataFrame({'timestamps':ophys_timestamps})
     for column in ['lick','groom']:
         f = scipy.interpolate.interp1d(
@@ -1009,16 +1020,17 @@ def process_behavior_predictions(session, ophys_timestamps=None, cutoff_threshol
         behavior_predictions[column][behavior_predictions[column]<cutoff_threshold] = 0
     return behavior_predictions
 
+
 def process_eye_data(session,run_params,ophys_timestamps=None):
-    '''
+    """
         Returns a dataframe of eye tracking data with several processing steps
         1. All columns are interpolated onto ophys timestamps
         2. Likely blinks are removed with a threshold set by run_params['eye_blink_z']
         3. After blink removal, a second transient step removes outliers with threshold run_params['eye_tranisent_threshold']
         4. After interpolating onto the ophys timestamps, Z-scores the eye_width and pupil_radius
-        
+
         Does not modifiy the original eye_tracking dataframe
-    '''    
+    """
 
     # Set parameters for blink detection, and load data
     #session.set_params(eye_tracking_z_threshold=run_params['eye_blink_z'])
@@ -1047,18 +1059,18 @@ def process_eye_data(session,run_params,ophys_timestamps=None):
 
 
 def process_data(session, run_params, TESTING=False):
-    '''
+    """
     Processes dff traces by trimming off portions of recording session outside of the task period. These include:
         * a ~5 minute gray screen period before the task begins
         * a ~5 minute gray screen period after the task ends
         * a 5-10 minute movie following the second gray screen period
-    
-    input -- session object 
+
+    input -- session object
     run_params, run json dictionary
     TESTING,        if True, only includes the first 6 cells of the experiment
 
     returns -- an xarray of of deltaF/F traces with dimensions [timestamps, cell_specimen_ids]
-    '''
+    """
 
     # clip off the grey screen periods
     fit_trace_timestamps = session.ophys_timestamps
@@ -1696,7 +1708,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         return design       
     else:
         # Add event occurrence for the event throughout its duration ONLY for the omission-specific/omissions and image-specific/images features
-        if (kernel_name.startswith('image')  or  kernel_name.startswith('omission')) and run_params['kernels'][kernel_name]['event_type'] == 'full':
+        if (kernel_name.startswith('image') or kernel_name.startswith('omission')) and run_params['kernels'][kernel_name]['event_type'] == 'full':
             event_times_start = event_times
             avg_event_len = 0.75
             avg_timestamp_len = np.average(np.diff(fit['fit_trace_timestamps']))

@@ -19,8 +19,9 @@ import visual_behavior.database as db
 
 from sklearn.decomposition import PCA
 
+
 def load_fit_pkl(run_params, ophys_experiment_id):
-    '''
+    """
         Loads the fit dictionary from the pkl file dumped by fit_experiment.
         Attempts to load the compressed pickle file if it exists, otherwise loads the uncompressed file
 
@@ -31,7 +32,7 @@ def load_fit_pkl(run_params, ophys_experiment_id):
         Returns:
         the fit dictionary if it exists
 
-    '''
+    """
 
     filenamepkl = os.path.join(run_params['experiment_output_dir'], str(ophys_experiment_id)+'.pkl')
     filenamepbz2 = os.path.join(run_params['experiment_output_dir'], str(ophys_experiment_id)+'.pbz2')
@@ -46,6 +47,7 @@ def load_fit_pkl(run_params, ophys_experiment_id):
         return fit
     else:
         return None
+
 
 def load_pred_responses_pkl(run_params, ophys_experiment_id):
     """
@@ -67,6 +69,30 @@ def load_pred_responses_pkl(run_params, ophys_experiment_id):
         fit = bz2.BZ2File(filename_pbz2, 'rb')
         fit = cPickle.load(fit)
         return fit
+    else:
+        return None
+
+
+def load_design_pkl(run_params, ophys_experiment_id):
+    """
+        Loads the design matrix from the pkl file dumped by fit_experiment.
+        Attempts to load the compressed pickle file if it exists
+
+        Inputs:
+        run_params, the dictionary of parameters for this version
+        ophys_experiment_id, the oeid to load the fit for
+
+        Returns:
+        the pred responses dictionary if it exists
+
+    """
+
+    filename_pbz2 = os.path.join(run_params['experiment_output_dir'], str(ophys_experiment_id)+'_design.pbz2')
+
+    if os.path.isfile(filename_pbz2):
+        design = bz2.BZ2File(filename_pbz2, 'rb')
+        design = cPickle.load(design)
+        return design
     else:
         return None
 
@@ -313,23 +339,18 @@ def build_pred_responses(run_params, results_pivoted, event, kernels='total', ti
     # Loop through all experiments
     for oeid in tqdm(oeids):
         # Load pickle file containing the fit dictionary, change this to load pred_responses dictionary NOT fit
-        curr_fit = load_fit_pkl(run_params, oeid)
-        if curr_fit is not None:
+        pred_response = load_pred_responses_pkl(run_params, oeid)
+        if pred_response is not None:
             if not isinstance(kernels, list):
                 # Change control block to single line of code with v_56
-                if kernels == 'total':
-                    pred = curr_fit['dropouts']['Full']['full_model_train_prediction']
-                elif kernels == 'ground-truth':
-                    pred = curr_fit['fit_trace_arr'].values
-                else:
-                    pred = curr_fit['pred_response']['single-' + kernels]
+                pred = pred_response[kernels]
             else:
                 pred = None
                 for kernel in kernels:
                     if pred is None:
-                        pred = curr_fit['pred_response']['single-' + kernel]
+                        pred = pred_response[kernel]
                     else:
-                        pred += curr_fit['pred_response']['single-' + kernel]
+                        pred += pred_response[kernel]
             # Number of cells for current experiment
             num_neurons = pred.shape[1]
 

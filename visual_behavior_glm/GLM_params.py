@@ -22,19 +22,21 @@ def get_versions(vrange=[15,20]):
 
 def define_kernels():
     kernels = {
-        # 'images':     {'event': 'images', 'event_type': 'full', 'type':'discrete', 'length': 0.75, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
-        # 'omissions': {'event': 'omissions', 'event_type': 'full', 'type':'discrete', 'length': 1.5, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
-        'intercept':    {'event':'intercept', 'type':'continuous',    'length':0,     'offset':0,     'num_weights':None, 'dropout':True, 'text': 'constant value'},
-        # 'hits':         {'event':'hit',         'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
-        # 'misses':       {'event':'miss',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
-        'each-image-omission':        {'event':'each-image-omission',  'event_type': 'full',  'type':'discrete',  'length':0.75,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
-        'each-image':   {'event':'each-image',  'event_type': 'full', 'type':'discrete',      'length':0.75,  'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image presentation'},
-        'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'normalized running speed'},
-        'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'Z-scored pupil diameter'},
-        'licks':        {'event':'licks',       'type':'discrete',      'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'mouse lick'},
-        #'beh_model':    {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'num_weights':None,  'dropout':True, 'text': 'behavioral model weights'},
-        #'lick_model':   {'event':'lick_model',  'type':'continuous',    'length':2,     'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'lick probability from video'},
-        #'groom_model':  {'event':'groom_model', 'type':'continuous',    'length':2,     'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'groom probability from video'},
+        # 'images':             {'event': 'images',     'event_type': 'full', 'type':'discrete', 'length': 0.75, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
+        # 'omissions':          {'event': 'omissions',  'event_type': 'full', 'type':'discrete', 'length': 1.5, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
+        'intercept':            {'event': 'intercept', 'type': 'continuous',    'length': 0,     'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'constant value'},
+        # 'hits':               {'event':'hit',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
+        # 'misses':             {'event':'miss',       'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
+        'each-image-omission':  {'event': 'each-image-omission',  'event_type': 'onset', 'type': 'discrete',  'length': 0.75,      'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'image was omitted'},
+        'each-image':           {'event': 'each-image',  'event_type': 'onset', 'type': 'discrete', 'length': 0.75, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation'},
+        # 'each-image-pred':      {'event': 'each-image-prediction', 'event_type': 'onset', 'type': 'discrete', 'length': 0.25, 'offset': -0.25, 'num_weights': None, 'dropout': True, 'text': 'image presentation prediction'},
+        # 'each-image-post-oms':  {'event': 'each-image-post-omission', 'event_type': 'onset', 'type': 'discrete', 'length': 0.25, 'offset': 0.5, 'num_weights': None, 'dropout': True, 'text': 'image omission post response'},
+        'running':              {'event': 'running', 'type': 'continuous', 'length': 2, 'offset': -1, 'num_weights': None, 'dropout': True, 'text': 'normalized running speed'},
+        'pupil':                {'event': 'pupil',       'type': 'continuous',    'length': 2,     'offset': -1,    'num_weights': None, 'dropout': True, 'text': 'Z-scored pupil diameter'},
+        'licks':                {'event': 'licks',       'type': 'discrete',      'length': 2,     'offset': -1,    'num_weights': None, 'dropout':True, 'text': 'mouse lick'},
+        #'beh_model':           {'event':'beh_model',   'type':'continuous',    'length':.5,    'offset':-.25, 'num_weights':None,  'dropout':True, 'text': 'behavioral model weights'},
+        #'lick_model':          {'event':'lick_model',  'type':'continuous',    'length':2,     'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'lick probability from video'},
+        #'groom_model':         {'event':'groom_model', 'type':'continuous',    'length':2,     'offset':-1,   'num_weights':None,  'dropout':True, 'text': 'groom probability from video'},
     }
     ## add face motion energy PCs
     # for PC in range(5):

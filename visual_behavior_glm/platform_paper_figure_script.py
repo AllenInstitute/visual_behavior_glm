@@ -25,17 +25,17 @@
 import visual_behavior_glm.GLM_fit_dev as gfd
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
-import visual_behavior_glm.GLM_schematic_plots as gsm
-import visual_behavior_glm.GLM_cell_metrics as gcm
-import visual_behavior_glm.GLM_across_session as gas
-from visual_behavior_glm.glm import GLM
+# import visual_behavior_glm.GLM_schematic_plots as gsm
+# import visual_behavior_glm.GLM_cell_metrics as gcm
+# import visual_behavior_glm.GLM_across_session as gas
+# from visual_behavior_glm.glm import GLM
 import matplotlib.pyplot as plt
 plt.ion()
 
 
 
 ### Define model version
-VERSION = '55_medepalli_omission_specific_analysis'
+VERSION = '56_medepalli_omission_specific_analysis_design_test'
 print('\nVersion Specified!\n')
 
 ### Main paper figures
@@ -50,7 +50,7 @@ print('\nVersion Specified!\n')
 # Takes about 10 minutes to load and process data
 run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
 
-kernels = 'total'
+kernels = 'all-omissions'
 event_aligned_df = gat.build_pred_responses(run_params, results_pivoted, event='omissions', kernels=kernels,
                                             time_start=-1, time_end=1)
 event_aligned_df.to_hdf(run_params['experiment_output_dir'] + '/' + kernels + '_event_aligned_df.h5',

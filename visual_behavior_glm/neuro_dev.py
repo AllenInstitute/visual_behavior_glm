@@ -25,8 +25,12 @@ licks_df = po.get_licks_table(BEHAVIOR_VERSION)
 bouts_df = po.build_bout_table(licks_df)
 
 # Add behavior information to GLM dataframes
-results_beh = gst.add_behavior_metrics(results_pivoted,summary_df)
+results_beh = gst.add_behavior_metrics(results,summary_df)
+results_pivoted_beh = gst.add_behavior_metrics(results_pivoted,summary_df)
 weights_beh = gst.add_behavior_metrics(weights_df,summary_df)
+
+# Basic plots
+gst.plot_dropout_summary_population(results_beh, run_params)
 
 # Kernel Plots 
 gst.compare_cre_kernels(weights_beh, run_params,ym='omissions')
@@ -40,10 +44,10 @@ gst.plot_kernels_by_strategy_by_session(weights_beh, run_params,
     ym='omissions', cre_line='Slc17a7-IRES2-Cre')
 
 # Dropout Scatter plots
-gst.scatter_by_cell(results_beh, run_params)
-gst.scatter_by_experience(results_beh, run_params, 
+gst.scatter_by_cell(results_pivoted_beh, run_params)
+gst.scatter_by_experience(results_pivoted_beh, run_params, 
     cre_line ='Vip-IRES-Cre',ymetric='omissions')
-gst.scatter_dataset(results_beh, run_params)
+gst.scatter_dataset(results_pivoted_beh, run_params)
 
 
 

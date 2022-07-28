@@ -3,7 +3,9 @@ import copy
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import visual_behavior_glm.GLM_visualization_tools as gvt
 from scipy.stats import linregress
+import seaborn as sns
 from mpl_toolkits.axes_grid1 import Divider, Size
 
 ## General Utilities
@@ -868,6 +870,149 @@ def scatter_by_cell(results_beh, run_params, cre_line='Vip-IRES-Cre', threshold=
 
     return x    
 
+
+
+def plot_dropout_summary_population(results, run_params,
+    dropouts_to_show =  ['all-images','omissions','behavioral','task'],
+    ax=None,palette=None,use_violin=False,add_median=True,
+    include_zero_cells=True,add_title=False,dropout_cleaning_threshold=None,
+    exclusion_threshold=None,savefig=False): 
+    '''
+        Makes a bar plot that shows the population dropout summary by cre line 
+            for different regressors 
+        palette , color palette to use. If None, uses gvt.project_colors()
+        use_violion (bool) if true, uses violin, otherwise uses boxplots
+        add_median (bool) if true, adds a line at the median of each population
+        include_zero_cells (bool) if true, uses all cells, otherwise uses a 
+            threshold for minimum variance explained
+    '''
+    if ax is None:
+        height = 4
+        width=12
+        horz_offset = 2
+        vertical_offset = .75
+        fig = plt.figure(figsize=(width,height))
+        h = [Size.Fixed(horz_offset),Size.Fixed(width-horz_offset-.5)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), 
+            axes_locator=divider.new_locator(nx=1,ny=1))  
+ 
+    if palette is None:
+        palette = gvt.project_colors()
+
+    if include_zero_cells:
+        threshold = 0
+    else:
+        threshold=exclusion_threshold
+
+
+    cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    results['tag'] = [x[0]+' '+x[1] for x in zip(results['cre_line'], 
+        results['strategy_labels'])]
+    tags = ['Vip-IRES-Cre visual',     'Vip-IRES-Cre timing',      
+            'Sst-IRES-Cre visual',     'Sst-IRES-Cre timing',      
+            'Slc17a7-IRES2-Cre visual','Slc17a7-IRES2-Cre timing']
+
+    if ('post-omissions' in results.dropout.unique())&('omissions' in dropouts_to_show):
+        dropouts_to_show = ['all-omissions' if x == 'omissions' else x \
+            for x in dropouts_to_show]
+    if ('post-hits' in results.dropout.unique())&('hits' in dropouts_to_show):
+        dropouts_to_show = ['all-hits' if x == 'hits' else x for x in dropouts_to_show]
+    if ('post-misses' in results.dropout.unique())&('misses' in dropouts_to_show):
+        dropouts_to_show = ['all-misses' if x == 'misses' else x \
+            for x in dropouts_to_show]
+    if ('post-passive_change' in results.dropout.unique())&\
+        ('passive_change' in dropouts_to_show):
+        dropouts_to_show = ['all-passive_change' if x == 'passive_change' \
+            else x for x in dropouts_to_show]
+ 
+    data_to_plot = results.query('not passive')\
+        .query('dropout in @dropouts_to_show and variance_explained_full > {}'\
+        .format(threshold)).copy()
+    data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
+    if dropout_cleaning_threshold is not None:
+        print('Clipping dropout scores for cells with full model VE < '\
+            +str(dropout_cleaning_threshold))
+        data_to_plot.loc[data_to_plot['adj_variance_explained_full']\
+            <dropout_cleaning_threshold,'explained_variance'] = 0 
+    
+
+    if use_violin:
+        plot1= sns.violinplot(
+            data = data_to_plot,
+            x='dropout',
+            y='explained_variance',
+            hue='cre_line',
+            order=dropouts_to_show,
+            hue_order=cre_lines,
+            fliersize=0,
+            ax=ax,
+            inner='quartile',
+            linewidth=0,
+            palette=palette,
+            cut = 0
+        )
+        if add_median:
+            lines = plot1.get_lines()
+            for index, line in enumerate(lines):
+                if np.mod(index,3) == 0:
+                    line.set_linewidth(0)
+                elif np.mod(index,3) == 1:
+                    line.set_linewidth(1)
+                    line.set_color('r')
+                    line.set_linestyle('-')
+                elif np.mod(index,3) == 2:
+                    line.set_linewidth(0)
+        plt.axhline(0,color='k',alpha=.25)
+
+    else:
+        sns.boxplot(
+            data = data_to_plot,
+            x='dropout',
+            y='explained_variance',
+            hue='tag',
+            order=dropouts_to_show,
+            hue_order=tags,
+            fliersize=0,
+            ax=ax,
+            palette=palette,
+            width=.7,
+        )
+    ax.set_ylim(0,1)
+    h,labels =ax.get_legend_handles_labels()
+    clean_labels={
+        'Slc17a7-IRES2-Cre visual':'Exc visual',
+        'Sst-IRES-Cre visual':'Sst visual',
+        'Vip-IRES-Cre visual':'Vip visual',
+        'Slc17a7-IRES2-Cre timing':'Exc timing',
+        'Sst-IRES-Cre timing':'Sst timing',
+        'Vip-IRES-Cre timing':'Vip timing'
+        }
+    mylabels = [clean_labels[x] for x in labels]
+    ax.legend(h,mylabels,loc='upper right',fontsize=16)
+    #ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=20)
+    ax.set_ylabel('Coding Score',fontsize=20)
+    ax.set_xlabel('Withheld component',fontsize=20)
+    ax.set_xticks([0,1,2,3])
+    ax.set_xticklabels(['images','omissions','behavioral','task'])
+    ax.tick_params(axis='x',labelsize=16)
+    ax.tick_params(axis='y',labelsize=16)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    if add_title:
+        plt.title(run_params['version'])
+    if dropout_cleaning_threshold is not None:
+        extra ='_'+str(dropout_cleaning_threshold) 
+    elif not include_zero_cells:
+        extra ='_remove_'+str(exclusion_threshold)
+    else:
+        extra=''
+    if savefig:
+        filename = run_params['figure_dir']+\
+            '/strategy/dropout_summary_boxplot'+extra+'.svg'
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
 
 
 

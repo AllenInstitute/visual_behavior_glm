@@ -1,9 +1,16 @@
 import os
+from scipy import stats
+import statsmodels.stats.multicomp as mc
 import copy
 import pandas as pd
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import visual_behavior.data_access.loading as loading
+import visual_behavior.data_access.utilities as utilities
+import visual_behavior_glm.GLM_visualization_tools as gvt
 from scipy.stats import linregress
+import seaborn as sns
 from mpl_toolkits.axes_grid1 import Divider, Size
 
 ## General Utilities
@@ -870,5 +877,472 @@ def scatter_by_cell(results_beh, run_params, cre_line='Vip-IRES-Cre', threshold=
 
 
 
+def plot_dropout_summary_population(results, run_params,
+    dropouts_to_show =  ['all-images','omissions','behavioral','task'],
+    palette=None,use_violin=True,add_median=True,
+    include_zero_cells=True,add_title=False,dropout_cleaning_threshold=None,
+    exclusion_threshold=None,savefig=False): 
+    '''
+        Makes a bar plot that shows the population dropout summary by cre line 
+            for different regressors 
+        palette , color palette to use. If None, uses gvt.project_colors()
+        use_violion (bool) if true, uses violin, otherwise uses boxplots
+        add_median (bool) if true, adds a line at the median of each population
+        include_zero_cells (bool) if true, uses all cells, otherwise uses a 
+            threshold for minimum variance explained
+    '''
+
+ 
+    if palette is None:
+        palette = gvt.project_colors()
+
+    if include_zero_cells:
+        threshold = 0
+    else:
+        threshold=exclusion_threshold
+
+
+    cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+
+    if ('post-omissions' in results.dropout.unique())&('omissions' in dropouts_to_show):
+        dropouts_to_show = ['all-omissions' if x == 'omissions' else x \
+            for x in dropouts_to_show]
+    if ('post-hits' in results.dropout.unique())&('hits' in dropouts_to_show):
+        dropouts_to_show = ['all-hits' if x == 'hits' else x for x in dropouts_to_show]
+    if ('post-misses' in results.dropout.unique())&('misses' in dropouts_to_show):
+        dropouts_to_show = ['all-misses' if x == 'misses' else x \
+            for x in dropouts_to_show]
+    if ('post-passive_change' in results.dropout.unique())&\
+        ('passive_change' in dropouts_to_show):
+        dropouts_to_show = ['all-passive_change' if x == 'passive_change' \
+            else x for x in dropouts_to_show]
+ 
+    data_to_plot = results.query('not passive')\
+        .query('dropout in @dropouts_to_show and variance_explained_full > {}'\
+        .format(threshold)).copy()
+    data_to_plot['explained_variance'] = -1*data_to_plot['adj_fraction_change_from_full']
+    if dropout_cleaning_threshold is not None:
+        print('Clipping dropout scores for cells with full model VE < '\
+            +str(dropout_cleaning_threshold))
+        data_to_plot.loc[data_to_plot['adj_variance_explained_full']\
+            <dropout_cleaning_threshold,'explained_variance'] = 0 
+   
+
+    for index, cre in enumerate(cre_lines):
+        height = 4
+        width=12
+        horz_offset = 2
+        vertical_offset = .75
+        fig = plt.figure(figsize=(width,height))
+        h = [Size.Fixed(horz_offset),Size.Fixed(width-horz_offset-.5)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(), 
+            axes_locator=divider.new_locator(nx=1,ny=1))  
+        cre_data = data_to_plot.query('cre_line == @cre')
+
+        if use_violin:
+            plot1= sns.violinplot(
+                data = cre_data,
+                x='dropout',
+                y='explained_variance',
+                hue='strategy_labels',
+                hue_order = ['visual','timing'],
+                order=dropouts_to_show,
+                fliersize=0,
+                ax=ax,
+                inner='quartile',
+                linewidth=0,
+                palette=palette,
+                cut = 0,
+                split=True,
+                alpha=.7
+            )
+            if add_median:
+                lines = plot1.get_lines()
+                for index, line in enumerate(lines):
+                    if np.mod(index,3) == 0:
+                        line.set_linewidth(0)
+                    elif np.mod(index,3) == 1:
+                        line.set_linewidth(1)
+                        line.set_color('r')
+                        line.set_linestyle('-')
+                    elif np.mod(index,3) == 2:
+                        line.set_linewidth(0)
+            plt.axhline(0,color='k',alpha=.25)
+        else:
+            sns.boxplot(
+                data = cre_data,
+                x='dropout',
+                y='explained_variance',
+                hue='strategy_labels',
+                hue_order = ['visual','timing'],
+                order=dropouts_to_show,
+                fliersize=0,
+                ax=ax,
+                palette=palette,
+                width=.7,
+            )
+        plt.setp(ax.collections,alpha=.5)
+        ax.set_ylim(0,1)
+        h,labels =ax.get_legend_handles_labels()
+        clean_labels={
+            'Slc17a7-IRES2-Cre visual':'Exc visual',
+            'Sst-IRES-Cre visual':'Sst visual',
+            'Vip-IRES-Cre visual':'Vip visual',
+            'Slc17a7-IRES2-Cre timing':'Exc timing',
+            'Sst-IRES-Cre timing':'Sst timing',
+            'Vip-IRES-Cre timing':'Vip timing'
+            }
+        #mylabels = [clean_labels[x] for x in labels]
+        #ax.legend(h,mylabels,loc='upper right',fontsize=16)
+        #ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=20)
+        ax.set_ylabel(cre+'\nCoding Score',fontsize=20)
+        ax.set_xlabel('Withheld component',fontsize=20)
+        ax.set_xticks([0,1,2,3])
+        ax.set_xticklabels(['images','omissions','behavioral','task'])
+        ax.tick_params(axis='x',labelsize=16)
+        ax.tick_params(axis='y',labelsize=16)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        if add_title:
+            plt.title(run_params['version'])
+        if dropout_cleaning_threshold is not None:
+            extra ='_'+str(dropout_cleaning_threshold) 
+        elif not include_zero_cells:
+            extra ='_remove_'+str(exclusion_threshold)
+        else:
+            extra=''
+        if savefig:
+            filename = run_params['figure_dir']+\
+                '/strategy/'+cre+' dropout_summary_boxplot'+extra+'.svg'
+            print('Figure saved to: '+filename)
+            plt.savefig(filename)
+
+
+def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,
+    kernel_excitation=False,kernel=None,savefig=False):
+    if kernel_excitation:
+        assert kernel is not None, "Need to name the excited kernel"
+    else:
+        assert kernel is None, "Kernel Excitation is False, you should \
+            not provide a named kernel"
+
+    # compute coding fractions
+    results_pivoted = results_pivoted.query('not passive').copy()
+    results_pivoted['code_anything'] = results_pivoted['variance_explained_full'] \
+        > run_params['dropout_threshold'] 
+    results_pivoted['code_images'] = results_pivoted['code_anything'] \
+        & (results_pivoted['all-images'] < 0)
+    results_pivoted['code_omissions'] = results_pivoted['code_anything'] \
+        & (results_pivoted['omissions'] < 0)
+    results_pivoted['code_behavioral'] = results_pivoted['code_anything'] \
+        & (results_pivoted['behavioral'] < 0)
+    results_pivoted['code_task'] = results_pivoted['code_anything'] \
+        & (results_pivoted['task'] < 0)
+
+    cre_lines = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    results_pivoted['cre_line_strat'] = [x[0]+' '+x[1] for x in \
+        zip(results_pivoted['cre_line'], results_pivoted['strategy_labels'])]
+
+    summary_df = results_pivoted.groupby(['cre_line_strat','experience_level'])\
+        [['code_anything','code_images','code_omissions','code_behavioral',\
+        'code_task']].mean()
+
+    # Compute Confidence intervals
+    summary_df['n'] = results_pivoted.groupby(['cre_line_strat','experience_level'])\
+        [['code_anything','code_images','code_omissions','code_behavioral',\
+        'code_task']].count()['code_anything']
+    summary_df['code_images_ci'] = 1.96*np.sqrt((summary_df['code_images']\
+        *(1-summary_df['code_images']))/summary_df['n'])
+    summary_df['code_omissions_ci'] = 1.96*np.sqrt((summary_df['code_omissions']\
+        *(1-summary_df['code_omissions']))/summary_df['n'])
+    summary_df['code_behavioral_ci'] = 1.96*np.sqrt((summary_df['code_behavioral']\
+        *(1-summary_df['code_behavioral']))/summary_df['n'])
+    summary_df['code_task_ci'] = 1.96*np.sqrt((summary_df['code_task']\
+        *(1-summary_df['code_task']))/summary_df['n'])
+
+    if kernel_excitation:
+        results_pivoted['code_'+kernel] = results_pivoted['code_anything'] \
+            & (results_pivoted[kernel] < 0)
+        results_pivoted['code_'+kernel+'_excited'] = results_pivoted['code_anything'] \
+            & (results_pivoted[kernel] < 0) & (results_pivoted[kernel+'_excited'])    
+        results_pivoted['code_'+kernel+'_inhibited'] = results_pivoted['code_anything'] \
+            & (results_pivoted[kernel] < 0) & (results_pivoted[kernel+'_excited']==False)
+        summary_df = results_pivoted.groupby(['cre_line_strat','experience_level'])\
+            [['code_anything','code_'+kernel,'code_'+kernel+'_excited',\
+            'code_'+kernel+'_inhibited']].mean()
+        summary_df['n'] = results_pivoted.groupby(['cre_line_strat','experience_level'])\
+            [['code_anything','code_'+kernel,'code_'+kernel+'_excited',\
+            'code_'+kernel+'_inhibited']].count()['code_anything']
+        summary_df['code_'+kernel+'_ci'] = 1.96*np.sqrt((summary_df['code_'+kernel]*\
+            (1-summary_df['code_'+kernel]))/summary_df['n'])
+        summary_df['code_'+kernel+'_excited_ci'] = 1.96*np.sqrt((summary_df['code_'+\
+            kernel+'_excited']*(1-summary_df['code_'+kernel+'_excited']))\
+            /summary_df['n'])
+        summary_df['code_'+kernel+'_inhibited_ci'] = 1.96*np.sqrt((\
+            summary_df['code_'+kernel+'_inhibited']*(1-summary_df['code_'+kernel\
+            +'_inhibited']))/summary_df['n'])
+
+    # plotting variables
+    experience_levels = np.sort(results_pivoted.experience_level.unique())
+    colors = gvt.project_colors()
+
+    if kernel_excitation:
+        coding_groups = ['code_'+kernel,'code_'+kernel+'_excited','code_'\
+            +kernel+'_inhibited']   
+        titles = [kernel.replace('all-images','images'), 'excited','inhibited']
+    else:
+        coding_groups = ['code_images','code_omissions','code_behavioral','code_task']
+        titles = ['images','omissions','behavioral','task']
+
+    # make combined across cre line plot
+    if kernel_excitation:
+        fig, ax = plt.subplots(1,len(coding_groups),figsize=(8.1,4), sharey=sharey)
+    else:
+        fig, ax = plt.subplots(3,len(coding_groups),figsize=(10.8,8), sharey=sharey)
+    for index, feature in enumerate(coding_groups):
+        # plots three cre-lines in standard colors
+        ax[0,index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre visual'][feature],'-',\
+            color=colors['visual'],label='Vip visual',linewidth=3)
+        ax[0,index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre timing'][feature],'-',\
+            color=colors['timing'],label='Vip timing',linewidth=3)
+        ax[1,index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre visual'][feature],'-',\
+            color=colors['visual'],label='Sst visual',linewidth=3)
+        ax[1,index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre timing'][feature],'-',\
+            color=colors['timing'],label='Sst timing',linewidth=3)
+        ax[2,index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre visual'][feature],\
+            '-',color=colors['visual'],label='Exc visual',linewidth=3)
+        ax[2,index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre timing'][feature],\
+            '-',color=colors['timing'],label='Exc timing',linewidth=3)
+        
+        ax[0,index].errorbar([0,1,2], summary_df.loc['Vip-IRES-Cre visual'][feature],\
+            yerr=summary_df.loc['Vip-IRES-Cre visual'][feature+'_ci'],\
+            color=colors['visual'],linewidth=3)
+        ax[0,index].errorbar([0,1,2], summary_df.loc['Vip-IRES-Cre timing'][feature],\
+            yerr=summary_df.loc['Vip-IRES-Cre timing'][feature+'_ci'],\
+            color=colors['timing'],linewidth=3)
+
+        ax[1,index].errorbar([0,1,2], summary_df.loc['Sst-IRES-Cre visual'][feature],\
+            yerr=summary_df.loc['Sst-IRES-Cre visual'][feature+'_ci'],\
+            color=colors['visual'],linewidth=3)
+        ax[1,index].errorbar([0,1,2], summary_df.loc['Sst-IRES-Cre timing'][feature],\
+            yerr=summary_df.loc['Sst-IRES-Cre timing'][feature+'_ci'],\
+            color=colors['timing'],linewidth=3)
+
+        ax[2,index].errorbar([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre visual'][feature],\
+            yerr=summary_df.loc['Slc17a7-IRES2-Cre visual'][feature+'_ci'],\
+            color=colors['visual'],linewidth=3)
+        ax[2,index].errorbar([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre timing'][feature],\
+            yerr=summary_df.loc['Slc17a7-IRES2-Cre timing'][feature+'_ci'],\
+            color=colors['timing'],linewidth=3)
+
+
+        for f in [0,1,2]:
+            ax[f,index].set_title(titles[index],fontsize=20)
+            ax[f,index].set_ylabel('')
+            ax[f,index].set_xlabel('')
+            ax[f,index].set_xticks([0,1,2])
+            if f == 2:
+                ax[f,index].set_xticklabels(experience_levels, rotation=90)
+            else:
+                ax[f,index].set_xticklabels(['','',''])
+            ax[f,index].tick_params(axis='x',labelsize=16)
+            ax[f,index].tick_params(axis='y',labelsize=16)
+            ax[f,index].spines['top'].set_visible(False)
+            ax[f,index].spines['right'].set_visible(False)
+            ax[f,index].set_xlim(-.5,2.5)
+            ax[f,index].set_ylim(bottom=0)
+            if index ==3:
+                ax[f,index].legend()
+
+    ax[1,0].set_ylabel('Fraction of cells coding for ',fontsize=20)
+    plt.tight_layout()
+    if savefig:
+        if kernel_excitation:
+            filename = run_params['figure_dir']+'/strategy/coding_fraction_'+kernel\
+                +'_summary.svg'  
+            plt.savefig(filename)  
+            print('Figure saved to: '+filename) 
+        else:
+            filename = run_params['figure_dir']+'/strategy/coding_fraction_summary.svg'
+            plt.savefig(filename)  
+            print('Figure saved to: '+filename) 
+    return summary_df 
+
+
+def plot_population_averages(results_pivoted, run_params, 
+    dropouts_to_show = ['all-images','omissions','behavioral','task'],
+    sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,
+    extra='',strict_experience_matching=False,plot_by_cell_type=False,
+    across_session=False,stats_on_across=True, matched_with_variance_explained=False,
+    matched_ve_threshold=0,savefig=False):
+    '''
+        Plots the average dropout scores for each cre line, on each experience level. 
+        Includes all cells, and matched only cells. 
+
+        dropouts_to_show (list of str), list of the dropout scores to show
+        sharey (bool) if True, shares the same y axis across dropouts of the 
+            same cre line
+        include_zero_cells (bool) if False, requires cells have a minimum of 
+            0.005 variance explained
+        boxplot (bool), if True, uses boxplot instead of pointplot. In general, 
+            very hard to read
+        add_stats (bool) adds anova followed by tukeyHD stats
+        extra (str) add an extra string to the filename
+        strict_experience_matching (bool) if True, require matched cells are 
+            strictly last familiar and first novel repeat, instead of just one 
+            session of each experience level
+        plot_by_cell_type (bool). Whether to make each row by cell type (True) 
+            or by dropout (False)
+        across_session (bool) Whether to compare within and across session dropouts. 
+            if True, then dropouts_to_show should be each dropout labeled as "_within"
+            and the corresponding "_across" must also be in results_pivoted
+        stats_on_across (bool) Only used if across_session = True. Whether to
+            perform and plot stats on the across session (True) or within session
+            (False) dropout scores. 
+        matched_with_variance_explained (bool) Compare with cells with 
+            variance_explained_full on at least one session about matched_ve_threshold
+        matched_ve_threshold (float) threshold used by matched_with_variance_explained
+        savefig (bool) whether to save the figure or not
+        
+    ''' 
+    
+    if not sharey:
+        extra = extra+'_untied'
+    if include_zero_cells:
+        extra = extra+'_with_zero_cells'
+ 
+    # Filter for cells with low variance explained
+    if include_zero_cells:
+        results_pivoted = results_pivoted.query('not passive').copy()       
+    else:
+        extra = extra + '_no_zero_cells'
+        results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)\
+            &(not passive)').copy()    
+
+    # Convert dropouts to positive values
+    for dropout in dropouts_to_show:
+        if '_signed' in dropout:
+            results_pivoted[dropout] = -results_pivoted[dropout]
+        else:
+            results_pivoted[dropout] = results_pivoted[dropout].abs()
+    
+    # Add additional columns about experience levels
+    experiments_table = loading.get_platform_paper_experiment_table(\
+        include_4x2_data=run_params['include_4x2_data'])
+    experiment_table_columns = experiments_table.reset_index()\
+        [['ophys_experiment_id','last_familiar_active','second_novel_active',\
+        'cell_type','binned_depth']]
+    results_pivoted = results_pivoted.merge(experiment_table_columns, \
+            on='ophys_experiment_id')
+
+    # plotting variables
+    cell_types = ['Vip Inhibitory','Sst Inhibitory','Excitatory']
+    experience_levels = np.sort(results_pivoted.experience_level.unique())
+    colors = gvt.project_colors()
+
+    # Repeat the plots but transposed
+    # Iterate cell types and make a plot for each
+    summary_data = {}
+    for index, feature in enumerate(dropouts_to_show):   
+        fig, ax = plt.subplots(1,3,figsize=(8.4,4), sharey=sharey) 
+
+        summary_data[feature + ' data'] = {}
+        stats = {}
+        # Iterate dropouts and plot each by experience
+        for cindex, cell_type in enumerate(cell_types):
+            all_data = results_pivoted.query('cell_type ==@cell_type')
+
+            visual_data = all_data.query('strategy_labels == "visual"')
+            timing_data = all_data.query('strategy_labels == "timing"')
+
+            stats_feature = feature
+            stats[cell_type]= test_significant_dropout_averages_by_strategy(\
+                    all_data,stats_feature)
+            summary_data[feature+' data'][cell_type+' all data'] = \
+                all_data.groupby(['experience_level'])[feature].describe()
+
+            ax[cindex] = sns.pointplot(
+                data = timing_data,
+                x = 'experience_level',
+                y= feature,
+                order=experience_levels,
+                color = colors['timing'],
+                join=True,
+                ax=ax[cindex]
+                )
+
+            ax[cindex] = sns.pointplot(
+                data = visual_data,
+                x = 'experience_level',
+                y=feature,
+                order=experience_levels,
+                color=colors['visual'],
+                join=True,
+                ax=ax[cindex],
+            )
+
+            ax[cindex].set_title(cell_type,fontsize=20)
+            ax[cindex].set_ylabel('')
+            ax[cindex].set_xlabel('')
+            ax[cindex].set_xticks([0,1,2])
+            ax[cindex].set_xticklabels(experience_levels, rotation=90)
+            ax[cindex].set_xlim(-.5,2.5)
+            ax[cindex].tick_params(axis='x',labelsize=16)
+            ax[cindex].tick_params(axis='y',labelsize=16)
+            ax[cindex].spines['top'].set_visible(False)
+            ax[cindex].spines['right'].set_visible(False)
+            ax[cindex].yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+
+        if add_stats:
+            ytop = ax[0].get_ylim()[1]
+            y1h = ytop*1.05
+            stats_color='k'
+            for cindex, cell_type in enumerate(cell_types):
+                for eindex, exp in enumerate(experience_levels):
+                    ttest = stats[cell_type][exp]
+                    if ttest.pvalue<0.001:
+                            ax[cindex].plot(eindex,y1h, '*',color=stats_color)
+                            ax[cindex].plot(eindex+.1,y1h, '*',color=stats_color)
+                            ax[cindex].plot(eindex-.1,y1h, '*',color=stats_color)
+                    elif ttest.pvalue<0.01:
+                            ax[cindex].plot(eindex,y1h, '*',color=stats_color)
+                            ax[cindex].plot(eindex+.1,y1h, '*',color=stats_color)
+                    elif ttest.pvalue<0.05:
+                            ax[cindex].plot(eindex,y1h, '*',color=stats_color)
+        clean_feature = feature.replace('all-images','images')
+        clean_feature = clean_feature.replace('_positive',' excited')
+        clean_feature = clean_feature.replace('_negative',' inhibited')
+        clean_feature = clean_feature.replace('_within','')
+        clean_feature = clean_feature.replace('_', ' ')
+        ax[0].set_ylabel(clean_feature+'\nCoding Score',fontsize=20)
+        plt.suptitle(clean_feature,fontsize=18)
+        if '_signed' not in feature:
+            ax[0].set_ylim(bottom=0)
+            ax[1].set_ylim(bottom=0)
+            ax[2].set_ylim(bottom=0)
+        fig.tight_layout() 
+
+        if savefig:
+            filename = run_params['figure_dir']+'/strategy/dropout_average_'\
+                +clean_feature.replace(' ','_')+extra+'.svg'
+            plt.savefig(filename)
+            print('Figure saved to: '+filename)
+        summary_data[feature+' stats'] = stats
+
+    return summary_data
+
+
+
+def test_significant_dropout_averages_by_strategy(data,feature):
+    data = data[~data[feature].isnull()].copy()
+    ttests = {}
+    for experience in data['experience_level'].unique():
+       ttests[experience] = stats.ttest_ind(
+            data.query('experience_level == @experience & strategy_labels == "visual"')[feature],  
+            data.query('experience_level == @experience & strategy_labels == "timing"')[feature],
+            )
+    return ttests
 
 

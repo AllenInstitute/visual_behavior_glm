@@ -28,6 +28,7 @@ import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_schematic_plots as gsm
 import visual_behavior_glm.GLM_cell_metrics as gcm
 import visual_behavior_glm.GLM_across_session as gas
+import visual_behavior_glm.GLM_params as gp
 from visual_behavior_glm.glm import GLM
 import matplotlib.pyplot as plt
 plt.ion()
@@ -35,7 +36,7 @@ plt.ion()
 
 
 ### Define model version
-VERSION = '55_medepalli_omission_specific_analysis'
+VERSION = '57_medepalli_omission_specific_analysis'
 print('\nVersion Specified!\n')
 
 ### Main paper figures
@@ -48,13 +49,15 @@ print('\nVersion Specified!\n')
 # This function requires access to Allen Institute internal resources
 # I should save out these dataframes to a file
 # Takes about 10 minutes to load and process data
-run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
+# run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
+run_params = gp.load_run_json(VERSION)
 
-kernels = 'total'
-event_aligned_df = gat.build_pred_responses(run_params, results_pivoted, event='omissions', kernels=kernels,
+kernels = 'all-omissions'
+print('Fitting to {} kernel'.format(kernels))
+event_aligned_df = gat.build_pred_responses(run_params, event='omissions', kernels=kernels,
                                             time_start=-1, time_end=1)
-event_aligned_df.to_hdf(run_params['experiment_output_dir'] + '/' + kernels + '_event_aligned_df.h5',
-                                    key=kernels)
+# event_aligned_df.to_hdf(run_params['experiment_output_dir'] + '/' + kernels + '_event_aligned_df.h5',
+#                                     key=kernels)
 print('\nSaved {} dataframe'.format(kernels))
 gvt.plot_event_aligned_responses(run_params, event_aligned_df, kernels=kernels, savefig=True)
 

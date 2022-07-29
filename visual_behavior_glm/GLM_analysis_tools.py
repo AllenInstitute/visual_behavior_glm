@@ -64,9 +64,9 @@ def load_pred_responses_pkl(run_params, ophys_experiment_id):
     filename_pbz2 = os.path.join(run_params['experiment_output_dir'], str(ophys_experiment_id)+'_pred_responses.pbz2')
 
     if os.path.isfile(filename_pbz2):
-        fit = bz2.BZ2File(filename_pbz2, 'rb')
-        fit = cPickle.load(fit)
-        return fit
+        pred = bz2.BZ2File(filename_pbz2, 'rb')
+        pred = cPickle.load(pred)
+        return pred
     else:
         return None
 
@@ -278,7 +278,7 @@ def generate_results_summary_non_cleaned(glm):
     return pd.concat(results_summary_list)
 
 
-def build_pred_responses(run_params, results_pivoted, event, kernels='total', time_start=-1, time_end=1,
+def build_pred_responses(run_params, event, kernels='total', time_start=-1, time_end=1,
                          save_df=False):
     """
             Returns dataframe containing the time of the windows and the predicted responses during each window
@@ -287,7 +287,6 @@ def build_pred_responses(run_params, results_pivoted, event, kernels='total', ti
             
             INPUTS:
             run_params            = JSON file from glm_params.load_run_json(VERSION)
-            results               = results dataframe from gat.retrieve_results(search_dict...)
             event                 = event to align all of the predicted responses around
             kernels               = kernels to use to produce predicted response 
                                     ('all' - use all kernels, 'behavioral' - use running, pupil and licking kernels,
@@ -305,7 +304,18 @@ def build_pred_responses(run_params, results_pivoted, event, kernels='total', ti
     assert(event.startswith('image') or event.startswith('omission'))
 
     # All oeids with recorded results
-    oeids = results_pivoted['ophys_experiment_id'].unique()
+    output_dir = os.listdir(run_params['experiment_output_dir'])
+    oeids = []
+    for f in output_dir:
+        if f.endswith('_pred_responses.pbz2'):
+            oeids.append(int(f.split('_pred_responses.pbz2')[0]))
+
+    # oeids = results_pivoted['ophys_experiment_id'].unique()
+
+    # Get all oeid metadata
+    cell_table = loading.get_cell_table(platform_paper_only=True,
+                                              add_extra_columns=False,
+                                              include_4x2_data=False).reset_index()
 
     event_aligned_dfs = pd.DataFrame()
     if save_df:
@@ -313,23 +323,17 @@ def build_pred_responses(run_params, results_pivoted, event, kernels='total', ti
     # Loop through all experiments
     for oeid in tqdm(oeids):
         # Load pickle file containing the fit dictionary, change this to load pred_responses dictionary NOT fit
-        curr_fit = load_fit_pkl(run_params, oeid)
-        if curr_fit is not None:
+        curr_pred = load_pred_responses_pkl(run_params, oeid)
+        if curr_pred is not None:
             if not isinstance(kernels, list):
-                # Change control block to single line of code with v_56
-                if kernels == 'total':
-                    pred = curr_fit['dropouts']['Full']['full_model_train_prediction']
-                elif kernels == 'ground-truth':
-                    pred = curr_fit['fit_trace_arr'].values
-                else:
-                    pred = curr_fit['pred_response']['single-' + kernels]
+                pred = curr_pred[kernels]
             else:
                 pred = None
                 for kernel in kernels:
                     if pred is None:
-                        pred = curr_fit['pred_response']['single-' + kernel]
+                        pred = curr_pred[kernel]
                     else:
-                        pred += curr_fit['pred_response']['single-' + kernel]
+                        pred += curr_pred[kernel]
             # Number of cells for current experiment
             num_neurons = pred.shape[1]
 
@@ -344,6 +348,7 @@ def build_pred_responses(run_params, results_pivoted, event, kernels='total', ti
             timestamps = event_times['timestamps']
             event_occ_times = timestamps[event_occ_ind].values
 
+            # Iterate through each neuron
             for neuron in range(num_neurons):
                 curr_pred = pred[:, neuron]
                 y_hat = pd.DataFrame({'y_hat': curr_pred})
@@ -366,8 +371,10 @@ def build_pred_responses(run_params, results_pivoted, event, kernels='total', ti
                 event_aligned_df_single.drop(labels=['event_number', 'original_index', 'event_time'], 
                                              axis=1, 
                                              inplace=True)
-                
-                attr = results_pivoted.query('ophys_experiment_id == @oeid').iloc[[neuron], 48:]
+
+
+                attr = cell_table.query('ophys_experiment_id == @oeid').iloc[[neuron]]
+                # attr = results_pivoted.query('ophys_experiment_id == @oeid').iloc[[neuron], 48:]
                 # Maybe a better way?? How to add metadata to each group of rows for each cell in each experiment??
                 attr_repeated = pd.concat([attr] * event_len, ignore_index=True)
                 attr_event_aligned_df = pd.concat([event_aligned_df_single, attr_repeated], axis=1)
@@ -378,7 +385,7 @@ def build_pred_responses(run_params, results_pivoted, event, kernels='total', ti
                     complete_attr_repeated = pd.concat([attr] * len(complete_event_aligned_dfs), ignore_index=False)
                     complete_event_aligned_dfs = pd.concat([complete_event_aligned_dfs, complete_attr_repeated], axis=1)
 
-                event_aligned_dfs = pd.concat([event_aligned_dfs, attr_event_aligned_df], axis=0)
+                event_aligned_dfs = pd.concat([event_aligned_dfs, attr_event_aligned_df], ignore_index=True, axis=0)
 
     if save_df:
         complete_event_aligned_dfs.to_hdf(run_params['experiment_output_dir'] + '/' + kernels + '_event_aligned_df.h5',
@@ -667,17 +674,17 @@ def get_roi_count(ophys_experiment_id):
     return df['valid_roi'].sum()
 
 def retrieve_results(search_dict={}, results_type='full', return_list=None, merge_in_experiment_metadata=True,remove_invalid_rois=True,verbose=False,allow_old_rois=True,invalid_only=False,add_extra_columns=False):
-    '''
+    """
     gets cached results from mongodb
     input:
         search_dict - dictionary of key/value pairs to use for searching, if empty (default), will return entire database table
         results_type - 'full' or 'summary' (default = 'full')
             * full: 1 row for every unique cell/session (cells that are matched across sessions will have one row for each session.
                 Each row contains all of the coefficients of variation (a test and a train value for each dropout)
-            * summary: results_summary contains 1 row for every unique cell/session/dropout 
+            * summary: results_summary contains 1 row for every unique cell/session/dropout
                 cells that are matched across sessions will have `N_DROPOUTS` rows for each session.
-                Each row contains a `dropout` label describing the particular dropout coefficent(s) that apply to that row. 
-                All derived values (`variance_explained`, `fraction_change_from_full`, `absolute_change_from_full`) 
+                Each row contains a `dropout` label describing the particular dropout coefficent(s) that apply to that row.
+                All derived values (`variance_explained`, `fraction_change_from_full`, `absolute_change_from_full`)
                 are calculated only on test data, not train data.
         return_list - a list of columns to return. Returning fewer columns speeds queries
         merge_in_experiment_metadata - boolean which, if True, merges in data from experiment table
@@ -686,7 +693,7 @@ def retrieve_results(search_dict={}, results_type='full', return_list=None, merg
             if False, includes the invalid rois in the returned results
     output:
         dataframe of results
-    '''
+    """
     assert not (invalid_only & remove_invalid_rois), "Cannot remove invalid rois and only return invalid rois"
     
     if return_list is None:

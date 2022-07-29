@@ -1100,58 +1100,63 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,
     if kernel_excitation:
         fig, ax = plt.subplots(1,len(coding_groups),figsize=(8.1,4), sharey=sharey)
     else:
-        fig, ax = plt.subplots(1,len(coding_groups),figsize=(10.8,4), sharey=sharey)
+        fig, ax = plt.subplots(3,len(coding_groups),figsize=(10.8,8), sharey=sharey)
     for index, feature in enumerate(coding_groups):
         # plots three cre-lines in standard colors
-        ax[index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre visual'][feature],'-',\
-            color=colors['Vip-IRES-Cre visual'],label='Vip visual',linewidth=3)
-        ax[index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre timing'][feature],'-',\
-            color=colors['Vip-IRES-Cre timing'],label='Vip timing',linewidth=3)
-        ax[index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre visual'][feature],'-',\
-            color=colors['Sst-IRES-Cre visual'],label='Sst visual',linewidth=3)
-        ax[index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre timing'][feature],'-',\
-            color=colors['Sst-IRES-Cre timing'],label='Sst timing',linewidth=3)
-        ax[index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre visual'][feature],\
-            '-',color=colors['Slc17a7-IRES2-Cre visual'],label='Exc visual',linewidth=3)
-        ax[index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre timing'][feature],\
-            '-',color=colors['Slc17a7-IRES2-Cre timing'],label='Exc timing',linewidth=3)
+        ax[0,index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre visual'][feature],'-',\
+            color=colors['visual'],label='Vip visual',linewidth=3)
+        ax[0,index].plot([0,1,2], summary_df.loc['Vip-IRES-Cre timing'][feature],'-',\
+            color=colors['timing'],label='Vip timing',linewidth=3)
+        ax[1,index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre visual'][feature],'-',\
+            color=colors['visual'],label='Sst visual',linewidth=3)
+        ax[1,index].plot([0,1,2], summary_df.loc['Sst-IRES-Cre timing'][feature],'-',\
+            color=colors['timing'],label='Sst timing',linewidth=3)
+        ax[2,index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre visual'][feature],\
+            '-',color=colors['visual'],label='Exc visual',linewidth=3)
+        ax[2,index].plot([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre timing'][feature],\
+            '-',color=colors['timing'],label='Exc timing',linewidth=3)
         
-        ax[index].errorbar([0,1,2], summary_df.loc['Vip-IRES-Cre visual'][feature],\
+        ax[0,index].errorbar([0,1,2], summary_df.loc['Vip-IRES-Cre visual'][feature],\
             yerr=summary_df.loc['Vip-IRES-Cre visual'][feature+'_ci'],\
-            color=colors['Vip-IRES-Cre visual'],linewidth=3)
-        ax[index].errorbar([0,1,2], summary_df.loc['Vip-IRES-Cre timing'][feature],\
+            color=colors['visual'],linewidth=3)
+        ax[0,index].errorbar([0,1,2], summary_df.loc['Vip-IRES-Cre timing'][feature],\
             yerr=summary_df.loc['Vip-IRES-Cre timing'][feature+'_ci'],\
-            color=colors['Vip-IRES-Cre timing'],linewidth=3)
+            color=colors['timing'],linewidth=3)
 
-        ax[index].errorbar([0,1,2], summary_df.loc['Sst-IRES-Cre visual'][feature],\
+        ax[1,index].errorbar([0,1,2], summary_df.loc['Sst-IRES-Cre visual'][feature],\
             yerr=summary_df.loc['Sst-IRES-Cre visual'][feature+'_ci'],\
-            color=colors['Sst-IRES-Cre visual'],linewidth=3)
-        ax[index].errorbar([0,1,2], summary_df.loc['Sst-IRES-Cre timing'][feature],\
+            color=colors['visual'],linewidth=3)
+        ax[1,index].errorbar([0,1,2], summary_df.loc['Sst-IRES-Cre timing'][feature],\
             yerr=summary_df.loc['Sst-IRES-Cre timing'][feature+'_ci'],\
-            color=colors['Sst-IRES-Cre timing'],linewidth=3)
+            color=colors['timing'],linewidth=3)
 
-        ax[index].errorbar([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre visual'][feature],\
+        ax[2,index].errorbar([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre visual'][feature],\
             yerr=summary_df.loc['Slc17a7-IRES2-Cre visual'][feature+'_ci'],\
-            color=colors['Slc17a7-IRES2-Cre visual'],linewidth=3)
-        ax[index].errorbar([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre timing'][feature],\
+            color=colors['visual'],linewidth=3)
+        ax[2,index].errorbar([0,1,2], summary_df.loc['Slc17a7-IRES2-Cre timing'][feature],\
             yerr=summary_df.loc['Slc17a7-IRES2-Cre timing'][feature+'_ci'],\
-            color=colors['Slc17a7-IRES2-Cre timing'],linewidth=3)
+            color=colors['timing'],linewidth=3)
 
 
-        ax[index].set_title(titles[index],fontsize=20)
-        ax[index].set_ylabel('')
-        ax[index].set_xlabel('')
-        ax[index].set_xticks([0,1,2])
-        ax[index].set_xticklabels(experience_levels, rotation=90)
-        ax[index].tick_params(axis='x',labelsize=16)
-        ax[index].tick_params(axis='y',labelsize=16)
-        ax[index].spines['top'].set_visible(False)
-        ax[index].spines['right'].set_visible(False)
-        ax[index].set_xlim(-.5,2.5)
-        ax[index].set_ylim(bottom=0)
-        if index ==3:
-            ax[index].legend()
-    ax[0].set_ylabel('Fraction of cells \n coding for ',fontsize=20)
+        for f in [0,1,2]:
+            ax[f,index].set_title(titles[index],fontsize=20)
+            ax[f,index].set_ylabel('')
+            ax[f,index].set_xlabel('')
+            ax[f,index].set_xticks([0,1,2])
+            if f == 2:
+                ax[f,index].set_xticklabels(experience_levels, rotation=90)
+            else:
+                ax[f,index].set_xticklabels(['','',''])
+            ax[f,index].tick_params(axis='x',labelsize=16)
+            ax[f,index].tick_params(axis='y',labelsize=16)
+            ax[f,index].spines['top'].set_visible(False)
+            ax[f,index].spines['right'].set_visible(False)
+            ax[f,index].set_xlim(-.5,2.5)
+            ax[f,index].set_ylim(bottom=0)
+            if index ==3:
+                ax[f,index].legend()
+
+    ax[1,0].set_ylabel('Fraction of cells coding for ',fontsize=20)
     plt.tight_layout()
     if savefig:
         if kernel_excitation:

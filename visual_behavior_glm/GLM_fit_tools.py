@@ -106,20 +106,20 @@ def setup_cv(fit,run_params):
     return fit
 
 def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
-    '''
+    """
         Fits the GLM to the ophys_experiment_id
-        
+
         Inputs:
         oeid            experiment to fit
         run_params      dictionary of parameters for this fit
         NO_DROPOUTS     if True, does not perform dropout analysis
         TESTING         if True, fits only the first 6 cells in the experiment
-    
+
         Returns:
         session         the VBA session object for this experiment
         fit             a dictionary containing the results of the fit
         design          the design matrix for this fit
-    '''
+    """
     
     # Log oeid
     print("Fitting ophys_experiment_id: "+str(oeid)) 
@@ -1657,7 +1657,7 @@ def add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit):
                 event_times = session.stimulus_presentations.query('omitted')['start_time'].values
             else:
                 event_times = session.stimulus_presentations.query('omitted')['stop_time'].values 
-        elif len(event) > 8 and 'omission' in event:
+        elif event[0:8] == 'omission':
             event_type = run_params['kernels'][event]['event_type']
             omission_num = int(event[-1])
             if event_type == 'full' or event_type == 'onset':
@@ -1668,20 +1668,17 @@ def add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit):
                 session.stimulus_presentations['next_image_index'] = session.stimulus_presentations['image_index'].shift(periods=-1)
                 event_times = session.stimulus_presentations.query('next_image_index == {} & omitted'.format(omission_num))['stop_time'].values
                 del session.stimulus_presentations['next_image_index'] 
-        elif (len(event) > 5) & (event[0:5] == 'image') & ('pred' not in event):
+        elif event[0:5] == 'image' and 'pred' not in event:
             event_type = run_params['kernels'][event]['event_type']
             if event_type == 'full' or event_type == 'onset':
                 event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
             else:
                 event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['stop_time'].values
-        elif (len(event) > 5) & (event[0:5] == 'image') & ('pred' in event):
+        elif event[0:5] == 'image' and 'pred' in event:
             event_type = run_params['kernels'][event]['event_type']
             if event_type == 'full' or event_type == 'onset':
-                # Should be start times of images for current event image, BUT exclude those where the previous image was omitted
-                session.stimulus_presentations['prev_omitted'] = session.stimulus_presentations['omitted'].shift(periods=1)
-                event_times = session.stimulus_presentations.query('image_index == {} & '
-                                                                   'not prev_omitted'.format(int(event[-1])))['start_time'].values
-                event_times = np.concatenate([event_times], [event_times[-1] + 0.75])   # Append future next image
+                session.stimulus_presentations['prev_image_index'] = session.stimulus_presentations['image_index'].shift(periods=1)
+                event_times = session.stimulus_presentations.query('prev_image_index == {}'.format(int(event[-1])))['start_time'].values
         else:
             raise Exception('\tCould not resolve kernel label')
 
@@ -1709,7 +1706,7 @@ def add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit):
         return design       
     else:
         # Add event occurrence for the event throughout its duration ONLY for the omission-specific/omissions and image-specific/images features
-        if (kernel_name.startswith('image')  or  kernel_name.startswith('omission')) and run_params['kernels'][kernel_name]['event_type'] == 'full':
+        if (kernel_name.startswith('image') or kernel_name.startswith('omission')) and run_params['kernels'][kernel_name]['event_type'] == 'full':
             event_times_start = event_times
             avg_event_len = 0.75
             avg_timestamp_len = np.average(np.diff(fit['fit_trace_timestamps']))
@@ -2185,14 +2182,14 @@ def fit_cell_lasso_regularized(fit_trace_arr, X, alpha):
             )
     return W_xarray
 
-def variance_ratio(fit_trace_arr, W, X): 
-    '''
+def variance_ratio(fit_trace_arr, W, X):
+    """
     Computes the fraction of variance in fit_trace_arr explained by the linear model Y = X*W
-    
+
     fit_trace_arr: (n_timepoints, n_cells)
     W: Xarray (n_kernel_params, n_cells)
     X: Xarray (n_timepoints, n_kernel_params)
-    '''
+    """
     Y = X.values @ W.values
     var_total = np.var(fit_trace_arr, axis=0)   # Total variance in the ophys trace for each cell
     var_resid = np.var(fit_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data

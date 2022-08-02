@@ -30,7 +30,7 @@ def define_kernels():
         'each-image-omission':        {'event': 'each-image-omission',  'event_type': 'onset',  'type':'discrete',  'length': 0.5,      'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'image was omitted'},
         'each-image':   {'event': 'each-image',  'event_type': 'onset', 'type': 'discrete',      'length': 0.5,  'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'image presentation'},
         'each-image-pred':      {'event': 'each-image-prediction', 'event_type': 'onset', 'type': 'discrete', 'length': 0.25, 'offset': -0.25, 'num_weights': None, 'dropout': True, 'text': 'image presentation prediction'},
-        'each-image-post-oms':  {'event': 'each-image-post-omission', 'event_type': 'onset', 'type': 'discrete', 'length': 0.25, 'offset': 0.5, 'num_weights': None, 'dropout': True, 'text': 'image omission post response'},
+        'each-omission-pred':  {'event': 'each-omission-prediction', 'event_type': 'onset', 'type': 'discrete', 'length': 0.25, 'offset': 0.5, 'num_weights': None, 'dropout': True, 'text': 'image omission prediction'},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'normalized running speed'},
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'Z-scored pupil diameter'},
         'licks':        {'event':'licks',       'type':'discrete',      'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'mouse lick'},
@@ -278,11 +278,11 @@ def process_kernels(kernels):
         for val in range(0, 8):
             kernels['image-pred'+str(val)] = copy(specs)
             kernels['image-pred'+str(val)]['event'] = 'image-pred' + str(val)
-    if 'each-image-post-oms' in kernels:
-        specs = kernels.pop('each-image-post-oms')
+    if 'each-omission-pred' in kernels:
+        specs = kernels.pop('each-omission-pred')
         for val in range(0, 8):
-            kernels['post-omission'+str(val)] = copy(specs)
-            kernels['post-omission'+str(val)]['event'] = 'post-omission' + str(val)
+            kernels['omission-pred'+str(val)] = copy(specs)
+            kernels['omission-pred'+str(val)]['event'] = 'omission-pred' + str(val)
     return kernels
 
 def define_dropouts(kernels, run_params):
@@ -311,8 +311,8 @@ def define_dropouts(kernels, run_params):
                                      'omission6', 'omission7'],
             'all-image-pred':       ['image-pred0', 'image-pred1', 'image-pred2', 'image-pred3', 'image-pred4',
                                      'image-pred5', 'image-pred6', 'image-pred7'],
-            'all-image-post-oms':   ['image-post-oms0', 'image-post-oms1', 'image-post-oms2', 'image-post-oms3',
-                                     'image-post-oms4', 'image-post-oms5', 'image-post-oms6', 'image-post-oms7'],
+            'all-omission-pred':   ['omission-pred0', 'omission-pred1', 'omission-pred2', 'omission-pred3',
+                                    'omission-pred4', 'omission-pred5', 'omission-pred6', 'omission-pred7'],
              # 'task':                 ['hits', 'misses', 'passive_change', 'post-hits', 'post-misses', 'post-passive_change'],
             'behavioral':           ['running', 'pupil', 'licks']    
         }
@@ -377,11 +377,11 @@ def set_up_dropouts(dropouts,kernels,dropout_name, kernel_list):
 
 
 def load_run_json(version):
-    '''
+    """
         Loads the run parameters for model v_<version>
         Assumes verion is saved with root directory global OUTPUT_DIR_BASE
         returns a dictionary of run parameters
-    '''
+    """
 
     json_path = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(version), 'run_params.json')
     with open(json_path,'r') as json_file:

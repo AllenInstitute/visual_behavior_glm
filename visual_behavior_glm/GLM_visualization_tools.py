@@ -1,3 +1,5 @@
+import bz2
+
 import visual_behavior.plotting as vbp
 import visual_behavior.utilities as vbu
 import visual_behavior.data_access.utilities as utilities
@@ -8,6 +10,8 @@ import mindscope_utilities
 from mpl_toolkits.axes_grid1 import Divider, Size
 
 import copy
+import bz2
+import _pickle as cPickle
 import visual_behavior.database as db
 import matplotlib as mpl
 import seaborn as sns
@@ -2068,7 +2072,7 @@ def plot_kernel_comparison_by_kernel_excitation(weights_df, run_params, kernel, 
                            save_results=savefig)
 
 
-def plot_event_aligned_responses(run_params, event_aligned_dfs, kernels='total', savefig=False,
+def plot_event_aligned_responses(run_params, event_aligned_dfs, kernels='total', use_pickle=False, savefig=False,
                                  session_filter=['Familiar', 'Novel 1', 'Novel >1'],
                                  cell_filter=['vip', 'sst', 'slc'], equipment_filter='all',
                                  area_filter=['VISp', 'VISl'], depth_filter=[0, 1000]):
@@ -2117,6 +2121,22 @@ def plot_event_aligned_responses(run_params, event_aligned_dfs, kernels='total',
     fig.tight_layout()
     fig.subplots_adjust(left=0.15, top=0.95, bottom=0.1)
 
+    if isinstance(kernels, list):
+        kernel_str = kernels[0]
+        for i in range(1, len(kernels)):
+            kernel_str += '+' + kernels[i]
+    else:
+        kernel_str = kernels
+
+    if event_aligned_dfs is None:
+        if use_pickle:
+            filepath_pbz2 = run_params['experiment_output_dir'] + '/dataframes/' + kernel_str + '_event_aligned_df.pbz2'
+            if os.path.isfile(filepath_pbz2):
+                event_aligned_dfs = bz2.BZ2File(filepath_pbz2, 'rb')
+                event_aligned_dfs = cPickle.load(event_aligned_dfs)
+        else:
+            assert('Dataframe cannot be empty and not saved to a pickle file')
+
     # Plot for all nine with 3x3 subplots and querying
     for cell_ind, cell in enumerate(cell_filter):
         for session_ind, session in enumerate(session_filter):
@@ -2140,16 +2160,10 @@ def plot_event_aligned_responses(run_params, event_aligned_dfs, kernels='total',
                                                     alpha=0.5)
 
     if savefig:
-        plt.savefig(run_params['figure_dir'] + '/' + str(kernels) + '_event_aligned_response.png')
+        plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_event_aligned_response.png')
+        plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_event_aligned_response.svg')
 
 
-
-    # Make sure window_pos is correct (then average over window_pos using groupby/mean)
-    # Also find standard deviation and then divide by sqrt(number of unique cell ids) to get standard error
-    # Plot average response with shaded region of standard error
-
-    # Plot and save figures for kernels='all', 'ground-truth', 'behavioral', 'non-behavioral', 'image-specific', 'image-specific omission'        
-            
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,
                            session_filter=['Familiar', 'Novel 1', 'Novel >1'], equipment_filter="all",
@@ -2418,7 +2432,7 @@ def kernel_evaluation(weights_df, run_params, kernel, savefig=False, drop_thresh
                       session_filter=['Familiar', 'Novel 1', 'Novel >1'], equipment_filter='all', cell_filter='all',
                       area_filter=['VISp', 'VISl'], depth_filter=[0, 1000], filter_sessions_on='experience_level',
                       plot_dropout_sorted=True):
-    '''
+    """
         Plots the average kernel for each cell line.
         Plots the heatmap of the kernels sorted by time.
         Plots the distribution of dropout scores for this kernel.
@@ -2433,7 +2447,7 @@ def kernel_evaluation(weights_df, run_params, kernel, savefig=False, drop_thresh
         drop_threshold,         the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
         session_filter,         The list of session numbers to include
         equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both
-    '''
+    """
 
     # Check for confusing sign
     if drop_threshold > 0:

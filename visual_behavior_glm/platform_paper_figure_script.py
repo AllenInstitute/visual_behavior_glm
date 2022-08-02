@@ -52,15 +52,12 @@ print('\nVersion Specified!\n')
 # run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
 run_params = gp.load_run_json(VERSION)
 
-kernels = 'all-omissions'
-print('Fitting to {} kernel'.format(kernels))
+kernels = 'licks'
+print('Fitting to {} kernel'.format(str(kernels)))
 event_aligned_df = gat.build_pred_responses(run_params, event='omissions', kernels=kernels,
-                                            time_start=-1, time_end=1)
-# event_aligned_df.to_hdf(run_params['experiment_output_dir'] + '/' + kernels + '_event_aligned_df.h5',
-#                                     key=kernels)
-print('\nSaved {} dataframe'.format(kernels))
-gvt.plot_event_aligned_responses(run_params, event_aligned_df, kernels=kernels, savefig=True)
-
+                                             time_start=-1.5, time_end=1.5, save_df=True)
+gvt.plot_event_aligned_responses(run_params, event_aligned_dfs=event_aligned_df,
+                                 kernels=kernels, use_pickle=False, savefig=True)
 print('\nEvent-aligned responses test complete!\n')
 
 # Plot Inputs and model outputs for an example cell

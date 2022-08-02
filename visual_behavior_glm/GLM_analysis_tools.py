@@ -303,94 +303,116 @@ def build_pred_responses(run_params, event, kernels='total', time_start=-1, time
     # Only dealing with discrete events right now
     assert(event.startswith('image') or event.startswith('omission'))
 
+    # Get all metadata for experiments
+    cell_table = loading.get_cell_table(platform_paper_only=True,
+                                              add_extra_columns=False,
+                                              include_4x2_data=False).reset_index()
+
     # All oeids with recorded results
     output_dir = os.listdir(run_params['experiment_output_dir'])
     oeids = []
     for f in output_dir:
         if f.endswith('_pred_responses.pbz2'):
-            oeids.append(int(f.split('_pred_responses.pbz2')[0]))
-
-    # oeids = results_pivoted['ophys_experiment_id'].unique()
-
-    # Get all oeid metadata
-    cell_table = loading.get_cell_table(platform_paper_only=True,
-                                              add_extra_columns=False,
-                                              include_4x2_data=False).reset_index()
+            oeid = int(f.split('_pred_responses.pbz2')[0])
+            init_cell_data = cell_table.query('ophys_experiment_id == @oeid').iloc[0]
+            if not init_cell_data['passive']:
+                oeids.append(oeid)
 
     event_aligned_dfs = pd.DataFrame()
-    if save_df:
-        complete_event_aligned_dfs = pd.DataFrame()
-    # Loop through all experiments
-    for oeid in tqdm(oeids):
-        # Load pickle file containing the fit dictionary, change this to load pred_responses dictionary NOT fit
-        curr_pred = load_pred_responses_pkl(run_params, oeid)
-        if curr_pred is not None:
-            if not isinstance(kernels, list):
-                pred = curr_pred[kernels]
-            else:
-                pred = None
-                for kernel in kernels:
-                    if pred is None:
-                        pred = curr_pred[kernel]
+    try:
+        # Loop through all experiments
+        for oeid in tqdm(oeids):
+            # Load pickle file containing the fit dictionary, change this to load pred_responses dictionary NOT fit
+            curr_pred = load_pred_responses_pkl(run_params, oeid)
+            if curr_pred is not None:
+                
+                # Check to make sure kernels is in the current predictions dictionary
+                if not isinstance(kernels, list) and kernels not in curr_pred:
+                    continue
+                elif isinstance(kernels, list):
+                    skip = False
+                    for kernel in kernels:
+                        if kernel not in curr_pred:
+                            skip = True
+                    if skip:
+                        continue
+    
+                if not isinstance(kernels, list):
+                    if kernels == 'non-behavioral_hat':
+                        pred = curr_pred['total'] - curr_pred['behavioral'] - curr_pred['intercept']
                     else:
-                        pred += curr_pred[kernel]
-            # Number of cells for current experiment
-            num_neurons = pred.shape[1]
-
-            # Assuming events passed in are either image or omission related
-            event_times = load_event_times_h5(run_params, oeid)
-            if event == 'omissions' or event == 'images':
-                event_cols = [col for col in event_times.columns if col.startswith(event[:-1])]
-                events_df = event_times[event_cols].sum(axis=1)
+                        pred = curr_pred[kernels]
+                else:
+                    pred = None
+                    for kernel in kernels:
+                        if kernel == 'non-behavioral_hat':
+                            curr_pred[kernel] = curr_pred['total'] - curr_pred['behavioral'] - curr_pred['intercept']
+                        if pred is None:
+                            pred = curr_pred[kernel]
+                        else:
+                            pred += curr_pred[kernel]
+                # Number of cells for current experiment
+                num_neurons = pred.shape[1]
+    
+                # Assuming events passed in are either image or omission related
+                event_times = load_event_times_h5(run_params, oeid)
+                if event == 'omissions' or event == 'images':
+                    event_cols = [col for col in event_times.columns if col.startswith(event[:-1])]
+                    events_df = event_times[event_cols].sum(axis=1)
+                else:
+                    events_df = event_times[event]
+                event_occ_ind = np.argwhere(events_df.values > 0).squeeze()
+                timestamps = event_times['timestamps']
+                event_occ_times = timestamps[event_occ_ind].values
+    
+                # Iterate through each neuron
+                for neuron in range(num_neurons):
+                    curr_pred = pred[:, neuron]
+                    y_hat = pd.DataFrame({'y_hat': curr_pred})
+                    data = pd.concat([timestamps, y_hat], axis=1)
+                    # Now create stimulus aligned response using mindscope_utilities function
+                    # (with sampling rate defined to be for scientifica scope - NECESSARY)
+                    event_aligned_df = event_triggered_response(data, t='timestamps', y='y_hat',
+                                                                event_times=event_occ_times,
+                                                                t_start=time_start, t_end=time_end,
+                                                                output_sampling_rate=31.0,
+                                                                output_format='tidy',
+                                                                interpolate=True)
+    
+                    event_len = len(event_aligned_df.query('event_number == 0'))
+                    num_events = event_aligned_df['event_number'].tolist()[-1] + 1
+                    trial_ind = np.arange(event_len)
+                    event_aligned_df['window_pos'] = np.tile(trial_ind, num_events)
+    
+                    event_aligned_df_single = event_aligned_df.groupby('window_pos').mean()
+                    event_aligned_df_single['window_pos'] = trial_ind
+                    event_aligned_df_single.drop(labels=['event_number', 'original_index', 'event_time'],
+                                                 axis=1,
+                                                 inplace=True)
+    
+    
+                    attr = cell_table.query('ophys_experiment_id == @oeid').iloc[[neuron]]
+                    # attr = results_pivoted.query('ophys_experiment_id == @oeid').iloc[[neuron], 48:]
+                    # Maybe a better way?? How to add metadata to each group of rows for each cell in each experiment??
+                    attr_repeated = pd.concat([attr] * event_len, ignore_index=True)
+                    attr_event_aligned_df = pd.concat([event_aligned_df_single, attr_repeated], axis=1)
+    
+                    event_aligned_dfs = pd.concat([event_aligned_dfs, attr_event_aligned_df], ignore_index=True, axis=0)
+    except Exception as e:
+        print('Error reached at oeid {0} with exception {1}'.format(oeid, e))
+    finally:
+        if save_df:
+            if isinstance(kernels, list):
+                kernel_str = kernels[0]
+                for i in range(1, len(kernels)):
+                    kernel_str += '+' + kernels[i]
             else:
-                events_df = event_times[event]
-            event_occ_ind = np.argwhere(events_df.values > 0).squeeze()
-            timestamps = event_times['timestamps']
-            event_occ_times = timestamps[event_occ_ind].values
+                kernel_str = kernels
+            filepath_pkl = run_params['experiment_output_dir'] + '/dataframes/' + kernel_str + '_event_aligned_df.pbz2'
+            with bz2.BZ2File(filepath_pkl, 'w') as f:
+               cPickle.dump(event_aligned_dfs, f)
+            print('\nSaved {} dataframe'.format(kernels))
 
-            # Iterate through each neuron
-            for neuron in range(num_neurons):
-                curr_pred = pred[:, neuron]
-                y_hat = pd.DataFrame({'y_hat': curr_pred})
-                data = pd.concat([timestamps, y_hat], axis=1)
-                # Now create stimulus aligned response using mindscope_utilities function
-                event_aligned_df = event_triggered_response(data, t='timestamps', y='y_hat',
-                                                            event_times=event_occ_times,
-                                                            t_start=time_start, t_end=time_end,
-                                                            output_format='tidy')
-
-                event_len = len(event_aligned_df.query('event_number == 0'))
-                num_events = event_aligned_df['event_number'].tolist()[-1] + 1
-                trial_ind = np.arange(event_len)
-                event_aligned_df['window_pos'] = np.tile(trial_ind, num_events)
-                if save_df:
-                    complete_event_aligned_dfs = pd.concat([complete_event_aligned_dfs, event_aligned_df], axis=0)
-
-                event_aligned_df_single = event_aligned_df.groupby('window_pos').mean()
-                event_aligned_df_single['window_pos'] = trial_ind
-                event_aligned_df_single.drop(labels=['event_number', 'original_index', 'event_time'], 
-                                             axis=1, 
-                                             inplace=True)
-
-
-                attr = cell_table.query('ophys_experiment_id == @oeid').iloc[[neuron]]
-                # attr = results_pivoted.query('ophys_experiment_id == @oeid').iloc[[neuron], 48:]
-                # Maybe a better way?? How to add metadata to each group of rows for each cell in each experiment??
-                attr_repeated = pd.concat([attr] * event_len, ignore_index=True)
-                attr_event_aligned_df = pd.concat([event_aligned_df_single, attr_repeated], axis=1)
-
-                if save_df:
-                    # Taking wayyy too long...just add cell id instead?
-                    attr = attr.iloc[:, 0]
-                    complete_attr_repeated = pd.concat([attr] * len(complete_event_aligned_dfs), ignore_index=False)
-                    complete_event_aligned_dfs = pd.concat([complete_event_aligned_dfs, complete_attr_repeated], axis=1)
-
-                event_aligned_dfs = pd.concat([event_aligned_dfs, attr_event_aligned_df], ignore_index=True, axis=0)
-
-    if save_df:
-        complete_event_aligned_dfs.to_hdf(run_params['experiment_output_dir'] + '/' + kernels + '_event_aligned_df.h5',
-                                          key=kernels)
-    # Also save dataframe with all the y_hats for all trials across all neurons (h5 file)
     return event_aligned_dfs
         
 

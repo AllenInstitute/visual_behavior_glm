@@ -151,7 +151,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
-    check_weight_lengths(fit,design)
+    check_weight_lengths(fit, design)
     
     # Check Interpolation onto stimulus timestamps
     # if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
@@ -207,7 +207,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     if run_params['version_type'] == 'production':
         print('Saving Events Table')
         filepath = os.path.join(run_params['experiment_output_dir'],'event_times_'+str(oeid)+'.h5')
-        pd.DataFrame(design.events).to_hdf(filepath,key='df')
+        pd.DataFrame(design.events).to_hdf(filepath, key='df')
 
     # Pack up
     print('Finished') 
@@ -258,6 +258,13 @@ def predicted_responses(oeid, fit, design, run_params):
 
     pred_response['ground-truth'] = fit['fit_trace_arr'].values
     pred_response['total'] = fit['dropouts']['Full']['full_model_train_prediction']
+
+    # Strictly non-behavioral response (think Not B on Venn diagram)
+    pred_response['non-behavioral'] = pred_response['ground_truth'] - pred_response['behavioral']
+    
+    # Predicted non-behavioral response (response from non-behavioral kernels)
+    pred_response['non-behavioral_hat'] = pred_response['total'] - pred_response['behavioral'] - \
+                                          pred_response['intercept']
 
     return pred_response
                 
@@ -1405,20 +1412,20 @@ def add_engagement_labels(fit, session, run_params):
     return fit
 
 def add_kernels(design, run_params,session, fit):
-    '''
+    """
         Iterates through the kernels in run_params['kernels'] and adds
         each to the design matrix
         Each kernel must have fields:
             offset:
             length:
-    
+
         design          the design matrix for this model
         run_params      the run_json for this model
         session         the SDK session object for this experiment
         fit             the fit object for this model
-    '''
-    run_params['failed_kernels']=set()
-    run_params['failed_dropouts']=set()
+    """
+    run_params['failed_kernels'] = set()
+    run_params['failed_dropouts'] = set()
     run_params['kernel_error_dict'] = dict()
     for kernel_name in run_params['kernels']:          
         if 'num_weights' not in run_params['kernels'][kernel_name]:
@@ -1496,7 +1503,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         if event == 'intercept':
             timeseries = np.ones(len(fit['fit_trace_timestamps']))
         elif event == 'time':
-            timeseries = np.array(range(1,len(fit['fit_trace_timestamps'])+1))
+            timeseries = np.array(range(1, len(fit['fit_trace_timestamps'])+1))
             timeseries = timeseries/len(timeseries)
         elif event == 'running':
             running_df = session.running_speed
@@ -1549,9 +1556,9 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         run_params['kernel_error_dict'][kernel_name] = {
             'error_type': 'kernel', 
             'kernel_name': kernel_name, 
-            'exception':e.args[0], 
-            'oeid':session.metadata['ophys_experiment_id'], 
-            'glm_version':run_params['version']
+            'exception': e.args[0],
+            'oeid': session.metadata['ophys_experiment_id'],
+            'glm_version': run_params['version']
         }
         # log error to mongo
         gat.log_error(
@@ -1600,15 +1607,15 @@ def standardize_inputs(timeseries, mean_center=True, unit_variance=True,max_valu
 
     return timeseries
 
-def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
-    '''
+def add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit):
+    """
         Adds the kernel specified by <kernel_name> to the design matrix
         kernel_name     <str> the label for this kernel, will raise an error if not implemented
         design          the design matrix for this model
         run_params      the run_json for this model
         session         the SDK session object for this experiment
-        fit             the fit object for this model       
-    ''' 
+        fit             the fit object for this model
+    """
     print('    Adding kernel: '+kernel_name)
     try:
         if not fit['ok_to_fit_preferred_engagement']:
@@ -1622,7 +1629,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = session.stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]
         elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
-            if event == 'hit': # Includes auto-rewarded changes as hits, since they include a reward. 
+            if event == 'hit':  # Includes auto-rewarded changes as hits, since they include a reward.
                 event_times = session.trials.query('hit or auto_rewarded')['change_time'].values           
             else:
                 event_times = session.trials.query(event)['change_time'].values
@@ -1643,14 +1650,14 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'image_expectation':
             event_times = session.stimulus_presentations['start_time'].values
             # Append last image
-            event_times = np.concatenate([event_times,[event_times[-1]+.75]])
+            event_times = np.concatenate([event_times, [event_times[-1]+.75]])
         elif event == 'omissions':
             event_type = run_params['kernels'][event]['event_type'] 
             if event_type == 'full' or event_type == 'onset':
                 event_times = session.stimulus_presentations.query('omitted')['start_time'].values
             else:
                 event_times = session.stimulus_presentations.query('omitted')['stop_time'].values 
-        elif (len(event) > 8) & (event[0:8] == 'omission'):
+        elif len(event) > 8 and 'omission' in event:
             event_type = run_params['kernels'][event]['event_type']
             omission_num = int(event[-1])
             if event_type == 'full' or event_type == 'onset':
@@ -1661,19 +1668,25 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
                 session.stimulus_presentations['next_image_index'] = session.stimulus_presentations['image_index'].shift(periods=-1)
                 event_times = session.stimulus_presentations.query('next_image_index == {} & omitted'.format(omission_num))['stop_time'].values
                 del session.stimulus_presentations['next_image_index'] 
-        elif (len(event)>5) & (event[0:5] == 'image') & ('change' not in event):
+        elif (len(event) > 5) & (event[0:5] == 'image') & ('pred' not in event):
             event_type = run_params['kernels'][event]['event_type']
             if event_type == 'full' or event_type == 'onset':
                 event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
             else:
                 event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['stop_time'].values
-        elif (len(event)>5) & (event[0:5] == 'image') & ('change' in event):
-            event_times = session.stimulus_presentations.query('is_change & (image_index == {}'.format(int(event[-1])))['start_time'].values
+        elif (len(event) > 5) & (event[0:5] == 'image') & ('pred' in event):
+            event_type = run_params['kernels'][event]['event_type']
+            if event_type == 'full' or event_type == 'onset':
+                # Should be start times of images for current event image, BUT exclude those where the previous image was omitted
+                session.stimulus_presentations['prev_omitted'] = session.stimulus_presentations['omitted'].shift(periods=1)
+                event_times = session.stimulus_presentations.query('image_index == {} & '
+                                                                   'not prev_omitted'.format(int(event[-1])))['start_time'].values
+                event_times = np.concatenate([event_times], [event_times[-1] + 0.75])   # Append future next image
         else:
             raise Exception('\tCould not resolve kernel label')
 
         # Ensure minimum number of events
-        if len(event_times) < 5: # HARD CODING THIS VALUE HERE
+        if len(event_times) < 5:  # HARD CODING THIS VALUE HERE
             raise Exception('\tLess than minimum number of events: '+str(len(event_times)) +' '+event)
     
     except Exception as e:

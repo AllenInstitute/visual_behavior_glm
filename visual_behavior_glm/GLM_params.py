@@ -24,11 +24,13 @@ def define_kernels():
     kernels = {
         # 'images':     {'event': 'images', 'event_type': 'full', 'type':'discrete', 'length': 0.75, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
         # 'omissions': {'event': 'omissions', 'event_type': 'full', 'type':'discrete', 'length': 1.5, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
-        'intercept':    {'event':'intercept', 'type':'continuous',    'length':0,     'offset':0,     'num_weights':None, 'dropout':True, 'text': 'constant value'},
+        'intercept':    {'event': 'intercept', 'type': 'continuous',    'length': 0,     'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'constant value'},
         # 'hits':         {'event':'hit',         'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
         # 'misses':       {'event':'miss',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
-        'each-image-omission':        {'event':'each-image-omission',  'event_type': 'full',  'type':'discrete',  'length':0.75,      'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image was omitted'},
-        'each-image':   {'event':'each-image',  'event_type': 'full', 'type':'discrete',      'length':0.75,  'offset':0,     'num_weights':None, 'dropout':True, 'text': 'image presentation'},
+        'each-image-omission':        {'event': 'each-image-omission',  'event_type': 'onset',  'type':'discrete',  'length': 0.5,      'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'image was omitted'},
+        'each-image':   {'event': 'each-image',  'event_type': 'onset', 'type': 'discrete',      'length': 0.5,  'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'image presentation'},
+        'each-image-pred':      {'event': 'each-image-prediction', 'event_type': 'onset', 'type': 'discrete', 'length': 0.25, 'offset': -0.25, 'num_weights': None, 'dropout': True, 'text': 'image presentation prediction'},
+        'each-image-post-oms':  {'event': 'each-image-post-omission', 'event_type': 'onset', 'type': 'discrete', 'length': 0.25, 'offset': 0.5, 'num_weights': None, 'dropout': True, 'text': 'image omission post response'},
         'running':      {'event':'running',     'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'normalized running speed'},
         'pupil':        {'event':'pupil',       'type':'continuous',    'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'Z-scored pupil diameter'},
         'licks':        {'event':'licks',       'type':'discrete',      'length':2,     'offset':-1,    'num_weights':None, 'dropout':True, 'text': 'mouse lick'},
@@ -57,8 +59,9 @@ def get_experiment_table(require_model_outputs = False,include_4x2_data=False):
     else:
         return experiments_table
 
-def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,update_version=False,include_4x2_data=False):
-    '''
+def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False, update_version=False,
+                  include_4x2_data=False):
+    """
         Freezes model files, parameters, and ophys experiment ids
         If the model iteration already exists, throws an error unless (update_version=True)
         root directory is global OUTPUT_DIR_BASE
@@ -74,7 +77,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         <label>     include a string to README.txt with a brief summary of the model iteration
         <src_path>  path to repo home. Will throw an error if not passed in
         <TESTING>   if true, will only include 5 sessions in the experiment list
-    '''
+    """
 
     # Make directory, will throw an error if already exists
 
@@ -86,6 +89,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     fig_clustering_dir      = os.path.join(figure_dir, 'clustering')
     model_freeze_dir        = os.path.join(output_dir, 'frozen_model_files')
     experiment_output_dir   = os.path.join(output_dir, 'experiment_model_files')
+    event_aligned_dfs_dir   = os.path.join(experiment_output_dir, 'dataframes')
     manifest_dir            = os.path.join(output_dir, 'manifest')
     manifest                = os.path.join(output_dir, 'manifest', 'manifest.json')
     job_dir                 = os.path.join(output_dir, 'log_files')
@@ -102,6 +106,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         os.mkdir(fig_clustering_dir)
         os.mkdir(model_freeze_dir)
         os.mkdir(experiment_output_dir)
+        os.mkdir(event_aligned_dfs_dir)
         os.mkdir(job_dir)
         os.mkdir(manifest_dir)
     
@@ -155,6 +160,7 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
         'fig_clustering_dir':fig_clustering_dir,
         'model_freeze_dir':model_freeze_dir,            
         'experiment_output_dir':experiment_output_dir,
+        'event_aligned_dfs_dir':event_aligned_dfs_dir,
         'job_dir':job_dir,
         'manifest':manifest,
         'json_path':json_path,
@@ -206,8 +212,8 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     kernels = define_kernels()
     kernels = process_kernels(kernels)
     dropouts = define_dropouts(kernels, run_params)
-    run_params['kernels']=kernels
-    run_params['dropouts']=dropouts
+    run_params['kernels'] = kernels
+    run_params['dropouts'] = dropouts
 
 
     # Regularization parameter checks 
@@ -252,9 +258,9 @@ def make_run_json(VERSION,label='',username=None, src_path=None, TESTING=False,u
     print('Model Successfully Saved, version ' + str(VERSION))
 
 def process_kernels(kernels):
-    '''
+    """
         Replaces the 'each-image' kernel with each individual image (not omissions), with the same parameters
-    '''
+    """
     if ('each-image' in kernels) & ('any-image' in kernels):
         raise Exception('Including both each-image and any-image kernels makes the model unstable')
     if 'each-image' in kernels:
@@ -271,20 +277,24 @@ def process_kernels(kernels):
         specs = kernels.pop('each-image-pred')
         for val in range(0, 8):
             kernels['image-pred'+str(val)] = copy(specs)
-            kernels['image-pred'+str(val)]['event'] = 'image-pred' + str(val)    
-
+            kernels['image-pred'+str(val)]['event'] = 'image-pred' + str(val)
+    if 'each-image-post-oms' in kernels:
+        specs = kernels.pop('each-image-post-oms')
+        for val in range(0, 8):
+            kernels['post-omission'+str(val)] = copy(specs)
+            kernels['post-omission'+str(val)]['event'] = 'post-omission' + str(val)
     return kernels
 
 def define_dropouts(kernels, run_params):
-    '''
+    """
         Creates a dropout dictionary. Each key is the label for the dropout, and the value is a list of kernels to include
         Creates a dropout for each kernel by removing just that kernel.
         Creates a single-dropout for each kernel by removing all but that kernel
         Also defines nested models
-    '''
+    """
 
     # Define full model
-    dropouts = {'Full': {'kernels': list(kernels.keys()),'dropped_kernels':[],'is_single':False}}
+    dropouts = {'Full': {'kernels': list(kernels.keys()), 'dropped_kernels': [], 'is_single': False}}
 
     if run_params['version_type'] in ['production', 'standard']:
         # Remove each kernel one-by-one
@@ -299,6 +309,10 @@ def define_dropouts(kernels, run_params):
             'all-images':           ['image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7'],
             'all-omissions':        ['omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 
                                      'omission6', 'omission7'],
+            'all-image-pred':       ['image-pred0', 'image-pred1', 'image-pred2', 'image-pred3', 'image-pred4',
+                                     'image-pred5', 'image-pred6', 'image-pred7'],
+            'all-image-post-oms':   ['image-post-oms0', 'image-post-oms1', 'image-post-oms2', 'image-post-oms3',
+                                     'image-post-oms4', 'image-post-oms5', 'image-post-oms6', 'image-post-oms7'],
              # 'task':                 ['hits', 'misses', 'passive_change', 'post-hits', 'post-misses', 'post-passive_change'],
             'behavioral':           ['running', 'pupil', 'licks']    
         }
@@ -306,18 +320,18 @@ def define_dropouts(kernels, run_params):
         if 'post-omissions' in kernels:
             dropout_definitions['all-omissions'] = ['omissions','post-omissions']
         if 'post-hits' in kernels:
-            dropout_definitions['all-hits'] = ['hits','post-hits']
-            dropout_definitions['all-misses'] = ['misses','post-misses']
-            dropout_definitions['all-passive_change'] = ['passive_change','post-passive_change']
-            dropout_definitions['post-task'] = ['post-hits','post-misses','post-passive_change']
-            dropout_definitions['task'] = ['hits','misses','passive_change']
-            dropout_definitions['all-task'] = ['hits','misses','passive_change','post-hits','post-misses','post-passive_change']
+            dropout_definitions['all-hits'] = ['hits', 'post-hits']
+            dropout_definitions['all-misses'] = ['misses', 'post-misses']
+            dropout_definitions['all-passive_change'] = ['passive_change', 'post-passive_change']
+            dropout_definitions['post-task'] = ['post-hits', 'post-misses', 'post-passive_change']
+            dropout_definitions['task'] = ['hits', 'misses', 'passive_change']
+            dropout_definitions['all-task'] = ['hits', 'misses', 'passive_change', 'post-hits', 'post-misses', 'post-passive_change']
 
         # Add all face_motion_energy individual kernels to behavioral, and as a group model
         # Number of PCs is variable, so we have to treat it differently
         if 'face_motion_PC_0' in kernels:
             dropout_definitions['face_motion_energy'] = [kernel for kernel in list(kernels.keys()) if kernel.startswith('face_motion')] 
-            dropout_definitions['behavioral']=dropout_definitions['behavioral']+dropout_definitions['face_motion_energy']   
+            dropout_definitions['behavioral'] = dropout_definitions['behavioral']+dropout_definitions['face_motion_energy']
         
         # For each nested model, move the appropriate kernels to the dropped_kernel list
         for dropout_name in dropout_definitions:
@@ -345,13 +359,13 @@ def define_dropouts(kernels, run_params):
     return dropouts
     
 def set_up_dropouts(dropouts,kernels,dropout_name, kernel_list):
-    '''
+    """
         Helper function to define dropouts.
         dropouts,       dictionary of dropout models
         kernels,        dictionary of expanded kernel names
         dropout_name,   name of dropout to be defined
         kernel_list,    list of kernels to be dropped from this nested model
-    '''
+    """
 
     dropouts[dropout_name] = {'kernels': list(kernels.keys()), 'dropped_kernels': [], 'is_single': False}
 

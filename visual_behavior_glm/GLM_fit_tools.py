@@ -84,10 +84,10 @@ def check_run_fits(VERSION):
     return experiment_table
 
 def check_weight_lengths(fit,design):
-    '''
-        Does two assertion tests that the number of weights in the design matrix and fit dictionary are 
+    """
+        Does two assertion tests that the number of weights in the design matrix and fit dictionary are
         consistent with the number of timesteps per stimulus
-    '''
+    """
     num_weights_per_stimulus = fit['stimulus_interpolation']['timesteps_per_stimulus']
     num_weights_design = len([x for x in design.get_X().weights.values if x.startswith('image0')])
     assert num_weights_design == num_weights_per_stimulus, "Number of weights in design matrix is incorrect"
@@ -151,7 +151,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
 
     # Add kernels
     design = add_kernels(design, run_params, session, fit) 
-    check_weight_lengths(fit, design)
+    # check_weight_lengths(fit, design)
     
     # Check Interpolation onto stimulus timestamps
     # if ('interpolate_to_stimulus' in run_params) and (run_params['interpolate_to_stimulus']):
@@ -178,7 +178,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     # Iterate over model selections
     print('Iterating over model selection')
     fit = evaluate_models(fit, design, run_params)
-    check_weight_lengths(fit, design)
+    # check_weight_lengths(fit, design)
     
     # Produce predicted responses and store in the fit dictionary
     print('Producing predicted responses')
@@ -260,7 +260,7 @@ def predicted_responses(oeid, fit, design, run_params):
     pred_response['total'] = fit['dropouts']['Full']['full_model_train_prediction']
 
     # Strictly non-behavioral response (think Not B on Venn diagram)
-    pred_response['non-behavioral'] = pred_response['ground_truth'] - pred_response['behavioral']
+    pred_response['non-behavioral'] = pred_response['ground-truth'] - pred_response['behavioral']
     
     # Predicted non-behavioral response (response from non-behavioral kernels)
     pred_response['non-behavioral_hat'] = pred_response['total'] - pred_response['behavioral'] - \
@@ -1134,13 +1134,13 @@ def extract_and_annotate_ophys(session, run_params, TESTING=False):
     return fit, run_params
 
 def interpolate_to_stimulus(fit, session, run_params):
-    '''
+    """
         This function interpolates the neural signal (either dff or events) onto timestamps that are aligned to the stimulus.
         
         The new timestamps are aligned to the onset of each image presentation (or omission), and the last timebin in each 750ms image
         cycle is allowed to be variable to account for variability in image presentation start times, and the ophys timestamps not perfect
         dividing the image cycle. 
-    '''
+    """
     if ('interpolate_to_stimulus' not in run_params) or (not run_params['interpolate_to_stimulus']):
         print('Not interpolating onto stimulus aligned timestamps')
         return fit, run_params
@@ -1269,7 +1269,8 @@ def interpolate_to_stimulus(fit, session, run_params):
     fit['fit_trace_bins']   = new_bins
    
     # Use the number of timesteps per stimulus to define the image kernel length so we get no overlap 
-    kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7', 'omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 'omission6', 'omission7']
+    # kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7', 'omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 'omission6', 'omission7']
+    kernels_to_limit_per_image_cycle = []
     if 'post-omissions' in run_params['kernels']:
         kernels_to_limit_per_image_cycle.append('omissions')
     if 'post-hits' in run_params['kernels']:
@@ -1309,10 +1310,10 @@ def check_image_kernel_alignment(design,run_params):
 
 
 
-def check_interpolation_to_stimulus(fit, session): 
-    '''
+def check_interpolation_to_stimulus(fit, session):
+    """
         Checks to see if we have the same number of timestamps per stimulus presentation
-    '''
+    """
     lens = []
     temp = session.stimulus_presentations.copy()
     temp['next_start'] = temp.shift(-1)['start_time']
@@ -1679,6 +1680,7 @@ def add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit):
             if event_type == 'full' or event_type == 'onset':
                 session.stimulus_presentations['prev_image_index'] = session.stimulus_presentations['image_index'].shift(periods=1)
                 event_times = session.stimulus_presentations.query('prev_image_index == {}'.format(int(event[-1])))['start_time'].values
+                del session.stimulus_presentations['prev_image_index']
         else:
             raise Exception('\tCould not resolve kernel label')
 

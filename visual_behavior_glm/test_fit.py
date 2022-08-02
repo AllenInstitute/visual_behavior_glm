@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import time
 
-version = '56_medepalli_omission_specific_analysis_test'
+version = '57_medepalli_omission_specific_analysis_pre_post'
 run_params = glm_params.load_run_json(version)
 oeid = 938002083
 

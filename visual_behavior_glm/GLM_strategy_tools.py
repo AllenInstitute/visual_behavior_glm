@@ -117,7 +117,7 @@ def compare_cre_kernels(weights_beh, run_params, ym='omissions',
         ax[0,dex].set_title(string_mapper(cre),fontsize=16)
 
     ax[0,0].set_ylabel('V1 Kernel Weights',fontsize=16)
-    ax[1,0].set_ylabel('V1 Kernel Weights',fontsize=16)
+    ax[1,0].set_ylabel('LM Kernel Weights',fontsize=16)
     plt.tight_layout()
 
     if savefig:

@@ -37,7 +37,7 @@ plt.ion()
 
 ### Define model version
 VERSION = '57_medepalli_omission_specific_analysis'
-print('\nVersion Specified!\n')
+print('\nVersion Specified: {}!\n'.format(VERSION))
 
 ### Main paper figures
 ## Panel A - Example inputs and outputs
@@ -52,13 +52,16 @@ print('\nVersion Specified!\n')
 # run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
 run_params = gp.load_run_json(VERSION)
 
-kernels = 'licks'
-print('Fitting to {} kernel'.format(str(kernels)))
-event_aligned_df = gat.build_pred_responses(run_params, event='omissions', kernels=kernels,
-                                             time_start=-1.5, time_end=1.5, save_df=True)
-gvt.plot_event_aligned_responses(run_params, event_aligned_dfs=event_aligned_df,
-                                 kernels=kernels, use_pickle=False, savefig=True)
-print('\nEvent-aligned responses test complete!\n')
+kernels = 'total'
+exp_var_df = gat.calculate_explained_var(run_params, kernels, save_df=True)
+
+# event_aligned_df = None
+# print('Building event_aligned responses to {} kernel'.format(str(kernels)))
+# event_aligned_df = gat.build_event_aligned_averages(run_params, event='omissions', kernels=kernels,
+#                                                        time_start=-1.5, time_end=1.5, save_df=True)
+# gvt.plot_event_aligned_responses(run_params, event_aligned_dfs=event_aligned_df,
+#                                 kernels=kernels, use_pickle=True, savefig=True)
+# print('\nEvent-aligned responses test complete!\n')
 
 # Plot Inputs and model outputs for an example cell
 # cell_specimen_id = g.dropout_summary['cell_specimen_id'][0]

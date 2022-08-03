@@ -4806,13 +4806,13 @@ def plot_dropout_summary_population(results, run_params,
                                     palette=None, use_violin=False, add_median=True, include_zero_cells=True,
                                     add_title=False, dropout_cleaning_threshold=None, exclusion_threshold=None,
                                     savefig=False):
-    '''
+    """
         Makes a bar plot that shows the population dropout summary by cre line for different regressors
         palette , color palette to use. If None, uses gvt.project_colors()
-        use_violion (bool) if true, uses violin, otherwise uses boxplots
+        use_violin (bool) if true, uses violin, otherwise uses boxplots
         add_median (bool) if true, adds a line at the median of each population
         include_zero_cells (bool) if true, uses all cells, otherwise uses a threshold for minimum variance explained
-    '''
+    """
     if ax is None:
         height = 4
         width = 12

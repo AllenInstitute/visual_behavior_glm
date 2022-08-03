@@ -278,11 +278,67 @@ def generate_results_summary_non_cleaned(glm):
     return pd.concat(results_summary_list)
 
 
-def build_pred_responses(run_params, event, kernels='total', time_start=-1, time_end=1,
+def calculate_explained_var(run_params, kernel, save_df=False):
+
+    # Get all metadata for experiments
+    cell_table = loading.get_cell_table(platform_paper_only=True,
+                                        add_extra_columns=False,
+                                        include_4x2_data=False).reset_index()
+
+    # All oeids with recorded results
+    output_dir = os.listdir(run_params['experiment_output_dir'])
+    oeids = []
+    for f in output_dir:
+        if f.endswith('_pred_responses.pbz2'):
+            oeid = int(f.split('_pred_responses.pbz2')[0])
+            init_cell_data = cell_table.query('ophys_experiment_id == @oeid').iloc[0]
+            if not init_cell_data['passive']:
+                oeids.append(oeid)
+
+    exp_var_dfs = pd.DataFrame()
+    try:
+        for oeid in tqdm(oeids):
+            # Load pickle file containing the fit dictionary, change this to load pred_responses dictionary NOT fit
+            curr_pred = load_pred_responses_pkl(run_params, oeid)
+            if curr_pred is not None:
+                var_total = np.var(curr_pred['ground-truth'], axis=0)
+                var_res = np.var(curr_pred['ground-truth'] - curr_pred[kernel], axis=0)
+                exp_var = (var_total - var_res) / var_total
+
+                curr_attr = cell_table.query('ophys_experiment_id == @oeid').reset_index()
+                exp_var_df = pd.DataFrame({'exp_var': exp_var})
+                exp_var_df = pd.concat([exp_var_df, curr_attr], axis=1)
+
+                exp_var_dfs = pd.concat([exp_var_dfs, exp_var_df], axis=0)
+    except Exception as e:
+        print("Error thrown while calculating explained variance: {}!".format(e))
+    finally:
+        if save_df:
+            filepath_pkl = run_params['experiment_output_dir'] + '/dataframes/' + kernel + '_test_explained_var_df.pbz2'
+            with bz2.BZ2File(filepath_pkl, 'w') as f:
+               cPickle.dump(exp_var_dfs, f)
+            print('\nSaved {} explained variance dataframe'.format(kernel))
+
+        session_list = ['Familiar', 'Novel 1', 'Novel >1']
+        cell_list = ['Sst-IRES-Cre', 'Slc17a7-IRES2-Cre', 'Vip-IRES-Cre']
+        for cell in cell_list:
+            print('Cell: {}\n'.format(cell))
+            for session in session_list:
+                print('\tSession: {}'.format(session))
+                curr_data = exp_var_dfs.query('cre_line == @cell & experience_level == @session')['exp_var']
+                if not curr_data.size == 0:
+                    print('\t\tMean: {0}, Standard Error: {1}\n'.format(np.mean(curr_data),
+                                                                        np.std(curr_data) / curr_data.size))
+            print('\n')
+
+    return exp_var_dfs
+
+
+def build_event_aligned_averages(run_params, event, kernels='total', time_start=-1, time_end=1,
                          save_df=False):
     """
-            Returns dataframe containing the time of the windows and the predicted responses during each window
-            for all cells across all OEIDs, also storing session/experiment/cell attributes 
+            Returns dataframe containing the event-aligned averages across all trials for all cells across all OEIDs,
+            also storing session/experiment/cell attributes
             The time window is defined by time_start before the event onset until time_stop after the event onset.
             
             INPUTS:
@@ -325,7 +381,7 @@ def build_pred_responses(run_params, event, kernels='total', time_start=-1, time
             # Load pickle file containing the fit dictionary, change this to load pred_responses dictionary NOT fit
             curr_pred = load_pred_responses_pkl(run_params, oeid)
             if curr_pred is not None:
-                
+
                 # Check to make sure kernels is in the current predictions dictionary
                 if not isinstance(kernels, list) and kernels not in curr_pred:
                     continue
@@ -496,7 +552,7 @@ def log_results_to_mongo(glm):
             db.update_or_create(
                 coll,
                 db.clean_and_timestamp(entry),
-                keys_to_check = keys_to_check[collection]
+                keys_to_check=keys_to_check[collection]
             )
     conn.close()
 
@@ -539,7 +595,7 @@ def get_weights_matrix_from_mongo(ophys_experiment_id, glm_version):
 
 
 def log_weights_matrix_to_mongo(glm):
-    '''
+    """
     a method for logging the weights matrix to mongo
     uses the xarray_mongodb library, which automatically distributes the xarray into chunks
     this necessitates building/maintaining a lookup table to link experiments/glm_verisons to the associated xarrays
@@ -548,7 +604,7 @@ def log_weights_matrix_to_mongo(glm):
         GLM object
     returns:
         None
-    '''
+    """
 
     conn = db.Database('visual_behavior_data')
     lookup_table_document = {
@@ -592,18 +648,17 @@ def log_weights_matrix_to_mongo(glm):
     conn.close()
 
 def log_attributes_to_mongo(glm):
-    '''
+    """
     a method for logging the session and design objects to mongo
 
     input:
         GLM object
     returns:
         None
-    '''
+    """
 
     conn = db.Database('visual_behavior_data')
     attribute_lookup = conn['ophys_glm']['attributes']
-    breakpoint() 
     attributes = pd.DataFrame({'session': [glm.session], 
                                'design': [glm.design],
                                'version': [glm.version],
@@ -1021,21 +1076,21 @@ def process_session_to_df(oeid, run_params, use_mongo=True, full_weights=None):
     return session_df
 
 def build_weights_df(run_params,results_pivoted, cache_results=False,load_cache=False,normalize=False):
-    '''
+    """
         Builds a dataframe of (cell_specimen_id, ophys_experiment_id) with the weight parameters for each kernel
-        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream  
-        
-        Takes about 5 minutes to run 
- 
+        Some columns may have NaN if that cell did not have a kernel, for example if a missing datastream
+
+        Takes about 5 minutes to run
+
         INPUTS:
         run_params, parameter json for the version to analyze
         results_pivoted = build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
         cache_results, if True, save dataframe as csv file
         load_cache, if True, load cached results, if it exists
-    
+
         RETURNS:
         a dataframe
-    '''
+    """
    
     # Make dataframe for cells and experiments 
     oeids = results_pivoted['ophys_experiment_id'].unique() 
@@ -1191,13 +1246,13 @@ def interpolate_kernels(weights_df, run_params, kernel_name,normalize=False):
         df = [x/np.max(np.abs(x)) for x in df.values]
 
     # Interpolate the kernels (currently split across meso and scientifica timescales onto single timebase)
-    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'],
+                         run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'], 1/31)
     time_vec = np.round(time_vec,2)
-    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/11)#1/10.725)
-    time_vecs = {}
-    time_vecs['scientifica'] = time_vec
-    time_vecs['mesoscope'] = meso_time_vec
-    
+    meso_time_vec = np.arange(run_params['kernels'][kernel]['offset'],
+                              run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'], 1/11)  # 1/10.725
+    time_vecs = {'scientifica': time_vec, 'mesoscope': meso_time_vec}
+
     # the size of one of the cell kernels must match either the corresponding mesoscope or scientifica dimensions
     length_mismatch = len(time_vec) != np.max(np.unique([np.size(x) for x in df]))
     if ('image' in kernel_name) & length_mismatch:
@@ -1215,7 +1270,9 @@ def weight_interpolation(weight_vec, kernel_name, time_vecs={}):
     if np.size(weight_vec) == 1 and kernel_name == 'intercept_weights':
         return weight_vec
     elif not isinstance(weight_vec, list) and math.isnan(weight_vec):
-        return [np.nan] * time_vecs['scientifica'] # Return list of nans so that nanmean can be taken over it (single nan and list cannot be summed together) for the averaged kernel
+        # Return list of nans so that nanmean can be taken over it (single nan and list
+        # cannot be summed together) for the averaged kernel
+        return [np.nan] * time_vecs['scientifica']
     # Common base is scientifica
     elif len(weight_vec) == len(time_vecs['scientifica']):
         return weight_vec
@@ -1223,7 +1280,7 @@ def weight_interpolation(weight_vec, kernel_name, time_vecs={}):
     elif len(weight_vec) == len(time_vecs['mesoscope']):
         return scipy.interpolate.interp1d(time_vecs['mesoscope'], weight_vec, fill_value='extrapolate',bounds_error=False)(time_vecs['scientifica'])
     else:
-        return [np.nan] * time_vecs['scientifica'] # Same reasoning as above
+        return [np.nan] * time_vecs['scientifica']  # Same reasoning as above
 
 def compute_weight_index(weights_df):
     '''

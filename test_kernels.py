@@ -2,9 +2,9 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_fit_tools as gft
 # from visual_behavior_glm.glm import GLM
 
-version = '57_medepalli_omission_specific_analysis_pre_post'
+version = '57_medepalli_omission_specific_analysis_original'
 run_params = glm_params.load_run_json(version)
-oeid = 938002083
+oeid = 965928394
 session, fit, design = gft.fit_experiment(oeid, run_params)
 
 # log_results = True

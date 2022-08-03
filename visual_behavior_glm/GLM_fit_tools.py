@@ -206,7 +206,7 @@ def fit_experiment(oeid, run_params, NO_DROPOUTS=False, TESTING=False):
     # Save Event Table
     if run_params['version_type'] == 'production':
         print('Saving Events Table')
-        filepath = os.path.join(run_params['experiment_output_dir'],'event_times_'+str(oeid)+'.h5')
+        filepath = os.path.join(run_params['experiment_output_dir'], 'event_times_'+str(oeid)+'.h5')
         pd.DataFrame(design.events).to_hdf(filepath, key='df')
 
     # Pack up
@@ -1269,8 +1269,7 @@ def interpolate_to_stimulus(fit, session, run_params):
     fit['fit_trace_bins']   = new_bins
    
     # Use the number of timesteps per stimulus to define the image kernel length so we get no overlap 
-    # kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7', 'omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 'omission6', 'omission7']
-    kernels_to_limit_per_image_cycle = []
+    kernels_to_limit_per_image_cycle = ['image0','image1','image2','image3','image4','image5','image6','image7']
     if 'post-omissions' in run_params['kernels']:
         kernels_to_limit_per_image_cycle.append('omissions')
     if 'post-hits' in run_params['kernels']:
@@ -1703,7 +1702,7 @@ def add_discrete_kernel_by_label(kernel_name, design, run_params, session, fit):
         # log error to mongo:
         gat.log_error(
             run_params['kernel_error_dict'][kernel_name], 
-            keys_to_check = ['oeid', 'glm_version', 'kernel_name']
+            keys_to_check=['oeid', 'glm_version', 'kernel_name']
         )        
         return design       
     else:
@@ -2194,18 +2193,18 @@ def variance_ratio(fit_trace_arr, W, X):
     """
     Y = X.values @ W.values
     var_total = np.var(fit_trace_arr, axis=0)   # Total variance in the ophys trace for each cell
-    var_resid = np.var(fit_trace_arr-Y, axis=0) # Residual variance in the difference between the model and data
+    var_resid = np.var(fit_trace_arr-Y, axis=0)  # Residual variance in the difference between the model and data
     return (var_total - var_resid) / var_total  # Fraction of variance explained by linear model
 
-def masked_variance_ratio(fit_trace_arr, W, X, mask): 
-    '''
+def masked_variance_ratio(fit_trace_arr, W, X, mask):
+    """
     but only looks at the timepoints in mask
-    
+
     fit_trace_arr: (n_timepoints, n_cells)
     W: Xarray (n_kernel_params, n_cells)
     X: Xarray (n_timepoints, n_kernel_params)
     mask: bool vector (n_timepoints,)
-    '''
+    """
 
     Y = X.values @ W.values
 

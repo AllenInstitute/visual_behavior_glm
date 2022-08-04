@@ -40,10 +40,9 @@ VERSION = '57_medepalli_omission_specific_analysis'
 print('\nVersion Specified: {}!\n'.format(VERSION))
 
 ### Main paper figures
-## Panel A - Example inputs and outputs
 # Load example experiment, which takes a few minutes
 # oeid = 792815735  
-# g=GLM(oeid, VERSION, use_previous_fit=True, log_results=True, log_weights=True)
+# g=GLM(oeid, VERSION, use_previous_fit=True, log_results=False, log_weights=False)
 
 ### Load data
 # This function requires access to Allen Institute internal resources
@@ -52,17 +51,18 @@ print('\nVersion Specified: {}!\n'.format(VERSION))
 # run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
 run_params = gp.load_run_json(VERSION)
 
-kernels = 'total'
-exp_var_df = gat.calculate_explained_var(run_params, kernels, save_df=True)
+kernels = ['ground-truth', 'total', 'behavioral', 'all-omissions', 'all-images']
+# exp_var_df = gat.calculate_explained_var(run_params, kernels, save_df=True)
 
-# event_aligned_df = None
+event_aligned_df = None
 # print('Building event_aligned responses to {} kernel'.format(str(kernels)))
 # event_aligned_df = gat.build_event_aligned_averages(run_params, event='omissions', kernels=kernels,
 #                                                        time_start=-1.5, time_end=1.5, save_df=True)
-# gvt.plot_event_aligned_responses(run_params, event_aligned_dfs=event_aligned_df,
-#                                 kernels=kernels, use_pickle=True, savefig=True)
-# print('\nEvent-aligned responses test complete!\n')
+gvt.plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs=event_aligned_df, cre_line='vip',
+                                             kernels=kernels, use_pickle=True, savefig=True)
+print('\nEvent-aligned responses test complete!\n')
 
+# Panel A - Example inputs and outputs
 # Plot Inputs and model outputs for an example cell
 # cell_specimen_id = g.dropout_summary['cell_specimen_id'][0]
 # gsm.plot_glm_example(g,cell_specimen_id, run_params, savefig=True)

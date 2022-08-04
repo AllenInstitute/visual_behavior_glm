@@ -2109,14 +2109,14 @@ def plot_event_aligned_responses(run_params, event_aligned_dfs, kernels='total',
     fig, axs = plt.subplots(len(cell_filter), len(session_filter), sharex='col', sharey='row', figsize=(12, 8))
     pad = 5
 
-    for ax, session in zip(axs[0], session_filter):
-        ax.annotate(session, xy=(0.5, 1), xytext=(0, pad),
-                    xycoords='axes fraction', textcoords='offset points',
-                    size='large', ha='center', va='baseline')
-    for ax, cell in zip(axs[:, 0], cell_filter):
-        ax.annotate(cell[:3], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
-                    xycoords=ax.yaxis.label, textcoords='offset points',
-                    size='large', ha='right', va='center')
+    # for ax, session in zip(axs[0], session_filter):
+    #     ax.annotate(session, xy=(0.5, 1), xytext=(0, pad),
+    #                 xycoords='axes fraction', textcoords='offset points',
+    #                 size='large', ha='center', va='baseline')
+    # for ax, cell in zip(axs[:, 0], cell_filter):
+    #     ax.annotate(cell[:3], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
+    #                 xycoords=ax.yaxis.label, textcoords='offset points',
+    #                 size='large', ha='right', va='center')
 
     fig.tight_layout()
     fig.subplots_adjust(left=0.15, top=0.95, bottom=0.1)
@@ -2163,6 +2163,99 @@ def plot_event_aligned_responses(run_params, event_aligned_dfs, kernels='total',
         plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_event_aligned_response.png')
         plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_event_aligned_response.svg')
 
+
+def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_line,
+                                            kernels, use_pickle=False, savefig=False,
+                                            session_filter=['Familiar', 'Novel 1', 'Novel >1'],
+                                            equipment_filter='all', area_filter=['VISp', 'VISl'],
+                                            depth_filter=[0, 1000]):
+    """
+        Creates len(cell_filter) x len(session_filter) subplots showing the specified event
+        aligned response from the specified kernels.
+        The time window is defined by time_start before the event onset until time_stop after the event onset.
+
+        INPUTS:
+        run_params            = JSON file from glm_params.load_run_json(VERSION)
+        results               = results dataframe from gat.retrieve_results
+        kernels               = list of kernels to plot (one on each row)
+                                if ground-truth is in list, use its own scale, otherwise use common scale
+
+
+    """
+
+    # Mapping of cell keyword to Cre line
+    if cre_line == 'vip':
+        cre_line = 'Vip-IRES-Cre'
+    elif cre_line == 'sst':
+        cre_line = 'Sst-IRES-Cre'
+    elif cre_line == 'slc':
+        cre_line = 'Slc17a7-IRES2-Cre'
+    else:
+        raise Exception('Invalid Cell Type in Filter')
+
+
+    fig, axs = plt.subplots(len(kernels), len(session_filter), sharex='col', sharey='row', figsize=(12, 8))
+    pad = 5
+
+    # for ax, session in zip(axs[0], session_filter):
+    #     ax.annotate(session, xy=(0.5, 1), xytext=(0, pad),
+    #                 xycoords='axes fraction', textcoords='offset points',
+    #                 size='large', ha='center', va='baseline')
+    # for ax, cell in zip(axs[:, 0], cell_filter):
+    #     ax.annotate(cell[:3], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
+    #                 xycoords=ax.yaxis.label, textcoords='offset points',
+    #                 size='large', ha='right', va='center')
+
+    fig.tight_layout()
+    fig.subplots_adjust(left=0.15, top=0.95, bottom=0.1)
+
+    if isinstance(kernels, list):
+        kernel_str = kernels[0]
+        for i in range(1, len(kernels)):
+            kernel_str += '+' + kernels[i]
+
+    event_aligned_dfs_dict = {}
+    if event_aligned_dfs is None:
+        if use_pickle:
+            for kernel in kernels:
+                filepath_pbz2 = run_params['experiment_output_dir'] + '/dataframes/' + kernel + '_event_aligned_df.pbz2'
+                if os.path.isfile(filepath_pbz2):
+                    event_aligned_dfs = bz2.BZ2File(filepath_pbz2, 'rb')
+                    event_aligned_dfs = cPickle.load(event_aligned_dfs)
+                    event_aligned_dfs_dict[kernel] = event_aligned_dfs
+        else:
+            assert('Dataframe cannot be empty and not saved to a pickle file')
+
+    # Plot for all nine with 3x3 subplots and querying
+    for k_ind, kernel in enumerate(kernels):
+        for session_ind, session in enumerate(session_filter):
+            if session_ind == 0:
+                axs[k_ind, session_ind].set_ylabel('{} df/f response'.format(kernel))
+            if cell_ind == len(cell_filter) - 1:
+                axs[k_ind, session_ind].set_xlabel('time after event (s)')
+
+            axs[k_ind, session_ind].set_xlim([-1.0, 1.25])
+            axs[k_ind, session_ind].axvline(x=0, color='r')  # Draw omission event
+            axs[k_ind, session_ind].axvspan(-0.75, -0.5, alpha=0.4, color='0.8')  # Previous image
+            axs[k_ind, session_ind].axvspan(0.75, 1.0, alpha=0.4, color='0.8')    # Next image
+
+            curr_events = event_aligned_dfs[kernel].query('cre_line == @cre_line & '
+                                                            'experience_level == @session & '
+                                                            'passive == False')
+            num_cells = len(curr_events['cell_specimen_id'].unique())
+            curr_events = curr_events.iloc[:, :3]
+
+            curr_events_avg = curr_events.groupby('window_pos').mean()
+            curr_events_se = curr_events.groupby('window_pos').std() / (num_cells ** 0.5)
+            axs[k_ind, session_ind].plot(curr_events_avg['time'], curr_events_avg['y_hat'])
+            axs[k_ind, session_ind].fill_between(curr_events_avg['time'],
+                                                    curr_events_avg['y_hat'] - curr_events_se['y_hat'],
+                                                    curr_events_avg['y_hat'] + curr_events_se['y_hat'],
+                                                    alpha=0.4)
+
+    if savefig:
+        plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_' + cre_line + '_event_aligned_response.png')
+        plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_' + cre_line + '_event_aligned_response.svg')
 
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,

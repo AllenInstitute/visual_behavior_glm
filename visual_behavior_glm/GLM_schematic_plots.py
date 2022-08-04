@@ -70,10 +70,10 @@ def plot_glm_example(g,cell_specimen_id,run_params,times=[1789,1799],add_stimulu
     style = get_example_style()
     kernel_names=['image0','image1','image2','image3','image4','image5','image6','image7']
     index_times=[np.where(g.fit['fit_trace_timestamps']>=times[0])[0][0],np.where(g.fit['fit_trace_timestamps']>times[1])[0][0]+1]
-    include_events= g.fit['events_trace_arr'] is not None
-    plot_glm_example_trace(g,cell_specimen_id,run_params,times,style,include_events=include_events,savefig=savefig)
-    plot_glm_example_trace(g,cell_specimen_id,run_params,times,style,include_events=include_events,model='all-images',savefig=savefig)
-    plot_glm_example_dropouts(g,cell_specimen_id,run_params,style,savefig=savefig)
+    # include_events= g.fit['events_trace_arr'] is not None
+    # plot_glm_example_trace(g,cell_specimen_id,run_params,times,style,include_events=include_events,savefig=savefig)
+    # plot_glm_example_trace(g,cell_specimen_id,run_params,times,style,include_events=include_events,model='all-images',savefig=savefig)
+    # plot_glm_example_dropouts(g,cell_specimen_id,run_params,style,savefig=savefig)
     #ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,run_params,times,style)
     plot_glm_example_inputs(g,times,style,run_params,add_stimulus=add_stimulus,savefig=savefig)
     #plot_glm_example_kernel(g,cell_specimen_id,run_params,kernel_names,style,ylims,palette_df)
@@ -140,23 +140,23 @@ def get_kernel_duration(kernel, run_params,force_int=False):
     d = d1+d2
     return d.rjust(15) 
 
-def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True,savefig=False):
+def plot_glm_example_inputs(g, times, style, run_params, ax=None, add_stimulus=True, savefig=False):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,6))
-        fig = plt.figure(figsize=(9,6))
-        h = [Size.Fixed(3.0),Size.Fixed(5.5)]
-        v = [Size.Fixed(1.0),Size.Fixed(4.5)]
-        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
-        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+        fig = plt.figure(figsize=(9, 6))
+        h = [Size.Fixed(3.0), Size.Fixed(5.5)]
+        v = [Size.Fixed(1.0), Size.Fixed(4.5)]
+        divider = Divider(fig, (0, 0, 1, 1), h, v, aspect=False)
+        ax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1, ny=1))
     
     time_vec = (g.fit['fit_trace_timestamps'] > times[0])&(g.fit['fit_trace_timestamps'] < times[1])
 
     # plot stimulus and change bars
     stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1]')
     non_change_stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not is_change')
-    top =100
+    top = 8
     ticklabels={}
-    for index, image in enumerate(range(0,9)):
+    for index, image in enumerate(range(8)):
         image_times = stim.query('image_index == @index')['start_time'].values
         nc_image_times = non_change_stim.query('image_index == @index')['start_time'].values
 
@@ -183,44 +183,44 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
 
 
     # Running Data
-    run = g.session.running_speed.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
-    run['normalized_speed'] = run['speed'].apply(lambda x: (x - run['speed'].min())/(run['speed'].max() - run['speed'].min()))
-    run['normalized_speed'] = run['normalized_speed'] + top-10
-    ax.plot(run.timestamps,run.normalized_speed,'k')
-    ticklabels[top-9.5]='Running Speed'+ get_kernel_duration('running',run_params)
+    # run = g.session.running_speed.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
+    # run['normalized_speed'] = run['speed'].apply(lambda x: (x - run['speed'].min())/(run['speed'].max() - run['speed'].min()))
+    # run['normalized_speed'] = run['normalized_speed'] + top-10
+    # ax.plot(run.timestamps,run.normalized_speed,'k')
+    # ticklabels[top-9.5]='Running Speed'+ get_kernel_duration('running',run_params)
 
     # Pupil
-    eye = g.session.eye_tracking.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
-    eye['pupil_radius'] = np.sqrt(eye['pupil_area']*(1/np.pi))
-    eye['normalized_pupil_radius'] = eye['pupil_radius'].apply(lambda x: (x - eye['pupil_radius'].min())/(eye['pupil_radius'].max() - eye['pupil_radius'].min()))
-    eye['normalized_pupil_radius'] = eye['normalized_pupil_radius'] + top-12
-    ax.plot(eye.timestamps,eye.normalized_pupil_radius,'k')
-    ticklabels[top-11.5]='Pupil Radius'+ get_kernel_duration('pupil',run_params)
+    # eye = g.session.eye_tracking.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
+    # eye['pupil_radius'] = np.sqrt(eye['pupil_area']*(1/np.pi))
+    # eye['normalized_pupil_radius'] = eye['pupil_radius'].apply(lambda x: (x - eye['pupil_radius'].min())/(eye['pupil_radius'].max() - eye['pupil_radius'].min()))
+    # eye['normalized_pupil_radius'] = eye['normalized_pupil_radius'] + top-12
+    # ax.plot(eye.timestamps,eye.normalized_pupil_radius,'k')
+    # ticklabels[top-11.5]='Pupil Radius'+ get_kernel_duration('pupil',run_params)
 
     # licking
-    licks = g.session.licks.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
-    #ax.plot(licks.timestamps, np.ones((len(licks),))*(top-13),'k|',markersize=20)
-    for t in licks.timestamps:
-        rect =patches.Rectangle((t,top-13-.5),0.025,1,edgecolor='k',facecolor='k',alpha=1,zorder=np.inf)
-        ax.add_patch(rect)
-    ticklabels[top-13]='Licking'+ get_kernel_duration('licks',run_params)
+    # licks = g.session.licks.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
+    # #ax.plot(licks.timestamps, np.ones((len(licks),))*(top-13),'k|',markersize=20)
+    # for t in licks.timestamps:
+    #     rect =patches.Rectangle((t,top-13-.5),0.025,1,edgecolor='k',facecolor='k',alpha=1,zorder=np.inf)
+    #     ax.add_patch(rect)
+    # ticklabels[top-13]='Licking'+ get_kernel_duration('licks',run_params)
 
     # Trials
-    trials = g.session.trials.query('(change_time >= @times[0])&(change_time <=@times[1])').copy()
-    hits = trials.query('hit')
-    #ax.plot(hits.change_time, np.ones((len(hits),))*(top-14),'k|',markersize=20)
-    for t in hits.change_time:
-        #ax.plot([t,t], [top-13.5, top-14.5], color='k',linewidth=2)
-        rect =patches.Rectangle((t,top-14-.5),0.025,1,edgecolor='k',facecolor='k',alpha=1,zorder=np.inf)
-        ax.add_patch(rect)
-    ticklabels[top-14]='Hit'+ get_kernel_duration('hits',run_params)
-    if add_stimulus:
-        for t in hits.change_time.values:
-            ax.axvspan(t,t+0.25, color=gvt.project_colors()['schematic_change'], alpha=.5,zorder=-np.inf)
+    # trials = g.session.trials.query('(change_time >= @times[0])&(change_time <=@times[1])').copy()
+    # hits = trials.query('hit')
+    # #ax.plot(hits.change_time, np.ones((len(hits),))*(top-14),'k|',markersize=20)
+    # for t in hits.change_time:
+    #     #ax.plot([t,t], [top-13.5, top-14.5], color='k',linewidth=2)
+    #     rect =patches.Rectangle((t,top-14-.5),0.025,1,edgecolor='k',facecolor='k',alpha=1,zorder=np.inf)
+    #     ax.add_patch(rect)
+    # ticklabels[top-14]='Hit'+ get_kernel_duration('hits',run_params)
+    # if add_stimulus:
+    #     for t in hits.change_time.values:
+    #         ax.axvspan(t,t+0.25, color=gvt.project_colors()['schematic_change'], alpha=.5,zorder=-np.inf)
 
-    miss = trials.query('miss')
-    ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'k|',markersize=20)
-    ticklabels[top-15]='Miss'+ get_kernel_duration('misses',run_params)
+    # miss = trials.query('miss')
+    # ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'k|',markersize=20)
+    # ticklabels[top-15]='Miss'+ get_kernel_duration('misses',run_params)
 
     #fa = trials.query('false_alarm')
     #ax.plot(fa.change_time, np.ones((len(fa),))*(top-16),'r|',markersize=20)
@@ -231,11 +231,11 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
     #ticklabels[top-17]='Correct Reject'+ get_kernel_duration('correct_rejects',run_params)
 
     ax.yaxis.set_ticks(list(ticklabels.keys()))
-    ax.yaxis.set_ticklabels(list(ticklabels.values()),fontsize=style['fs2'])
-    ax.set_xlabel('Time in Session (s)',fontsize=style['fs1'])
+    ax.yaxis.set_ticklabels(list(ticklabels.values()), fontsize=style['fs2'])
+    ax.set_xlabel('Time in Session (s)', fontsize=style['fs1'])
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.set_xlim(times)
-    ax.set_ylim(top-15.5,top+.5)
+    ax.set_ylim(top-8, top+.5)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     #plt.tight_layout()

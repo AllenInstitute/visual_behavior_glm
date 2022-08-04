@@ -314,7 +314,7 @@ def calculate_explained_var(run_params, kernel, save_df=False):
         print("Error thrown while calculating explained variance: {}!".format(e))
     finally:
         if save_df:
-            filepath_pkl = run_params['experiment_output_dir'] + '/dataframes/' + kernel + '_test_explained_var_df.pbz2'
+            filepath_pkl = run_params['experiment_output_dir'] + '/dataframes/' + kernel + '_explained_var_df.pbz2'
             with bz2.BZ2File(filepath_pkl, 'w') as f:
                cPickle.dump(exp_var_dfs, f)
             print('\nSaved {} explained variance dataframe'.format(kernel))
@@ -328,7 +328,7 @@ def calculate_explained_var(run_params, kernel, save_df=False):
                 curr_data = exp_var_dfs.query('cre_line == @cell & experience_level == @session')['exp_var']
                 if not curr_data.size == 0:
                     print('\t\tMean: {0}, Standard Error: {1}\n'.format(np.mean(curr_data),
-                                                                        np.std(curr_data) / curr_data.size))
+                                                                        np.std(curr_data) / np.sqrt(curr_data.size)))
             print('\n')
 
     return exp_var_dfs

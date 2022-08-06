@@ -36,7 +36,7 @@ plt.ion()
 
 
 ### Define model version
-VERSION = '57_medepalli_omission_specific_analysis'
+VERSION = '57_medepalli_omission_specific_analysis_pre_post'
 print('\nVersion Specified: {}!\n'.format(VERSION))
 
 ### Main paper figures
@@ -48,10 +48,13 @@ print('\nVersion Specified: {}!\n'.format(VERSION))
 # This function requires access to Allen Institute internal resources
 # I should save out these dataframes to a file
 # Takes about 10 minutes to load and process data
+
 # run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
+# run_params, results, results_pivoted = gfd.get_analysis_dfs(VERSION)
+
 run_params = gp.load_run_json(VERSION)
 
-kernels = ['ground-truth', 'total', 'behavioral', 'all-omissions', 'all-images']
+kernels = ['ground-truth', 'total', 'behavioral', 'non-behavioral_hat', 'all-omissions', 'all-omission-pred', 'all-images', 'all-image-pred']
 # exp_var_df = gat.calculate_explained_var(run_params, kernels, save_df=True)
 
 event_aligned_df = None
@@ -59,8 +62,8 @@ event_aligned_df = None
 # event_aligned_df = gat.build_event_aligned_averages(run_params, event='omissions', kernels=kernels,
 #                                                        time_start=-1.5, time_end=1.5, save_df=True)
 gvt.plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs=event_aligned_df, cre_line='vip',
-                                             kernels=kernels, use_pickle=True, savefig=True)
-print('\nEvent-aligned responses test complete!\n')
+                                             kernels=kernels, use_pickle=True, savefig=True, session_filter=['Familiar', 'Novel 1', 'Novel >1'])
+print('\nEvent-aligned responses test complete to {}!\n'.format(str(kernels)))
 
 # Panel A - Example inputs and outputs
 # Plot Inputs and model outputs for an example cell
@@ -85,9 +88,9 @@ print('\nSkipping Panel C...\n')
 ## Panel D - Dropout summaries
 # Returns a dataframe with rows for cre/dropout, and columns describing
 # the dropout score
-# stats_D = gvt.plot_dropout_summary_population(results, run_params, dropouts_to_show=['all-images', 'all-omissions', 'behavioral'], savefig=True) 
-# print('\nPanel D Complete!\n')
-print('\nSkipping Panel D...\n')
+# stats_D = gvt.plot_dropout_summary_population(results, run_params, dropouts_to_show=['all-images', 'omissions', 'behavioral'], savefig=True) 
+print('\nPanel D Complete!\n')
+# print('\nSkipping Panel D...\n')
 
 ## Panel E - Dropout averages for experience and cre-line
 '''

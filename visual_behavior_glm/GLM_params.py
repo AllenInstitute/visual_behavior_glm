@@ -23,11 +23,11 @@ def get_versions(vrange=[15,20]):
 def define_kernels():
     kernels = {
         # 'images':     {'event': 'images', 'event_type': 'full', 'type':'discrete', 'length': 0.75, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'image presentation (independent of image)'},
-        'omissions': {'event': 'omissions', 'event_type': 'onset', 'type':'discrete', 'length': 3, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'omission (independent of image)'},
+        # 'omissions': {'event': 'omissions', 'event_type': 'onset', 'type':'discrete', 'length': 0.75, 'offset': 0, 'num_weights': None, 'dropout': True, 'text': 'omission (independent of image)'},
         'intercept':    {'event': 'intercept', 'type': 'continuous',    'length': 0,     'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'constant value'},
-        # 'hits':         {'event':'hit',         'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
-        # 'misses':       {'event':'miss',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
-        # 'each-image-omission':        {'event': 'each-image-omission',  'event_type': 'onset',  'type':'discrete',  'length': 0.75,      'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'image was omitted'},
+        'hits':         {'event':'hit',         'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'lick to image change'},
+        'misses':       {'event':'miss',        'type':'discrete',      'length':2.25,   'offset':0,    'num_weights':None, 'dropout':True, 'text': 'no lick to image change'},
+        'each-image-omission':        {'event': 'each-image-omission',  'event_type': 'onset',  'type':'discrete',  'length': 0.75,      'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'image was omitted'},
         'each-image':   {'event': 'each-image',  'event_type': 'onset', 'type': 'discrete',      'length': 0.75,  'offset': 0,     'num_weights': None, 'dropout': True, 'text': 'image presentation'},
         # 'each-image-pred':      {'event': 'each-image-prediction', 'event_type': 'onset', 'type': 'discrete', 'length': 0.25, 'offset': -0.25, 'num_weights': None, 'dropout': True, 'text': 'image presentation prediction'},
         # 'each-omission-pred':  {'event': 'each-omission-prediction', 'event_type': 'onset', 'type': 'discrete', 'length': 0.25, 'offset': 0.5, 'num_weights': None, 'dropout': True, 'text': 'image omission prediction'},
@@ -45,7 +45,7 @@ def define_kernels():
     return kernels
 
 
-def get_experiment_table(require_model_outputs = False,include_4x2_data=False):
+def get_experiment_table(require_model_outputs=False, include_4x2_data=False):
     """
     get a list of filtered experiments and associated attributes
     returns only experiments that have relevant project codes and have passed QC
@@ -53,7 +53,8 @@ def get_experiment_table(require_model_outputs = False,include_4x2_data=False):
     Keyword arguments:
     require_model_outputs (bool) -- if True, limits returned experiments to those that have been fit with behavior model
     """
-    experiments_table = loading.get_platform_paper_experiment_table(include_4x2_data=include_4x2_data) 
+    experiments_table = loading.get_platform_paper_experiment_table(include_4x2_data=include_4x2_data)
+    experiments_table = experiments_table.query("cre_line == 'Vip-IRES-Cre' & passive == False")
     if require_model_outputs:
         return experiments_table.query('model_outputs_available == True')
     else:
@@ -307,8 +308,8 @@ def define_dropouts(kernels, run_params):
         # Define the nested_models
         dropout_definitions = {
             'all-images':           ['image0', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7'],
-            # 'all-omissions':        ['omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5',
-            #                          'omission6', 'omission7'],
+            'all-omissions':        ['omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5',
+                                      'omission6', 'omission7'],
             # 'all-image-pred':       ['image-pred0', 'image-pred1', 'image-pred2', 'image-pred3', 'image-pred4',
             #                          'image-pred5', 'image-pred6', 'image-pred7'],
             # 'all-omission-pred':   ['omission-pred0', 'omission-pred1', 'omission-pred2', 'omission-pred3',

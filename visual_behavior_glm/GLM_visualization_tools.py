@@ -2193,8 +2193,9 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
     else:
         raise Exception('Invalid Cell Type in Filter')
 
-
-    fig, axs = plt.subplots(len(kernels), len(session_filter), sharex='col', sharey='row', figsize=(12, 8))
+    width = 4 * len(session_filter)
+    height = 3 * len (kernels)
+    fig, axs = plt.subplots(len(kernels), len(session_filter), sharex='col', sharey='row', figsize=(width, height))
     pad = 5
 
     # for ax, session in zip(axs[0], session_filter):
@@ -2214,44 +2215,81 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
         for i in range(1, len(kernels)):
             kernel_str += '+' + kernels[i]
 
+    for i in range(len(kernels)):
+        if kernels[i] == 'non-non-behavioral':
+            kernels.insert(i, 'non-behavioral_hat')
+        elif kernels[i] == 'running':
+            beh_kernels_colors = {'running': 'c', 'licks': 'darkorange', 'pupil': 'forestgreen'}
+            kernels.insert(i+1, 'licks')
+            kernels.insert(i+1, 'pupil')
+
     event_aligned_dfs_dict = {}
     if event_aligned_dfs is None:
         if use_pickle:
             for kernel in kernels:
-                filepath_pbz2 = run_params['experiment_output_dir'] + '/dataframes/' + kernel + '_event_aligned_df.pbz2'
-                if os.path.isfile(filepath_pbz2):
-                    event_aligned_dfs = bz2.BZ2File(filepath_pbz2, 'rb')
-                    event_aligned_dfs = cPickle.load(event_aligned_dfs)
-                    event_aligned_dfs_dict[kernel] = event_aligned_dfs
+                if kernel == 'non-non-behavioral':
+                    event_aligned_dfs_dict[kernel] = event_aligned_dfs_dict['ground-truth']
+                    event_aligned_dfs_dict[kernel]['y_hat'] -= event_aligned_dfs_dict['non-behavioral_hat']['y_hat']
+                    del event_aligned_dfs_dict['non-behavioral_hat']
+                    kernels.remove('non-behavioral_hat')
+                else:
+                    if kernel == 'ground-truth':
+                        filepath_pbz2 = "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/" \
+                                        "v_57_medepalli_omission_specific_analysis_pre_post/experiment_model_files/"
+                    else:
+                        filepath_pbz2 = run_params['experiment_output_dir']
+                    filepath_pbz2 += '/dataframes/' + kernel + '_event_aligned_df.pbz2'
+                    if os.path.isfile(filepath_pbz2):
+                        event_aligned_dfs = bz2.BZ2File(filepath_pbz2, 'rb')
+                        event_aligned_dfs = cPickle.load(event_aligned_dfs)
+                        event_aligned_dfs_dict[kernel] = event_aligned_dfs
         else:
             assert('Dataframe cannot be empty and not saved to a pickle file')
 
+    k_ind = [*range(len(kernels))]
+    if 'running' in kernels:
+        k_ind[kernels.index('licks')] = kernels.index('running')
+        k_ind[kernels.index('pupil')] = kernels.index('running')
+
     # Plot for all nine with 3x3 subplots and querying
-    for k_ind, kernel in enumerate(kernels):
+    for k_ind, kernel in zip(k_ind, kernels):
         for session_ind, session in enumerate(session_filter):
             if session_ind == 0:
-                axs[k_ind, session_ind].set_ylabel('{} df/f response'.format(kernel))
-            if cell_ind == len(cell_filter) - 1:
+                axs[k_ind, session_ind].set_ylabel('df/f response')
+            if k_ind == len(kernels) - 1:
                 axs[k_ind, session_ind].set_xlabel('time after event (s)')
 
             axs[k_ind, session_ind].set_xlim([-1.0, 1.25])
-            axs[k_ind, session_ind].axvline(x=0, color='r')  # Draw omission event
+            # if not kernel in ['ground-truth', 'non-behavioral', 'non-non-behavioral']:
+            #     axs[k_ind, session_ind].set_ylim([-0.002, 0.018])
+
+            axs[k_ind, session_ind].axvline(x=0, color='b', ls='--')  # Draw omission event
             axs[k_ind, session_ind].axvspan(-0.75, -0.5, alpha=0.4, color='0.8')  # Previous image
             axs[k_ind, session_ind].axvspan(0.75, 1.0, alpha=0.4, color='0.8')    # Next image
 
-            curr_events = event_aligned_dfs[kernel].query('cre_line == @cre_line & '
-                                                            'experience_level == @session & '
-                                                            'passive == False')
+            curr_events = event_aligned_dfs_dict[kernel].query('cre_line == @cre_line & '
+                                                                'experience_level == @session & '
+                                                                'passive == False')
             num_cells = len(curr_events['cell_specimen_id'].unique())
             curr_events = curr_events.iloc[:, :3]
-
             curr_events_avg = curr_events.groupby('window_pos').mean()
             curr_events_se = curr_events.groupby('window_pos').std() / (num_cells ** 0.5)
-            axs[k_ind, session_ind].plot(curr_events_avg['time'], curr_events_avg['y_hat'])
-            axs[k_ind, session_ind].fill_between(curr_events_avg['time'],
-                                                    curr_events_avg['y_hat'] - curr_events_se['y_hat'],
-                                                    curr_events_avg['y_hat'] + curr_events_se['y_hat'],
-                                                    alpha=0.4)
+
+            if ('running' in kernels and not k_ind == kernels.index('running')) or 'running' not in kernels:
+                axs[k_ind, session_ind].plot(curr_events_avg['time'], curr_events_avg['y_hat'])
+                axs[k_ind, session_ind].fill_between(curr_events_avg['time'],
+                                                        curr_events_avg['y_hat'] - curr_events_se['y_hat'],
+                                                        curr_events_avg['y_hat'] + curr_events_se['y_hat'],
+                                                        alpha=0.4)
+            else:
+                axs[k_ind, session_ind].plot(curr_events_avg['time'], curr_events_avg['y_hat'], label=kernel,
+                                                                    c=beh_kernels_colors[kernel])
+                axs[k_ind, session_ind].fill_between(curr_events_avg['time'],
+                                                     curr_events_avg['y_hat'] - curr_events_se['y_hat'],
+                                                     curr_events_avg['y_hat'] + curr_events_se['y_hat'],
+                                                     color=beh_kernels_colors[kernel], alpha=0.4)
+                axs[k_ind, session_ind].legend(loc='upper left')
+
 
     if savefig:
         plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_' + cre_line + '_event_aligned_response.png')
@@ -4895,7 +4933,7 @@ def plot_dropout_individual_population(results, run_params, ax=None, palette=Non
 
 
 def plot_dropout_summary_population(results, run_params,
-                                    dropouts_to_show=['all-images', 'all-omissions', 'behavioral', 'task'], ax=None,
+                                    dropouts_to_show=['all-images', 'all-omissions', 'behavioral'], ax=None,
                                     palette=None, use_violin=False, add_median=True, include_zero_cells=True,
                                     add_title=False, dropout_cleaning_threshold=None, exclusion_threshold=None,
                                     savefig=False):
@@ -4908,7 +4946,7 @@ def plot_dropout_summary_population(results, run_params,
     """
     if ax is None:
         height = 4
-        width = 12
+        width = 15
         horz_offset = 2
         vertical_offset = .75
         fig = plt.figure(figsize=(width, height))
@@ -5000,8 +5038,8 @@ def plot_dropout_summary_population(results, run_params,
     ax.legend(h, mylabels, loc='upper right', fontsize=16)
     ax.set_ylabel('Coding Score', fontsize=20)
     ax.set_xlabel('Withheld component', fontsize=20)
-    ax.set_xticks([0, 1, 2, 3])
-    ax.set_xticklabels(['images', 'omissions', 'behavioral', 'task'])
+    ax.set_xticks([0, 1, 2, 3, 4])
+    ax.set_xticklabels(['images', 'omissions', 'behavioral', 'image-pred', 'post-omission'])
     ax.tick_params(axis='x', labelsize=16)
     ax.tick_params(axis='y', labelsize=16)
     ax.spines['top'].set_visible(False)

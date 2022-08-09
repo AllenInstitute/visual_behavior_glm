@@ -78,6 +78,7 @@ def plot_population_averages_for_cell_types_across_experience(multi_session_df,
     ax = ax.ravel()
 
     for i, cell_type in enumerate(cell_types):
+        print('cell type {}'.format(cell_type))
         df = multi_session_df[(multi_session_df.cell_type == cell_type)]
         ax[i * 3:(i * 3 + 3)] = plot_population_averages_for_conditions(df, 
             data_type, event_type, axes_column, hue_column,horizontal=True,
@@ -162,8 +163,10 @@ def plot_population_averages_for_conditions(multi_session_df, data_type, event_t
     for i, axis in enumerate(axes_conditions):
         ax[i] = plot_flashes_on_trace(ax[i], timestamps, change=change, 
             omitted=omitted)
+        num_cells = dict()
         for c, hue in enumerate(hue_conditions):
             cdf = sdf[(sdf[axes_column] == axis) & (sdf[hue_column] == hue)]
+            num_cells[hue] = np.shape(cdf)[0]
             traces = cdf.mean_trace.values
             ax[i] = utils.plot_mean_trace(np.asarray(traces), timestamps, 
                 ylabel=ylabel,legend_label=hue, color=palette[hue], 
@@ -177,6 +180,7 @@ def plot_population_averages_for_conditions(multi_session_df, data_type, event_t
                 ax[i].set_title(axis, color=palette[axis], fontsize=20)
             else:
                 ax[i].set_title(axis)
+        print('{} ({}, {})'.format(axis, num_cells['visual'], num_cells['timing']))
         ax[i].set_xlim(xlim_seconds)
         ax[i].set_xlabel(xlabel, fontsize=16)
         if horizontal:

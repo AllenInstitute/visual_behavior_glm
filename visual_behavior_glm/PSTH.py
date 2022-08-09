@@ -11,7 +11,7 @@ import visual_behavior_glm.GLM_strategy_tools as gst
 import visual_behavior.data_access.loading as loading
 import visual_behavior.visualization.utils as utils
  
-def change_mdf():
+def change_mdf(summary_df=None):
     data_type='events'
     interpolate=True
     output_sampling_rate=30
@@ -24,17 +24,14 @@ def change_mdf():
         output_sampling_rate=output_sampling_rate, epoch_duration_mins=None)
     change_mdf = change_mdf[change_mdf.is_change==True]
 
-    summary_df = po.get_ophys_summary_table(21)
-    change_mdf = gst.add_behavior_metrics(change_mdf, summary_df)
+    if summary_df is not None:
+        change_mdf = gst.add_behavior_metrics(change_mdf, summary_df)
 
     return change_mdf
 
-def plot_change_mdf(change_mdf):
-    df = change_mdf.copy()
-    plot_population_averages_for_cell_types_across_experience(df,
-        xlim_seconds=[-2,2],data_type='events',event_type='changes')
 
-def omission_mdf():
+
+def omission_mdf(summary_df=None):
     data_type='events'
     interpolate=True
     output_sampling_rate=30
@@ -47,11 +44,15 @@ def omission_mdf():
         output_sampling_rate=output_sampling_rate, epoch_duration_mins=None)
     omission_mdf = omission_mdf[omission_mdf.omitted==True]
 
-    summary_df = po.get_ophys_summary_table(21)
-    omission_mdf = gst.add_behavior_metrics(omission_mdf, summary_df)
+    if summary_df is not None:
+        omission_mdf = gst.add_behavior_metrics(omission_mdf, summary_df)
 
     return omission_mdf
 
+def plot_change_mdf(change_mdf):
+    df = change_mdf.copy()
+    plot_population_averages_for_cell_types_across_experience(df,
+        xlim_seconds=[-2,2],data_type='events',event_type='changes')
 
 def plot_omission_mdf(omission_mdf):
     df = omission_mdf.copy()

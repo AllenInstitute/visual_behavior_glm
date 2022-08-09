@@ -31,8 +31,8 @@ results_pivoted_beh = gst.add_behavior_metrics(results_pivoted,summary_df)
 weights_beh = gst.add_behavior_metrics(weights_df,summary_df)
 
 # PSTHs
-change_mdf = psth.change_mdf()
-omission_mdf = psth.omission_mdf()
+change_mdf = psth.change_mdf(summary_df)
+omission_mdf = psth.omission_mdf(summary_df)
 psth.plot_change_mdf(change_mdf)
 psth.plot_omission_mdf(omission_mdf)
 

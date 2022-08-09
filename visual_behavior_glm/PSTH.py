@@ -9,14 +9,6 @@ import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_strategy_tools as gst
 import visual_behavior.data_access.loading as loading
 
-
-# TODO
-# what is the filtering? 1249 to 402? I'm ok with removing passive, but not others
-# separate hit/miss, engaged/disengaged?
-# split by strategy
-# add cre line labels
-# add an image psth?
-# what sanity checks can I do on the raw data?   
  
 def change_mdf():
     data_type='events'
@@ -68,7 +60,6 @@ def plot_population_averages_for_cell_types_across_experience(multi_session_df,
 
     # get important information
     cell_types = np.sort(multi_session_df.cell_type.unique())
-    #palette = utilities.get_experience_level_colors()
     palette = gvt.project_colors()
 
     # define plot axes

@@ -15,6 +15,7 @@ def change_mdf():
     interpolate=True
     output_sampling_rate=30
     inclusion_criteria = 'platform_experiment_table'
+    inclusion_criteria = ['active_only']
     event_type='all'
     conditions=['cell_specimen_id','is_change']
     change_mdf = loading.get_multi_session_df_for_conditions(data_type, 
@@ -30,13 +31,14 @@ def change_mdf():
 def plot_change_mdf(change_mdf):
     df = change_mdf.copy()
     plot_population_averages_for_cell_types_across_experience(df,
-        xlim_seconds=[-1,0.75],data_type='events',event_type='changes')
+        xlim_seconds=[-2,2],data_type='events',event_type='changes')
 
 def omission_mdf():
     data_type='events'
     interpolate=True
     output_sampling_rate=30
     inclusion_criteria = 'platform_experiment_table'
+    inclusion_criteria = ['active_only']
     event_type='all'
     conditions=['cell_specimen_id','omitted']
     omission_mdf = loading.get_multi_session_df_for_conditions(data_type, 
@@ -53,7 +55,7 @@ def omission_mdf():
 def plot_omission_mdf(omission_mdf):
     df = omission_mdf.copy()
     plot_population_averages_for_cell_types_across_experience(df,
-        xlim_seconds=[-1,1.5],data_type='events',event_type='omissions')
+        xlim_seconds=[-2,2],data_type='events',event_type='omissions')
 
 def plot_population_averages_for_cell_types_across_experience(multi_session_df, 
     xlim_seconds=[-1.25, 1.5],data_type='events', event_type='changes', interval_sec=1):
@@ -165,15 +167,16 @@ def plot_population_averages_for_conditions(multi_session_df, data_type, event_t
             ax[i] = utils.plot_flashes_on_trace(ax[i], timestamps, change=change, 
                 omitted=omitted)
             if omitted:
-                omission_color = sns.color_palette()[9]
-                ax[i].axvline(x=0, ymin=0, ymax=1, linestyle='--', color=omission_color)
+                omission_color = sns.color_palette()[-1]
+                ax[i].axvline(x=0, ymin=0, ymax=1, linestyle='--', color=omission_color,
+                    linewidth=1.5)
             if title == 'metadata':
                 metadata_string = utils.get_container_metadata_string(
                     utils.get_metadata_for_row_of_multi_session_df(cdf))
                 ax[i].set_title(metadata_string)
             else:
                 if axes_column == 'experience_level':
-                    ax[i].set_title(axis, color=palette[i], fontsize=20)
+                    ax[i].set_title(axis, color=palette[axis], fontsize=20)
                 else:
                     ax[i].set_title(axis)
             ax[i].set_xlim(xlim_seconds)

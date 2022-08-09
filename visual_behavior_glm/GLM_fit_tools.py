@@ -382,10 +382,10 @@ def evaluate_ridge(fit, design, run_params, session):
                 cv_var_train[:, split_index] = variance_ratio(fit_trace_train, W, X_train)
                 cv_var_test[:, split_index] = variance_ratio(fit_trace_test, W, X_test)
 
-            train_cv[:, L2_index] = np.mean(cv_var_train, 1)
-            test_cv[:, L2_index] = np.mean(cv_var_test, 1)
+            train_cv[:, L2_index] = np.mean(cv_var_train, 1)  # Taking the mean explained variance across all holdout sets
+            test_cv[:, L2_index] = np.mean(cv_var_test, 1)  # Taking mean explained variance across all hold-out sets
 
-        fit['avg_L2_regularization'] = np.mean([fit['L2_grid'][x] for x in np.argmax(test_cv, 1)])
+        fit['avg_L2_regularization'] = np.mean([fit['L2_grid'][x] for x in np.argmax(test_cv, 1)])   # Best regularization value averaged across all cells in experiment
         fit['cell_L2_regularization'] = [fit['L2_grid'][x] for x in np.argmax(test_cv,1)]     
         fit['L2_test_cv'] = test_cv
         fit['L2_train_cv'] = train_cv

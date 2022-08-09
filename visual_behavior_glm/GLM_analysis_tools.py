@@ -337,23 +337,23 @@ def calculate_explained_var(run_params, kernel, save_df=False):
 def build_event_aligned_averages(run_params, event, kernels='total', time_start=-1, time_end=1,
                          save_df=False):
     """
-            Returns dataframe containing the event-aligned averages across all trials for all cells across all OEIDs,
-            also storing session/experiment/cell attributes
-            The time window is defined by time_start before the event onset until time_stop after the event onset.
-            
-            INPUTS:
-            run_params            = JSON file from glm_params.load_run_json(VERSION)
-            event                 = event to align all of the predicted responses around
-            kernels               = kernels to use to produce predicted response 
-                                    ('all' - use all kernels, 'behavioral' - use running, pupil and licking kernels,
-                                     'all-images' - use all image kernels, 'all-omissions' - use all omission kernels)
-                                    Note: Can also define a list of kernels to produce response from
-                                          multiple separate kernels
-            time_start            = time to start the window around each event in the experiment
-                                    (e.g. time_start=-1 means to start window 1 second before each event)
-            time_end              =  time to end the window around each event in the experiment
-                                    (e.g. time_end=1 means to end the window 1 second after each event)
-        """
+        Returns dataframe containing the event-aligned averages across all trials for all cells across all OEIDs,
+        also storing session/experiment/cell attributes
+        The time window is defined by time_start before the event onset until time_stop after the event onset.
+
+        INPUTS:
+        run_params            = JSON file from glm_params.load_run_json(VERSION)
+        event                 = event to align all of the predicted responses around
+        kernels               = kernels to use to produce predicted response
+                                ('all' - use all kernels, 'behavioral' - use running, pupil and licking kernels,
+                                 'all-images' - use all image kernels, 'all-omissions' - use all omission kernels)
+                                Note: Can also define a list of kernels to produce response from
+                                      multiple separate kernels
+        time_start            = time to start the window around each event in the experiment
+                                (e.g. time_start=-1 means to start window 1 second before each event)
+        time_end              =  time to end the window around each event in the experiment
+                                (e.g. time_end=1 means to end the window 1 second after each event)
+    """
     from mindscope_utilities.general_utilities import event_triggered_response
 
     # Only dealing with discrete events right now
@@ -392,7 +392,7 @@ def build_event_aligned_averages(run_params, event, kernels='total', time_start=
                             skip = True
                     if skip:
                         continue
-    
+
                 if not isinstance(kernels, list):
                     if kernels == 'non-behavioral_hat':
                         pred = curr_pred['total'] - curr_pred['behavioral'] - curr_pred['intercept']
@@ -409,18 +409,22 @@ def build_event_aligned_averages(run_params, event, kernels='total', time_start=
                             pred += curr_pred[kernel]
                 # Number of cells for current experiment
                 num_neurons = pred.shape[1]
-    
+
                 # Assuming events passed in are either image or omission related
                 event_times = load_event_times_h5(run_params, oeid)
+
                 if event == 'omissions' or event == 'images':
                     event_cols = [col for col in event_times.columns if col.startswith(event[:-1])]
                     events_df = event_times[event_cols].sum(axis=1)
                 else:
-                    events_df = event_times[event]
-                event_occ_ind = np.argwhere(events_df.values > 0).squeeze()
+                    if event in event_times:
+                        events_df = event_times[event]
+                    else:
+                        continue
+                event_occ_ind = np.argwhere(events_df.values > 0).squeeze()  # Would NOT work for continuous features where the value need not be positive
                 timestamps = event_times['timestamps']
                 event_occ_times = timestamps[event_occ_ind].values
-    
+
                 # Iterate through each neuron
                 for neuron in range(num_neurons):
                     curr_pred = pred[:, neuron]
@@ -434,25 +438,24 @@ def build_event_aligned_averages(run_params, event, kernels='total', time_start=
                                                                 output_sampling_rate=31.0,
                                                                 output_format='tidy',
                                                                 interpolate=True)
-    
+
                     event_len = len(event_aligned_df.query('event_number == 0'))
                     num_events = event_aligned_df['event_number'].tolist()[-1] + 1
                     trial_ind = np.arange(event_len)
                     event_aligned_df['window_pos'] = np.tile(trial_ind, num_events)
-    
+
                     event_aligned_df_single = event_aligned_df.groupby('window_pos').mean()
                     event_aligned_df_single['window_pos'] = trial_ind
                     event_aligned_df_single.drop(labels=['event_number', 'original_index', 'event_time'],
                                                  axis=1,
                                                  inplace=True)
-    
-    
+
                     attr = cell_table.query('ophys_experiment_id == @oeid').iloc[[neuron]]
                     # attr = results_pivoted.query('ophys_experiment_id == @oeid').iloc[[neuron], 48:]
                     # Maybe a better way?? How to add metadata to each group of rows for each cell in each experiment??
                     attr_repeated = pd.concat([attr] * event_len, ignore_index=True)
                     attr_event_aligned_df = pd.concat([event_aligned_df_single, attr_repeated], axis=1)
-    
+
                     event_aligned_dfs = pd.concat([event_aligned_dfs, attr_event_aligned_df], ignore_index=True, axis=0)
     except Exception as e:
         print('Error reached at oeid {0} with exception {1}'.format(oeid, e))
@@ -464,13 +467,14 @@ def build_event_aligned_averages(run_params, event, kernels='total', time_start=
                     kernel_str += '+' + kernels[i]
             else:
                 kernel_str = kernels
-            filepath_pkl = run_params['experiment_output_dir'] + '/dataframes/' + kernel_str + '_event_aligned_df.pbz2'
+            filepath_pkl = run_params['experiment_output_dir'] + '/dataframes/' + \
+                           '{0}_{1}_aligned_df.pbz2'.format(kernel_str, event)
             with bz2.BZ2File(filepath_pkl, 'w') as f:
                cPickle.dump(event_aligned_dfs, f)
             print('\nSaved {} dataframe'.format(kernels))
 
     return event_aligned_dfs
-        
+
 
 def identify_dominant_dropouts(data, cluster_column_name, cols_to_search):
     '''

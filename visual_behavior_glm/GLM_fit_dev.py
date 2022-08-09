@@ -345,10 +345,10 @@ def get_analysis_dfs(VERSION):
         results_summary=results
         )
     print('\nProcessed results_pivoted\n')
-    # weights_df = gat.build_weights_df(run_params, results_pivoted)
+    weights_df = gat.build_weights_df(run_params, results_pivoted)
     print('\nProcessed weights dataframe\n')  
     # session, design = gat.retrieve_attributes(VERSION)
-    return run_params, results, results_pivoted
+    return run_params, results, results_pivoted, weights_df
 
  
 def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):

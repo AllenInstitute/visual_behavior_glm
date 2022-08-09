@@ -25,6 +25,8 @@ from tqdm import tqdm
 from matplotlib import animation, rc
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.lines as mlines
+import matplotlib.transforms as mtransforms
 import gc
 from scipy import ndimage
 from scipy import stats
@@ -2107,16 +2109,6 @@ def plot_event_aligned_responses(run_params, event_aligned_dfs, kernels='total',
     # In platform_figure script, plot this for kernels: 'all', 'ground-truth', 'non-behavioral', 'behavioral', 'all-omissions', 'all-images'
 
     fig, axs = plt.subplots(len(cell_filter), len(session_filter), sharex='col', sharey='row', figsize=(12, 8))
-    pad = 5
-
-    # for ax, session in zip(axs[0], session_filter):
-    #     ax.annotate(session, xy=(0.5, 1), xytext=(0, pad),
-    #                 xycoords='axes fraction', textcoords='offset points',
-    #                 size='large', ha='center', va='baseline')
-    # for ax, cell in zip(axs[:, 0], cell_filter):
-    #     ax.annotate(cell[:3], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
-    #                 xycoords=ax.yaxis.label, textcoords='offset points',
-    #                 size='large', ha='right', va='center')
 
     fig.tight_layout()
     fig.subplots_adjust(left=0.15, top=0.95, bottom=0.1)
@@ -2165,7 +2157,7 @@ def plot_event_aligned_responses(run_params, event_aligned_dfs, kernels='total',
 
 
 def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_line,
-                                            kernels, use_pickle=False, savefig=False,
+                                            kernels, use_pickle=False, savefig=False, use_gt=False,
                                             session_filter=['Familiar', 'Novel 1', 'Novel >1'],
                                             equipment_filter='all', area_filter=['VISp', 'VISl'],
                                             depth_filter=[0, 1000]):
@@ -2196,16 +2188,6 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
     width = 4 * len(session_filter)
     height = 3 * len (kernels)
     fig, axs = plt.subplots(len(kernels), len(session_filter), sharex='col', sharey='row', figsize=(width, height))
-    pad = 5
-
-    # for ax, session in zip(axs[0], session_filter):
-    #     ax.annotate(session, xy=(0.5, 1), xytext=(0, pad),
-    #                 xycoords='axes fraction', textcoords='offset points',
-    #                 size='large', ha='center', va='baseline')
-    # for ax, cell in zip(axs[:, 0], cell_filter):
-    #     ax.annotate(cell[:3], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
-    #                 xycoords=ax.yaxis.label, textcoords='offset points',
-    #                 size='large', ha='right', va='center')
 
     fig.tight_layout()
     fig.subplots_adjust(left=0.15, top=0.95, bottom=0.1)
@@ -2233,12 +2215,11 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
                     del event_aligned_dfs_dict['non-behavioral_hat']
                     kernels.remove('non-behavioral_hat')
                 else:
-                    if kernel == 'ground-truth':
-                        filepath_pbz2 = "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/" \
-                                        "v_57_medepalli_omission_specific_analysis_pre_post/experiment_model_files/"
+                    filepath_pbz2 = run_params['event_aligned_dfs_dir']
+                    if use_gt:
+                        filepath_pbz2 += '/ground-truth_' + kernel + '_aligned_df.pbz2'
                     else:
-                        filepath_pbz2 = run_params['experiment_output_dir']
-                    filepath_pbz2 += '/dataframes/' + kernel + '_event_aligned_df.pbz2'
+                        filepath_pbz2 += '/' + kernel + '_event_aligned_df.pbz2'
                     if os.path.isfile(filepath_pbz2):
                         event_aligned_dfs = bz2.BZ2File(filepath_pbz2, 'rb')
                         event_aligned_dfs = cPickle.load(event_aligned_dfs)
@@ -2251,7 +2232,6 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
         k_ind[kernels.index('licks')] = kernels.index('running')
         k_ind[kernels.index('pupil')] = kernels.index('running')
 
-    # Plot for all nine with 3x3 subplots and querying
     for k_ind, kernel in zip(k_ind, kernels):
         for session_ind, session in enumerate(session_filter):
             if session_ind == 0:
@@ -2260,8 +2240,8 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
                 axs[k_ind, session_ind].set_xlabel('time after event (s)')
 
             axs[k_ind, session_ind].set_xlim([-1.0, 1.25])
-            # if not kernel in ['ground-truth', 'non-behavioral', 'non-non-behavioral']:
-            #     axs[k_ind, session_ind].set_ylim([-0.002, 0.018])
+            if kernel not in ['ground-truth', 'non-behavioral', 'non-non-behavioral'] and not use_gt:
+                axs[k_ind, session_ind].set_ylim([-0.002, 0.017])
 
             axs[k_ind, session_ind].axvline(x=0, color='b', ls='--')  # Draw omission event
             axs[k_ind, session_ind].axvspan(-0.75, -0.5, alpha=0.4, color='0.8')  # Previous image
@@ -2288,12 +2268,155 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
                                                      curr_events_avg['y_hat'] - curr_events_se['y_hat'],
                                                      curr_events_avg['y_hat'] + curr_events_se['y_hat'],
                                                      color=beh_kernels_colors[kernel], alpha=0.4)
+                axs[k_ind, session_ind].set_xlabel('time after event (s)')
                 axs[k_ind, session_ind].legend(loc='upper left')
 
 
     if savefig:
         plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_' + cre_line + '_event_aligned_response.png')
         plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_' + cre_line + '_event_aligned_response.svg')
+
+
+def plot_explained_variance_scatter(run_params_orig, run_params_new, savefig=False):
+    filepath_orig = run_params_orig['event_aligned_dfs_dir'] + '/' + 'total_explained_var_df.pbz2'
+
+    if os.path.isfile(filepath_orig):
+        exp_var_orig = bz2.BZ2File(filepath_orig, 'rb')
+        exp_var_orig = cPickle.load(exp_var_orig)
+    filepath_new = run_params_new['event_aligned_dfs_dir'] + '/' + 'total_explained_var_df.pbz2'
+    if os.path.isfile(filepath_new):
+        exp_var_new = bz2.BZ2File(filepath_new, 'rb')
+        exp_var_new = cPickle.load(exp_var_new)
+
+
+    sessions = ['Familiar', 'Novel 1']
+    fig, ax = plt.subplots()
+    colors = project_colors()
+    for ind, sess in enumerate(sessions):
+        exp_var_orig_curr = exp_var_orig.query('experience_level == @sess')['exp_var']
+        exp_var_new_curr = exp_var_new.query('experience_level == @sess')['exp_var']
+        scatter = ax.scatter(exp_var_orig_curr.values, exp_var_new_curr.values, c=colors[sess], label=sess, s=0.5)
+        ax.set_xlabel('Original GLM Explained Variance')
+        ax.set_ylabel('Modified GLM Explained Variance')
+    line = mlines.Line2D([0, 1], [0, 1], color='0.5', alpha=0.5, ls='--')
+    transform = ax.transAxes
+    line.set_transform(transform)
+    ax.add_line(line)
+
+    lgnd = ax.legend(frameon=False)
+    lgnd.legendHandles[0]._sizes = [5]
+    lgnd.legendHandles[1]._sizes = [5]
+
+    if savefig:
+        plt.savefig(run_params_new['figure_dir'] + '/' + 'exp_var_plot.svg')
+
+    return exp_var_orig, exp_var_new
+    
+def visualize_lifetime_sparseness(run_params, use_gt=False, savefig=False):
+    
+    from visual_behavior.ophys.response_analysis.cell_metrics import compute_lifetime_sparseness
+    
+    N = 8  # Number of images
+    PROBLEM_OPHYS_ID = 945473009
+    omissions_trial_averages = []
+
+    # Baseline starting, ending indices
+    start_ind_baseline = 30  # corresponds to -500 s
+    end_ind_baseline = 40  # corresponds to -200 s
+    baseline_length = end_ind_baseline - start_ind_baseline
+
+    for i in range(N):
+        filepath_orig = run_params['event_aligned_dfs_dir'] + '/'
+        if use_gt:
+            filepath_orig += 'ground-truth_omission{}_aligned_df.pbz2'.format(i)
+        else:
+            filepath_orig += 'omission{}_event_aligned_df.pbz2'.format(i)
+        if os.path.isfile(filepath_orig):
+            curr_omis_event_aligned = bz2.BZ2File(filepath_orig, 'rb')
+            curr_omis_event_aligned = cPickle.load(curr_omis_event_aligned)
+            curr_omis_event_aligned = curr_omis_event_aligned.query('ophys_experiment_id != @PROBLEM_OPHYS_ID')  # Loading average across all trials for each cell, [-1.5, 1.5] window
+        start_ind = 47  # Hard-coded based on interpolation (first index after 0)
+        end_ind = 70  # Hard-coded based on interpolation (end index just before 0.75) + 1 for indexing
+        window_pos_range = np.arange(start_ind, end_ind)
+        curr_omis_event_aligned_orig = curr_omis_event_aligned
+        curr_omis_event_aligned = curr_omis_event_aligned.query('window_pos in @window_pos_range')
+        num_points = len(curr_omis_event_aligned)
+
+        curr_omis_baseline = pd.DataFrame()
+        for ind, time in enumerate(range(start_ind_baseline, end_ind_baseline)):
+            curr_omis_baseline['baseline_t{}'.format(ind)] = curr_omis_event_aligned_orig.query('window_pos == @time')['y_hat'].values
+
+        num_trials = int(len(curr_omis_event_aligned) / (end_ind - start_ind))
+        trial_num = np.arange(num_trials)
+        curr_omis_event_aligned['trial_num'] = np.repeat(trial_num, end_ind - start_ind)
+        curr_omis_averaged_yhat = curr_omis_event_aligned.groupby(['trial_num']).mean()['y_hat']  # Average y_hat for each window of 0.75 ms post-omission for each cell
+
+        attr_ind = np.arange(0, num_points, end_ind - start_ind)
+        curr_omis_trial_average = curr_omis_event_aligned.iloc[attr_ind].drop(['time', 'y_hat', 'window_pos', 'trial_num'], axis=1)
+        curr_omis_trial_average['y_avg'] = curr_omis_averaged_yhat.values
+        curr_omis_trial_average = pd.concat([curr_omis_trial_average.reset_index(), curr_omis_baseline], axis=1)
+
+        omissions_trial_averages.append(curr_omis_trial_average)
+    
+    session_list = ['Familiar', 'Novel 1']
+    colors = project_colors()
+    fig, ax = plt.subplots()
+    ls_cells_dict = {}
+    for sess_ind, sess in enumerate(session_list):
+        curr_indexes = omissions_trial_averages[0].query('experience_level == @sess').index.values
+        ls_cells_omis = np.zeros(len(curr_indexes))
+        ls_cells_baseline = np.zeros((len(curr_indexes), baseline_length))
+        for pos, ind in enumerate(curr_indexes):
+            curr_cell_trial_avg = np.zeros((baseline_length + 1, N))
+            for i in range(N):
+                curr_cell_trial_avg[0, i] = omissions_trial_averages[i]['y_avg'].iloc[ind]
+                for baseline_ind in range(baseline_length):
+                    curr_cell_trial_avg[baseline_ind + 1, i] = omissions_trial_averages[i]['baseline_t{}'.format(baseline_ind)].iloc[ind]
+            curr_cell_trial_avg -= curr_cell_trial_avg.min()
+            ls_cells_omis[pos] = compute_lifetime_sparseness(curr_cell_trial_avg[0])
+            for baseline_ind in range(baseline_length):
+                ls_cells_baseline[pos, baseline_ind] = compute_lifetime_sparseness(curr_cell_trial_avg[baseline_ind + 1])
+        ls_cells_dict[sess] = ls_cells_omis
+
+        weights = np.ones_like(ls_cells_omis) / len(ls_cells_omis)  # Normalizing histogram
+        ax.hist(ls_cells_omis, bins=20, color=colors[sess], alpha=0.5, label=sess, weights=weights)
+        # ax[sess_ind].hist(ls_cells_baseline[:, 1:baseline_length+1].flatten(), bins=20, color='green', alpha=0.5)  ... Not useful for the model event-aligned responses
+        ax.set_xlabel('Lifetime Sparseness')
+        ax.set_ylabel('Normalized Count')
+        ax.legend(loc='upper right')
+
+    if savefig:
+        plt.savefig(run_params['figure_dir'] + '/lifetime_sparseness_omissions_pyplot_hist.svg')
+
+    return ls_cells_dict
+
+
+def plot_sparseness_exp_var_scatter(run_params, exp_var_orig, exp_var_new, ls_cells_dict, session_list=['Familiar', 'Novel 1'],
+                                    savefig=False):
+
+    PROBLEM_OPHYS_ID = 945473009
+    for sess in session_list:
+        orig_vals = exp_var_orig.query('experience_level == @sess & ophys_experiment_id != @PROBLEM_OPHYS_ID')['exp_var'].values
+        new_vals = exp_var_new.query('experience_level == @sess & ophys_experiment_id != @PROBLEM_OPHYS_ID')['exp_var'].values
+        exp_var_diff = new_vals - orig_vals
+
+        colors = project_colors()
+        fig, ax = plt.subplots()
+
+        slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(exp_var_diff, ls_cells_dict[sess])
+        # a, b = np.polyfit(exp_var_diff, ls_cells_dict[sess], 1)
+
+        ax.scatter(exp_var_diff, ls_cells_dict[sess], c=colors[sess], s=0.5)
+        ax.plot(exp_var_diff, slope*exp_var_diff+intercept, color='0.8', ls='--')
+
+        ax.text(-0.04, 0.9, 'y = {:.2f} * x + {:.2f}\nr = {:.2f}'.format(slope, intercept, r_value), size=12)
+        print(slope, intercept, r_value)
+
+        ax.set_xlabel('Explained Variance Difference (Modified - Original)')
+        ax.set_ylabel('Lifetime Sparseness')
+
+        if savefig:
+            plt.savefig(run_params['figure_dir'] + '/' + 'exp_var_diff_ls_scatter_{}.svg'.format(sess))
 
 
 def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, drop_threshold=0,
@@ -4933,7 +5056,8 @@ def plot_dropout_individual_population(results, run_params, ax=None, palette=Non
 
 
 def plot_dropout_summary_population(results, run_params,
-                                    dropouts_to_show=['all-images', 'all-omissions', 'behavioral'], ax=None,
+                                    dropouts_to_show=['all-images', 'all-omissions', 'behavioral'], 
+                                    cre_lines=['Vip-IRES-Cre', 'Sst-IRES-Cre', 'Slc17a7-IRES2-Cre'], ax=None,
                                     palette=None, use_violin=False, add_median=True, include_zero_cells=True,
                                     add_title=False, dropout_cleaning_threshold=None, exclusion_threshold=None,
                                     savefig=False):
@@ -4946,7 +5070,7 @@ def plot_dropout_summary_population(results, run_params,
     """
     if ax is None:
         height = 4
-        width = 15
+        width = 12
         horz_offset = 2
         vertical_offset = .75
         fig = plt.figure(figsize=(width, height))
@@ -4967,7 +5091,8 @@ def plot_dropout_summary_population(results, run_params,
         # else:
         #     threshold = 0.005
 
-    cre_lines = ['Vip-IRES-Cre', 'Sst-IRES-Cre', 'Slc17a7-IRES2-Cre']
+    cre_lines = cre_lines
+    session_list = ['Familiar', 'Novel 1']
 
     if ('post-omissions' in results.dropout.unique()) & ('omissions' in dropouts_to_show):
         dropouts_to_show = ['all-omissions' if x == 'omissions' else x for x in dropouts_to_show]
@@ -4978,7 +5103,7 @@ def plot_dropout_summary_population(results, run_params,
     if ('post-passive_change' in results.dropout.unique()) & ('passive_change' in dropouts_to_show):
         dropouts_to_show = ['all-passive_change' if x == 'passive_change' else x for x in dropouts_to_show]
 
-    data_to_plot = results.query('passive==False').query(
+    data_to_plot = results.query('passive==False and cre_line in @cre_lines').query(
         'dropout in @dropouts_to_show and variance_explained_full > {}'.format(threshold)).copy()
     data_to_plot['explained_variance'] = -1 * data_to_plot['adj_fraction_change_from_full']
     if dropout_cleaning_threshold is not None:
@@ -5019,27 +5144,33 @@ def plot_dropout_summary_population(results, run_params,
             data=data_to_plot,
             x='dropout',
             y='explained_variance',
-            hue='cre_line',
+            hue='experience_level',
             order=dropouts_to_show,
-            hue_order=cre_lines,
+            hue_order=session_list,
             fliersize=0,
             ax=ax,
             palette=palette,
-            width=.7,
+            width=.5,
         )
     ax.set_ylim(0, 1)
     h, labels = ax.get_legend_handles_labels()
-    clean_labels = {
-        'Slc17a7-IRES2-Cre': 'Excitatory',
-        'Sst-IRES-Cre': 'Sst Inhibitory',
-        'Vip-IRES-Cre': 'Vip Inhibitory'
-    }
-    mylabels = [clean_labels[x] for x in labels]
+    
+    # Labels when labeling by cre_line
+    # clean_labels = {
+    #     # 'Slc17a7-IRES2-Cre': 'Excitatory',
+    #     # 'Sst-IRES-Cre': 'Sst Inhibitory',
+    #     'Vip-IRES-Cre': 'Vip Inhibitory'
+    # }
+    # mylabels = [clean_labels[x] for x in labels]
+    
+    # Labels when labeling by session
+    mylabels = session_list
+
     ax.legend(h, mylabels, loc='upper right', fontsize=16)
     ax.set_ylabel('Coding Score', fontsize=20)
     ax.set_xlabel('Withheld component', fontsize=20)
-    ax.set_xticks([0, 1, 2, 3, 4])
-    ax.set_xticklabels(['images', 'omissions', 'behavioral', 'image-pred', 'post-omission'])
+    ax.set_xticks([0, 1, 2, 3])
+    ax.set_xticklabels(['images', 'omissions', 'behavioral', 'task'])
     ax.tick_params(axis='x', labelsize=16)
     ax.tick_params(axis='y', labelsize=16)
     ax.spines['top'].set_visible(False)
@@ -5057,7 +5188,7 @@ def plot_dropout_summary_population(results, run_params,
             filename = run_params['figure_dir'] + '/coding' + '/dropout_summary' + extra + '.svg'
             plt.savefig(filename)
         else:
-            filename = run_params['figure_dir'] + '/coding' + '/dropout_summary_boxplot' + extra + '.png'
+            filename = run_params['figure_dir'] + '/coding' + '/dropout_summary_boxplot' + extra + '.svg'
             plt.savefig(filename)
             print('Figure saved to: ' + filename)
     return data_to_plot.groupby(['cre_line', 'dropout'])['explained_variance'].describe()

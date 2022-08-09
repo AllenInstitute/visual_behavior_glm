@@ -10,13 +10,14 @@ import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_strategy_tools as gst
 import visual_behavior.data_access.loading as loading
 import visual_behavior.visualization.utils as utils
+
  
 def change_mdf(summary_df=None):
     data_type='events'
     interpolate=True
     output_sampling_rate=30
     inclusion_criteria = 'platform_experiment_table'
-    inclusion_criteria = ['active_only']
+    inclusion_criteria = ['active_only','strategy_paper']
     event_type='all'
     conditions=['cell_specimen_id','is_change']
     change_mdf = loading.get_multi_session_df_for_conditions(data_type, 
@@ -28,7 +29,6 @@ def change_mdf(summary_df=None):
         change_mdf = gst.add_behavior_metrics(change_mdf, summary_df)
 
     return change_mdf
-
 
 
 def omission_mdf(summary_df=None):

@@ -29,6 +29,12 @@ results_beh = gst.add_behavior_metrics(results,summary_df)
 results_pivoted_beh = gst.add_behavior_metrics(results_pivoted,summary_df)
 weights_beh = gst.add_behavior_metrics(weights_df,summary_df)
 
+# PSTHs
+change_mdf = psth.change_mdf()
+omission_mdf = psth.omission_mdf()
+psth.plot_change_mdf(change_mdf)
+psth.plot_omission_mdf(omission_mdf)
+
 # Basic plots
 gst.plot_dropout_summary_population(results_beh, run_params)
 gst.plot_fraction_summary_population(results_pivoted_beh, run_params)

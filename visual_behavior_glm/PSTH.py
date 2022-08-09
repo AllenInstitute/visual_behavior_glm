@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 plt.ion()
 
@@ -8,7 +9,7 @@ import psy_output_tools as po
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_strategy_tools as gst
 import visual_behavior.data_access.loading as loading
-
+import visual_behavior.visualization.utils as utils
  
 def change_mdf():
     data_type='events'
@@ -67,7 +68,7 @@ def plot_population_averages_for_cell_types_across_experience(multi_session_df,
     # define plot axes
     axes_column = 'experience_level'
     hue_column = 'strategy_labels'
-    xlabel='time (s)' 
+    xlabel='time from '+event_type[0:-1]+' (s)' 
     ylabel='population\nresponse'
 
     format_fig = True
@@ -158,53 +159,78 @@ def plot_population_averages_for_conditions(multi_session_df, data_type, event_t
     else:
         format_fig = False
     for i, axis in enumerate(axes_conditions):
+        ax[i] = plot_flashes_on_trace(ax[i], timestamps, change=change, 
+            omitted=omitted)
         for c, hue in enumerate(hue_conditions):
             cdf = sdf[(sdf[axes_column] == axis) & (sdf[hue_column] == hue)]
             traces = cdf.mean_trace.values
             ax[i] = utils.plot_mean_trace(np.asarray(traces), timestamps, 
                 ylabel=ylabel,legend_label=hue, color=palette[hue], 
                 interval_sec=interval_sec,xlim_seconds=xlim_seconds, ax=ax[i])
-            ax[i] = utils.plot_flashes_on_trace(ax[i], timestamps, change=change, 
-                omitted=omitted)
-            if omitted:
-                omission_color = sns.color_palette()[-1]
-                ax[i].axvline(x=0, ymin=0, ymax=1, linestyle='--', color=omission_color,
-                    linewidth=1.5)
-            if title == 'metadata':
-                metadata_string = utils.get_container_metadata_string(
-                    utils.get_metadata_for_row_of_multi_session_df(cdf))
-                ax[i].set_title(metadata_string)
+        if title == 'metadata':
+            metadata_string = utils.get_container_metadata_string(
+                utils.get_metadata_for_row_of_multi_session_df(cdf))
+            ax[i].set_title(metadata_string)
+        else:
+            if axes_column == 'experience_level':
+                ax[i].set_title(axis, color=palette[axis], fontsize=20)
             else:
-                if axes_column == 'experience_level':
-                    ax[i].set_title(axis, color=palette[axis], fontsize=20)
-                else:
-                    ax[i].set_title(axis)
-            ax[i].set_xlim(xlim_seconds)
-            ax[i].set_xlabel(xlabel, fontsize=16)
-            if horizontal:
-                ax[i].set_ylabel('')
-            else:
-                ax[i].set_ylabel(ylabel)
-                ax[i].set_xlabel('')
+                ax[i].set_title(axis)
+        ax[i].set_xlim(xlim_seconds)
+        ax[i].set_xlabel(xlabel, fontsize=16)
+        if horizontal:
+            ax[i].set_ylabel('', fontsize=16)
+        else:
+            ax[i].set_ylabel(ylabel, fontsize=16)
+            ax[i].set_xlabel('', fontsize=16)
+        ax[i].xaxis.set_tick_params(labelsize=12)
+        ax[i].yaxis.set_tick_params(labelsize=12)
     if format_fig:
         if horizontal:
-            ax[0].set_ylabel(ylabel)
+            ax[0].set_ylabel(ylabel, fontsize=16)
         else:
-            ax[i].set_xlabel(xlabel)
+            ax[i].set_xlabel(xlabel, fontsize=16)
 
-    if project_code:
-        if suptitle is None:
-            suptitle = 'population average - ' + data_type + ' response - ' \
-                + project_code[14:]
-    else:
-        if suptitle is None:
-            suptitle = 'population average response - ' + data_type + '_' + event_type
     if format_fig:
-        plt.suptitle(suptitle, x=0.52, y=1.04, fontsize=18)
         fig.tight_layout()
         if horizontal:
             fig.subplots_adjust(wspace=0.3)
 
     return ax
 
+def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False):
+    """
+    plot stimulus flash durations on the given axis according to the provided timestamps
+    """
+    stim_duration = 0.250
+    blank_duration = 0.50
+    change_color=[0.121,0.466,.7058]
+    change_time = 0
+    start_time = timestamps[0]
+    end_time = timestamps[-1]
+    interval = (blank_duration + stim_duration)
+    # after time 0
+    if omitted:
+        array = np.arange((change_time + interval), end_time, interval)  
+        ax.axvline(x=change_time, ymin=0, ymax=1, linestyle='--', 
+            color=sns.color_palette()[9], linewidth=1.5)
+    else:
+        array = np.arange(change_time, end_time, interval)
+    for i, vals in enumerate(array):
+        amin = array[i]
+        amax = array[i] + stim_duration
+        if change and (i == 0):
+            change_color = sns.color_palette()[0]
+            ax.axvspan(amin, amax, color=change_color, 
+                alpha=.25, zorder=1)
+        else:
+            ax.axvspan(amin, amax, color='k',alpha=.1, zorder=1)
 
+    # before time 0
+    array = np.arange(change_time, start_time - interval, -interval)
+    array = array[1:]
+    for i, vals in enumerate(array):
+        amin = array[i]
+        amax = array[i] + stim_duration
+        ax.axvspan(amin, amax, color='k',alpha=.1,zorder=1)
+    return ax

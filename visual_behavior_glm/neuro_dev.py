@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import psy_output_tools as po
+import visual_behavior_glm.PSTH as psth
 import visual_behavior_glm.GLM_fit_dev as gfd
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat

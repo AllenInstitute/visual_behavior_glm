@@ -4,12 +4,13 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 plt.ion()
-
 import psy_output_tools as po
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_strategy_tools as gst
 import visual_behavior.data_access.loading as loading
 import visual_behavior.visualization.utils as utils
+
+PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
  
 def change_mdf(summary_df=None):
@@ -24,6 +25,8 @@ def change_mdf(summary_df=None):
         event_type, conditions, inclusion_criteria, interpolate=interpolate, 
         output_sampling_rate=output_sampling_rate, epoch_duration_mins=None)
     change_mdf = change_mdf[change_mdf.is_change==True]
+    change_mdf['layer'] = ['shallow' if x < 250 else 'deep' 
+        for x in change_mdf['imaging_depth']]
 
     if summary_df is not None:
         change_mdf = gst.add_behavior_metrics(change_mdf, summary_df)
@@ -43,21 +46,36 @@ def omission_mdf(summary_df=None):
         event_type, conditions, inclusion_criteria, interpolate=interpolate, 
         output_sampling_rate=output_sampling_rate, epoch_duration_mins=None)
     omission_mdf = omission_mdf[omission_mdf.omitted==True]
+    omission_mdf['layer'] = ['shallow' if x < 250 else 'deep' 
+        for x in omission_mdf['imaging_depth']]
 
     if summary_df is not None:
         omission_mdf = gst.add_behavior_metrics(omission_mdf, summary_df)
 
     return omission_mdf
 
-def plot_change_mdf(change_mdf):
+
+def plot_change_mdf(change_mdf,savefig=False,extra=''):
     df = change_mdf.copy()
     plot_population_averages_for_cell_types_across_experience(df,
         xlim_seconds=[-2,2],data_type='events',event_type='changes')
+    
+    if savefig:
+        filename = PSTH_DIR + 'change_psth'+extra+'.png'
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
 
-def plot_omission_mdf(omission_mdf):
+
+def plot_omission_mdf(omission_mdf,savefig=False,extra=''):
     df = omission_mdf.copy()
     plot_population_averages_for_cell_types_across_experience(df,
         xlim_seconds=[-2,2],data_type='events',event_type='omissions')
+
+    if savefig:
+        filename = PSTH_DIR + 'omission_psth'+extra+'.png'
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+
 
 def plot_population_averages_for_cell_types_across_experience(multi_session_df, 
     xlim_seconds=[-1.25, 1.5],data_type='events', event_type='changes', interval_sec=1):
@@ -78,7 +96,7 @@ def plot_population_averages_for_cell_types_across_experience(multi_session_df,
     ax = ax.ravel()
 
     for i, cell_type in enumerate(cell_types):
-        print('cell type {}'.format(cell_type))
+        print('{:<15} (Visual, Timing)'.format(cell_type))
         df = multi_session_df[(multi_session_df.cell_type == cell_type)]
         ax[i * 3:(i * 3 + 3)] = plot_population_averages_for_conditions(df, 
             data_type, event_type, axes_column, hue_column,horizontal=True,
@@ -180,7 +198,7 @@ def plot_population_averages_for_conditions(multi_session_df, data_type, event_t
                 ax[i].set_title(axis, color=palette[axis], fontsize=20)
             else:
                 ax[i].set_title(axis)
-        print('{} ({}, {})'.format(axis, num_cells['visual'], num_cells['timing']))
+        print('{:<9} ({:<4}, {:<5})'.format(axis,num_cells['visual'],num_cells['timing']))
         ax[i].set_xlim(xlim_seconds)
         ax[i].set_xlabel(xlabel, fontsize=16)
         if horizontal:
@@ -202,6 +220,7 @@ def plot_population_averages_for_conditions(multi_session_df, data_type, event_t
             fig.subplots_adjust(wspace=0.3)
 
     return ax
+
 
 def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False):
     """

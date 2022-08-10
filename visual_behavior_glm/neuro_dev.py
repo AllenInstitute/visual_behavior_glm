@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import psy_output_tools as po
+import visual_behavior_glm.PSTH as psth
 import visual_behavior_glm.GLM_fit_dev as gfd
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
@@ -28,6 +29,12 @@ bouts_df = po.build_bout_table(licks_df)
 results_beh = gst.add_behavior_metrics(results,summary_df)
 results_pivoted_beh = gst.add_behavior_metrics(results_pivoted,summary_df)
 weights_beh = gst.add_behavior_metrics(weights_df,summary_df)
+
+# PSTHs
+change_mdf = psth.change_mdf(summary_df)
+omission_mdf = psth.omission_mdf(summary_df)
+psth.plot_change_mdf(change_mdf)
+psth.plot_omission_mdf(omission_mdf)
 
 # Basic plots
 gst.plot_dropout_summary_population(results_beh, run_params)

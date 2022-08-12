@@ -57,20 +57,21 @@ run_params = gp.load_run_json(VERSION)
 # run_params2 = gp.load_run_json(VERSION2)
 
 # exp_var_orig, exp_var_new = gvt.plot_explained_variance_scatter(run_params2, run_params, savefig=True)
-kernels, event = 'ground-truth', 'omission3'
+kernels, event = ['omission0', 'omission1', 'omission2', 'omission3', 'omission4', 'omission5', 'omission6', 'omission7'], 'ground-truth'
 # exp_var_df = gat.calculate_explained_var(run_params, kernels, save_df=True)
 
-# event_aligned_df = None
+event_aligned_df = None
 # print('Building event_aligned responses to {} kernel for {} event'.format(str(kernels), event))
 # event_aligned_df = gat.build_event_aligned_averages(run_params, event=event, kernels=kernels,
 #                                                        time_start=-1.5, time_end=1.5, save_df=True)
 
-# gvt.plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs=event_aligned_df, cre_line='vip',
-#                                             kernels=kernels, use_pickle=True, savefig=True, use_gt=True, 
-#                                             session_filter=['Familiar', 'Novel 1', 'Novel >1'])
+# gvt.plot_single_cre_event_aligned_responses(run_params, event_aligned_dfs=event_aligned_df, cre_line='vip',
+#                                            kernels=kernels, use_pickle=True, savefig=True, use_gt=True, plot_cell_id=1086611532,
+#                                            session_filter=['Familiar', 'Novel 1', 'Novel >1'])
 # print('\nEvent-aligned responses test complete to {}!\n'.format(str(kernels)))
 
-ls_cells_dict = gvt.visualize_lifetime_sparseness(run_params, use_gt=True, savefig=True)
+# ls_cells_dict = gvt.visualize_omission_lifetime_sparseness(run_params, use_gt=True, savefig=True)
+omis_selective_bools = gat.calculate_omission_shuffled_lifetime_sparseness(run_params, use_gt=True, num_shuffles=10000, session='Familiar')
 
 # gvt.plot_sparseness_exp_var_scatter(run_params, exp_var_orig, exp_var_new, ls_cells_dict, 
 #                                    session_list=['Familiar'], savefig=True)

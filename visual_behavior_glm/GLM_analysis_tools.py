@@ -476,8 +476,105 @@ def build_event_aligned_averages(run_params, event, kernels='total', time_start=
     return event_aligned_dfs
 
 
+def calculate_omission_shuffled_lifetime_sparseness(run_params, use_gt=False, num_shuffles=1000, alpha=0.05,
+                                                    session='Familiar'):
+
+    from visual_behavior.ophys.response_analysis.cell_metrics import compute_lifetime_sparseness
+
+    N = 8  # Number of images
+    start_ind = 47  # Hard-coded based on interpolation (first index after 0)
+    end_ind = 70  # Hard-coded based on interpolation (end index just before 0.75) + 1 for indexing
+    window_pos_range = np.arange(start_ind, end_ind)
+    ind_range = end_ind - start_ind
+
+    PROBLEM_OPHYS_ID = 945473009
+    omissions_event_aligned = []
+
+    for i in range(N):
+        filepath_orig = run_params['event_aligned_dfs_dir'] + '/'
+        if use_gt:
+            filepath_orig += 'ground-truth_omission{}_aligned_df.pbz2'.format(i)
+        else:
+            filepath_orig += 'omission{}_event_aligned_df.pbz2'.format(i)
+        if os.path.isfile(filepath_orig):
+            curr_omis_event_aligned = bz2.BZ2File(filepath_orig, 'rb')
+            curr_omis_event_aligned = cPickle.load(curr_omis_event_aligned)
+            curr_omis_event_aligned = curr_omis_event_aligned.query('ophys_experiment_id != @PROBLEM_OPHYS_ID & '
+                                                                    'experience_level == @session')
+
+        curr_omis_event_aligned = curr_omis_event_aligned.query('window_pos in @window_pos_range').reset_index()
+
+        omissions_event_aligned.append(curr_omis_event_aligned)
+
+    num_cells = int(len(omissions_event_aligned[0]) / ind_range)
+    sig_omis_selectivity = np.zeros(num_cells)
+    ls_omis_all_shuffles = np.zeros(num_cells * num_shuffles)
+    ls_omis_actual_response = np.zeros(num_cells)
+
+    fig, ax = plt.subplots()
+    for c in tqdm(range(num_cells)):
+        # fig, ax = plt.subplots(11, 1, figsize=(11*2, 24))
+        curr_all_omissions_window = np.zeros((N, ind_range))
+
+        # Store original values
+        for i in range(N):
+            curr_all_omissions_window[i] = omissions_event_aligned[i]['y_hat'][ind_range * c: ind_range * (c + 1)]
+            # ax[0].plot(curr_all_omissions_window[i], label='Omission{}'.format(i))
+
+
+        # Compute sparseness for the sample
+        ls_omis_sample = compute_lifetime_sparseness(np.mean(curr_all_omissions_window, axis=1))
+        print('Cell {}'.format(c))
+        print('Actual sparseness: {}'.format(ls_omis_sample))
+
+        ls_omis_dist = np.zeros(num_shuffles)
+
+        # Perform for num_shuffles shuffles
+        for s in range(num_shuffles):
+            rand_omissions_vals = np.random.permutation(curr_all_omissions_window.flatten()).reshape((N, -1))
+            rand_omissions_avg = np.mean(rand_omissions_vals, axis=1)
+            ls_omis_dist[s] = compute_lifetime_sparseness(rand_omissions_avg)
+            # if s < 10:
+            #     for i in range(N):
+            #         ax[s+1].plot(rand_omissions_vals[i], label='Omission{}'.format(i))
+            #     ax[s+1].set_title('Shuffle {0} Sparseness: {1}'.format(s, ls_omis_dist[s]))
+            #     print('Shuffle {0} Sparseness: {1}'.format(s, ls_omis_dist[s]))
+
+        ls_omis_all_shuffles[c*num_shuffles:(c+1)*num_shuffles] = ls_omis_dist
+        ls_omis_actual_response[c] = ls_omis_sample
+
+        # Computes 95th percentile of data
+        tstat, pval = scipy.stats.ttest_1samp(ls_omis_dist, ls_omis_sample, alternative='two-sided')
+        if pval <= alpha:
+            sig_omis_selectivity[c] = 1
+        print('tstat: {0}, pval: {1}'.format(tstat, pval))
+
+        # ax[0].set_title('Actual Sparseness: {0}, p: {1}'.format(ls_omis_sample, pval))
+        # plt.savefig(run_params['figure_dir'] + '/lifetime_sparseness_novel_hist_cell{}.png'.format(c))
+        # plt.close()
+
+        print()
+
+    weights_shuffle_all = np.ones_like(ls_omis_all_shuffles) / (num_shuffles * num_cells)
+    ax.hist(ls_omis_all_shuffles, bins=20, color='blue', alpha=0.5, label='shuffle', weights=weights_shuffle_all)
+
+    weights_shuffle_actual = np.ones_like(ls_omis_actual_response) / num_cells
+    ax.hist(ls_omis_actual_response, bins=20, color='purple', alpha=0.5, label='actual', weights=weights_shuffle_actual)
+
+    ax.set_xlabel('Lifetime Sparseness')
+    ax.set_ylabel('Normalized Count')
+    ax.legend()
+    plt.title('Sparseness values for random shuffles and actual (Novel)')
+    plt.savefig(run_params['figure_dir'] + '/lifetime_sparseness_hist_novel.png')
+
+    print('Fraction of cells with significant sparseness: {}'.format(sig_omis_selectivity[sig_omis_selectivity
+                                                                                          == 1].size / num_cells))
+
+    return sig_omis_selectivity
+
+
 def identify_dominant_dropouts(data, cluster_column_name, cols_to_search):
-    '''
+    """
     for each cluster ID, identifies the dominant dropout value amongst the `cols_to_search`
     adds columns for 'dominant_dropout' and 'dominant_dropout_median'
     operates in place
@@ -487,8 +584,8 @@ def identify_dominant_dropouts(data, cluster_column_name, cols_to_search):
         cols_to_search - (list) list of columns to search over for dominant column. Should be same set of columns used for clustering
     returns:
         None (operates in place)
-    
-    '''
+
+    """
     for cluster_id in data[cluster_column_name].unique():
         data_subset = data.query("{} == {}".format(cluster_column_name, cluster_id))
 

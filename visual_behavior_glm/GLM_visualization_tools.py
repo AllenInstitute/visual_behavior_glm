@@ -2156,9 +2156,9 @@ def plot_event_aligned_responses(run_params, event_aligned_dfs, kernels='total',
         plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_event_aligned_response.svg')
 
 
-def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_line,
+def plot_single_cre_event_aligned_responses(run_params, event_aligned_dfs, cre_line,
                                             kernels, use_pickle=False, savefig=False, use_gt=False,
-                                            session_filter=['Familiar', 'Novel 1', 'Novel >1'],
+                                            session_filter=['Familiar', 'Novel 1', 'Novel >1'], plot_cell_id=None,
                                             equipment_filter='all', area_filter=['VISp', 'VISl'],
                                             depth_filter=[0, 1000]):
     """
@@ -2223,6 +2223,9 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
                     if os.path.isfile(filepath_pbz2):
                         event_aligned_dfs = bz2.BZ2File(filepath_pbz2, 'rb')
                         event_aligned_dfs = cPickle.load(event_aligned_dfs)
+                        if plot_cell_id is not None:
+                            event_aligned_dfs = event_aligned_dfs.loc[event_aligned_dfs
+                                                                      ['cell_specimen_id'] == plot_cell_id]
                         event_aligned_dfs_dict[kernel] = event_aligned_dfs
         else:
             assert('Dataframe cannot be empty and not saved to a pickle file')
@@ -2234,6 +2237,9 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
 
     for k_ind, kernel in zip(k_ind, kernels):
         for session_ind, session in enumerate(session_filter):
+            if use_gt:  # Only use first box and plot everything same one if doing omission selectivity visualizations
+                k_ind = len(kernels) - 1
+
             if session_ind == 0:
                 axs[k_ind, session_ind].set_ylabel('df/f response')
             if k_ind == len(kernels) - 1:
@@ -2241,7 +2247,7 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
 
             axs[k_ind, session_ind].set_xlim([-1.0, 1.25])
             if kernel not in ['ground-truth', 'non-behavioral', 'non-non-behavioral'] and not use_gt:
-                axs[k_ind, session_ind].set_ylim([-0.002, 0.017])
+                axs[k_ind, session_ind].set_ylim([-0.002, 0.032])
 
             axs[k_ind, session_ind].axvline(x=0, color='b', ls='--')  # Draw omission event
             axs[k_ind, session_ind].axvspan(-0.75, -0.5, alpha=0.4, color='0.8')  # Previous image
@@ -2256,11 +2262,14 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
             curr_events_se = curr_events.groupby('window_pos').std() / (num_cells ** 0.5)
 
             if ('running' in kernels and not k_ind == kernels.index('running')) or 'running' not in kernels:
-                axs[k_ind, session_ind].plot(curr_events_avg['time'], curr_events_avg['y_hat'])
-                axs[k_ind, session_ind].fill_between(curr_events_avg['time'],
-                                                        curr_events_avg['y_hat'] - curr_events_se['y_hat'],
-                                                        curr_events_avg['y_hat'] + curr_events_se['y_hat'],
-                                                        alpha=0.4)
+                axs[k_ind, session_ind].plot(curr_events_avg['time'], curr_events_avg['y_hat'], label=kernel)
+                # axs[k_ind, session_ind].fill_between(curr_events_avg['time'],
+                #                                         curr_events_avg['y_hat'] - curr_events_se['y_hat'],
+                #                                         curr_events_avg['y_hat'] + curr_events_se['y_hat'],
+                #                                         alpha=0.4)
+                if plot_cell_id is not None and session_ind == 0:
+                    axs[k_ind, session_ind].legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=4, prop={'size':6})
+                    axs[k_ind, session_ind].set_visible(True)
             else:
                 axs[k_ind, session_ind].plot(curr_events_avg['time'], curr_events_avg['y_hat'], label=kernel,
                                                                     c=beh_kernels_colors[kernel])
@@ -2271,10 +2280,16 @@ def plot_single_cell_event_aligned_responses(run_params, event_aligned_dfs, cre_
                 axs[k_ind, session_ind].set_xlabel('time after event (s)')
                 axs[k_ind, session_ind].legend(loc='upper left')
 
-
     if savefig:
-        plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_' + cre_line + '_event_aligned_response.png')
-        plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_' + cre_line + '_event_aligned_response.svg')
+        if use_gt and plot_cell_id is not None:
+            for k_ind in range(len(kernels)):
+                for sess_ind in range(len(session_filter)):
+                    axs[k_ind, session_ind].set_visible(False)
+            plt.savefig(run_params['figure_dir'] + '/' + 'ground-truth_' + kernel_str + '_aligned_response.png')
+            plt.savefig(run_params['figure_dir'] + '/' + 'ground-truth_' + kernel_str + '_aligned_response.svg')
+        else:
+            plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_' + cre_line + '_event_aligned_response.png')
+            plt.savefig(run_params['figure_dir'] + '/' + kernel_str + '_' + cre_line + '_event_aligned_response.svg')
 
 
 def plot_explained_variance_scatter(run_params_orig, run_params_new, savefig=False):
@@ -2311,11 +2326,16 @@ def plot_explained_variance_scatter(run_params_orig, run_params_new, savefig=Fal
         plt.savefig(run_params_new['figure_dir'] + '/' + 'exp_var_plot.svg')
 
     return exp_var_orig, exp_var_new
-    
-def visualize_lifetime_sparseness(run_params, use_gt=False, savefig=False):
+
+
+def visualize_omission_lifetime_sparseness(run_params, use_gt=False, get_ls_cell_ids=False, ls_min=None, ls_max=None,
+                                  savefig=False):
     
     from visual_behavior.ophys.response_analysis.cell_metrics import compute_lifetime_sparseness
-    
+
+    if get_ls_cell_ids:
+        assert(ls_min is not None and ls_max is not None)
+
     N = 8  # Number of images
     PROBLEM_OPHYS_ID = 945473009
     omissions_trial_averages = []
@@ -2323,7 +2343,6 @@ def visualize_lifetime_sparseness(run_params, use_gt=False, savefig=False):
     # Baseline starting, ending indices
     start_ind_baseline = 30  # corresponds to -500 s
     end_ind_baseline = 40  # corresponds to -200 s
-    baseline_length = end_ind_baseline - start_ind_baseline
 
     for i in range(N):
         filepath_orig = run_params['event_aligned_dfs_dir'] + '/'
@@ -2338,23 +2357,24 @@ def visualize_lifetime_sparseness(run_params, use_gt=False, savefig=False):
         start_ind = 47  # Hard-coded based on interpolation (first index after 0)
         end_ind = 70  # Hard-coded based on interpolation (end index just before 0.75) + 1 for indexing
         window_pos_range = np.arange(start_ind, end_ind)
-        curr_omis_event_aligned_orig = curr_omis_event_aligned
+        # curr_omis_event_aligned_orig = curr_omis_event_aligned
         curr_omis_event_aligned = curr_omis_event_aligned.query('window_pos in @window_pos_range')
         num_points = len(curr_omis_event_aligned)
 
-        curr_omis_baseline = pd.DataFrame()
-        for ind, time in enumerate(range(start_ind_baseline, end_ind_baseline)):
-            curr_omis_baseline['baseline_t{}'.format(ind)] = curr_omis_event_aligned_orig.query('window_pos == @time')['y_hat'].values
+        # curr_omis_baseline = pd.DataFrame()
+        # for ind, time in enumerate(range(start_ind_baseline, end_ind_baseline)):
+        #     curr_omis_baseline['baseline_t{}'.format(ind)] = curr_omis_event_aligned_orig.query('window_pos == @time')['y_hat'].values
 
         num_trials = int(len(curr_omis_event_aligned) / (end_ind - start_ind))
         trial_num = np.arange(num_trials)
         curr_omis_event_aligned['trial_num'] = np.repeat(trial_num, end_ind - start_ind)
-        curr_omis_averaged_yhat = curr_omis_event_aligned.groupby(['trial_num']).mean()['y_hat']  # Average y_hat for each window of 0.75 ms post-omission for each cell
+        # Average y_hat for each window of 0.75 ms post-omission for each cell
+        curr_omis_averaged_yhat = curr_omis_event_aligned.groupby(['trial_num']).mean()['y_hat']
 
         attr_ind = np.arange(0, num_points, end_ind - start_ind)
-        curr_omis_trial_average = curr_omis_event_aligned.iloc[attr_ind].drop(['time', 'y_hat', 'window_pos', 'trial_num'], axis=1)
+        curr_omis_trial_average = curr_omis_event_aligned.iloc[attr_ind].drop(['time', 'y_hat', 'window_pos', 'trial_num'], axis=1).reset_index()
         curr_omis_trial_average['y_avg'] = curr_omis_averaged_yhat.values
-        curr_omis_trial_average = pd.concat([curr_omis_trial_average.reset_index(), curr_omis_baseline], axis=1)
+        # curr_omis_trial_average = pd.concat([curr_omis_trial_average.reset_index(), curr_omis_baseline], axis=1)
 
         omissions_trial_averages.append(curr_omis_trial_average)
     
@@ -2365,22 +2385,22 @@ def visualize_lifetime_sparseness(run_params, use_gt=False, savefig=False):
     for sess_ind, sess in enumerate(session_list):
         curr_indexes = omissions_trial_averages[0].query('experience_level == @sess').index.values
         ls_cells_omis = np.zeros(len(curr_indexes))
-        ls_cells_baseline = np.zeros((len(curr_indexes), baseline_length))
-        for pos, ind in enumerate(curr_indexes):
-            curr_cell_trial_avg = np.zeros((baseline_length + 1, N))
-            for i in range(N):
-                curr_cell_trial_avg[0, i] = omissions_trial_averages[i]['y_avg'].iloc[ind]
-                for baseline_ind in range(baseline_length):
-                    curr_cell_trial_avg[baseline_ind + 1, i] = omissions_trial_averages[i]['baseline_t{}'.format(baseline_ind)].iloc[ind]
+        for ind, pos in enumerate(curr_indexes):
+            curr_cell_trial_avg = np.array([omissions_trial_averages[i]['y_avg'].iloc[pos] for i in range(N)])
             curr_cell_trial_avg -= curr_cell_trial_avg.min()
-            ls_cells_omis[pos] = compute_lifetime_sparseness(curr_cell_trial_avg[0])
-            for baseline_ind in range(baseline_length):
-                ls_cells_baseline[pos, baseline_ind] = compute_lifetime_sparseness(curr_cell_trial_avg[baseline_ind + 1])
+            ls_cells_omis[ind] = compute_lifetime_sparseness(curr_cell_trial_avg)
+            if get_ls_cell_ids and ls_min < ls_cells_omis[pos] < ls_max:
+                print('Session: {}'.format(sess))
+                print('OEID: {0}\nCell_ID: {1}\nSparseness: {2}'.format(
+                            omissions_trial_averages[0].iloc[pos]['ophys_experiment_id'],
+                            omissions_trial_averages[0].iloc[pos]['cell_specimen_id'],
+                            ls_cells_omis[pos]))
         ls_cells_dict[sess] = ls_cells_omis
 
-        weights = np.ones_like(ls_cells_omis) / len(ls_cells_omis)  # Normalizing histogram
-        ax.hist(ls_cells_omis, bins=20, color=colors[sess], alpha=0.5, label=sess, weights=weights)
-        # ax[sess_ind].hist(ls_cells_baseline[:, 1:baseline_length+1].flatten(), bins=20, color='green', alpha=0.5)  ... Not useful for the model event-aligned responses
+        weights_omis = np.ones_like(ls_cells_omis) / len(ls_cells_omis)  # Normalizing histogram
+        ax.hist(ls_cells_omis, bins=20, color=colors[sess], alpha=0.5, label=sess, weights=weights_omis)
+        # weights_baseline = np.ones_like(ls_cells_baseline.flatten()) / len(ls_cells_baseline.flatten())
+        # ax[sess_ind].hist(ls_cells_baseline.flatten(), bins=20, color='green', alpha=0.5, label='baseline', weights=weights_baseline)
         ax.set_xlabel('Lifetime Sparseness')
         ax.set_ylabel('Normalized Count')
         ax.legend(loc='upper right')

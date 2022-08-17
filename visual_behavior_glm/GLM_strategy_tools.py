@@ -16,7 +16,7 @@ from mpl_toolkits.axes_grid1 import Divider, Size
 ## General Utilities
 ################################################################################
 
-def add_behavior_metrics(df,summary_df):
+def add_behavior_session_metrics(df,summary_df):
     '''
         Merges the behavioral summary table onto the dataframe passed in 
     ''' 

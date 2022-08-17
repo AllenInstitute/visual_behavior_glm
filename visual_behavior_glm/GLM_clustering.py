@@ -55,7 +55,7 @@ def load_cluster_labels():
     '''
 
     # Load cluster labels
-    filepath = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_plots/figure_4/24_events_all_L2_optimize_by_session/220223/cluster_ids_Slc17a7_10_Sst_6_Vip_12.hdf'
+    filepath = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_plots/figure_4/24_events_all_L2_optimize_by_session/220622_across_session_norm_10_5_10/cluster_labels_Vip_10_Sst_5_Slc17a7_10.h5'
     df = pd.read_hdf(filepath, key='df')
 
     # load cell data
@@ -68,12 +68,12 @@ def load_cluster_labels():
     df['location'] = df['targeted_structure']+'_'+df['coarse_binned_depth']
 
     # Remove clusters with less than 5 cells
-    df = df.drop(df.index[(df['cre_line']=="Sst-IRES-Cre")&(df['cluster_id']==6)])
-    df = df.drop(df.index[(df['cre_line']=="Slc17a7-IRES2-Cre")&(df['cluster_id']==10)])
+    #df = df.drop(df.index[(df['cre_line']=="Sst-IRES-Cre")&(df['cluster_id']==6)])
+    #df = df.drop(df.index[(df['cre_line']=="Slc17a7-IRES2-Cre")&(df['cluster_id']==10)])
 
     return df
 
-def plot_proportions(df,areas=None):
+def plot_proportions(df,areas=None,savefig=False,extra=''):
     '''
         Compute, then plot, the proportion of cells in each location within each cluster
     '''
@@ -89,8 +89,9 @@ def plot_proportions(df,areas=None):
     plot_proportion_cre(df,areas, fig, ax[2], 'Slc17a7-IRES2-Cre')
     plot_proportion_cre(df,areas,  fig, ax[1], 'Sst-IRES-Cre')
     plot_proportion_cre(df,areas,  fig, ax[0], 'Vip-IRES-Cre')
-    plt.savefig(filedir+'cluster_proportions.svg')
-    plt.savefig(filedir+'cluster_proportions.png')
+    if savefig:
+        plt.savefig(filedir+'cluster_proportions'+extra+'.svg')
+        plt.savefig(filedir+'cluster_proportions'+extra+'.png')
 
 def compute_proportion_cre(df, cre,areas):
     '''
@@ -118,8 +119,10 @@ def plot_proportion_cre(df,areas, fig,ax, cre):
     table = compute_proportion_cre(df, cre,areas)
 
     # plot proportions
-    cbar = ax.imshow(table,cmap='Purples')
+    cbar = ax.imshow(table,cmap='Purples',vmax=.4)
     ax.set_ylabel('Cluster #',fontsize=16)  
+    ax.set_yticks(range(0,len(table)))
+    ax.set_yticklabels(range(1,len(table)+1))
     ax.set_title(mapper(cre),fontsize=16) 
     fig.colorbar(cbar, ax=ax,label='fraction of cells per location')
    

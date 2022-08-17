@@ -328,9 +328,14 @@ if False: # Code snippets for doing analyses.
 
     # If you want to get the data instead of plotting
     cluster_df = gc.load_cluster_labels()
+    gc.plot_proportions(cluster_df)
     vip_proportion_table, vip_stats_table = gc.final(cluster_df, 'Vip-IRES-Cre')
     sst_proportion_table, sst_stats_table = gc.final(cluster_df, 'Sst-IRES-Cre')
     exc_proportion_table, exc_stats_table = gc.final(cluster_df, 'Slc17a7-IRES2-Cre')
+    cluster_df['location'] = cluster_df['targeted_structure']
+    gc.plot_proportions(cluster_df, extra='_area')
+    cluster_df['location'] = cluster_df['coarse_binned_depth']
+    gc.plot_proportions(cluster_df, extra='_depth')
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)

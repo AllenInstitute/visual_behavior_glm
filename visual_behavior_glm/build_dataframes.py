@@ -1,8 +1,12 @@
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+
+import mindscope_utilities as m
 import visual_behavior.data_access.loading as loading
+
 import psy_tools as ps
+
 
 '''
     Generates two dataframes for each cell
@@ -60,9 +64,10 @@ def build_response_df_session(session):
 
 def build_response_df_cell(session, cell_specimen_id):
     # Interpolate neural activity onto stimulus timestamps
- 
     # Build response dataframe
-
+    cell_df = get_cell_df(session)
+    eta = get_cell_eta(df, session)
+    eta.groupby(['stimulus_presentations_id']).mean()
     # Save response_df, peak_response_df
 
     return 
@@ -84,17 +89,18 @@ def get_cell_df(session):
     return df
 
 
-def get_cell_eta(df,session,session_df):
+def get_cell_eta(df,session):
     eta = m.event_triggered_response(
         data = df,
         t = 't',
         y='response',
         event_times = session.stimulus_presentations.start_time,
-        t_start = 0,
-        t_end = 0.75,
+        t_start = 0.15,
+        t_end = 0.85,
         output_sampling_rate = 30,
         interpolate=True
         )
+    return eta
     # Add image identity labels
     eta = pd.merge(eta, session_df,
         on='stimulus_presentations_id')

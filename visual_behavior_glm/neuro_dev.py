@@ -26,9 +26,9 @@ licks_df = po.get_licks_table(BEHAVIOR_VERSION)
 bouts_df = po.build_bout_table(licks_df)
 
 # Add behavior information to GLM dataframes
-results_beh = gst.add_behavior_metrics(results,summary_df)
-results_pivoted_beh = gst.add_behavior_metrics(results_pivoted,summary_df)
-weights_beh = gst.add_behavior_metrics(weights_df,summary_df)
+results_beh = gst.add_behavior_session_metrics(results,summary_df)
+results_pivoted_beh = gst.add_behavior_session_metrics(results_pivoted,summary_df)
+weights_beh = gst.add_behavior_session_metrics(weights_df,summary_df)
 
 # PSTHs
 change_mdf = psth.change_mdf(summary_df)

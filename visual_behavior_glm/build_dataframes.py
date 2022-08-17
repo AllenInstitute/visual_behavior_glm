@@ -35,16 +35,13 @@ def load_behavior_summary(session):
     session.behavior_df = session_df 
     temporary_engagement_updates(session)
 
+
 def temporary_engagement_updates(session):
+    '''
+        Adds a second engagement definition because I am still looking at that issue
+    '''
     session.behavior_df['engagement_v1'] = session.behavior_df['engaged']
     session.behavior_df['engagement_v2'] = session.behavior_df['engaged'] & session.behavior_df['lick_bout_rate'] > 0.1
-
-def build_response_df_cell(session, cell_specimen_id):
-    # Interpolate neural activity onto stimulus timestamps
-    # 
-    # Build response dataframe
-    # Save response_df, peak_response_df
-    return 
 
 
 def build_response_df_session(session):
@@ -56,10 +53,19 @@ def build_response_df_session(session):
     cell_specimen_ids = session.cell_specimen_table.index.values
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
-        df = build_response_df_cell(session, cell_id)
-        # build_response_df
+        build_response_df_cell(session, cell_id)
 
     return
+
+
+def build_response_df_cell(session, cell_specimen_id):
+    # Interpolate neural activity onto stimulus timestamps
+ 
+    # Build response dataframe
+
+    # Save response_df, peak_response_df
+
+    return 
 
 
 def aggregate_df(df_request, df_type='peak'):

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.stats import chisquare
+from scipy.stats import power_divergence
 import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -305,14 +306,15 @@ def plot_cluster_percentage_cre(df,areas,fig,ax, cre,test='chi_squared_'):
     ax.set_xticklabels(np.concatenate([['p<0.05'],areas]),rotation=90)
     ax.axvline(-0.5,color='k',linewidth=.5)
 
-def stats(df,cre,areas,test='chi_squared_'):
+def stats(df,cre,areas,test='chi_squared_',lambda_str='log-likelihood'):
     '''
-        Performs chi-squared tests to asses whether the observed cell counts in each area/depth differ
-        significantly from the average for that cluster. 
+        Performs chi-squared tests to asses whether the observed cell counts 
+        in each area/depth differ significantly from the average for that cluster. 
     '''    
 
     # compute cell counts in each area/cluster
-    table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
+    table = df.query('cre_line == @cre').\
+        groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table = table[areas]
     table = table.fillna(value=0)
 
@@ -321,7 +323,8 @@ def stats(df,cre,areas,test='chi_squared_'):
     table['null_mean_proportion'] = table['total_cells']/np.sum(table['total_cells'])
 
     # second table of cell counts in each area/cluster
-    table2 = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
+    table2 = df.query('cre_line == @cre').\
+        groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table2 = table2[areas]
     table2 = table2.fillna(value=0)
 
@@ -336,14 +339,23 @@ def stats(df,cre,areas,test='chi_squared_'):
         f_expected = table2.loc[index][area_chance].values
         
         # Manually doing check here bc Im on old version of scipy
-        assert np.abs(np.sum(f) - np.sum(f_expected))<1, 'f and f_expected must be the same'
+        assert np.abs(np.sum(f) - np.sum(f_expected))<1, \
+            'f and f_expected must be the same'
+
         if test == 'chi_squared_':
             out = chisquare(f,f_expected)
             table2.at[index, test+'pvalue'] = out.pvalue
             table2.at[index, 'significant'] = out.pvalue < 0.05
+        elif test == 'g_test_':
+            f = f.astype(np.double)
+            f_expected = f_expected.astype(np.double)
+            out = power_divergence(f, f_expected,lambda_=lambda_str)
+            table2.at[index, test+'pvalue'] = out.pvalue
+            table2.at[index, 'significant'] = out.pvalue < 0.05           
+
 
     # Use Benjamini Hochberg Correction for multiple comparisons
-    table2 = add_hochberg_correction(table2) 
+    table2 = add_hochberg_correction(table2,test=test) 
     return table2
 
 def mapper(cre):

@@ -1,13 +1,16 @@
 import numpy as np
 import pandas as pd
 from scipy.stats import chisquare
+from scipy.stats import power_divergence
+from scipy.stats import fisher_exact
+import FisherExact
 import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 filedir = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/clustering/'
 
-def final(df, cre,areas=None):
+def final(df, cre,areas=None,test='chi_squared_'):
     '''
         Returns two tables
         proportion_table contains the proportion of cells in each location found in each cluster, relative to the average proportion across location for that cluster
@@ -24,7 +27,7 @@ def final(df, cre,areas=None):
         assert set(areas) == set(df['location'].unique()), "areas passed in don't match location column" 
 
     proportion_table = compute_cluster_proportion_cre(df, cre,areas)
-    stats_table = stats(df,cre,areas)
+    stats_table = stats(df,cre,areas,test=test)
     return proportion_table, stats_table
 
 def cluster_frequencies():
@@ -73,7 +76,7 @@ def load_cluster_labels():
 
     return df
 
-def plot_proportions(df,areas=None,savefig=False,extra=''):
+def plot_proportions(df,areas=None,savefig=False,extra='',test='chi_squared_'):
     '''
         Compute, then plot, the proportion of cells in each location within each cluster
     '''
@@ -86,10 +89,11 @@ def plot_proportions(df,areas=None,savefig=False,extra=''):
 
     fig, ax = plt.subplots(1,3,figsize=(8,4))
     fig.subplots_adjust(left=0.1, bottom=0.25, right=0.9, top=0.9, wspace=1)
-    plot_proportion_cre(df,areas, fig, ax[2], 'Slc17a7-IRES2-Cre')
-    plot_proportion_cre(df,areas,  fig, ax[1], 'Sst-IRES-Cre')
-    plot_proportion_cre(df,areas,  fig, ax[0], 'Vip-IRES-Cre')
+    plot_proportion_cre(df,areas, fig, ax[2], 'Slc17a7-IRES2-Cre',test=test)
+    plot_proportion_cre(df,areas,  fig, ax[1], 'Sst-IRES-Cre',test=test)
+    plot_proportion_cre(df,areas,  fig, ax[0], 'Vip-IRES-Cre',test=test)
     if savefig:
+        extra = extra+'_'+test
         plt.savefig(filedir+'cluster_proportions'+extra+'.svg')
         plt.savefig(filedir+'cluster_proportions'+extra+'.png')
 
@@ -110,7 +114,7 @@ def compute_proportion_cre(df, cre,areas):
         table[a] = table[a]/table[a].sum()
     return table
 
-def plot_proportion_cre(df,areas, fig,ax, cre):
+def plot_proportion_cre(df,areas, fig,ax, cre,test='chi_squared_'):
     '''
         Fraction of cells per area&depth 
     '''
@@ -127,7 +131,7 @@ def plot_proportion_cre(df,areas, fig,ax, cre):
     fig.colorbar(cbar, ax=ax,label='fraction of cells per location')
    
     # Add statistics 
-    table2 = stats(df, cre,areas)
+    table2 = stats(df, cre,areas,test=test)
     for index in table2.index.values:
         if table2.loc[index]['bh_significant']:
             ax.plot(-1,index-1,'r*')
@@ -135,7 +139,7 @@ def plot_proportion_cre(df,areas, fig,ax, cre):
     num_areas = len(areas)
     ax.set_xlim(-1.5,num_areas-.5)
     ax.set_xticks(range(-1,num_areas))
-    ax.set_xticklabels(np.concatenate([['p<0.05'],areas]),rotation=90)
+    ax.set_xticklabels(np.concatenate([[test[:-1]],areas]),rotation=90)
     ax.axvline(-0.5,color='k',linewidth=.5)
 
 def plot_proportion_differences(df,areas=None):
@@ -218,7 +222,7 @@ def compute_cluster_proportion_cre(df, cre,areas):
     table = table[areas]
     return table
 
-def plot_cluster_proportion_cre(df,areas,fig,ax, cre):
+def plot_cluster_proportion_cre(df,areas,fig,ax, cre,test='chi_squared_'):
     '''
         Fraction of cells per area&depth 
     '''
@@ -234,7 +238,7 @@ def plot_cluster_proportion_cre(df,areas,fig,ax, cre):
     ax.set_title(mapper(cre),fontsize=16) 
     
     # add statistics
-    table2 = stats(df, cre,areas)
+    table2 = stats(df, cre,areas,test=test)
     for index in table2.index.values:
         if table2.loc[index]['bh_significant']:
             ax.plot(-1,index-1,'r*')
@@ -258,7 +262,7 @@ def plot_cluster_percentages(df,areas=None):
     plt.savefig(filedir+'within_cluster_percentages.svg')
     plt.savefig(filedir+'within_cluster_percentages.png')
 
-def plot_cluster_percentage_cre(df,areas,fig,ax, cre):
+def plot_cluster_percentage_cre(df,areas,fig,ax, cre,test='chi_squared_'):
     '''
         Fraction of cells per area&depth 
     '''
@@ -296,7 +300,7 @@ def plot_cluster_percentage_cre(df,areas,fig,ax, cre):
     ax.set_title(mapper(cre),fontsize=16)
     
     # add statistics
-    table2 = stats(df, cre,areas)
+    table2 = stats(df, cre,areas,test=test)
     for index in table2.index.values:
         if table2.loc[index]['bh_significant']:
             ax.plot(-1,index-1,'r*')
@@ -305,14 +309,15 @@ def plot_cluster_percentage_cre(df,areas,fig,ax, cre):
     ax.set_xticklabels(np.concatenate([['p<0.05'],areas]),rotation=90)
     ax.axvline(-0.5,color='k',linewidth=.5)
 
-def stats(df,cre,areas):
+def stats(df,cre,areas,test='chi_squared_',lambda_str='log-likelihood'):
     '''
-        Performs chi-squared tests to asses whether the observed cell counts in each area/depth differ
-        significantly from the average for that cluster. 
+        Performs chi-squared tests to asses whether the observed cell counts 
+        in each area/depth differ significantly from the average for that cluster. 
     '''    
 
     # compute cell counts in each area/cluster
-    table = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
+    table = df.query('cre_line == @cre').\
+        groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table = table[areas]
     table = table.fillna(value=0)
 
@@ -321,7 +326,8 @@ def stats(df,cre,areas):
     table['null_mean_proportion'] = table['total_cells']/np.sum(table['total_cells'])
 
     # second table of cell counts in each area/cluster
-    table2 = df.query('cre_line == @cre').groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
+    table2 = df.query('cre_line == @cre').\
+        groupby(['cluster_id','location'])['cell_specimen_id'].count().unstack()
     table2 = table2[areas]
     table2 = table2.fillna(value=0)
 
@@ -334,15 +340,33 @@ def stats(df,cre,areas):
     for index in table2.index.values:
         f = table2.loc[index][areas].values
         f_expected = table2.loc[index][area_chance].values
-        
+        not_f = table2[areas].sum().values - f       
+ 
         # Manually doing check here bc Im on old version of scipy
-        assert np.abs(np.sum(f) - np.sum(f_expected))<1, 'f and f_expected must be the same'
-        out = chisquare(f,f_expected)
-        table2.at[index, 'pvalue'] = out.pvalue
-        table2.at[index, 'significant'] = out.pvalue < 0.05
+        assert np.abs(np.sum(f) - np.sum(f_expected))<1, \
+            'f and f_expected must be the same'
+
+        if test == 'chi_squared_':
+            out = chisquare(f,f_expected)
+            table2.at[index, test+'pvalue'] = out.pvalue
+            table2.at[index, 'significant'] = out.pvalue < 0.05
+        elif test == 'g_test_':
+            f = f.astype(np.double)
+            f_expected = f_expected.astype(np.double)
+            out = power_divergence(f, f_expected,lambda_=lambda_str)
+            table2.at[index, test+'pvalue'] = out.pvalue
+            table2.at[index, 'significant'] = out.pvalue < 0.05           
+        elif test == 'fisher_':
+            contingency = np.array([f,not_f]) 
+            if np.shape(contingency)[1] > 2:
+                pvalue = FisherExact.fisher_exact(contingency)
+            else:
+                oddsratio, pvalue = fisher_exact(contingency)
+            table2.at[index, test+'pvalue'] = pvalue
+            table2.at[index, 'significant'] = pvalue < 0.05              
 
     # Use Benjamini Hochberg Correction for multiple comparisons
-    table2 = add_hochberg_correction(table2) 
+    table2 = add_hochberg_correction(table2,test=test) 
     return table2
 
 def mapper(cre):
@@ -353,12 +377,12 @@ def mapper(cre):
         }
     return mapper[cre]
 
-def add_hochberg_correction(table):
+def add_hochberg_correction(table,test='chi_squared_'):
     '''
         Performs the Benjamini Hochberg correction
     '''    
     # Sort table by pvalues
-    table = table.sort_values(by='pvalue').reset_index()
+    table = table.sort_values(by=test+'pvalue').reset_index()
     
     # compute the corrected pvalue based on the rank of each test
     # Need to use rank starting at 1
@@ -367,9 +391,9 @@ def add_hochberg_correction(table):
     # Find the largest pvalue less than its corrected pvalue
     # all tests above that are significant
     table['bh_significant'] = False
-    passing_tests = table[table['pvalue'] < table['imq']]
+    passing_tests = table[table[test+'pvalue'] < table['imq']]
     if len(passing_tests) >0:
-        last_index = table[table['pvalue'] < table['imq']].tail(1).index.values[0]
+        last_index = table[table[test+'pvalue'] < table['imq']].tail(1).index.values[0]
         table.at[last_index,'bh_significant'] = True
         table.at[0:last_index,'bh_significant'] = True
     

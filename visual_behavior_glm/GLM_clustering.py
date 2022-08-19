@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.stats import chisquare
 from scipy.stats import power_divergence
 from scipy.stats import fisher_exact
+import FisherExact
 import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -357,7 +358,10 @@ def stats(df,cre,areas,test='chi_squared_',lambda_str='log-likelihood'):
             table2.at[index, 'significant'] = out.pvalue < 0.05           
         elif test == 'fisher_':
             contingency = np.array([f,not_f]) 
-            oddsratio, pvalue = fisher_exact(contingency)
+            if np.shape(contingency)[1] > 2:
+                pvalue = FisherExact.fisher_exact(contingency)
+            else:
+                oddsratio, pvalue = fisher_exact(contingency)
             table2.at[index, test+'pvalue'] = pvalue
             table2.at[index, 'significant'] = pvalue < 0.05              
 

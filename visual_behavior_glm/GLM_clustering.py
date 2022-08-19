@@ -7,7 +7,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 filedir = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/clustering/'
 
-def final(df, cre,areas=None):
+def final(df, cre,areas=None,test='chi_squared_'):
     '''
         Returns two tables
         proportion_table contains the proportion of cells in each location found in each cluster, relative to the average proportion across location for that cluster
@@ -24,7 +24,7 @@ def final(df, cre,areas=None):
         assert set(areas) == set(df['location'].unique()), "areas passed in don't match location column" 
 
     proportion_table = compute_cluster_proportion_cre(df, cre,areas)
-    stats_table = stats(df,cre,areas)
+    stats_table = stats(df,cre,areas,test=test)
     return proportion_table, stats_table
 
 def cluster_frequencies():
@@ -110,7 +110,7 @@ def compute_proportion_cre(df, cre,areas):
         table[a] = table[a]/table[a].sum()
     return table
 
-def plot_proportion_cre(df,areas, fig,ax, cre):
+def plot_proportion_cre(df,areas, fig,ax, cre,test='chi_squared_'):
     '''
         Fraction of cells per area&depth 
     '''
@@ -127,7 +127,7 @@ def plot_proportion_cre(df,areas, fig,ax, cre):
     fig.colorbar(cbar, ax=ax,label='fraction of cells per location')
    
     # Add statistics 
-    table2 = stats(df, cre,areas)
+    table2 = stats(df, cre,areas,test=test)
     for index in table2.index.values:
         if table2.loc[index]['bh_significant']:
             ax.plot(-1,index-1,'r*')
@@ -218,7 +218,7 @@ def compute_cluster_proportion_cre(df, cre,areas):
     table = table[areas]
     return table
 
-def plot_cluster_proportion_cre(df,areas,fig,ax, cre):
+def plot_cluster_proportion_cre(df,areas,fig,ax, cre,test='chi_squared_'):
     '''
         Fraction of cells per area&depth 
     '''
@@ -234,7 +234,7 @@ def plot_cluster_proportion_cre(df,areas,fig,ax, cre):
     ax.set_title(mapper(cre),fontsize=16) 
     
     # add statistics
-    table2 = stats(df, cre,areas)
+    table2 = stats(df, cre,areas,test=test)
     for index in table2.index.values:
         if table2.loc[index]['bh_significant']:
             ax.plot(-1,index-1,'r*')
@@ -258,7 +258,7 @@ def plot_cluster_percentages(df,areas=None):
     plt.savefig(filedir+'within_cluster_percentages.svg')
     plt.savefig(filedir+'within_cluster_percentages.png')
 
-def plot_cluster_percentage_cre(df,areas,fig,ax, cre):
+def plot_cluster_percentage_cre(df,areas,fig,ax, cre,test='chi_squared_'):
     '''
         Fraction of cells per area&depth 
     '''
@@ -296,7 +296,7 @@ def plot_cluster_percentage_cre(df,areas,fig,ax, cre):
     ax.set_title(mapper(cre),fontsize=16)
     
     # add statistics
-    table2 = stats(df, cre,areas)
+    table2 = stats(df, cre,areas,test=test)
     for index in table2.index.values:
         if table2.loc[index]['bh_significant']:
             ax.plot(-1,index-1,'r*')
@@ -305,7 +305,7 @@ def plot_cluster_percentage_cre(df,areas,fig,ax, cre):
     ax.set_xticklabels(np.concatenate([['p<0.05'],areas]),rotation=90)
     ax.axvline(-0.5,color='k',linewidth=.5)
 
-def stats(df,cre,areas):
+def stats(df,cre,areas,test='chi_squared_'):
     '''
         Performs chi-squared tests to asses whether the observed cell counts in each area/depth differ
         significantly from the average for that cluster. 
@@ -337,9 +337,10 @@ def stats(df,cre,areas):
         
         # Manually doing check here bc Im on old version of scipy
         assert np.abs(np.sum(f) - np.sum(f_expected))<1, 'f and f_expected must be the same'
-        out = chisquare(f,f_expected)
-        table2.at[index, 'pvalue'] = out.pvalue
-        table2.at[index, 'significant'] = out.pvalue < 0.05
+        if test == 'chi_squared_':
+            out = chisquare(f,f_expected)
+            table2.at[index, test+'pvalue'] = out.pvalue
+            table2.at[index, 'significant'] = out.pvalue < 0.05
 
     # Use Benjamini Hochberg Correction for multiple comparisons
     table2 = add_hochberg_correction(table2) 
@@ -353,12 +354,12 @@ def mapper(cre):
         }
     return mapper[cre]
 
-def add_hochberg_correction(table):
+def add_hochberg_correction(table,test='chi_squared_'):
     '''
         Performs the Benjamini Hochberg correction
     '''    
     # Sort table by pvalues
-    table = table.sort_values(by='pvalue').reset_index()
+    table = table.sort_values(by=test+'pvalue').reset_index()
     
     # compute the corrected pvalue based on the rank of each test
     # Need to use rank starting at 1
@@ -367,9 +368,9 @@ def add_hochberg_correction(table):
     # Find the largest pvalue less than its corrected pvalue
     # all tests above that are significant
     table['bh_significant'] = False
-    passing_tests = table[table['pvalue'] < table['imq']]
+    passing_tests = table[table[test+'pvalue'] < table['imq']]
     if len(passing_tests) >0:
-        last_index = table[table['pvalue'] < table['imq']].tail(1).index.values[0]
+        last_index = table[table[test+'pvalue'] < table['imq']].tail(1).index.values[0]
         table.at[last_index,'bh_significant'] = True
         table.at[0:last_index,'bh_significant'] = True
     

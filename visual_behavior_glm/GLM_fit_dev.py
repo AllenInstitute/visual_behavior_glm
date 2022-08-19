@@ -332,10 +332,18 @@ if False: # Code snippets for doing analyses.
     vip_proportion_table, vip_stats_table = gc.final(cluster_df, 'Vip-IRES-Cre')
     sst_proportion_table, sst_stats_table = gc.final(cluster_df, 'Sst-IRES-Cre')
     exc_proportion_table, exc_stats_table = gc.final(cluster_df, 'Slc17a7-IRES2-Cre')
+    
+    tests =['chi_squared_','g_test_','fisher_']
+    for t in tests:
+        gc.plot_proportions(cluster_df,savefig=True,test=t)
+    
     cluster_df['location'] = cluster_df['targeted_structure']
-    gc.plot_proportions(cluster_df, extra='_area')
+    for t in tests:
+        gc.plot_proportions(cluster_df, extra='_area',savefig=True, test=t)
+    
     cluster_df['location'] = cluster_df['coarse_binned_depth']
-    gc.plot_proportions(cluster_df, extra='_depth')
+    for t in tests:
+        gc.plot_proportions(cluster_df, extra='_depth',savefig=True, test=t)
 
 def get_analysis_dfs(VERSION):
     run_params = glm_params.load_run_json(VERSION)

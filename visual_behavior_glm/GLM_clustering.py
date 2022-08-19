@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import chisquare
 from scipy.stats import power_divergence
+from scipy.stats import fisher_exact
 import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -74,7 +75,7 @@ def load_cluster_labels():
 
     return df
 
-def plot_proportions(df,areas=None,savefig=False,extra=''):
+def plot_proportions(df,areas=None,savefig=False,extra='',test='chi_squared_'):
     '''
         Compute, then plot, the proportion of cells in each location within each cluster
     '''
@@ -87,10 +88,11 @@ def plot_proportions(df,areas=None,savefig=False,extra=''):
 
     fig, ax = plt.subplots(1,3,figsize=(8,4))
     fig.subplots_adjust(left=0.1, bottom=0.25, right=0.9, top=0.9, wspace=1)
-    plot_proportion_cre(df,areas, fig, ax[2], 'Slc17a7-IRES2-Cre')
-    plot_proportion_cre(df,areas,  fig, ax[1], 'Sst-IRES-Cre')
-    plot_proportion_cre(df,areas,  fig, ax[0], 'Vip-IRES-Cre')
+    plot_proportion_cre(df,areas, fig, ax[2], 'Slc17a7-IRES2-Cre',test=test)
+    plot_proportion_cre(df,areas,  fig, ax[1], 'Sst-IRES-Cre',test=test)
+    plot_proportion_cre(df,areas,  fig, ax[0], 'Vip-IRES-Cre',test=test)
     if savefig:
+        extra = extra+'_'+test
         plt.savefig(filedir+'cluster_proportions'+extra+'.svg')
         plt.savefig(filedir+'cluster_proportions'+extra+'.png')
 
@@ -136,7 +138,7 @@ def plot_proportion_cre(df,areas, fig,ax, cre,test='chi_squared_'):
     num_areas = len(areas)
     ax.set_xlim(-1.5,num_areas-.5)
     ax.set_xticks(range(-1,num_areas))
-    ax.set_xticklabels(np.concatenate([['p<0.05'],areas]),rotation=90)
+    ax.set_xticklabels(np.concatenate([[test[:-1]],areas]),rotation=90)
     ax.axvline(-0.5,color='k',linewidth=.5)
 
 def plot_proportion_differences(df,areas=None):
@@ -337,7 +339,8 @@ def stats(df,cre,areas,test='chi_squared_',lambda_str='log-likelihood'):
     for index in table2.index.values:
         f = table2.loc[index][areas].values
         f_expected = table2.loc[index][area_chance].values
-        
+        not_f = table2[areas].sum().values - f       
+ 
         # Manually doing check here bc Im on old version of scipy
         assert np.abs(np.sum(f) - np.sum(f_expected))<1, \
             'f and f_expected must be the same'
@@ -352,7 +355,11 @@ def stats(df,cre,areas,test='chi_squared_',lambda_str='log-likelihood'):
             out = power_divergence(f, f_expected,lambda_=lambda_str)
             table2.at[index, test+'pvalue'] = out.pvalue
             table2.at[index, 'significant'] = out.pvalue < 0.05           
-
+        elif test == 'fisher_':
+            contingency = np.array([f,not_f]) 
+            oddsratio, pvalue = fisher_exact(contingency)
+            table2.at[index, test+'pvalue'] = pvalue
+            table2.at[index, 'significant'] = pvalue < 0.05              
 
     # Use Benjamini Hochberg Correction for multiple comparisons
     table2 = add_hochberg_correction(table2,test=test) 

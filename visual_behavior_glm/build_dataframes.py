@@ -114,6 +114,33 @@ def get_cell_df(session, cell_specimen_id, data_type='filtered_events'):
     df['response'] = traces
     return df
 
+def get_running_etr(session, time=[0,.75]):
+    etr = m.event_triggered_response(
+        data = session.running_speed,
+        t='timestamps',
+        y='speed',
+        event_times = session.stimulus_presentations.start_time,
+        t_start = time[0],
+        t_end = time[1],
+        output_sampling_rate=30,
+        interpolate=True
+        )
+    return etr
+
+def get_pupil_etr(session, time=[0,.75]):
+    etr = m.event_triggered_response(
+        data = session.eye_tracking,
+        t='timestamps',
+        y='pupil_width',
+        event_times = session.stimulus_presentations.start_time,
+        t_start = time[0],
+        t_end = time[1],
+        output_sampling_rate=30,
+        interpolate=True
+        )
+    return etr
+
+
 
 def get_cell_etr(df,session,time = [0.15,0.85]):
     etr = m.event_triggered_response(
@@ -163,6 +190,17 @@ def get_image_df(cell_df,session,cell_specimen_id):
     image_df['behavior_session_id'] = session.metadata['behavior_session_id']   
     image_df['ophys_experiment_id'] = session.metadata['ophys_experiment_id']
     image_df['cre_line'] = session.metadata['cre_line']
+
+    # Add running speed
+    run = get_running_etr(session)
+    run_df = run.groupby('stimulus_presentations_id')['speed'].mean()
+    image_df = pd.merge(image_df, run_df, on='stimulus_presentations_id')
+    image_df = image_df.rename(columns={'speed':'running_speed'})
+
+    # Add pupil speed
+    pupil = get_pupil_etr(session)
+    pupil_df = pupil.groupby('stimulus_presentations_id')['pupil_width'].mean()
+    image_df = pd.merge(image_df, pupil_df, on='stimulus_presentations_id')
 
     # Save
     path = get_path(cell_specimen_id, 'cell','image_df')

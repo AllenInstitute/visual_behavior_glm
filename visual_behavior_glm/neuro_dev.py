@@ -63,7 +63,9 @@ gst.scatter_dataset(results_pivoted_beh, run_params)
 
 ## Generate response dataframes
 ################################################################################
-
+oeid = summary_df.iloc[0]['ophys_experiment_id'][0]
+session = bd.load_data(oeid)
+bd.load_behavior_summary(session)
 
 ## PSTH - Population average response
 ################################################################################

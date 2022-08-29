@@ -26,6 +26,7 @@ def load_data(oeid,include_invalid_rois=False):
     '''
         Loads the sdk object for this experiment
     '''
+    print('loading sdk object')
     session = loading.get_ophys_dataset(oeid, include_invalid_rois=include_invalid_rois)
     return session
 
@@ -34,6 +35,7 @@ def load_behavior_summary(session):
     '''
         Loads the behavior_session_df summary file and adds to the SDK object
     '''
+    print('loading session strategy df')
     bsid = session.metadata['behavior_session_id']
     session_df = ps.load_session_strategy_df(bsid, BEHAVIOR_VERSION)
     session.behavior_df = session_df 
@@ -58,33 +60,26 @@ def build_response_df_experiment(session):
 
     # loop over cells 
     cell_specimen_ids = session.cell_specimen_table.index.values
-    image_dfs = []
-    full_dfs = []
+    print('iterating over cells for this experiment to build image by image dataframes')
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
-        this_image, this_full = build_response_df_cell(session, cell_id)
-        image_dfs.append(this_image)
-        full_dfs.append(this_full)
+        try:
+            build_response_df_cell(session, cell_id)
+        except:
+            print('crash '+str(cell_id))
+
+    print('iterating over cells for this experiment to build full dataframes')
+    for index, cell_id in tqdm(enumerate(cell_specimen_ids),
+        total=len(cell_specimen_ids),desc='Iterating Cells'):
+        try:
+            build_full_df_cell(session, cell_id)
+        except:
+            print('crash '+str(cell_id))
 
 
-    # Build aggregate for this experiment and save
-    image_df = pd.concat(image_dfs) 
-    oeid = session.metadata['ophys_experiment_id']
-    path = get_path(oeid, 'experiment','image_df')
-    image_df.to_hdf(path, key='df')
-
-    # Build aggregate for this experiment and save
-    full_df = pd.concat(full_dfs) 
-    oeid = session.metadata['ophys_experiment_id']
-    path = get_path(oeid, 'experiment','full_df')
-    full_df.to_hdf(path, key='df')
-
-    # return 
-    return image_df, full_df
-
-def get_path(this_id, filetype,df_type):
+def get_path(cell_id, oeid, filetype,df_type):
     root = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
-    filepath = root+df_type+'s/'+filetype+'s/'+str(this_id)+'.h5'
+    filepath = root+df_type+'s/'+filetype+'s/'+str(oeid)+'_'+str(cell_id)+'.h5'
    
     return filepath
 
@@ -96,11 +91,7 @@ def build_response_df_cell(session, cell_specimen_id):
     
     # Get the max response to each image presentation   
     image_df = get_image_df(cell_df, session, cell_specimen_id) 
-
-    # Get full trace for each event    
-    full_df = get_full_df(cell_df, session, cell_specimen_id)
-
-    return image_df, full_df
+    return image_df
 
 
 def get_cell_df(session, cell_specimen_id, data_type='filtered_events'):
@@ -114,6 +105,7 @@ def get_cell_df(session, cell_specimen_id, data_type='filtered_events'):
     df['response'] = traces
     return df
 
+
 def get_running_etr(session, time=[0,.75]):
     etr = m.event_triggered_response(
         data = session.running_speed,
@@ -126,6 +118,7 @@ def get_running_etr(session, time=[0,.75]):
         interpolate=True
         )
     return etr
+
 
 def get_pupil_etr(session, time=[0,.75]):
     etr = m.event_triggered_response(
@@ -141,7 +134,6 @@ def get_pupil_etr(session, time=[0,.75]):
     return etr
 
 
-
 def get_cell_etr(df,session,time = [0.15,0.85]):
     etr = m.event_triggered_response(
         data = df,
@@ -154,26 +146,6 @@ def get_cell_etr(df,session,time = [0.15,0.85]):
         interpolate=True
         )
     return etr
-
-
-def get_full_df(cell_df, session,cell_specimen_id):
-    
-    # Interpolate, then align to all images with long window
-    full_df = get_cell_etr(cell_df, session, time = [-2,2])
-    
-    # add annotations
-    full_df = pd.merge(full_df, session.behavior_df, on='stimulus_presentations_id')
-    full_df['cell_specimen_id'] = cell_specimen_id
-    full_df['mouse_id'] = session.metadata['mouse_id']
-    full_df['behavior_session_id'] = session.metadata['behavior_session_id']   
-    full_df['ophys_experiment_id'] = session.metadata['ophys_experiment_id']
-    full_df['cre_line'] = session.metadata['cre_line']
-    
-    # Save
-    path = get_path(cell_specimen_id, 'cell','full_df')
-    full_df.to_hdf(path,key='df')
-
-    return full_df
 
    
 def get_image_df(cell_df,session,cell_specimen_id):
@@ -203,12 +175,41 @@ def get_image_df(cell_df,session,cell_specimen_id):
     image_df = pd.merge(image_df, pupil_df, on='stimulus_presentations_id')
 
     # Save
-    path = get_path(cell_specimen_id, 'cell','image_df')
+    ophys_experiment_id = session.metadata['ophys_experiment_id']
+    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','image_df')
     image_df.to_hdf(path,key='df')
 
     return image_df
 
+def build_full_df_cell(session, cell_specimen_id):
+
+    # Get neural activity
+    cell_df = get_cell_df(session,cell_specimen_id)
     
+    # Get the max response to each image presentation   
+    full_df = get_full_df(cell_df, session, cell_specimen_id) 
+    return full_df
 
+    
+def get_full_df(cell_df, session,cell_specimen_id):
+    
+    # Interpolate, then align to all images with long window
+    full_df = get_cell_etr(cell_df, session, time = [-2,2])
 
+    #averages = dict()
+    #averages['omission'] =    
+ 
+    # add annotations
+    full_df = pd.merge(full_df, session.behavior_df, on='stimulus_presentations_id')
+    full_df['cell_specimen_id'] = cell_specimen_id
+    full_df['mouse_id'] = session.metadata['mouse_id']
+    full_df['behavior_session_id'] = session.metadata['behavior_session_id']   
+    full_df['ophys_experiment_id'] = session.metadata['ophys_experiment_id']
+    full_df['cre_line'] = session.metadata['cre_line']
+    
+    # Save
+    ophys_experiment_id = session.metadata['ophys_experiment_id']
+    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','full_df')
+    full_df.to_hdf(path,key='df')
 
+    return full_df

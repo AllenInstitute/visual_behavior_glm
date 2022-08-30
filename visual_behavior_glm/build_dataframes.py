@@ -114,21 +114,38 @@ def build_response_df_experiment(session):
     # loop over cells 
     cell_specimen_ids = session.cell_specimen_table.index.values
     print('Iterating over cells for this experiment to build image by image dataframes')
+    image_dfs = []
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
-            build_response_df_cell(session, cell_id)
-        except:
-            print('crash '+str(cell_id))
+            this_image = build_response_df_cell(session, cell_id)
+            image_dfs.append(this_image)
+        except Exception as e:
+            print('error with '+str(cell_id))
+            print(e)
+
+    print('saving combined image df')
+    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','image_df')
+    image_df = pd.concat(image_dfs)
+    image_df.to_hdf(path, key='df')
 
     print('Iterating over cells for this experiment to build full dataframes')
+    full_dfs = []
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
-            build_full_df_cell(session, cell_id)
-        except:
-            print('crash '+str(cell_id))
+            this_full = build_full_df_cell(session, cell_id)
+            full_dfs.append(this_full)
+        except Exception as e:
+            print('error with '+str(cell_id))
+            print(e)
 
+    print('saving combined full df')
+    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','full_df')
+    full_df = pd.concat(full_dfs)
+    full_df.to_hdf(path, key='df')
+
+    print('Finished!')
 
 def get_path(cell_id, oeid, filetype,df_type):
     root = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
@@ -146,16 +163,18 @@ def build_response_df_cell(session, cell_specimen_id):
     try:
         run = get_running_etr(session)
         run_df = run.groupby('stimulus_presentations_id')['speed'].mean()
-    except:
-        print('crashed on running')
+    except Exception as e:
+        print('error procesing running '+str(cell_specimen_id))
+        print(e)
         run_df = None
 
     # get pupil
     try:
         pupil = get_pupil_etr(session)
         pupil_df = pupil.groupby('stimulus_presentations_id')['pupil_width'].mean()  
-    except:
-        print('crashed on pupil')
+    except Exception as e:
+        print('error processing pupil '+str(cell_specimen_id))
+        print(e)
         pupil_df = None
  
     # Get the max response to each image presentation   

@@ -223,7 +223,7 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id):
     etr = get_cell_etr(cell_df, session)
 
     # Get max response for each image
-    image_df = etr.groupby('stimulus_presentations_id')['response'].max()
+    image_df = etr.groupby('stimulus_presentations_id')['response'].mean()
     image_df = pd.merge(image_df, session.behavior_df, on='stimulus_presentations_id')
     image_df['cell_specimen_id'] = cell_specimen_id
     image_df['mouse_id'] = session.metadata['mouse_id']

@@ -60,7 +60,7 @@ def build_response_df_experiment(session):
 
     # loop over cells 
     cell_specimen_ids = session.cell_specimen_table.index.values
-    print('iterating over cells for this experiment to build image by image dataframes')
+    print('Iterating over cells for this experiment to build image by image dataframes')
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
@@ -68,7 +68,7 @@ def build_response_df_experiment(session):
         except:
             print('crash '+str(cell_id))
 
-    print('iterating over cells for this experiment to build full dataframes')
+    print('Iterating over cells for this experiment to build full dataframes')
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
@@ -88,9 +88,25 @@ def build_response_df_cell(session, cell_specimen_id):
 
     # Get neural activity
     cell_df = get_cell_df(session,cell_specimen_id)
-    
+
+    # get running speed
+    try:
+        run = get_running_etr(session)
+        run_df = run.groupby('stimulus_presentations_id')['speed'].mean()
+    except:
+        print('crashed on running')
+        run_df = None
+
+    # get pupil
+    try:
+        pupil = get_pupil_etr(session)
+        pupil_df = pupil.groupby('stimulus_presentations_id')['pupil_width'].mean()  
+    except:
+        print('crashed on pupil')
+        pupil_df = None
+ 
     # Get the max response to each image presentation   
-    image_df = get_image_df(cell_df, session, cell_specimen_id) 
+    image_df = get_image_df(cell_df, run_df, pupil_df, session, cell_specimen_id) 
     return image_df
 
 
@@ -148,7 +164,7 @@ def get_cell_etr(df,session,time = [0.15,0.85]):
     return etr
 
    
-def get_image_df(cell_df,session,cell_specimen_id):
+def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id):
 
     # Interpolate neural activity onto stimulus timestamps
     # then align to stimulus times
@@ -164,15 +180,13 @@ def get_image_df(cell_df,session,cell_specimen_id):
     image_df['cre_line'] = session.metadata['cre_line']
 
     # Add running speed
-    run = get_running_etr(session)
-    run_df = run.groupby('stimulus_presentations_id')['speed'].mean()
-    image_df = pd.merge(image_df, run_df, on='stimulus_presentations_id')
-    image_df = image_df.rename(columns={'speed':'running_speed'})
+    if run_df is not None:
+        image_df = pd.merge(image_df, run_df, on='stimulus_presentations_id')
+        image_df = image_df.rename(columns={'speed':'running_speed'})
 
     # Add pupil speed
-    pupil = get_pupil_etr(session)
-    pupil_df = pupil.groupby('stimulus_presentations_id')['pupil_width'].mean()
-    image_df = pd.merge(image_df, pupil_df, on='stimulus_presentations_id')
+    if pupil_df is not None:
+        image_df = pd.merge(image_df, pupil_df, on='stimulus_presentations_id')
 
     # Save
     ophys_experiment_id = session.metadata['ophys_experiment_id']
@@ -230,11 +244,20 @@ def get_full_average(averages, full_df, condition):
     else:
         x = full_df.query(condition[1]).groupby('time')['response'].mean()
 
-    # Add to dataframe
-    temp = {'condition':condition[0],
+    # Add to dataframe   
+    if len(x) == 0:
+        t = np.sort(full_df['time'].unique())
+        r = np.empty(np.shape(t))
+        r[:] = np.nan
+        temp = {'condition':condition[0],
             'query':condition[1],
-            'time':x.index.values,
-            'response':x.values}
+            'time':t,
+            'response':r}
+    else:
+        temp = {'condition':condition[0],
+                'query':condition[1],
+                'time':x.index.values,
+                'response':x.values}
     averages = averages.append(temp,ignore_index=True)
     
     # return
@@ -250,27 +273,27 @@ def get_conditions():
         'licked':['licked','lick_bout_start'],
         'engaged_v1_image':['engaged_v1_image','engagement_v1'],
         'engaged_v2_image':['engaged_v2_image','engagement_v2'],
-        'disengaged_v1_image':['disengaged_v1_image','not engagement_v1'],
-        'disengaged_v2_image':['disengaged_v2_image','not engagement_v2'],
+        'disengaged_v1_image':['disengaged_v1_image','(not engagement_v1)'],
+        'disengaged_v2_image':['disengaged_v2_image','(not engagement_v2)'],
         'engaged_v1_change':['engaged_v1_change','engagement_v1 & is_change'],
         'engaged_v2_change':['engaged_v2_change','engagement_v2 & is_change'],
-        'disengaged_v1_change':['disengaged_v1_change','not engagement_v1 & is_change'],
-        'disengaged_v2_change':['disengaged_v2_change','not engagement_v2 & is_change'],
+        'disengaged_v1_change':['disengaged_v1_change','(not engagement_v1) & is_change'],
+        'disengaged_v2_change':['disengaged_v2_change','(not engagement_v2) & is_change'],
         'engaged_v1_omission':['engaged_v1_omission','engagement_v1 & omitted'],
         'engaged_v2_omission':['engaged_v2_omission','engagement_v2 & omitted'],
-        'disengaged_v1_omission':['disengaged_v1_omission','not engagement_v1 & omitted'],
-        'disengaged_v2_omission':['disengaged_v2_omission','not engagement_v2 & omitted'],
+        'disengaged_v1_omission':['disengaged_v1_omission','(not engagement_v1) & omitted'],
+        'disengaged_v2_omission':['disengaged_v2_omission','(not engagement_v2) & omitted'],
         'engaged_v1_hit':['engaged_v1_hit','engagement_v1 & is_change & rewarded'],
         'engaged_v2_hit':['engaged_v2_hit','engagement_v2 & is_change & rewarded'],
-        'disengaged_v1_hit':['disengaged_v1_hit','not engagement_v1 & is_change & rewarded'],
-        'disengaged_v2_hit':['disengaged_v2_hit','not engagement_v2 & is_change & rewarded'],
-        'engaged_v1_miss':['engaged_v1_miss','engagement_v1 & is_change & not rewarded'],
-        'engaged_v2_miss':['engaged_v2_miss','engagement_v2 & is_change & not rewarded'],
-        'disengaged_v1_miss':['disengaged_v1_miss','not engagement_v1 & is_change & not rewarded'],
-        'disengaged_v2_miss':['disengaged_v2_miss','not engagement_v2 & is_change & not rewarded'],       
+        'disengaged_v1_hit':['disengaged_v1_hit','(not engagement_v1) & is_change & rewarded'],
+        'disengaged_v2_hit':['disengaged_v2_hit','(not engagement_v2) & is_change & rewarded'],
+        'engaged_v1_miss':['engaged_v1_miss','engagement_v1 & is_change & (not rewarded)'],
+        'engaged_v2_miss':['engaged_v2_miss','engagement_v2 & is_change & (not rewarded)'],
+        'disengaged_v1_miss':['disengaged_v1_miss','(not engagement_v1) & is_change & (not rewarded)'],
+        'disengaged_v2_miss':['disengaged_v2_miss','(not engagement_v2) & is_change & (not rewarded)'],       
         'engaged_v1_licked':['engaged_v1_licked','engagement_v1 & lick_bout_start'],
         'engaged_v2_licked':['engaged_v2_licked','engagement_v2 & lick_bout_start'],
-        'disengaged_v1_licked':['disengaged_v1_licked','not engagement_v1 & lick_bout_start'],
-        'disengaged_v2_licked':['disengaged_v2_licked','not engagement_v2 & lick_bout_start'],       
+        'disengaged_v1_licked':['disengaged_v1_licked','(not engagement_v1) & lick_bout_start'],
+        'disengaged_v2_licked':['disengaged_v2_licked','(not engagement_v2) & lick_bout_start'],       
     }
     return conditions

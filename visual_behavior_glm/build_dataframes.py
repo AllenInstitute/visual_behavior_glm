@@ -8,19 +8,6 @@ import visual_behavior.data_access.loading as loading
 import psy_tools as ps
 
 
-'''
-    Generates two dataframes for each cell
-    1.  response_df
-        Contains a 4 second response trace aligned to each image presentation, 
-        and relevant metrics (engaged, strategy weights, licked, running).
-        the peak response_df is a strict subset of response_df
-    2.  peak_response_df
-        Just the peak response of each cell to each image presentation in the 
-        (100ms,800ms) window, and relevant metrics
-
-'''
-
-
 BEHAVIOR_VERSION = 21
 
 

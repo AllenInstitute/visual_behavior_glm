@@ -28,13 +28,14 @@ def load_population_df(df_type,cre):
     df = pd.read_hdf(path)
     return df
 
-def build_population_df(results_pivoted,df_type='image_df',savefile=True,
+def build_population_df(summary_df,df_type='image_df',savefile=True,
     cre='Vip-IRES-Cre'):
+    
+    print('Generating population {} for {} cells'.format(df_type,cre))
 
     # get list of experiments
-    results_pivoted = results_pivoted.query('not passive')
-    results_pivoted = results_pivoted.query('cre_line == @cre')
-    oeids = results_pivoted['ophys_experiment_id'].unique()
+    summary_df = summary_df.query('cre_line == @cre')
+    oeids = np.concatenate(summary_df['ophys_experiment_id'].values) 
 
     # load
     dfs = []

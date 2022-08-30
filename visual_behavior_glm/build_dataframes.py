@@ -22,7 +22,13 @@ import psy_tools as ps
 
 BEHAVIOR_VERSION = 21
 
-def get_population_df(results_pivoted,df_type='image_df',savefile=True,
+def load_population_df(df_type,cre):
+    path ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
+        +df_type+'s/summary_'+cre+'.h5'
+    df = pd.read_hdf(path)
+    return df
+
+def build_population_df(results_pivoted,df_type='image_df',savefile=True,
     cre='Vip-IRES-Cre'):
 
     # get list of experiments

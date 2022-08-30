@@ -67,8 +67,7 @@ gst.scatter_dataset(results_pivoted_beh, run_params)
 oeid = summary_df.iloc[0]['ophys_experiment_id'][0]
 session = bd.load_data(oeid)
 bd.build_response_df_experiment(session)
-
-image_df = bd.get_population_image_df(results_pivoted)
+vip_image_df = bd.load_population_df('image_df','Vip-IRES-Cre')
 
 
 ## PSTH - Population average response

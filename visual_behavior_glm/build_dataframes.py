@@ -47,7 +47,8 @@ def temporary_engagement_updates(session):
         Adds a second engagement definition because I am still looking at that issue
     '''
     session.behavior_df['engagement_v1'] = session.behavior_df['engaged']
-    session.behavior_df['engagement_v2'] = session.behavior_df['engaged'] & session.behavior_df['lick_bout_rate'] > 0.1
+    session.behavior_df['engagement_v2'] = session.behavior_df['engaged'] \
+        & session.behavior_df['lick_bout_rate'] > 0.1
 
 
 def build_response_df_experiment(session):

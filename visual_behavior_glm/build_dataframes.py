@@ -22,6 +22,58 @@ import psy_tools as ps
 
 BEHAVIOR_VERSION = 21
 
+def get_population_image_df(results_pivoted,savefile=True):
+
+    # get list of cells
+    results_pivoted = results_pivoted.query('not passive')
+
+    # load
+    dfs = []
+    num_rows = results_pivoted.shape[0]
+    for idx,row in tqdm(results_pivoted.head(num_rows).iterrows(),total = num_rows):
+        try:
+            path=get_path(row.cell_specimen_id,row.ophys_experiment_id, 'cell','image_df')
+            this_df = pd.read_hdf(path)
+            dfs.append(this_df)
+        except:
+            pass 
+
+    # combine    
+    image_df = pd.concat(dfs)
+
+    # save
+    if savefile:
+        path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/image_dfs/summary.h5'
+        image_df.to_hdf(path,key='df')
+
+    return image_df
+
+def get_population_full_df(results_pivoted,savefile=True):
+
+    # get list of cells
+    results_pivoted = results_pivoted.query('not passive')
+
+    # load
+    dfs = []
+    num_rows = results_pivoted.shape[0]
+    for idx,row in tqdm(results_pivoted.head(num_rows).iterrows(),total = num_rows):
+        try:
+            path=get_path(row.cell_specimen_id, row.ophys_experiment_id, 'cell','full_df')
+            this_df = pd.read_hdf(path)
+            dfs.append(this_df)
+        except:
+            pass 
+
+    # combine    
+    full_df = pd.concat(dfs)
+
+    # save
+    if savefile:
+        path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/full_dfs/summary.h5'
+        full_df.to_hdf(path,key='df')
+
+    return full_df
+
 def load_data(oeid,include_invalid_rois=False):
     '''
         Loads the sdk object for this experiment

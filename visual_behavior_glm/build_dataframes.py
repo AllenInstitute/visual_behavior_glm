@@ -20,13 +20,16 @@ import psy_tools as ps
 
 '''
 
+
 BEHAVIOR_VERSION = 21
+
 
 def load_population_df(df_type,cre):
     path ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-        +df_type+'s/summary_'+cre+'.h5'
-    df = pd.read_hdf(path)
+        +df_type+'s/summary_'+cre+'.feather'
+    df = pd.read_feather(path)
     return df
+
 
 def build_population_df(summary_df,df_type='image_df',savefile=True,
     cre='Vip-IRES-Cre'):
@@ -50,13 +53,17 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
 
     # combine    
     print('concatenating dataframes')
-    population_df = pd.concat(dfs)
+    population_df = pd.concat(dfs,ignore_index=True)
 
     # save
     if savefile:
         print('saving')
-        path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/summary_'+cre+'.h5'
-        population_df.to_hdf(path,key='df')
+        path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
+            +df_type+'s/summary_'+cre+'.feather'
+        try:
+            population_df.to_feather(path)
+        except Exception as e:
+            print(e)
 
     return population_df,dfs
 

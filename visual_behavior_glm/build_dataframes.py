@@ -174,7 +174,7 @@ def get_cell_df(session, cell_specimen_id, data_type='filtered_events'):
     return df
 
 
-def get_running_etr(session, time=[0,.75]):
+def get_running_etr(session, time=[0.05,.8]):
     etr = m.event_triggered_response(
         data = session.running_speed,
         t='timestamps',
@@ -188,7 +188,7 @@ def get_running_etr(session, time=[0,.75]):
     return etr
 
 
-def get_pupil_etr(session, time=[0,.75]):
+def get_pupil_etr(session, time=[0.05,.8]):
     etr = m.event_triggered_response(
         data = session.eye_tracking,
         t='timestamps',
@@ -202,7 +202,7 @@ def get_pupil_etr(session, time=[0,.75]):
     return etr
 
 
-def get_cell_etr(df,session,time = [0.15,0.85]):
+def get_cell_etr(df,session,time = [0.05,0.8]):
     etr = m.event_triggered_response(
         data = df,
         t = 't',

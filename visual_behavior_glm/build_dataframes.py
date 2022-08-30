@@ -196,9 +196,6 @@ def get_full_df(cell_df, session,cell_specimen_id):
     # Interpolate, then align to all images with long window
     full_df = get_cell_etr(cell_df, session, time = [-2,2])
 
-    #averages = dict()
-    #averages['omission'] =    
- 
     # add annotations
     full_df = pd.merge(full_df, session.behavior_df, on='stimulus_presentations_id')
     full_df['cell_specimen_id'] = cell_specimen_id
@@ -206,10 +203,74 @@ def get_full_df(cell_df, session,cell_specimen_id):
     full_df['behavior_session_id'] = session.metadata['behavior_session_id']   
     full_df['ophys_experiment_id'] = session.metadata['ophys_experiment_id']
     full_df['cre_line'] = session.metadata['cre_line']
-    
+
+    averages = pd.DataFrame()
+    conditions = get_conditions()
+    for c in conditions:
+        averages = get_full_average(averages, full_df,conditions[c])
+
+    averages['cell_specimen_id'] = cell_specimen_id
+    averages['mouse_id'] = session.metadata['mouse_id']
+    averages['behavior_session_id'] = session.metadata['behavior_session_id']   
+    averages['ophys_experiment_id'] = session.metadata['ophys_experiment_id']
+    averages['cre_line'] = session.metadata['cre_line']
+ 
     # Save
     ophys_experiment_id = session.metadata['ophys_experiment_id']
     path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','full_df')
-    full_df.to_hdf(path,key='df')
+    averages.to_hdf(path,key='df')
 
-    return full_df
+    return averages
+
+def get_full_average(averages, full_df, condition):
+   
+    # Get conditional average
+    if condition[1]=='':
+        x = full_df.groupby('time')['response'].mean()
+    else:
+        x = full_df.query(condition[1]).groupby('time')['response'].mean()
+
+    # Add to dataframe
+    temp = {'condition':condition[0],
+            'query':condition[1],
+            'time':x.index.values,
+            'response':x.values}
+    averages = averages.append(temp,ignore_index=True)
+    
+    # return
+    return averages
+
+def get_conditions():
+    conditions = {
+        'image':['image',''],
+        'change':['change','is_change'],
+        'omission':['omission','omitted'],
+        'hit':['hit','is_change & rewarded'],
+        'miss':['miss','is_change & not rewarded'],
+        'licked':['licked','lick_bout_start'],
+        'engaged_v1_image':['engaged_v1_image','engagement_v1'],
+        'engaged_v2_image':['engaged_v2_image','engagement_v2'],
+        'disengaged_v1_image':['disengaged_v1_image','not engagement_v1'],
+        'disengaged_v2_image':['disengaged_v2_image','not engagement_v2'],
+        'engaged_v1_change':['engaged_v1_change','engagement_v1 & is_change'],
+        'engaged_v2_change':['engaged_v2_change','engagement_v2 & is_change'],
+        'disengaged_v1_change':['disengaged_v1_change','not engagement_v1 & is_change'],
+        'disengaged_v2_change':['disengaged_v2_change','not engagement_v2 & is_change'],
+        'engaged_v1_omission':['engaged_v1_omission','engagement_v1 & omitted'],
+        'engaged_v2_omission':['engaged_v2_omission','engagement_v2 & omitted'],
+        'disengaged_v1_omission':['disengaged_v1_omission','not engagement_v1 & omitted'],
+        'disengaged_v2_omission':['disengaged_v2_omission','not engagement_v2 & omitted'],
+        'engaged_v1_hit':['engaged_v1_hit','engagement_v1 & is_change & rewarded'],
+        'engaged_v2_hit':['engaged_v2_hit','engagement_v2 & is_change & rewarded'],
+        'disengaged_v1_hit':['disengaged_v1_hit','not engagement_v1 & is_change & rewarded'],
+        'disengaged_v2_hit':['disengaged_v2_hit','not engagement_v2 & is_change & rewarded'],
+        'engaged_v1_miss':['engaged_v1_miss','engagement_v1 & is_change & not rewarded'],
+        'engaged_v2_miss':['engaged_v2_miss','engagement_v2 & is_change & not rewarded'],
+        'disengaged_v1_miss':['disengaged_v1_miss','not engagement_v1 & is_change & not rewarded'],
+        'disengaged_v2_miss':['disengaged_v2_miss','not engagement_v2 & is_change & not rewarded'],       
+        'engaged_v1_licked':['engaged_v1_licked','engagement_v1 & lick_bout_start'],
+        'engaged_v2_licked':['engaged_v2_licked','engagement_v2 & lick_bout_start'],
+        'disengaged_v1_licked':['disengaged_v1_licked','not engagement_v1 & lick_bout_start'],
+        'disengaged_v2_licked':['disengaged_v2_licked','not engagement_v2 & lick_bout_start'],       
+    }
+    return conditions

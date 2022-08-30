@@ -28,7 +28,7 @@ if __name__ == "__main__":
     print('stdout files will be at {}'.format(stdout_location))
 
     summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION)
-    oeids = np.concatenage(summary_df['ophys_experiment_id'].values) 
+    oeids = np.concatenate(summary_df['ophys_experiment_id'].values) 
 
     job_count = 0
 

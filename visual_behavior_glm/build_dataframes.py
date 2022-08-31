@@ -19,7 +19,7 @@ def load_population_df(df_type,cre):
 
 
 def build_population_df(summary_df,df_type='image_df',savefile=True,
-    cre='Vip-IRES-Cre',batch=False):
+    cre='Vip-IRES-Cre'):
     
     print('Generating population {} for {} cells'.format(df_type,cre))
 
@@ -30,24 +30,17 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
     # load
     dfs = []
     num_rows = len(oeids)
-    if batch:
-        population_df = pd.DataFrame()
-
     for idx,value in tqdm(enumerate(oeids),total = num_rows):
         try:
             path=get_path('',value, 'experiment',df_type)
             this_df = pd.read_hdf(path)
-            if batch:
-                population_df = pd.concat([population_df, this_df],ignore_index=True)
-            else:
-                dfs.append(this_df)
+            dfs.append(this_df)
         except:
             pass 
 
     # combine    
     print('concatenating dataframes')
-    if not batch:
-        population_df = pd.concat(dfs,ignore_index=True)
+    population_df = pd.concat(dfs,ignore_index=True)
 
     # save
     if savefile:

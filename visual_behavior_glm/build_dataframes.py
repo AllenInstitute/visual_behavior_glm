@@ -20,6 +20,12 @@ def load_population_df(df_type,cre):
 
 def build_population_df(summary_df,df_type='image_df',savefile=True,
     cre='Vip-IRES-Cre'):
+
+    batch_size=50
+    batch=False
+    if df_type=='image_df' and cre=='Slc17a7-IRES2-Cre':
+        print('Batch processing with chunk size={} for Exc cells'.format(batch_size))
+        batch=True
     
     print('Generating population {} for {} cells'.format(df_type,cre))
 
@@ -49,6 +55,9 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
     # load
     dfs = []
     num_rows = len(oeids)
+    if batch:
+        batch_num=0
+
     for idx,value in tqdm(enumerate(oeids),total = num_rows):
         try:
             path=get_path('',value, 'experiment',df_type)
@@ -58,10 +67,32 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
             dfs.append(this_df)
         except:
             pass 
+        if batch:
+            if np.mod(idx,batch_size) == batch_size-1:
+                temp = pd.concat(dfs, ignore_index=True, sort=False)
+                path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/temp_'+str(batch_num)+'_'+cre+'.feather'
+                temp.to_feather(path)
+                batch_num+=1
+                dfs = []
 
+    if batch:
+        temp = pd.concat(dfs, ignore_index=True, sort=False)
+        path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/temp_'+str(batch_num)+'_'+cre+'.feather'
+        temp.to_feather(path)
+
+        n = list(range(0,batch_num+1))
+        dfs = []
+        for i in n:
+            path='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/temp_'+str(i)+'_'+cre+'.feather'
+            temp = pd.read_feather(path)
+            dfs.append(temp)
+        return
+       
+ 
     # combine    
     print('concatenating dataframes')
     population_df = pd.concat(dfs,ignore_index=True,sort=False)
+    del dfs
 
     # save
     if savefile:
@@ -72,8 +103,6 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
             population_df.to_feather(path)
         except Exception as e:
             print(e)
-
-    return population_df,dfs
 
 
 def load_data(oeid,include_invalid_rois=False):

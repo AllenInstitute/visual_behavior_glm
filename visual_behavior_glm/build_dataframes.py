@@ -86,8 +86,6 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
             path='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/temp_'+str(i)+'_'+cre+'.feather'
             temp = pd.read_feather(path)
             dfs.append(temp)
-        return
-       
  
     # combine    
     print('concatenating dataframes')

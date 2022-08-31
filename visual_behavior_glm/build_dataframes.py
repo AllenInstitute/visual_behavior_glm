@@ -27,6 +27,25 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
     summary_df = summary_df.query('cre_line == @cre')
     oeids = np.concatenate(summary_df['ophys_experiment_id'].values) 
 
+    # make list of columns to drop for space
+    cols_to_drop = [
+        'image_name',
+        'cre_line',
+        'bout_number',
+        'num_licks',
+        'lick_rate',
+        'reward_rate',
+        'lick_bout_rate',
+        'lick_hit_fraction',
+        'hit_rate',
+        'miss_rate',
+        'image_false_alarm',
+        'image_correct_reject',
+        'correct_reject_rate',
+        'd_prime',
+        'criterion'
+        ]
+
     # load
     dfs = []
     num_rows = len(oeids)
@@ -34,6 +53,7 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
         try:
             path=get_path('',value, 'experiment',df_type)
             this_df = pd.read_hdf(path)
+            this_df = this_df.drop(columns=cols_to_drop)
             dfs.append(this_df)
         except:
             pass 

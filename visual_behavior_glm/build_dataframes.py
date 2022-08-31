@@ -40,7 +40,7 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
 
     # combine    
     print('concatenating dataframes')
-    population_df = pd.concat(dfs,ignore_index=True)
+    population_df = pd.concat(dfs,ignore_index=True,sort=False)
 
     # save
     if savefile:

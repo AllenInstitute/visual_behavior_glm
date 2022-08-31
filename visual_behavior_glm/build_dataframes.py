@@ -53,7 +53,8 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
         try:
             path=get_path('',value, 'experiment',df_type)
             this_df = pd.read_hdf(path)
-            this_df = this_df.drop(columns=cols_to_drop)
+            if df_type == 'image_df':
+                this_df = this_df.drop(columns=cols_to_drop)
             dfs.append(this_df)
         except:
             pass 

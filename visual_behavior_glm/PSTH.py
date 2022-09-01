@@ -12,19 +12,26 @@ import visual_behavior.visualization.utils as utils
 
 PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
-'''
-    error bars (Standard error? Confidence interval over cells? or hierarchical boot?)
-'''
 
 def plot_condition(dfs, condition,labels=None,savefig=False):
-    
+    '''
+        Plot the population average response to condition for each element of dfs
+
+        dfs (dataframe or list) if dfs is one dataframe, then will plot just one 
+            row. If dfs is a list, will plot a row for each dataframe 
+        condition (str) the feature aligned to
+        labels (str or list) the labels corresponding to elements of dfs
+    '''
+   
+    # If we have just one cell type, wrap in a list 
     if type(dfs)!=list:
         dfs = [dfs]
     
+    # Determine the number of cell types
     num_rows = len(dfs)
     fig, ax = plt.subplots(num_rows,3,figsize=(10,2.75*num_rows),sharey='row',squeeze=False)
 
-   
+    # Iterate through cell types   
     for index, full_df in enumerate(dfs): 
         if labels is None:
             ylabel='Population Average'
@@ -39,6 +46,7 @@ def plot_condition(dfs, condition,labels=None,savefig=False):
             'visual_strategy_session', ax=ax[index, 2],title=index==0,ylabel='')
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
 
+    # Save Figure
     if savefig:
         filename = PSTH_DIR + condition+'_psth.png'
         print('Figure saved to: '+filename)
@@ -87,17 +95,26 @@ def plot_condition_experience(full_df, condition, experience_level, split,
     ax.yaxis.set_tick_params(labelsize=12)
     plt.tight_layout()
 
-    return np.max(responses)
+    return np.nanmax(responses)
 
-def plot_split(df, ax,color):
+def plot_split(df, ax,color,error_type = 'sem'):
     # Plot mean
     time =df['time'].mean()
     response = df['response'].mean()
-    ax.plot(time,response,color=color)
+    ax.plot(time,response,color=color,linewidth=2)
  
     # plot uncertainty
+    if error_type == 'sem':
+        x = np.vstack(df['response'].values) 
+        sem = np.std(x,axis=0)/np.sqrt(np.shape(x)[0])
+    elif error_type == 'bootstrap':
+        sem = 0
+    
+    upper = response + sem
+    lower = response - sem
+    ax.fill_between(time, upper, lower, alpha=0.5, color=color)
 
-    return np.max(response)
+    return np.nanmax(upper)
 
 def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False):
     """

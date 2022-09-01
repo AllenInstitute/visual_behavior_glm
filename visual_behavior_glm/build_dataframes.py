@@ -176,6 +176,7 @@ def build_response_df_experiment(session):
 
     print('Finished!')
 
+
 def get_path(cell_id, oeid, filetype,df_type):
     root = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
     filepath = root+df_type+'s/'+filetype+'s/'+str(oeid)+'_'+str(cell_id)+'.h5'
@@ -296,6 +297,7 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id):
 
     return image_df
 
+
 def build_full_df_cell(session, cell_specimen_id):
 
     # Get neural activity
@@ -322,7 +324,7 @@ def get_full_df(cell_df, session,cell_specimen_id):
     averages = pd.DataFrame()
     conditions = get_conditions()
     for c in conditions:
-        averages = get_full_average(averages, full_df,conditions[c])
+        averages = get_full_average(session, averages, full_df,conditions[c])
 
     averages['cell_specimen_id'] = cell_specimen_id
     averages['mouse_id'] = session.metadata['mouse_id']
@@ -337,8 +339,32 @@ def get_full_df(cell_df, session,cell_specimen_id):
 
     return averages
 
-def get_full_average(averages, full_df, condition):
-   
+
+def get_engagement_check(session, condition):
+    engaged = ('engaged' in condition[0]) & ('disengaged' not in condition[0])
+    disengaged = 'disengaged' in condition[0]
+    neither = (not engaged) & (not disengaged)
+    min_engaged_fraction= 0.05
+    engaged_fraction = np.nanmean(session.behavior_df['engaged'])
+
+    if neither:
+        #print('  '+condition[0])
+        return True
+    if engaged:
+        more_than_threshold_engaged = engaged_fraction > min_engaged_fraction
+        #print('E '+condition[0]+' '+str(more_than_threshold_engaged))
+        return more_than_threshold_engaged 
+    if disengaged:
+        more_than_threshold_disengaged = engaged_fraction < (1-min_engaged_fraction)
+        #print('D '+condition[0]+' '+str(more_than_threshold_disengaged))
+        return more_than_threshold_disengaged 
+
+def get_full_average(session, averages, full_df, condition):
+ 
+    # Check to see if this session had sufficient time in the relevant
+    # engagement state 
+    engagement_check = get_engagement_check(session, condition)
+ 
     # Get conditional average
     if condition[1]=='':
         x = full_df.groupby('time')['response'].mean()
@@ -346,7 +372,7 @@ def get_full_average(averages, full_df, condition):
         x = full_df.query(condition[1]).groupby('time')['response'].mean()
 
     # Add to dataframe   
-    if len(x) == 0:
+    if (len(x) == 0) or (not engagement_check):
         t = np.sort(full_df['time'].unique())
         r = np.empty(np.shape(t))
         r[:] = np.nan

@@ -366,16 +366,16 @@ def get_full_average(averages, full_df, condition):
 
 def get_conditions():
     conditions = {
-        'image':['image',''],
+        'image':['image','(not omitted) & (not is_change)'],
         'change':['change','is_change'],
         'omission':['omission','omitted'],
         'hit':['hit','is_change & rewarded'],
         'miss':['miss','is_change & not rewarded'],
         'licked':['licked','lick_bout_start'],
-        'engaged_v1_image':['engaged_v1_image','engagement_v1'],
-        'engaged_v2_image':['engaged_v2_image','engagement_v2'],
-        'disengaged_v1_image':['disengaged_v1_image','(not engagement_v1)'],
-        'disengaged_v2_image':['disengaged_v2_image','(not engagement_v2)'],
+        'engaged_v1_image':['engaged_v1_image','(not omitted) & (not is_change) & engagement_v1'],
+        'engaged_v2_image':['engaged_v2_image','(not omitted) & (not is_change) & engagement_v2'],
+        'disengaged_v1_image':['disengaged_v1_image','(not omitted) & (not is_change) & (not engagement_v1)'],
+        'disengaged_v2_image':['disengaged_v2_image','(not omitted) & (not is_change) & (not engagement_v2)'],
         'engaged_v1_change':['engaged_v1_change','engagement_v1 & is_change'],
         'engaged_v2_change':['engaged_v2_change','engagement_v2 & is_change'],
         'disengaged_v1_change':['disengaged_v1_change','(not engagement_v1) & is_change'],

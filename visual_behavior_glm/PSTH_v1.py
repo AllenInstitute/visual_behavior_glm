@@ -12,78 +12,47 @@ import visual_behavior.visualization.utils as utils
 
 PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
-'''
-    color control
-    error bars
-    integration into multi-panel figure
-    control over experience level
-    figure saving
-    figure sizes 
-'''
-
-def plot_condition(dfs, condition,labels=None):
-    
-    if type(dfs)!=list:
-        dfs = [dfs]
-    
-    num_rows = len(dfs)
-    fig, ax = plt.subplots(num_rows,3,figsize=(10,2.75*num_rows),sharey='row',squeeze=False)
-   
-    for index, full_df in enumerate(dfs): 
-        if labels is None:
-            ylabel='Population Average'
-        else:
-            ylabel=labels[index]
-        plot_condition_experience(full_df, condition, 'Familiar','visual_strategy_session',
-            ax=ax[index, 0], title=index==0,ylabel=ylabel)
-        plot_condition_experience(full_df, condition, 'Novel 1','visual_strategy_session',
-            ax=ax[index, 1],title=index==0,ylabel='')
-        plot_condition_experience(full_df, condition, 'Novel >1','visual_strategy_session',
-            ax=ax[index, 2],title=index==0,ylabel='')
-    return ax
-
-def plot_condition_experience(full_df, condition, experience_level, split, 
-    ax=None,ylabel='Population Average',xlabel=True,title=False):
-    
-    if ax is None:
-        fig, ax = plt.subplots()
-    
-    df = full_df.query('(condition ==@condition)&(experience_level ==@experience_level)')
-    
-    split_vals = np.sort(df[split].unique())
-    for val in split_vals:
-        plot_split(df.query('{}==@val'.format(split)),ax)
-
-    # Annotate figure
-    omitted = 'omission' in condition
-    change = 'change' in condition
-    timestamps = df.iloc[0]['time']
-    plot_flashes_on_trace(ax, timestamps, change=change, omitted=omitted)
-
-    # Clean up axis 
-    if xlabel:
-        ax.set_xlabel('time (s)',fontsize=16)
-    if ylabel != '':
-        ax.set_ylabel(ylabel,fontsize=16)
-    if title:
-        ax.set_title(experience_level,fontsize=16)
-    ax.set_ylim(bottom=0)
-    ax.set_xlim(timestamps[0],timestamps[-1])
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    ax.xaxis.set_tick_params(labelsize=12)
-    ax.yaxis.set_tick_params(labelsize=12)
-    plt.tight_layout()
-
-    return ax 
-
-def plot_split(df, ax):
-    # Plot mean
-    time =df['time'].mean()
-    response = df['response'].mean()
-    ax.plot(time,response)
  
-    # plot uncertainty
+def change_mdf(summary_df=None):
+    data_type='events'
+    interpolate=True
+    output_sampling_rate=30
+    inclusion_criteria = 'platform_experiment_table'
+    inclusion_criteria = ['active_only','strategy_paper']
+    event_type='all'
+    conditions=['cell_specimen_id','is_change']
+    change_mdf = loading.get_multi_session_df_for_conditions(data_type, 
+        event_type, conditions, inclusion_criteria, interpolate=interpolate, 
+        output_sampling_rate=output_sampling_rate, epoch_duration_mins=None)
+    change_mdf = change_mdf[change_mdf.is_change==True]
+    change_mdf['layer'] = ['shallow' if x < 250 else 'deep' 
+        for x in change_mdf['imaging_depth']]
+
+    if summary_df is not None:
+        change_mdf = gst.add_behavior_session_metrics(change_mdf, summary_df)
+
+    return change_mdf
+
+
+def omission_mdf(summary_df=None):
+    data_type='events'
+    interpolate=True
+    output_sampling_rate=30
+    inclusion_criteria = 'platform_experiment_table'
+    inclusion_criteria = ['active_only']
+    event_type='all'
+    conditions=['cell_specimen_id','omitted']
+    omission_mdf = loading.get_multi_session_df_for_conditions(data_type, 
+        event_type, conditions, inclusion_criteria, interpolate=interpolate, 
+        output_sampling_rate=output_sampling_rate, epoch_duration_mins=None)
+    omission_mdf = omission_mdf[omission_mdf.omitted==True]
+    omission_mdf['layer'] = ['shallow' if x < 250 else 'deep' 
+        for x in omission_mdf['imaging_depth']]
+
+    if summary_df is not None:
+        omission_mdf = gst.add_behavior_session_metrics(omission_mdf, summary_df)
+
+    return omission_mdf
 
 
 def plot_change_mdf(change_mdf,savefig=False,extra=''):

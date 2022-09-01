@@ -6,7 +6,7 @@ import mindscope_utilities as m
 import visual_behavior.data_access.loading as loading
 
 import psy_tools as ps
-
+import psy_output_tools as po
 
 BEHAVIOR_VERSION = 21
 
@@ -140,6 +140,9 @@ def build_response_df_experiment(session):
     # get session level behavior metrics
     load_behavior_summary(session)
 
+    # Get summary table
+    summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION) 
+
     # loop over cells 
     cell_specimen_ids = session.cell_specimen_table.index.values
     print('Iterating over cells for this experiment to build image by image dataframes')
@@ -163,7 +166,7 @@ def build_response_df_experiment(session):
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
-            this_full = build_full_df_cell(session, cell_id)
+            this_full = build_full_df_cell(session, cell_id,summary_df)
             full_dfs.append(this_full)
         except Exception as e:
             print('error with '+str(cell_id))
@@ -298,17 +301,17 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id):
     return image_df
 
 
-def build_full_df_cell(session, cell_specimen_id):
+def build_full_df_cell(session, cell_specimen_id,summary_df):
 
     # Get neural activity
     cell_df = get_cell_df(session,cell_specimen_id)
     
     # Get the max response to each image presentation   
-    full_df = get_full_df(cell_df, session, cell_specimen_id) 
+    full_df = get_full_df(cell_df, session, cell_specimen_id,summary_df) 
     return full_df
 
     
-def get_full_df(cell_df, session,cell_specimen_id):
+def get_full_df(cell_df, session,cell_specimen_id,summary_df):
     
     # Interpolate, then align to all images with long window
     full_df = get_cell_etr(cell_df, session, time = [-2,2])
@@ -331,6 +334,11 @@ def get_full_df(cell_df, session,cell_specimen_id):
     averages['behavior_session_id'] = session.metadata['behavior_session_id']   
     averages['ophys_experiment_id'] = session.metadata['ophys_experiment_id']
     averages['cre_line'] = session.metadata['cre_line']
+
+    bsid = session.metadata['behavior_session_id']
+    row = summary_df.set_index('behavior_session_id').loc[bsid]
+    averages['experience_level'] = row['experience_level']
+    averages['visual_strategy_session'] = row['visual_strategy_session']
  
     # Save
     ophys_experiment_id = session.metadata['ophys_experiment_id']

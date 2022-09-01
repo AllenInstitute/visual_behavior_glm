@@ -14,11 +14,9 @@ PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
 '''
     color control
-    error bars
-    integration into multi-panel figure
-    control over experience level
+    error bars (Standard error? Confidence interval over cells? or hierarchical boot?)
     figure saving
-    figure sizes 
+    ylimits seem to be broken
 '''
 
 def plot_condition(dfs, condition,labels=None):

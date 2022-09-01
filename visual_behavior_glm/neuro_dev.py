@@ -81,11 +81,22 @@ vip_full_df = bd.load_population_df('full_df','Vip-IRES-Cre')
 
 ## PSTH - Population average response
 ################################################################################
-# PSTHs
-change_mdf = psth.change_mdf(summary_df)
-omission_mdf = psth.omission_mdf(summary_df)
-psth.plot_change_mdf(change_mdf)
-psth.plot_omission_mdf(omission_mdf)
+
+dfs = [exc_full_df, sst_full_df, vip_full_df]
+labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
+ax = psth.plot_condition(dfs,'omission',labels,error_type='sem')
+
+# Old version of PSTHs, using Marina's data summaries
+change_mdf = old_psth.change_mdf(summary_df)
+omission_mdf = old_psth.omission_mdf(summary_df)
+old_psth.plot_change_mdf(change_mdf)
+old_psth.plot_omission_mdf(omission_mdf)
+
+
+## Population heatmaps
+################################################################################
+
+psth.plot_heatmap(vip_full_df, 'omission','Familiar')
 
 
 ## Image by Image regression

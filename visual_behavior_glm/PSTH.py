@@ -13,7 +13,7 @@ import visual_behavior.visualization.utils as utils
 PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
 
-def plot_condition(dfs, condition,labels=None,savefig=False):
+def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem'):
     '''
         Plot the population average response to condition for each element of dfs
 
@@ -39,11 +39,14 @@ def plot_condition(dfs, condition,labels=None,savefig=False):
             ylabel=labels[index]
         max_y = [0,0,0]
         max_y[0] = plot_condition_experience(full_df, condition, 'Familiar',
-            'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel)
+            'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel,
+            error_type=error_type)
         max_y[1] = plot_condition_experience(full_df, condition, 'Novel 1',
-            'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='')
+            'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='',
+            error_type=error_type)
         max_y[2] = plot_condition_experience(full_df, condition, 'Novel >1',
-            'visual_strategy_session', ax=ax[index, 2],title=index==0,ylabel='')
+            'visual_strategy_session', ax=ax[index, 2],title=index==0,ylabel='',
+            error_type=error_type)
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
 
     # Save Figure
@@ -55,7 +58,7 @@ def plot_condition(dfs, condition,labels=None,savefig=False):
     return ax
 
 def plot_condition_experience(full_df, condition, experience_level, split, 
-    ax=None,ylabel='Population Average',xlabel=True,title=False):
+    ax=None,ylabel='Population Average',xlabel=True,title=False,error_type='sem'):
     
     if ax is None:
         fig, ax = plt.subplots()
@@ -71,7 +74,8 @@ def plot_condition_experience(full_df, condition, experience_level, split,
             color = colors['timing']
         else:
             color = 'k'
-        r = plot_split(df.query('{}==@val'.format(split)),ax,color=color)
+        r = plot_split(df.query('{}==@val'.format(split)),ax,color=color,
+            error_type=error_type)
         responses.append(r)
 
     # Annotate figure
@@ -153,5 +157,20 @@ def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False):
         ax.axvspan(amin, amax, color='k',alpha=.1,zorder=1)
     return ax
 
-
+def plot_heatmap(full_df,condition,experience_level):
+    plt.figure()
+    ax = plt.gca()
+    df = full_df.query('(condition==@condition)&(experience_level==@experience_level)').copy()
+    df['max'] = [np.nanmax(x) for x in df['response']]
+    df = df.sort_values(by=['visual_strategy_session','max'],ascending=False)
+    x = np.vstack(df['response'].values)
+    vmax = np.percentile(x,95)
+    plt.imshow(x, aspect='auto',vmax=vmax)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_ylabel('Cells',fontsize=16)
+    ax.set_xlabel('Time (s)',fontsize=16)
+    plt.tight_layout()
 

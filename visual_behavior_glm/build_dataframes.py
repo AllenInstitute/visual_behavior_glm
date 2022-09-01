@@ -6,21 +6,102 @@ import mindscope_utilities as m
 import visual_behavior.data_access.loading as loading
 
 import psy_tools as ps
-
-
-'''
-    Generates two dataframes for each cell
-    1.  response_df
-        Contains a 4 second response trace aligned to each image presentation, 
-        and relevant metrics (engaged, strategy weights, licked, running).
-        the peak response_df is a strict subset of response_df
-    2.  peak_response_df
-        Just the peak response of each cell to each image presentation in the 
-        (100ms,800ms) window, and relevant metrics
-
-'''
+import psy_output_tools as po
 
 BEHAVIOR_VERSION = 21
+
+
+def load_population_df(df_type,cre):
+    path ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
+        +df_type+'s/summary_'+cre+'.feather'
+    df = pd.read_feather(path)
+    return df
+
+
+def build_population_df(summary_df,df_type='image_df',savefile=True,
+    cre='Vip-IRES-Cre'):
+
+    batch_size=50
+    batch=False
+    if df_type=='image_df' and cre=='Slc17a7-IRES2-Cre':
+        print('Batch processing with chunk size={} for Exc cells'.format(batch_size))
+        batch=True
+    
+    print('Generating population {} for {} cells'.format(df_type,cre))
+
+    # get list of experiments
+    summary_df = summary_df.query('cre_line == @cre')
+    oeids = np.concatenate(summary_df['ophys_experiment_id'].values) 
+
+    # make list of columns to drop for space
+    cols_to_drop = [
+        'image_name',
+        'cre_line',
+        'bout_number',
+        'num_licks',
+        'lick_rate',
+        'reward_rate',
+        'lick_bout_rate',
+        'lick_hit_fraction',
+        'hit_rate',
+        'miss_rate',
+        'image_false_alarm',
+        'image_correct_reject',
+        'correct_reject_rate',
+        'd_prime',
+        'criterion'
+        ]
+
+    # load
+    dfs = []
+    num_rows = len(oeids)
+    if batch:
+        batch_num=0
+
+    for idx,value in tqdm(enumerate(oeids),total = num_rows):
+        try:
+            path=get_path('',value, 'experiment',df_type)
+            this_df = pd.read_hdf(path)
+            if df_type == 'image_df':
+                this_df = this_df.drop(columns=cols_to_drop)
+            dfs.append(this_df)
+        except:
+            pass 
+        if batch:
+            if np.mod(idx,batch_size) == batch_size-1:
+                temp = pd.concat(dfs, ignore_index=True, sort=False)
+                path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/temp_'+str(batch_num)+'_'+cre+'.feather'
+                temp.to_feather(path)
+                batch_num+=1
+                dfs = []
+
+    if batch:
+        temp = pd.concat(dfs, ignore_index=True, sort=False)
+        path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/temp_'+str(batch_num)+'_'+cre+'.feather'
+        temp.to_feather(path)
+
+        n = list(range(0,batch_num+1))
+        dfs = []
+        for i in n:
+            path='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/temp_'+str(i)+'_'+cre+'.feather'
+            temp = pd.read_feather(path)
+            dfs.append(temp)
+ 
+    # combine    
+    print('concatenating dataframes')
+    population_df = pd.concat(dfs,ignore_index=True,sort=False)
+    del dfs
+
+    # save
+    if savefile:
+        print('saving')
+        path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
+            +df_type+'s/summary_'+cre+'.feather'
+        try:
+            population_df.to_feather(path)
+        except Exception as e:
+            print(e)
+
 
 def load_data(oeid,include_invalid_rois=False):
     '''
@@ -59,23 +140,44 @@ def build_response_df_experiment(session):
     # get session level behavior metrics
     load_behavior_summary(session)
 
+    # Get summary table
+    summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION) 
+
     # loop over cells 
     cell_specimen_ids = session.cell_specimen_table.index.values
     print('Iterating over cells for this experiment to build image by image dataframes')
+    image_dfs = []
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
-            build_response_df_cell(session, cell_id)
-        except:
-            print('crash '+str(cell_id))
+            this_image = build_response_df_cell(session, cell_id)
+            image_dfs.append(this_image)
+        except Exception as e:
+            print('error with '+str(cell_id))
+            print(e)
+
+    print('saving combined image df')
+    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','image_df')
+    image_df = pd.concat(image_dfs)
+    image_df.to_hdf(path, key='df')
 
     print('Iterating over cells for this experiment to build full dataframes')
+    full_dfs = []
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
-            build_full_df_cell(session, cell_id)
-        except:
-            print('crash '+str(cell_id))
+            this_full = build_full_df_cell(session, cell_id,summary_df)
+            full_dfs.append(this_full)
+        except Exception as e:
+            print('error with '+str(cell_id))
+            print(e)
+
+    print('saving combined full df')
+    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','full_df')
+    full_df = pd.concat(full_dfs)
+    full_df.to_hdf(path, key='df')
+
+    print('Finished!')
 
 
 def get_path(cell_id, oeid, filetype,df_type):
@@ -94,16 +196,18 @@ def build_response_df_cell(session, cell_specimen_id):
     try:
         run = get_running_etr(session)
         run_df = run.groupby('stimulus_presentations_id')['speed'].mean()
-    except:
-        print('crashed on running')
+    except Exception as e:
+        print('error procesing running '+str(cell_specimen_id))
+        print(e)
         run_df = None
 
     # get pupil
     try:
         pupil = get_pupil_etr(session)
         pupil_df = pupil.groupby('stimulus_presentations_id')['pupil_width'].mean()  
-    except:
-        print('crashed on pupil')
+    except Exception as e:
+        print('error processing pupil '+str(cell_specimen_id))
+        print(e)
         pupil_df = None
  
     # Get the max response to each image presentation   
@@ -123,7 +227,7 @@ def get_cell_df(session, cell_specimen_id, data_type='filtered_events'):
     return df
 
 
-def get_running_etr(session, time=[0,.75]):
+def get_running_etr(session, time=[0.05,.8]):
     etr = m.event_triggered_response(
         data = session.running_speed,
         t='timestamps',
@@ -137,7 +241,7 @@ def get_running_etr(session, time=[0,.75]):
     return etr
 
 
-def get_pupil_etr(session, time=[0,.75]):
+def get_pupil_etr(session, time=[0.05,.8]):
     etr = m.event_triggered_response(
         data = session.eye_tracking,
         t='timestamps',
@@ -151,7 +255,7 @@ def get_pupil_etr(session, time=[0,.75]):
     return etr
 
 
-def get_cell_etr(df,session,time = [0.15,0.85]):
+def get_cell_etr(df,session,time = [0.05,0.8]):
     etr = m.event_triggered_response(
         data = df,
         t = 't',
@@ -172,7 +276,7 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id):
     etr = get_cell_etr(cell_df, session)
 
     # Get max response for each image
-    image_df = etr.groupby('stimulus_presentations_id')['response'].max()
+    image_df = etr.groupby('stimulus_presentations_id')['response'].mean()
     image_df = pd.merge(image_df, session.behavior_df, on='stimulus_presentations_id')
     image_df['cell_specimen_id'] = cell_specimen_id
     image_df['mouse_id'] = session.metadata['mouse_id']
@@ -196,17 +300,18 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id):
 
     return image_df
 
-def build_full_df_cell(session, cell_specimen_id):
+
+def build_full_df_cell(session, cell_specimen_id,summary_df):
 
     # Get neural activity
     cell_df = get_cell_df(session,cell_specimen_id)
     
     # Get the max response to each image presentation   
-    full_df = get_full_df(cell_df, session, cell_specimen_id) 
+    full_df = get_full_df(cell_df, session, cell_specimen_id,summary_df) 
     return full_df
 
     
-def get_full_df(cell_df, session,cell_specimen_id):
+def get_full_df(cell_df, session,cell_specimen_id,summary_df):
     
     # Interpolate, then align to all images with long window
     full_df = get_cell_etr(cell_df, session, time = [-2,2])
@@ -222,13 +327,18 @@ def get_full_df(cell_df, session,cell_specimen_id):
     averages = pd.DataFrame()
     conditions = get_conditions()
     for c in conditions:
-        averages = get_full_average(averages, full_df,conditions[c])
+        averages = get_full_average(session, averages, full_df,conditions[c])
 
     averages['cell_specimen_id'] = cell_specimen_id
     averages['mouse_id'] = session.metadata['mouse_id']
     averages['behavior_session_id'] = session.metadata['behavior_session_id']   
     averages['ophys_experiment_id'] = session.metadata['ophys_experiment_id']
     averages['cre_line'] = session.metadata['cre_line']
+
+    bsid = session.metadata['behavior_session_id']
+    row = summary_df.set_index('behavior_session_id').loc[bsid]
+    averages['experience_level'] = row['experience_level']
+    averages['visual_strategy_session'] = row['visual_strategy_session']
  
     # Save
     ophys_experiment_id = session.metadata['ophys_experiment_id']
@@ -237,8 +347,32 @@ def get_full_df(cell_df, session,cell_specimen_id):
 
     return averages
 
-def get_full_average(averages, full_df, condition):
-   
+
+def get_engagement_check(session, condition):
+    engaged = ('engaged' in condition[0]) & ('disengaged' not in condition[0])
+    disengaged = 'disengaged' in condition[0]
+    neither = (not engaged) & (not disengaged)
+    min_engaged_fraction= 0.05
+    engaged_fraction = np.nanmean(session.behavior_df['engaged'])
+
+    if neither:
+        #print('  '+condition[0])
+        return True
+    if engaged:
+        more_than_threshold_engaged = engaged_fraction > min_engaged_fraction
+        #print('E '+condition[0]+' '+str(more_than_threshold_engaged))
+        return more_than_threshold_engaged 
+    if disengaged:
+        more_than_threshold_disengaged = engaged_fraction < (1-min_engaged_fraction)
+        #print('D '+condition[0]+' '+str(more_than_threshold_disengaged))
+        return more_than_threshold_disengaged 
+
+def get_full_average(session, averages, full_df, condition):
+ 
+    # Check to see if this session had sufficient time in the relevant
+    # engagement state 
+    engagement_check = get_engagement_check(session, condition)
+ 
     # Get conditional average
     if condition[1]=='':
         x = full_df.groupby('time')['response'].mean()
@@ -246,7 +380,7 @@ def get_full_average(averages, full_df, condition):
         x = full_df.query(condition[1]).groupby('time')['response'].mean()
 
     # Add to dataframe   
-    if len(x) == 0:
+    if (len(x) == 0) or (not engagement_check):
         t = np.sort(full_df['time'].unique())
         r = np.empty(np.shape(t))
         r[:] = np.nan
@@ -266,16 +400,16 @@ def get_full_average(averages, full_df, condition):
 
 def get_conditions():
     conditions = {
-        'image':['image',''],
+        'image':['image','(not omitted) & (not is_change)'],
         'change':['change','is_change'],
         'omission':['omission','omitted'],
         'hit':['hit','is_change & rewarded'],
         'miss':['miss','is_change & not rewarded'],
         'licked':['licked','lick_bout_start'],
-        'engaged_v1_image':['engaged_v1_image','engagement_v1'],
-        'engaged_v2_image':['engaged_v2_image','engagement_v2'],
-        'disengaged_v1_image':['disengaged_v1_image','(not engagement_v1)'],
-        'disengaged_v2_image':['disengaged_v2_image','(not engagement_v2)'],
+        'engaged_v1_image':['engaged_v1_image','(not omitted) & (not is_change) & engagement_v1'],
+        'engaged_v2_image':['engaged_v2_image','(not omitted) & (not is_change) & engagement_v2'],
+        'disengaged_v1_image':['disengaged_v1_image','(not omitted) & (not is_change) & (not engagement_v1)'],
+        'disengaged_v2_image':['disengaged_v2_image','(not omitted) & (not is_change) & (not engagement_v2)'],
         'engaged_v1_change':['engaged_v1_change','engagement_v1 & is_change'],
         'engaged_v2_change':['engaged_v2_change','engagement_v2 & is_change'],
         'disengaged_v1_change':['disengaged_v1_change','(not engagement_v1) & is_change'],

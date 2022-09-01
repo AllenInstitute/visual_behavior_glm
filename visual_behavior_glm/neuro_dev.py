@@ -9,6 +9,7 @@ import visual_behavior_glm.GLM_fit_dev as gfd
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_strategy_tools as gst
+import visual_behavior_glm.GLM_params as glm_params
 from importlib import reload
 from alex_utils import *
 plt.ion()
@@ -66,6 +67,8 @@ gst.scatter_dataset(results_pivoted_beh, run_params)
 oeid = summary_df.iloc[0]['ophys_experiment_id'][0]
 session = bd.load_data(oeid)
 bd.build_response_df_experiment(session)
+vip_image_df = bd.load_population_df('image_df','Vip-IRES-Cre')
+
 
 ## PSTH - Population average response
 ################################################################################

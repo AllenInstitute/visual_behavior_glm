@@ -64,10 +64,19 @@ gst.scatter_dataset(results_pivoted_beh, run_params)
 
 ## Generate response dataframes
 ################################################################################
+
+# Build single session
 oeid = summary_df.iloc[0]['ophys_experiment_id'][0]
 session = bd.load_data(oeid)
 bd.build_response_df_experiment(session)
+
+# Aggregate from hpc results
+bd.build_population_df('full_df','Vip-IRES-Cre')
+
+# load finished dataframes
 vip_image_df = bd.load_population_df('image_df','Vip-IRES-Cre')
+vip_full_df = bd.load_population_df('full_df','Vip-IRES-Cre')
+
 
 
 ## PSTH - Population average response

@@ -81,10 +81,17 @@ vip_full_df = bd.load_population_df('full_df','Vip-IRES-Cre')
 
 ## PSTH - Population average response
 ################################################################################
+vip_full_df = bd.load_population_df('full_df','Vip-IRES-Cre')
+sst_full_df = bd.load_population_df('full_df','Sst-IRES-Cre')
+exc_full_df = bd.load_population_df('full_df','Slc17a7-IRES2-Cre')
 
 dfs = [exc_full_df, sst_full_df, vip_full_df]
 labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
 ax = psth.plot_condition(dfs,'omission',labels,error_type='sem')
+ax = psth.plot_condition(dfs,'image',labels,error_type='sem')
+ax = psth.plot_condition(dfs,'change',labels,error_type='sem')
+ax = psth.plot_condition(dfs,'hit',labels,error_type='sem')
+ax = psth.plot_condition(dfs,'miss',labels,error_type='sem')
 
 # Old version of PSTHs, using Marina's data summaries
 change_mdf = old_psth.change_mdf(summary_df)

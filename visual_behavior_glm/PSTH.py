@@ -15,7 +15,8 @@ import visual_behavior.visualization.utils as utils
 PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
 
-def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem'):
+def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
+    split_by_engaged=False,plot_strategy='both'):
     '''
         Plot the population average response to condition for each element of dfs
 
@@ -31,7 +32,8 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem'):
     
     # Determine the number of cell types
     num_rows = len(dfs)
-    fig, ax = plt.subplots(num_rows,3,figsize=(10,2.75*num_rows),sharey='row',squeeze=False)
+    fig, ax = plt.subplots(num_rows,3,figsize=(10,2.75*num_rows),sharey='row',
+        squeeze=False)
 
     # Iterate through cell types   
     for index, full_df in enumerate(dfs): 
@@ -39,18 +41,45 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem'):
             ylabel='Population Average'
         else:
             ylabel=labels[index]
-        max_y = [0,0,0]
-        max_y[0] = plot_condition_experience(full_df, condition, 'Familiar',
-            'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel,
-            error_type=error_type)
-        max_y[1] = plot_condition_experience(full_df, condition, 'Novel 1',
-            'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='',
-            error_type=error_type)
-        max_y[2] = plot_condition_experience(full_df, condition, 'Novel >1',
-            'visual_strategy_session', ax=ax[index, 2],title=index==0,ylabel='',
-            error_type=error_type)
-        ax[index,0].set_ylim(top = 1.05*np.max(max_y))
-
+        if not split_by_engaged:
+            max_y = [0,0,0]
+            max_y[0] = plot_condition_experience(full_df, condition, 'Familiar',
+                'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel,
+                error_type=error_type)
+            max_y[1] = plot_condition_experience(full_df, condition, 'Novel 1',
+                'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='',
+                error_type=error_type)
+            max_y[2] = plot_condition_experience(full_df, condition, 'Novel >1',
+                'visual_strategy_session', ax=ax[index, 2],title=index==0,ylabel='',
+                error_type=error_type)
+            ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+        else:
+            max_y = [] 
+            temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Familiar',
+                'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel,
+                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+            max_y.append(temp)
+            temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
+                'Familiar','visual_strategy_session', ax=ax[index, 0], title=index==0,
+                ylabel=ylabel,error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+            max_y.append(temp)
+            temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Novel 1',
+                'visual_strategy_session', ax=ax[index, 1], title=index==0,ylabel=ylabel,
+                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+            max_y.append(temp)
+            temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
+                'Novel 1','visual_strategy_session', ax=ax[index, 1], title=index==0,
+                ylabel=ylabel,error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+            max_y.append(temp)
+            temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Novel >1',
+                'visual_strategy_session', ax=ax[index, 2], title=index==0,ylabel=ylabel,
+                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+            max_y.append(temp)
+            temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
+                'Novel >1','visual_strategy_session', ax=ax[index, 2], title=index==0,
+                ylabel=ylabel,error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+            max_y.append(temp)
+            ax[index,0].set_ylim(top = 1.05*np.max(max_y))
     # Save Figure
     if savefig:
         filename = PSTH_DIR + condition+'_psth.png'
@@ -60,20 +89,30 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem'):
     return ax
 
 def plot_condition_experience(full_df, condition, experience_level, split, 
-    ax=None,ylabel='Population Average',xlabel=True,title=False,error_type='sem'):
+    ax=None,ylabel='Population Average',xlabel=True,title=False,error_type='sem',
+    split_by_engaged=False, plot_strategy ='both'):
     
     if ax is None:
         fig, ax = plt.subplots()
     
     df = full_df.query('(condition ==@condition)&(experience_level ==@experience_level)')
     colors = gvt.project_colors() 
+    if plot_strategy != 'both':
+        if plot_strategy == 'visual':
+            df = df.query('visual_strategy_session').copy()
+        else:
+            df = df.query('not visual_strategy_session').copy()
     split_vals = np.sort(df[split].unique())
     responses = []
     for val in split_vals:
         if (split == 'visual_strategy_session') and val:
             color = colors['visual']
+            if split_by_engaged and ('disengaged' in condition):
+                color='gray'
         elif  (split == 'visual_strategy_session') and (not val):
             color = colors['timing']
+            if split_by_engaged and ('disengaged' in condition):
+                color='gray'
         else:
             color = 'k'
         r = plot_split(df.query('{}==@val'.format(split)),ax,color=color,

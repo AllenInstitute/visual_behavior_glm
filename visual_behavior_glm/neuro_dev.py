@@ -87,11 +87,17 @@ exc_full_df = bd.load_population_df('full_df','Slc17a7-IRES2-Cre')
 
 dfs = [exc_full_df, sst_full_df, vip_full_df]
 labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
-ax = psth.plot_condition(dfs,'omission',labels,error_type='sem')
-ax = psth.plot_condition(dfs,'image',labels,error_type='sem')
-ax = psth.plot_condition(dfs,'change',labels,error_type='sem')
-ax = psth.plot_condition(dfs,'hit',labels,error_type='sem')
-ax = psth.plot_condition(dfs,'miss',labels,error_type='sem')
+ax = psth.plot_condition(dfs,'omission',labels)
+ax = psth.plot_condition(dfs,'image',labels)
+ax = psth.plot_condition(dfs,'change',labels)
+ax = psth.plot_condition(dfs,'hit',labels)
+ax = psth.plot_condition(dfs,'miss',labels)
+
+# Can split by engagement, generally should plot one strategy at a time
+ax = psth.plot_condition(dfs, 'omission',labels,
+    split_by_engaged=True,plot_strategy='visual')
+ax = psth.plot_condition(dfs, 'omission',labels,
+    split_by_engaged=True,plot_strategy='timing')
 
 ## Population heatmaps
 ################################################################################

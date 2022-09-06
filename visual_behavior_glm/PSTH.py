@@ -82,7 +82,8 @@ def plot_condition_experience(full_df, condition, experience_level, split,
 
     # Annotate figure
     omitted = 'omission' in condition
-    change = ('change' in condition) or ('hit' in condition) or ('miss' in condition)
+    change = (not omitted) and (('change' in condition) or \
+        ('hit' in condition) or ('miss' in condition))
     timestamps = df.iloc[0]['time']
     plot_flashes_on_trace(ax, timestamps, change=change, omitted=omitted)
 

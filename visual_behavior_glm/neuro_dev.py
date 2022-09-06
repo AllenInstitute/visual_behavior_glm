@@ -93,17 +93,26 @@ ax = psth.plot_condition(dfs,'change',labels,error_type='sem')
 ax = psth.plot_condition(dfs,'hit',labels,error_type='sem')
 ax = psth.plot_condition(dfs,'miss',labels,error_type='sem')
 
-# Old version of PSTHs, using Marina's data summaries
-change_mdf = old_psth.change_mdf(summary_df)
-omission_mdf = old_psth.omission_mdf(summary_df)
-old_psth.plot_change_mdf(change_mdf)
-old_psth.plot_omission_mdf(omission_mdf)
-
-
 ## Population heatmaps
 ################################################################################
 
-psth.plot_heatmap(vip_full_df, 'omission','Familiar')
+psth.plot_heatmap(vip_full_df,'Vip', 'omission','Familiar',savefig=True)
+psth.plot_heatmap(vip_full_df,'Vip', 'omission','Novel 1',savefig=True)
+psth.plot_heatmap(vip_full_df,'Vip', 'omission','Novel >1',savefig=True)
+
+psth.plot_heatmap(sst_full_df,'Sst', 'omission','Familiar',savefig=True)
+psth.plot_heatmap(sst_full_df,'Sst', 'omission','Novel 1',savefig=True)
+psth.plot_heatmap(sst_full_df,'Sst', 'omission','Novel >1',savefig=True)
+
+psth.plot_heatmap(exc_full_df,'Exc', 'omission','Familiar',savefig=True)
+psth.plot_heatmap(exc_full_df,'Exc', 'omission','Novel 1',savefig=True)
+psth.plot_heatmap(exc_full_df,'Exc', 'omission','Novel >1',savefig=True)
+
+
+## QQ Plots 
+################################################################################
+ax = psth.plot_QQ(vip_full_df, 'Vip','omission','Familar')
+
 
 
 ## Image by Image regression

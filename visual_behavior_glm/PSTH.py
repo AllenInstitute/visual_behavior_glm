@@ -3,7 +3,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import Divider, Size
 plt.ion()
+
 import psy_output_tools as po
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_strategy_tools as gst
@@ -103,14 +105,15 @@ def plot_condition_experience(full_df, condition, experience_level, split,
 
 def plot_split(df, ax,color,error_type = 'sem'):
     # Plot mean
+    x = np.vstack(df['response'].values)
     time =df['time'].mean()
-    response = df['response'].mean()
+    response = np.nanmean(x,axis=0)
     ax.plot(time,response,color=color,linewidth=2)
  
     # plot uncertainty
     if error_type == 'sem':
-        x = np.vstack(df['response'].values) 
-        sem = np.std(x,axis=0)/np.sqrt(np.shape(x)[0])
+        num_cells = np.sum(~np.isnan(np.mean(x,axis=1)))
+        sem = np.nanstd(x,axis=0)/np.sqrt(num_cells)
     elif error_type == 'bootstrap':
         sem = 0
     
@@ -157,20 +160,105 @@ def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False):
         ax.axvspan(amin, amax, color='k',alpha=.1,zorder=1)
     return ax
 
-def plot_heatmap(full_df,condition,experience_level):
-    plt.figure()
-    ax = plt.gca()
-    df = full_df.query('(condition==@condition)&(experience_level==@experience_level)').copy()
+def plot_heatmap(full_df,cre,condition,experience_level,savefig=False):
+
+    # Set up multi-axis figure
+    height = 5
+    width = 6
+    pre_h_offset = 1.
+    post_h_offset = .25
+    below_v_offset = .75
+    above_v_offset = .35
+    fig = plt.figure(figsize=(width, height))
+    h = [Size.Fixed(pre_h_offset), Size.Fixed(width-pre_h_offset-post_h_offset)]
+    v = [Size.Fixed(below_v_offset), 
+        Size.Fixed((height-above_v_offset-below_v_offset)/2)]
+    divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+    ax1 = fig.add_axes(divider.get_position(), 
+        axes_locator=divider.new_locator(nx=1,ny=1))
+    v = [Size.Fixed(below_v_offset+(height-above_v_offset-below_v_offset)/2),
+        Size.Fixed((height-above_v_offset-below_v_offset)/2)]
+    divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+    ax2 = fig.add_axes(divider.get_position(), 
+        axes_locator=divider.new_locator(nx=1,ny=1))
+
+    # process data
+    df = full_df\
+        .query('(condition==@condition)&(experience_level==@experience_level)')\
+        .copy()
     df['max'] = [np.nanmax(x) for x in df['response']]
+    df=df[~df['response'].isnull()]
     df = df.sort_values(by=['visual_strategy_session','max'],ascending=False)
     x = np.vstack(df['response'].values)
-    vmax = np.percentile(x,95)
-    plt.imshow(x, aspect='auto',vmax=vmax)
+    vmax = np.nanpercentile(x,99)
+    time = df.iloc[0]['time']
+
+    # Visual session cells
+    df_visual = df.query('visual_strategy_session').\
+        sort_values(by=['max'],ascending=False)
+    x_visual = np.vstack(df_visual['response'].values)
+    num_visual = len(df_visual)
+    ax2.imshow(x_visual, aspect='auto',vmax=vmax,extent=[time[0], time[-1],0,num_visual])
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+    ax2.xaxis.set_tick_params(labelsize=12)
+    ax2.yaxis.set_tick_params(labelsize=12)
+    ax2.set_ylabel('Visual Cells',fontsize=16)
+    ax2.set_xticks([])
+    ax2.set_title(cre+' '+experience_level+' '+condition,fontsize=16)
+
+    # Timing session cells
+    df_timing = df.query('not visual_strategy_session').\
+        sort_values(by=['max'],ascending=False)
+    x_timing = np.vstack(df_timing['response'].values)
+    num_timing = len(df_timing)
+    ax1.imshow(x_timing, aspect='auto',vmax=vmax,extent=[time[0], time[-1],0,num_timing])
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+    ax1.xaxis.set_tick_params(labelsize=12)
+    ax1.yaxis.set_tick_params(labelsize=12)
+    ax1.set_ylabel('Timing Cells',fontsize=16)
+    ax1.set_xlabel('Time from {} (s)'.format(condition),fontsize=16)
+
+    # Save figure
+    if savefig:
+        filename = PSTH_DIR + \
+            'heatmap_{}_{}_{}.png'.format(cre,condition,experience_level)
+        print('Figure saved to {}'.format(filename))
+        plt.savefig(filename) 
+
+def plot_QQ(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None):
+    
+    # Prep data
+    df = full_df\
+            .query('(condition==@condition)&(experience_level==@experience_level)')\
+            .copy()     
+    df['max'] = [np.nanmax(x) for x in df['response']] 
+ 
+    y = df.query('visual_strategy_session')['max'].values
+    x = df.query('not visual_strategy_session')['max'].values
+    quantiles = np.linspace(start=0,stop=1,num=int(quantiles))
+    x_quantiles = np.nanquantile(x,quantiles, interpolation='linear')[1:-1]
+    y_quantiles = np.nanquantile(y,quantiles, interpolation='linear')[1:-1]
+    max_val = np.max([np.max(x_quantiles),np.max(y_quantiles)])
+    if ax is None:
+        fig, ax = plt.subplots()
+    ax.plot(x_quantiles, y_quantiles, 'o-',alpha=.5)
+    ax.plot([0,1.05*max_val],[0,1.05*max_val],'k--',alpha=.5)
+    ax.set_ylabel('visual session cell quantiles',fontsize=16)
+    ax.set_xlabel('timing session cell quantiles',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)
-    ax.set_ylabel('Cells',fontsize=16)
-    ax.set_xlabel('Time (s)',fontsize=16)
-    plt.tight_layout()
+    ax.set_aspect('equal')
+    ax.set_ylim(bottom=0)
+    ax.set_xlim(left=0)
+    ax.set_title('{}, {}, {}'.format(cre, condition, experience_level),fontsize=16)
+
+    return ax
+
+
+
+
 

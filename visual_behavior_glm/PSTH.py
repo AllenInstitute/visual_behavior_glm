@@ -159,7 +159,7 @@ def plot_split(df, ax,color,error_type = 'sem'):
     
     upper = response + sem
     lower = response - sem
-    ax.fill_between(time, upper, lower, alpha=0.5, color=color)
+    ax.fill_between(time, upper, lower, alpha=0.5, color=color,zorder=-10)
 
     return np.nanmax(upper)
 
@@ -295,6 +295,13 @@ def plot_QQ(full_df,cre,condition,experience_level,savefig=False,quantiles=200,a
     ax.set_ylim(bottom=0)
     ax.set_xlim(left=0)
     ax.set_title('{}, {}, {}'.format(cre, condition, experience_level),fontsize=16)
+
+    # Save figure
+    if savefig:
+        filename = PSTH_DIR + \
+            'QQ_{}_{}_{}.png'.format(cre,condition,experience_level)
+        print('Figure saved to {}'.format(filename))
+        plt.savefig(filename) 
 
     return ax
 

@@ -117,7 +117,7 @@ psth.plot_heatmap(exc_full_df,'Exc', 'omission','Novel >1',savefig=True)
 
 ## QQ Plots 
 ################################################################################
-ax = psth.plot_QQ(vip_full_df, 'Vip','omission','Familar')
+ax = psth.plot_QQ(vip_full_df, 'Vip','omission','Familiar')
 
 
 

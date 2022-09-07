@@ -14,6 +14,10 @@ import visual_behavior.visualization.utils as utils
 
 PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
+def plot_all_conditions(dfs, labels):
+    conditions = dfs[0]['condition'].unique()
+    for c in conditions:
+        plot_condition(dfs, c, labels, savefig=True)
 
 def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
     split_by_engaged=False,plot_strategy='both'):
@@ -61,7 +65,8 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
                 'Familiar','visual_strategy_session', ax=ax[index, 0], title=index==0,
-                ylabel=ylabel,error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+                ylabel=ylabel,error_type=error_type,split_by_engaged=True,
+                plot_strategy=plot_strategy)
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Novel 1',
                 'visual_strategy_session', ax=ax[index, 1], title=index==0,ylabel=ylabel,
@@ -69,7 +74,8 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
                 'Novel 1','visual_strategy_session', ax=ax[index, 1], title=index==0,
-                ylabel=ylabel,error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+                ylabel=ylabel,error_type=error_type,split_by_engaged=True,
+                plot_strategy=plot_strategy)
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Novel >1',
                 'visual_strategy_session', ax=ax[index, 2], title=index==0,ylabel=ylabel,
@@ -77,9 +83,16 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
                 'Novel >1','visual_strategy_session', ax=ax[index, 2], title=index==0,
-                ylabel=ylabel,error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+                ylabel=ylabel,error_type=error_type,split_by_engaged=True,
+                plot_strategy=plot_strategy)
             max_y.append(temp)
             ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+    
+    # Add Title    
+    title_str = condition 
+    plt.suptitle(title_str,fontsize=16)
+    plt.tight_layout()
+
     # Save Figure
     if savefig:
         filename = PSTH_DIR + condition+'_psth.png'

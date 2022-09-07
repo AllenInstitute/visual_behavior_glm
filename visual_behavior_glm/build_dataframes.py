@@ -367,6 +367,7 @@ def get_engagement_check(session, condition):
         #print('D '+condition[0]+' '+str(more_than_threshold_disengaged))
         return more_than_threshold_disengaged 
 
+
 def get_full_average(session, averages, full_df, condition):
  
     # Check to see if this session had sufficient time in the relevant

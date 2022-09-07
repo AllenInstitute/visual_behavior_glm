@@ -14,10 +14,28 @@ import visual_behavior.visualization.utils as utils
 
 PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
+def plot_all_heatmaps(dfs, labels):
+    conditions = dfs[0]['condition'].unique()
+    cres = ['Exc','Sst','Vip']
+    experience = ['Familiar','Novel 1','Novel >1']   
+ 
+    for cre_dex, cre in enumerate(cres):
+        for e in experience:
+            for c in conditions:
+                try:
+                    plot_heatmap(dfs[cre_dex],cre,c,e,savefig=True)
+                except Exception as ex:
+                    print(c)
+                    print(ex)
+
 def plot_all_conditions(dfs, labels):
     conditions = dfs[0]['condition'].unique()
     for c in conditions:
-        plot_condition(dfs, c, labels, savefig=True)
+        try:
+            plot_condition(dfs, c, labels, savefig=True)
+        except Exception as e:
+            print(c)
+            print(e)
 
 def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
     split_by_engaged=False,plot_strategy='both'):
@@ -275,12 +293,60 @@ def plot_heatmap(full_df,cre,condition,experience_level,savefig=False):
 
     # Save figure
     if savefig:
-        filename = PSTH_DIR + \
+        filename = PSTH_DIR + 'heatmap/' + \
             'heatmap_{}_{}_{}.png'.format(cre,condition,experience_level)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
-def plot_QQ(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None):
+def plot_QQ_engagement(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None):
+    
+    # Prep data
+    e_condition = 'engaged_v2_'+condition
+    d_condition = 'disengaged_v2_'+condition
+    df_e = full_df\
+            .query('(condition==@e_condition)&(experience_level==@experience_level)')\
+            .copy()     
+    df_e['max'] = [np.nanmax(x) for x in df_e['response']] 
+
+    df_d = full_df\
+            .query('(condition==@d_condition)&(experience_level==@experience_level)')\
+            .copy()     
+    df_d['max'] = [np.nanmax(x) for x in df_d['response']] 
+ 
+    y = df_e['max'].values
+    x = df_d['max'].values
+    quantiles = np.linspace(start=0,stop=1,num=int(quantiles))
+    x_quantiles = np.nanquantile(x,quantiles, interpolation='linear')[1:-1]
+    y_quantiles = np.nanquantile(y,quantiles, interpolation='linear')[1:-1]
+    max_val = np.max([np.max(x_quantiles),np.max(y_quantiles)])
+    if ax is None:
+        fig, ax = plt.subplots()
+    ax.plot(x_quantiles, y_quantiles, 'o-',alpha=.5)
+    ax.plot([0,1.05*max_val],[0,1.05*max_val],'k--',alpha=.5)
+    ax.set_ylabel('engaged quantiles',fontsize=16)
+    ax.set_xlabel('disengage quantiles',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_aspect('equal')
+    ax.set_ylim(bottom=0)
+    ax.set_xlim(left=0)
+    ax.set_title('{}, {}, {}'.format(cre, condition, experience_level),fontsize=16)
+
+    # Save figure
+    if savefig:
+        filename = PSTH_DIR + 'QQ/' +\
+            'QQ_{}_{}_{}.png'.format(cre,condition,experience_level)
+        print('Figure saved to {}'.format(filename))
+        plt.savefig(filename) 
+
+    return ax
+
+
+
+
+def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None):
     
     # Prep data
     df = full_df\
@@ -311,7 +377,7 @@ def plot_QQ(full_df,cre,condition,experience_level,savefig=False,quantiles=200,a
 
     # Save figure
     if savefig:
-        filename = PSTH_DIR + \
+        filename = PSTH_DIR + 'QQ/' +\
             'QQ_{}_{}_{}.png'.format(cre,condition,experience_level)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 

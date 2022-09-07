@@ -107,13 +107,19 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             ax[index,0].set_ylim(top = 1.05*np.max(max_y))
     
     # Add Title    
-    title_str = condition 
+    title_str = condition
+    if split_by_engaged:
+        title_str = condition + ', '+plot_strategy +' sessions split by engagement' 
     plt.suptitle(title_str,fontsize=16)
     plt.tight_layout()
 
     # Save Figure
     if savefig:
-        filename = PSTH_DIR + condition+'_psth.png'
+        if split_by_engaged:
+            extra_split = '_'+plot_strategy+'_split_by_engagement'
+        else:
+            extra_split = ''
+        filename = PSTH_DIR + condition+'_psth'+extra_split+'.png'
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 

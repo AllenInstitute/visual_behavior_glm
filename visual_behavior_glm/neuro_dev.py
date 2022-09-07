@@ -23,6 +23,7 @@ image_regression.py analyzes the image by image activity of every cell based on 
 '''
 ## Kernel Regression Analyses
 ################################################################################
+
 # Get GLM data (Takes a few minutes)
 GLM_VERSION = '24_events_all_L2_optimize_by_session'
 run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(GLM_VERSION)
@@ -78,15 +79,19 @@ vip_image_df = bd.load_population_df('image_df','Vip-IRES-Cre')
 vip_full_df = bd.load_population_df('full_df','Vip-IRES-Cre')
 
 
-
 ## PSTH - Population average response
 ################################################################################
+
+# Load each cell type
 vip_full_df = bd.load_population_df('full_df','Vip-IRES-Cre')
 sst_full_df = bd.load_population_df('full_df','Sst-IRES-Cre')
 exc_full_df = bd.load_population_df('full_df','Slc17a7-IRES2-Cre')
 
+# merge cell types
 dfs = [exc_full_df, sst_full_df, vip_full_df]
 labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
+    
+# Plot population response
 ax = psth.plot_condition(dfs,'omission',labels)
 ax = psth.plot_condition(dfs,'image',labels)
 ax = psth.plot_condition(dfs,'change',labels)
@@ -99,9 +104,9 @@ ax = psth.plot_condition(dfs, 'omission',labels,
 ax = psth.plot_condition(dfs, 'omission',labels,
     split_by_engaged=True,plot_strategy='timing')
 
+
 ## Population heatmaps
 ################################################################################
-
 psth.plot_heatmap(vip_full_df,'Vip', 'omission','Familiar',savefig=True)
 psth.plot_heatmap(vip_full_df,'Vip', 'omission','Novel 1',savefig=True)
 psth.plot_heatmap(vip_full_df,'Vip', 'omission','Novel >1',savefig=True)
@@ -119,8 +124,6 @@ psth.plot_heatmap(exc_full_df,'Exc', 'omission','Novel >1',savefig=True)
 ################################################################################
 ax = psth.plot_QQ_strategy(vip_full_df, 'Vip','omission','Familiar')
 ax = psth.plot_QQ_engagement(vip_full_df, 'Vip','omission','Familiar')
-
-
 
 
 ## Image by Image regression

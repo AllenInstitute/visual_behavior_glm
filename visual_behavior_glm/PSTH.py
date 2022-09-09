@@ -37,6 +37,50 @@ def plot_all_conditions(dfs, labels):
             print(c)
             print(e)
 
+def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both'):
+    # If we have just one cell type, wrap in a list 
+    if type(dfs)!=list:
+        dfs = [dfs]
+    
+    # Determine the number of cell types
+    num_rows = len(dfs)
+    fig, ax = plt.subplots(num_rows,3,figsize=(10,2.75*num_rows),sharey='row',
+        squeeze=False)
+
+    colors = plt.get_cmap('tab10') 
+    # Iterate over conditions, and cell types
+    for index, full_df, in enumerate(dfs):
+        if labels is None:
+            ylabel='Population Average'
+        else:
+            ylabel=labels[index]
+        max_y = []
+        for cdex, condition in enumerate(conditions):
+            color = colors(cdex+2)
+            max_y.append(plot_condition_experience(full_df, condition, 'Familiar',
+                'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel, 
+                plot_strategy=plot_strategy,set_color=color))
+            max_y.append(plot_condition_experience(full_df, condition, 'Novel 1',
+                'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='', 
+                plot_strategy=plot_strategy,set_color=color))
+            max_y.append(plot_condition_experience(full_df, condition, 'Novel >1',
+                'visual_strategy_session', ax=ax[index, 2],title=index==0,ylabel='', 
+                plot_strategy=plot_strategy,set_color=color))
+        ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+
+    # Add Title 
+    title_str = plot_strategy+': '+', '.join(conditions)
+    plt.suptitle(title_str,fontsize=16)
+    plt.tight_layout()
+
+    # Save Figure
+    if savefig:
+        filename = PSTH_DIR + plot_strategy+'_'+'_',join(conditions)+'_psth.png'
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+
+    return ax
+
 def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
     split_by_engaged=False,plot_strategy='both'):
     '''
@@ -127,7 +171,7 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 
 def plot_condition_experience(full_df, condition, experience_level, split, 
     ax=None,ylabel='Population Average',xlabel=True,title=False,error_type='sem',
-    split_by_engaged=False, plot_strategy ='both'):
+    split_by_engaged=False, plot_strategy ='both',set_color=None):
     
     if ax is None:
         fig, ax = plt.subplots()
@@ -142,16 +186,19 @@ def plot_condition_experience(full_df, condition, experience_level, split,
     split_vals = np.sort(df[split].unique())
     responses = []
     for val in split_vals:
-        if (split == 'visual_strategy_session') and val:
-            color = colors['visual']
-            if split_by_engaged and ('disengaged' in condition):
-                color='gray'
-        elif  (split == 'visual_strategy_session') and (not val):
-            color = colors['timing']
-            if split_by_engaged and ('disengaged' in condition):
-                color='gray'
+        if set_color is not None:
+            color = set_color
         else:
-            color = 'k'
+            if (split == 'visual_strategy_session') and val:
+                color = colors['visual']
+                if split_by_engaged and ('disengaged' in condition):
+                    color='gray'
+            elif  (split == 'visual_strategy_session') and (not val):
+                color = colors['timing']
+                if split_by_engaged and ('disengaged' in condition):
+                    color='gray'
+            else:
+                color = 'k'
         r = plot_split(df.query('{}==@val'.format(split)),ax,color=color,
             error_type=error_type)
         responses.append(r)
@@ -178,7 +225,7 @@ def plot_condition_experience(full_df, condition, experience_level, split,
     ax.yaxis.set_tick_params(labelsize=12)
     plt.tight_layout()
 
-    return np.nanmax(responses)
+    return np.max([ax.get_ylim()[1],np.nanmax(responses)])
 
 def plot_split(df, ax,color,error_type = 'sem'):
     # Plot mean
@@ -196,7 +243,7 @@ def plot_split(df, ax,color,error_type = 'sem'):
     
     upper = response + sem
     lower = response - sem
-    ax.fill_between(time, upper, lower, alpha=0.5, color=color,zorder=-10)
+    ax.fill_between(time, upper, lower, alpha=0.25, color=color,zorder=-10)
 
     return np.nanmax(upper)
 

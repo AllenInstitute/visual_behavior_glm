@@ -104,6 +104,9 @@ ax = psth.plot_condition(dfs, 'omission',labels,
 ax = psth.plot_condition(dfs, 'omission',labels,
     split_by_engaged=True,plot_strategy='timing')
 
+# Can compare any set of conditions
+ax = psth.plot_condition(dfs, ['hit','miss'], labels, plot_strategy='visual')
+
 
 ## Population heatmaps
 ################################################################################

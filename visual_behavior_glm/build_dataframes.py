@@ -11,15 +11,15 @@ import psy_output_tools as po
 BEHAVIOR_VERSION = 21
 
 
-def load_population_df(df_type,cre):
+def load_population_df(data,df_type,cre):
     path ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-        +df_type+'s/summary_'+cre+'.feather'
+        +df_type+'s/'+data+'/summary_'+cre+'.feather'
     df = pd.read_feather(path)
     return df
 
 
-def build_population_df(summary_df,df_type='image_df',savefile=True,
-    cre='Vip-IRES-Cre'):
+def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
+    data='filtered_events',savefile=True,):
 
     batch_size=50
     batch=False
@@ -60,7 +60,7 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
 
     for idx,value in tqdm(enumerate(oeids),total = num_rows):
         try:
-            path=get_path('',value, 'experiment',df_type)
+            path=get_path('',value, 'experiment',df_type,data)
             this_df = pd.read_hdf(path)
             if df_type == 'image_df':
                 this_df = this_df.drop(columns=cols_to_drop)
@@ -70,20 +70,23 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
         if batch:
             if np.mod(idx,batch_size) == batch_size-1:
                 temp = pd.concat(dfs, ignore_index=True, sort=False)
-                path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/temp_'+str(batch_num)+'_'+cre+'.feather'
+                path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
+                    +df_type+'s/'+data+'/temp_'+str(batch_num)+'_'+cre+'.feather'
                 temp.to_feather(path)
                 batch_num+=1
                 dfs = []
 
     if batch:
         temp = pd.concat(dfs, ignore_index=True, sort=False)
-        path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/temp_'+str(batch_num)+'_'+cre+'.feather'
+        path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
+            +df_type+'s/'+data+'/temp_'+str(batch_num)+'_'+cre+'.feather'
         temp.to_feather(path)
 
         n = list(range(0,batch_num+1))
         dfs = []
         for i in n:
-            path='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'+df_type+'s/temp_'+str(i)+'_'+cre+'.feather'
+            path='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
+                +df_type+'s/'+data+'/temp_'+str(i)+'_'+cre+'.feather'
             temp = pd.read_feather(path)
             dfs.append(temp)
  
@@ -96,7 +99,7 @@ def build_population_df(summary_df,df_type='image_df',savefile=True,
     if savefile:
         print('saving')
         path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-            +df_type+'s/summary_'+cre+'.feather'
+            +df_type+'s/'+data+'/summary_'+cre+'.feather'
         try:
             population_df.to_feather(path)
         except Exception as e:
@@ -132,7 +135,7 @@ def temporary_engagement_updates(session):
         & session.behavior_df['lick_bout_rate'] > 0.1
 
 
-def build_response_df_experiment(session):
+def build_response_df_experiment(session,data):
     '''
         For each cell in this experiment
     '''
@@ -150,14 +153,14 @@ def build_response_df_experiment(session):
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
-            this_image = build_response_df_cell(session, cell_id)
+            this_image = build_response_df_cell(session, cell_id,data)
             image_dfs.append(this_image)
         except Exception as e:
             print('error with '+str(cell_id))
             print(e)
 
     print('saving combined image df')
-    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','image_df')
+    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','image_df',data)
     image_df = pd.concat(image_dfs)
     image_df.to_hdf(path, key='df')
 
@@ -166,31 +169,31 @@ def build_response_df_experiment(session):
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
-            this_full = build_full_df_cell(session, cell_id,summary_df)
+            this_full = build_full_df_cell(session, cell_id,summary_df,data)
             full_dfs.append(this_full)
         except Exception as e:
             print('error with '+str(cell_id))
             print(e)
 
     print('saving combined full df')
-    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','full_df')
+    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','full_df',data)
     full_df = pd.concat(full_dfs)
     full_df.to_hdf(path, key='df')
 
     print('Finished!')
 
 
-def get_path(cell_id, oeid, filetype,df_type):
+def get_path(cell_id, oeid, filetype,df_type,data):
     root = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
-    filepath = root+df_type+'s/'+filetype+'s/'+str(oeid)+'_'+str(cell_id)+'.h5'
+    filepath = root+df_type+'s/'+data+'/'+filetype+'s/'+str(oeid)+'_'+str(cell_id)+'.h5'
    
     return filepath
 
 
-def build_response_df_cell(session, cell_specimen_id):
+def build_response_df_cell(session, cell_specimen_id,data):
 
     # Get neural activity
-    cell_df = get_cell_df(session,cell_specimen_id)
+    cell_df = get_cell_df(session,cell_specimen_id,data)
 
     # get running speed
     try:
@@ -211,16 +214,20 @@ def build_response_df_cell(session, cell_specimen_id):
         pupil_df = None
  
     # Get the max response to each image presentation   
-    image_df = get_image_df(cell_df, run_df, pupil_df, session, cell_specimen_id) 
+    image_df = get_image_df(cell_df, run_df, pupil_df, session, cell_specimen_id,data) 
     return image_df
 
 
-def get_cell_df(session, cell_specimen_id, data_type='filtered_events'):
+def get_cell_df(session, cell_specimen_id, data='filtered_events'):
     '''
         Builds a dataframe of the neural activity
     '''
     timestamps = session.ophys_timestamps
-    traces = session.events.loc[cell_specimen_id,data_type]
+    if data in ['filtered_events','events']:
+        traces = session.events.loc[cell_specimen_id,data_type]
+    elif data in ['dff']:
+        traces = session.dff_traces.loc[cell_specimen_id, data_type]
+        
     df = pd.DataFrame()
     df['t'] = timestamps
     df['response'] = traces
@@ -269,7 +276,7 @@ def get_cell_etr(df,session,time = [0.05,0.8]):
     return etr
 
    
-def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id):
+def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data):
 
     # Interpolate neural activity onto stimulus timestamps
     # then align to stimulus times
@@ -295,23 +302,23 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id):
 
     # Save
     ophys_experiment_id = session.metadata['ophys_experiment_id']
-    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','image_df')
+    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','image_df',data)
     image_df.to_hdf(path,key='df')
 
     return image_df
 
 
-def build_full_df_cell(session, cell_specimen_id,summary_df):
+def build_full_df_cell(session, cell_specimen_id,summary_df,data):
 
     # Get neural activity
-    cell_df = get_cell_df(session,cell_specimen_id)
+    cell_df = get_cell_df(session,cell_specimen_id,data)
     
     # Get the max response to each image presentation   
-    full_df = get_full_df(cell_df, session, cell_specimen_id,summary_df) 
+    full_df = get_full_df(cell_df, session, cell_specimen_id,summary_df,data) 
     return full_df
 
     
-def get_full_df(cell_df, session,cell_specimen_id,summary_df):
+def get_full_df(cell_df, session,cell_specimen_id,summary_df,data):
     
     # Interpolate, then align to all images with long window
     full_df = get_cell_etr(cell_df, session, time = [-2,2])
@@ -342,7 +349,7 @@ def get_full_df(cell_df, session,cell_specimen_id,summary_df):
  
     # Save
     ophys_experiment_id = session.metadata['ophys_experiment_id']
-    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','full_df')
+    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','full_df',data)
     averages.to_hdf(path,key='df')
 
     return averages

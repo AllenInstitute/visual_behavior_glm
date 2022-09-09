@@ -69,64 +69,67 @@ gst.scatter_dataset(results_pivoted_beh, run_params)
 # Build single session
 oeid = summary_df.iloc[0]['ophys_experiment_id'][0]
 session = bd.load_data(oeid)
-bd.build_response_df_experiment(session)
+bd.build_response_df_experiment(session,'filtered_events')
 
 # Aggregate from hpc results
-bd.build_population_df('full_df','Vip-IRES-Cre')
+bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','filtered_events')
+bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','events')
+bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','dff')
 
 # load finished dataframes
-vip_image_df = bd.load_population_df('image_df','Vip-IRES-Cre')
-vip_full_df = bd.load_population_df('full_df','Vip-IRES-Cre')
+vip_image_df_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+vip_full_df_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
 
 
 ## PSTH - Population average response
 ################################################################################
 
 # Load each cell type
-vip_full_df = bd.load_population_df('full_df','Vip-IRES-Cre')
-sst_full_df = bd.load_population_df('full_df','Sst-IRES-Cre')
-exc_full_df = bd.load_population_df('full_df','Slc17a7-IRES2-Cre')
+vip_full_df_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
+sst_full_df_filtered = bd.load_population_df('filtered_events','full_df','Sst-IRES-Cre')
+exc_full_df_filtered = bd.load_population_df('filtered_events','full_df','Slc17a7-IRES2-Cre')
 
 # merge cell types
-dfs = [exc_full_df, sst_full_df, vip_full_df]
+dfs_filtered = [exc_full_df_filtered, sst_full_df_filtered, vip_full_df_filtered]
 labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
     
 # Plot population response
-ax = psth.plot_condition(dfs,'omission',labels)
-ax = psth.plot_condition(dfs,'image',labels)
-ax = psth.plot_condition(dfs,'change',labels)
-ax = psth.plot_condition(dfs,'hit',labels)
-ax = psth.plot_condition(dfs,'miss',labels)
+ax = psth.plot_condition(dfs_filtered,'omission',labels,data='filtered_events')
+ax = psth.plot_condition(dfs_filtered,'image',labels,data='filtered_events')
+ax = psth.plot_condition(dfs_filtered,'change',labels,data='filtered_events')
+ax = psth.plot_condition(dfs_filtered,'hit',labels,data='filtered_events')
+ax = psth.plot_condition(dfs_filtered,'miss',labels,data='filtered_events')
 
 # Can split by engagement, generally should plot one strategy at a time
-ax = psth.plot_condition(dfs, 'omission',labels,
-    split_by_engaged=True,plot_strategy='visual')
-ax = psth.plot_condition(dfs, 'omission',labels,
-    split_by_engaged=True,plot_strategy='timing')
+ax = psth.plot_condition(dfs_filtered, 'omission',labels,
+    split_by_engaged=True,plot_strategy='visual',data='filtered_events')
+ax = psth.plot_condition(dfs_filtered, 'omission',labels,
+    split_by_engaged=True,plot_strategy='timing',data='filtered_events')
 
 # Can compare any set of conditions
-ax = psth.plot_condition(dfs, ['hit','miss'], labels, plot_strategy='visual')
+ax = psth.compare_condition(dfs_filtered, ['hit','miss'], labels, plot_strategy='visual',
+    data='filtered_events')
 
 
 ## Population heatmaps
 ################################################################################
-psth.plot_heatmap(vip_full_df,'Vip', 'omission','Familiar',savefig=True)
-psth.plot_heatmap(vip_full_df,'Vip', 'omission','Novel 1',savefig=True)
-psth.plot_heatmap(vip_full_df,'Vip', 'omission','Novel >1',savefig=True)
+psth.plot_heatmap(vip_full_df_filtered,'Vip', 'omission','Familiar',data='filtered_events')
+psth.plot_heatmap(vip_full_df_filtered,'Vip', 'omission','Novel 1',data='filtered_events')
+psth.plot_heatmap(vip_full_df_filtered,'Vip', 'omission','Novel >1',data='filtered_events')
 
-psth.plot_heatmap(sst_full_df,'Sst', 'omission','Familiar',savefig=True)
-psth.plot_heatmap(sst_full_df,'Sst', 'omission','Novel 1',savefig=True)
-psth.plot_heatmap(sst_full_df,'Sst', 'omission','Novel >1',savefig=True)
+psth.plot_heatmap(sst_full_df_filtered,'Sst', 'omission','Familiar',data='filtered_events')
+psth.plot_heatmap(sst_full_df_filtered,'Sst', 'omission','Novel 1',data='filtered_events')
+psth.plot_heatmap(sst_full_df_filtered,'Sst', 'omission','Novel >1',data='filtered_events')
 
-psth.plot_heatmap(exc_full_df,'Exc', 'omission','Familiar',savefig=True)
-psth.plot_heatmap(exc_full_df,'Exc', 'omission','Novel 1',savefig=True)
-psth.plot_heatmap(exc_full_df,'Exc', 'omission','Novel >1',savefig=True)
+psth.plot_heatmap(exc_full_df_filtered,'Exc', 'omission','Familiar',data='filtered_events')
+psth.plot_heatmap(exc_full_df_filtered,'Exc', 'omission','Novel 1',data='filtered_events')
+psth.plot_heatmap(exc_full_df_filtered,'Exc', 'omission','Novel >1',data='filtered_events')
 
 
 ## QQ Plots 
 ################################################################################
-ax = psth.plot_QQ_strategy(vip_full_df, 'Vip','omission','Familiar')
-ax = psth.plot_QQ_engagement(vip_full_df, 'Vip','omission','Familiar')
+ax = psth.plot_QQ_strategy(vip_full_df_filtered, 'Vip','omission','Familiar',data='filtered_events')
+ax = psth.plot_QQ_engagement(vip_full_df_filtered, 'Vip','omission','Familiar',data='filtered_events')
 
 
 ## Image by Image regression

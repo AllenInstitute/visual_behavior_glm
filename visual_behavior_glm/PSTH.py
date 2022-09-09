@@ -14,7 +14,7 @@ import visual_behavior.visualization.utils as utils
 
 PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
-def plot_all_heatmaps(dfs, labels):
+def plot_all_heatmaps(dfs, labels,data='filtered_events'):
     conditions = dfs[0]['condition'].unique()
     cres = ['Exc','Sst','Vip']
     experience = ['Familiar','Novel 1','Novel >1']   
@@ -23,21 +23,21 @@ def plot_all_heatmaps(dfs, labels):
         for e in experience:
             for c in conditions:
                 try:
-                    plot_heatmap(dfs[cre_dex],cre,c,e,savefig=True)
+                    plot_heatmap(dfs[cre_dex],cre,c,e,savefig=True,data=data)
                 except Exception as ex:
                     print(c)
                     print(ex)
 
-def plot_all_conditions(dfs, labels):
+def plot_all_conditions(dfs, labels,data='filtered_events'):
     conditions = dfs[0]['condition'].unique()
     for c in conditions:
         try:
-            plot_condition(dfs, c, labels, savefig=True)
+            plot_condition(dfs, c, labels, savefig=True,data=data)
         except Exception as e:
             print(c)
             print(e)
 
-def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both'):
+def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both',data='filtered_events'):
     # If we have just one cell type, wrap in a list 
     if type(dfs)!=list:
         dfs = [dfs]
@@ -75,14 +75,15 @@ def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='bo
 
     # Save Figure
     if savefig:
-        filename = PSTH_DIR + plot_strategy+'_'+'_',join(conditions)+'_psth.png'
+        filename = PSTH_DIR + data+'/population_averages/'+\
+            plot_strategy+'_'+'_'.join(conditions)+'_psth.png'
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 
     return ax
 
 def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
-    split_by_engaged=False,plot_strategy='both'):
+    split_by_engaged=False,plot_strategy='both',data='filtered_events'):
     '''
         Plot the population average response to condition for each element of dfs
 
@@ -163,7 +164,8 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             extra_split = '_'+plot_strategy+'_split_by_engagement'
         else:
             extra_split = ''
-        filename = PSTH_DIR + condition+'_psth'+extra_split+'.png'
+        filename = PSTH_DIR + data+'/population_averages/'+\
+            condition+'_psth'+extra_split+'.png'
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 
@@ -284,7 +286,7 @@ def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False):
         ax.axvspan(amin, amax, color='k',alpha=.1,zorder=1)
     return ax
 
-def plot_heatmap(full_df,cre,condition,experience_level,savefig=False):
+def plot_heatmap(full_df,cre,condition,experience_level,savefig=False,data='filtered_events'):
 
     # Set up multi-axis figure
     height = 5
@@ -346,12 +348,13 @@ def plot_heatmap(full_df,cre,condition,experience_level,savefig=False):
 
     # Save figure
     if savefig:
-        filename = PSTH_DIR + 'heatmap/' + \
+        filename = PSTH_DIR + data+'/heatmap/' + \
             'heatmap_{}_{}_{}.png'.format(cre,condition,experience_level)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
-def plot_QQ_engagement(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None):
+def plot_QQ_engagement(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None,
+    data='filtered_events'):
     
     # Prep data
     e_condition = 'engaged_v2_'+condition
@@ -389,7 +392,7 @@ def plot_QQ_engagement(full_df,cre,condition,experience_level,savefig=False,quan
 
     # Save figure
     if savefig:
-        filename = PSTH_DIR + 'QQ/' +\
+        filename = PSTH_DIR + data+'/QQ/' +\
             'QQ_{}_{}_{}.png'.format(cre,condition,experience_level)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
@@ -399,7 +402,8 @@ def plot_QQ_engagement(full_df,cre,condition,experience_level,savefig=False,quan
 
 
 
-def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None):
+def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None,
+    data='filtered_events'):
     
     # Prep data
     df = full_df\
@@ -430,7 +434,7 @@ def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,quanti
 
     # Save figure
     if savefig:
-        filename = PSTH_DIR + 'QQ/' +\
+        filename = PSTH_DIR + data+'/QQ/' +\
             'QQ_{}_{}_{}.png'.format(cre,condition,experience_level)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 

@@ -21,7 +21,7 @@ if __name__ == "__main__":
     python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/response_dataframes.py"
     glm_version = '24_events_all_L2_optimize_by_session'
     stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
-    stdout_location = os.path.join(stdout_basedir, 'job_records_response_dataframes')
+    stdout_location = os.path.join(stdout_basedir, 'job_records_response_dataframes_dff')
     if not os.path.exists(stdout_location):
         print('making folder {}'.format(stdout_location))
         os.mkdir(stdout_location)

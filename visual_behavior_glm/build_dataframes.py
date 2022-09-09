@@ -224,9 +224,9 @@ def get_cell_df(session, cell_specimen_id, data='filtered_events'):
     '''
     timestamps = session.ophys_timestamps
     if data in ['filtered_events','events']:
-        traces = session.events.loc[cell_specimen_id,data_type]
+        traces = session.events.loc[cell_specimen_id,data]
     elif data in ['dff']:
-        traces = session.dff_traces.loc[cell_specimen_id, data_type]
+        traces = session.dff_traces.loc[cell_specimen_id, data]
         
     df = pd.DataFrame()
     df['t'] = timestamps

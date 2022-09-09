@@ -107,7 +107,7 @@ ax = psth.plot_condition(dfs_filtered, 'omission',labels,
     split_by_engaged=True,plot_strategy='timing',data='filtered_events')
 
 # Can compare any set of conditions
-ax = psth.plot_condition(dfs_filtered, ['hit','miss'], labels, plot_strategy='visual',
+ax = psth.compare_condition(dfs_filtered, ['hit','miss'], labels, plot_strategy='visual',
     data='filtered_events')
 
 

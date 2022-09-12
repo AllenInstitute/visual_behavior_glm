@@ -135,6 +135,59 @@ def temporary_engagement_updates(session):
         & session.behavior_df['lick_bout_rate'] > 0.1
 
 
+def build_behavior_df_experiment(session):
+    '''
+        For each cell in this experiment
+    '''
+
+    # get session level behavior metrics
+    load_behavior_summary(session)
+
+    # Get summary table
+    summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION) 
+
+    data_types = ['running','pupil']
+    good = True
+    for data in data_types:
+        try:
+            print('Generating {} dataset'.format(data))
+            if data == 'running':
+                full_df = get_running_etr(session, time=[-2,2])
+                full_df = full_df.rename(columns={'speed':'response'})
+            else:
+                full_df = get_pupil_etr(session, time=[-2,2])
+                full_df = full_df.rename(columns={'pupil_width':'response'})
+    
+            full_df = pd.merge(full_df, session.behavior_df, 
+                on='stimulus_presentations_id')
+            full_df['mouse_id'] = session.metadata['mouse_id']
+            full_df['behavior_session_id'] = session.metadata['behavior_session_id']   
+            full_df['ophys_experiment_id'] = session.metadata['ophys_experiment_id']
+            full_df['cre_line'] = session.metadata['cre_line']
+    
+            averages = pd.DataFrame()
+            conditions = get_conditions()
+            for c in conditions:
+                averages = get_full_average(session, averages, full_df, conditions[c])
+    
+            bsid = session.metadata['behavior_session_id']
+            row = summary_df.set_index('behavior_session_id').loc[bsid]
+            averages['experience_level'] = row['experience_level']
+            averages['visual_strategy_session'] = row['visual_strategy_session']
+     
+            # Save
+            ophys_experiment_id = session.metadata['ophys_experiment_id']
+            path = get_path('', ophys_experiment_id, 'experiment','full_df',data)
+            averages.to_hdf(path,key='df')
+        except Exception as e:
+            print(e)
+            good = False
+    if good:
+        print('Finished!')
+    else:
+        print('errors')
+
+
 def build_response_df_experiment(session,data):
     '''
         For each cell in this experiment
@@ -160,7 +213,8 @@ def build_response_df_experiment(session,data):
             print(e)
 
     print('saving combined image df')
-    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','image_df',data)
+    path = get_path('',session.metadata['ophys_experiment_id'],'experiment',
+        'image_df',data)
     image_df = pd.concat(image_dfs)
     image_df.to_hdf(path, key='df')
 

@@ -70,6 +70,7 @@ gst.scatter_dataset(results_pivoted_beh, run_params)
 oeid = summary_df.iloc[0]['ophys_experiment_id'][0]
 session = bd.load_data(oeid)
 bd.build_response_df_experiment(session,'filtered_events')
+bd.build_behavior_df_experiment(session)
 
 # Aggregate from hpc results
 bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','filtered_events')
@@ -77,20 +78,20 @@ bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','events')
 bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','dff')
 
 # load finished dataframes
-vip_image_df_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
-vip_full_df_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
+vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
 
 
 ## PSTH - Population average response
 ################################################################################
 
 # Load each cell type
-vip_full_df_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
-sst_full_df_filtered = bd.load_population_df('filtered_events','full_df','Sst-IRES-Cre')
-exc_full_df_filtered = bd.load_population_df('filtered_events','full_df','Slc17a7-IRES2-Cre')
+vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
+sst_full_filtered = bd.load_population_df('filtered_events','full_df','Sst-IRES-Cre')
+exc_full_filtered = bd.load_population_df('filtered_events','full_df','Slc17a7-IRES2-Cre')
 
 # merge cell types
-dfs_filtered = [exc_full_df_filtered, sst_full_df_filtered, vip_full_df_filtered]
+dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]
 labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
     
 # Plot population response
@@ -113,23 +114,34 @@ ax = psth.compare_condition(dfs_filtered, ['hit','miss'], labels, plot_strategy=
 
 ## Population heatmaps
 ################################################################################
-psth.plot_heatmap(vip_full_df_filtered,'Vip', 'omission','Familiar',data='filtered_events')
-psth.plot_heatmap(vip_full_df_filtered,'Vip', 'omission','Novel 1',data='filtered_events')
-psth.plot_heatmap(vip_full_df_filtered,'Vip', 'omission','Novel >1',data='filtered_events')
+psth.plot_heatmap(vip_full_filtered,'Vip', 'omission','Familiar',\
+	data='filtered_events')
+psth.plot_heatmap(vip_full_filtered,'Vip', 'omission','Novel 1',\
+	data='filtered_events')
+psth.plot_heatmap(vip_full_filtered,'Vip', 'omission','Novel >1',\
+	data='filtered_events')
 
-psth.plot_heatmap(sst_full_df_filtered,'Sst', 'omission','Familiar',data='filtered_events')
-psth.plot_heatmap(sst_full_df_filtered,'Sst', 'omission','Novel 1',data='filtered_events')
-psth.plot_heatmap(sst_full_df_filtered,'Sst', 'omission','Novel >1',data='filtered_events')
+psth.plot_heatmap(sst_full_filtered,'Sst', 'omission','Familiar',\
+	data='filtered_events')
+psth.plot_heatmap(sst_full_filtered,'Sst', 'omission','Novel 1',\
+	data='filtered_events')
+psth.plot_heatmap(sst_full_filtered,'Sst', 'omission','Novel >1',\
+	data='filtered_events')
 
-psth.plot_heatmap(exc_full_df_filtered,'Exc', 'omission','Familiar',data='filtered_events')
-psth.plot_heatmap(exc_full_df_filtered,'Exc', 'omission','Novel 1',data='filtered_events')
-psth.plot_heatmap(exc_full_df_filtered,'Exc', 'omission','Novel >1',data='filtered_events')
+psth.plot_heatmap(exc_full_filtered,'Exc', 'omission','Familiar',\
+	data='filtered_events')
+psth.plot_heatmap(exc_full_filtered,'Exc', 'omission','Novel 1',\
+	data='filtered_events')
+psth.plot_heatmap(exc_full_filtered,'Exc', 'omission','Novel >1',\
+	data='filtered_events')
 
 
 ## QQ Plots 
 ################################################################################
-ax = psth.plot_QQ_strategy(vip_full_df_filtered, 'Vip','omission','Familiar',data='filtered_events')
-ax = psth.plot_QQ_engagement(vip_full_df_filtered, 'Vip','omission','Familiar',data='filtered_events')
+ax = psth.plot_QQ_strategy(vip_full_filtered, 'Vip','omission','Familiar',\
+	data='filtered_events')
+ax = psth.plot_QQ_engagement(vip_full_filtered, 'Vip','omission','Familiar',\
+	data='filtered_events')
 
 
 ## Image by Image regression

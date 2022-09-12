@@ -70,6 +70,7 @@ gst.scatter_dataset(results_pivoted_beh, run_params)
 oeid = summary_df.iloc[0]['ophys_experiment_id'][0]
 session = bd.load_data(oeid)
 bd.build_response_df_experiment(session,'filtered_events')
+bd.build_behavior_df_experiment(session)
 
 # Aggregate from hpc results
 bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','filtered_events')

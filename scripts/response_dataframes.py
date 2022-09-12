@@ -14,5 +14,6 @@ parser.add_argument(
 if __name__ == '__main__':
     args = parser.parse_args()
     session = bd.load_data(args.ophys_experiment_id)
-    data = 'dff'
-    bd.build_response_df_experiment(session,data)
+    #data = 'dff'
+    #bd.build_response_df_experiment(session,data)
+    bd.build_behavior_df_experiment(session)

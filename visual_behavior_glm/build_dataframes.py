@@ -49,7 +49,12 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
         'image_correct_reject',
         'correct_reject_rate',
         'd_prime',
-        'criterion'
+        'criterion',
+        'licked',
+        'engaged',
+        'RT',
+        'rewarded',
+        'false_alarm_rate'
         ]
 
     # load

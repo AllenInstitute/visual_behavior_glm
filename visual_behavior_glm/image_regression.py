@@ -25,20 +25,20 @@ def omission_analysis(vip_image_df,condition='omitted', experience_level='Famili
     ax[0].yaxis.set_tick_params(labelsize=12)  
     ax[0].legend() 
 
-    df = df.query('had_response').copy()
+    #df = df.query('had_response').copy()
     
     ax[1].hist(df.query('visual_strategy_session')['response'], density=True, 
-        bins=np.linspace(0,1,400),color='orange', alpha=.5,label='Visual')
+        bins=np.linspace(0,1,100),color='orange', alpha=.5,label='Visual')
     ax[1].hist(df.query('not visual_strategy_session')['response'], density=True, 
-        bins=np.linspace(0,1,400),color='blue',alpha=.5,label='Timing')
+        bins=np.linspace(0,1,100),color='blue',alpha=.5,label='Timing')
     ax[1].set_ylabel('Prob. (omissions)',fontsize=16)
     ax[1].set_xlabel('Response amplitude',fontsize=16)
     ax[1].spines['right'].set_visible(False)
     ax[1].spines['top'].set_visible(False)
     ax[1].xaxis.set_tick_params(labelsize=12)
     ax[1].yaxis.set_tick_params(labelsize=12)  
-    ax[1].set_xlim(0,1)
-    #ax[1].set_ylim(top=12)
+    #ax[1].set_xlim(0,1)
+    ax[1].set_ylim(top=5)
     ax[1].legend() 
 
     plt.suptitle('Vip, Omission, Familiar',fontsize=16)

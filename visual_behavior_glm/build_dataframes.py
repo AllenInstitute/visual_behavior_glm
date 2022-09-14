@@ -11,10 +11,16 @@ import psy_output_tools as po
 BEHAVIOR_VERSION = 21
 
 
-def load_population_df(data,df_type,cre):
+def load_population_df(data,df_type,cre,summary_df=None):
     path ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
         +df_type+'s/'+data+'/summary_'+cre+'.feather'
     df = pd.read_feather(path)
+
+    if (df_type =='image_df') and (summary_df is not None):
+        cols = ['behavior_session_id','visual_strategy_session',
+            'experience_level']
+        df = pd.merge(df, summary_df[cols],
+            on='behavior_session_id')
     return df
 
 

@@ -2,8 +2,66 @@ import numpy as np
 import pandas as pd
 import mindscope_utilities as m
 import matplotlib.pyplot as plt
+from sklearn.linear_model import GammaRegressor
 
+def omission_analysis(vip_image_df,condition='omitted', experience_level='Familiar'):
+    df = vip_image_df.query('{} & (experience_level == @experience_level)'.format(condition)).copy()
+    df['had_response'] = df['response'] > 0
+    response_prob = df\
+        .groupby(['cell_specimen_id'])[['visual_strategy_session','had_response']]\
+        .mean()
+    response_prob['visual_strategy_session'] = response_prob['visual_strategy_session'].astype(bool)
 
+    fig, ax = plt.subplots(1,2,figsize=(6,3))     
+    ax[0].hist(response_prob.query('visual_strategy_session')['had_response'],
+        density=True, bins=np.linspace(0,1,50), color='orange',alpha=.5,label='Visual')
+    ax[0].hist(response_prob.query('not visual_strategy_session')['had_response'],
+        density=True, bins=np.linspace(0,1,50), color='blue',alpha=.5,label='Timing')
+    ax[0].set_ylabel('Prob. (cells)',fontsize=16)
+    ax[0].set_xlabel('Response probability',fontsize=16)
+    ax[0].spines['right'].set_visible(False)
+    ax[0].spines['top'].set_visible(False)
+    ax[0].xaxis.set_tick_params(labelsize=12)
+    ax[0].yaxis.set_tick_params(labelsize=12)  
+    ax[0].legend() 
+
+    df = df.query('had_response').copy()
+    
+    ax[1].hist(df.query('visual_strategy_session')['response'], density=True, 
+        bins=np.linspace(0,1,400),color='orange', alpha=.5,label='Visual')
+    ax[1].hist(df.query('not visual_strategy_session')['response'], density=True, 
+        bins=np.linspace(0,1,400),color='blue',alpha=.5,label='Timing')
+    ax[1].set_ylabel('Prob. (omissions)',fontsize=16)
+    ax[1].set_xlabel('Response amplitude',fontsize=16)
+    ax[1].spines['right'].set_visible(False)
+    ax[1].spines['top'].set_visible(False)
+    ax[1].xaxis.set_tick_params(labelsize=12)
+    ax[1].yaxis.set_tick_params(labelsize=12)  
+    ax[1].set_xlim(0,1)
+    #ax[1].set_ylim(top=12)
+    ax[1].legend() 
+
+    plt.suptitle('Vip, Omission, Familiar',fontsize=16)
+    plt.tight_layout()
+
+def gamma(df):
+    df = df.query('omitted &(experience_level == "Familiar") & (response > 0.015)').copy()
+     
+
+def histogram_response(df,condition,cell='r'):
+    fig, ax =plt.subplots()
+    bins =np.linspace(0,1,400)
+    df = df.query('omitted & (experience_level == "Familiar")')
+    #plt.hist(df['response'],bins=bins)
+    plt.hist(df.query('visual_strategy_session')['response'],
+        bins=bins,alpha=.5,label='visual',density=True)
+    plt.hist(df.query('not visual_strategy_session')['response'],
+        bins=bins,alpha=.5,label='timing',density=True)
+    plt.ylim(top=5)
+    plt.xlim(0,1)
+    plt.legend()
+    plt.xlabel('Response')
+    plt.ylabel('count')
 
 def plot_QQ_engagement(image_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None,
     data='filtered_events'):

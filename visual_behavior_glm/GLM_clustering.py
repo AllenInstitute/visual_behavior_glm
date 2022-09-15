@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.stats import chisquare
+from scipy.stats import chi2_contingency
 from scipy.stats import power_divergence
 from scipy.stats import fisher_exact
 import FisherExact
@@ -9,6 +10,52 @@ import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 filedir = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_24_events_all_L2_optimize_by_session/figures/clustering/'
+
+def compare_stats(num_shuffles=1000):
+    plt.figure()
+    for i in np.arange(100,1000,10):
+        stats = compare_shuffle(n=i,num_shuffles=num_shuffles)
+        pval = stats[0]
+        chi = stats[1]
+        if i==100:
+            plt.plot(i,chi,'bo',label='chi-2')
+            plt.plot(i,pval,'ro',label='distribution')
+        else:
+            plt.plot(i,chi,'bo')
+            plt.plot(i,pval,'ro')
+
+    plt.axhline(.05, linestyle='--',color='k')
+    plt.legend()
+    plt.ylabel('p value')
+    plt.xlabel('num cells')
+    plt.ylim(0,.5)
+
+def compare_shuffle(n=100,p=.15,pn=.1,num_shuffles=1000):  
+    # worried about independence
+    num_h = int(np.floor(pn*n))
+    num_m = n-num_h
+    raw = [1]*(num_h)+[0]*(num_m)
+    
+    # Generate shuffle 
+    num_hits =[]
+    for i in np.arange(0,num_shuffles):
+        #shuffle = np.random.rand(n) < pn
+        shuffle = np.random.choice(raw,n)
+        num_hits.append(np.sum(shuffle))
+
+    # Compute chi-square where the data is 15%/85% of cells
+    # and null is the mean % across shuffles
+    data = [p*n*1000000000, (1-p)*n*1000000000]
+    null = [np.mean(num_hits), n-np.mean(num_hits)]
+    x = np.floor(np.array([data,null])).T
+    out = chi2_contingency(x,correction=True)
+
+    # Compare that with a p-value where we ask what percentage of the shuffles 
+    # had more than 15%
+    pval = np.sum(np.array(num_hits) >= p*n)/num_shuffles*2 
+
+    return pval,out[1]
+
 
 def final(df, cre,areas=None,test='chi_squared_'):
     '''

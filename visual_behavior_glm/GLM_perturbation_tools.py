@@ -5,7 +5,7 @@ import visual_behavior_glm.GLM_strategy_tools as gst
 import os
 from mpl_toolkits.axes_grid1 import Divider, Size
 
-def analysis(weights_beh, run_params, kernel,session_filter=['Familiar']):
+def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig=False):
     out1 = gst.strategy_kernel_comparison(weights_beh.query('visual_strategy_session'),
         run_params, kernel,session_filter=['Familiar'])
     out2 =gst.strategy_kernel_comparison(weights_beh.query('not visual_strategy_session'),
@@ -27,7 +27,13 @@ def analysis(weights_beh, run_params, kernel,session_filter=['Familiar']):
     out2[2].set_title('Timing, Familiar',fontsize=16)
     out3[2].set_title('Visual, Novel ',fontsize=16)
     out4[2].set_title('Timing, Novel ',fontsize=16)
-    plot_perturbation(weights_beh, run_params, kernel)
+    filename = run_params['figure_dir']+\
+            '/strategy/'+kernel+'_visual_familiar_dynamics.svg'
+    out1[1].savefig(filename)
+    print('Figure saved to: '+filename)
+
+    ax = plot_perturbation(weights_beh, run_params, kernel,savefig=savefig)
+    return ax 
 
 def get_kernel_averages(weights_df, run_params, kernel, drop_threshold=0,
     session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",
@@ -206,7 +212,7 @@ def get_kernel_averages(weights_df, run_params, kernel, drop_threshold=0,
 
 
 
-def plot_perturbation(weights_df, run_params, kernel):
+def plot_perturbation(weights_df, run_params, kernel,savefig=False):
     Fvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
         run_params, kernel, session_filter=['Familiar'])
     Ftiming = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
@@ -231,7 +237,7 @@ def plot_perturbation(weights_df, run_params, kernel):
         pi3 = len(time)
 
     colors = gvt.project_colors()
-    fig, ax = plt.subplots(1,2,sharey=True,sharex=True,figsize=(8.5,4))
+    fig, ax = plt.subplots(1,2,sharey=True,sharex=True,figsize=(7,3.5))
     ax[0].plot(Fvisual['Slc17a7-IRES2-Cre'][0:pi3], Fvisual['y'][0:pi3],
         color=colors['visual'],label='Visual',linewidth=3)
     ax[0].plot(Ftiming['Slc17a7-IRES2-Cre'][0:pi3], Ftiming['y'][0:pi3],
@@ -271,8 +277,16 @@ def plot_perturbation(weights_df, run_params, kernel):
     ax[1].xaxis.set_tick_params(labelsize=12)
     ax[1].yaxis.set_tick_params(labelsize=12)  
     ax[1].set_title('Novel, {}'.format(kernel),fontsize=16)
-
     plt.tight_layout()
+    
+    if savefig:
+        filepath = run_params['figure_dir']+\
+            '/strategy/'+kernel+'_strategy_perturbation.svg'
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath) 
+
+    return ax
+
 
 def get_average_kernels_inner(df):
     '''

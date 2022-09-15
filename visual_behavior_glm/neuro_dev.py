@@ -62,6 +62,12 @@ gst.scatter_by_experience(results_pivoted_beh, run_params,
     cre_line ='Vip-IRES-Cre',ymetric='omissions')
 gst.scatter_dataset(results_pivoted_beh, run_params)
 
+# Perturbation plots
+gpt.analysis(weights_beh, run_params, 'omissions')
+gpt.analysis(weights_beh, run_params, 'hits')
+gpt.analysis(weights_beh, run_params, 'misses')
+gpt.analysis(weights_beh, run_params, 'all-images')
+gpt.analysis(weights_beh, run_params, 'preferred_image')
 
 ## Generate response dataframes
 ################################################################################

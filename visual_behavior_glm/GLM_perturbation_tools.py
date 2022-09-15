@@ -5,7 +5,8 @@ import visual_behavior_glm.GLM_strategy_tools as gst
 import os
 from mpl_toolkits.axes_grid1 import Divider, Size
 
-def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig=False):
+def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig=False,
+    lims=None):
     out1 = gst.strategy_kernel_comparison(weights_beh.query('visual_strategy_session'),
         run_params, kernel,session_filter=['Familiar'])
     out2 =gst.strategy_kernel_comparison(weights_beh.query('not visual_strategy_session'),
@@ -32,7 +33,7 @@ def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig
     out1[1].savefig(filename)
     print('Figure saved to: '+filename)
 
-    ax = plot_perturbation(weights_beh, run_params, kernel,savefig=savefig)
+    ax = plot_perturbation(weights_beh, run_params, kernel,savefig=savefig,lims=lims)
     return ax 
 
 def get_kernel_averages(weights_df, run_params, kernel, drop_threshold=0,
@@ -212,7 +213,7 @@ def get_kernel_averages(weights_df, run_params, kernel, drop_threshold=0,
 
 
 
-def plot_perturbation(weights_df, run_params, kernel,savefig=False):
+def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
     Fvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
         run_params, kernel, session_filter=['Familiar'])
     Ftiming = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
@@ -258,6 +259,8 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False):
     ax[0].yaxis.set_tick_params(labelsize=12)  
     ax[0].set_title('Familiar, {}'.format(kernel),fontsize=16)
     ax[0].legend() 
+    ax[0].axhline(0,color='k',linestyle='--',alpha=.25)
+    ax[0].axvline(0,color='k',linestyle='--',alpha=.25)
  
     ax[1].plot(Nvisual['Slc17a7-IRES2-Cre'][0:pi3], Nvisual['y'][0:pi3],
         color=colors['visual'],linewidth=3)
@@ -277,6 +280,12 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False):
     ax[1].xaxis.set_tick_params(labelsize=12)
     ax[1].yaxis.set_tick_params(labelsize=12)  
     ax[1].set_title('Novel, {}'.format(kernel),fontsize=16)
+    ax[1].axhline(0,color='k',linestyle='--',alpha=.25)
+    ax[1].axvline(0,color='k',linestyle='--',alpha=.25)
+    
+    if lims is not None:
+        ax[1].set_xlim(lims[0])
+        ax[1].set_ylim(lims[1])
     plt.tight_layout()
     
     if savefig:

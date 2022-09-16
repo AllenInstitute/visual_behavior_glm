@@ -41,7 +41,7 @@ def get_kernel_averages(weights_df, run_params, kernel, drop_threshold=0,
     depth_filter=[0,1000],cell_filter="all",area_filter=['VISp','VISl'],
     compare=['cre_line'],plot_errors=False,save_kernels=False,fig=None, 
     ax=None,fs1=16,fs2=12,show_legend=True,filter_sessions_on='experience_level',
-    image_set=['familiar','novel'],threshold=0,set_title=None): 
+    image_set=['familiar','novel'],threshold=0,set_title=None,active=True): 
     '''
         Plots the average kernel across different comparisons groups of cells
         First applies hard filters, then compares across remaining cells
@@ -165,30 +165,34 @@ def get_kernel_averages(weights_df, run_params, kernel, drop_threshold=0,
             })
         kernel = kernel.replace('-','_')
     compare = [x.replace('-','_') for x in compare]
-        
+       
+    if active:
+        active_str = 'not passive'
+    else:
+        active_str = 'passive' 
 
     # Applying hard thresholds to dataset
     if kernel in weights_df:
-        weights = weights_df.query('(not passive)&\
+        weights = weights_df.query('({0})&\
             (targeted_structure in @area_filter)&\
             (cre_line in @cell_list)&\
             (equipment_name in @equipment_list)&\
-            ({0} in @session_filter)&\
+            ({1} in @session_filter)&\
             (ophys_session_id not in @problem_sessions)&\
             (imaging_depth < @depth_filter[1])&\
             (imaging_depth > @depth_filter[0])&\
             (variance_explained_full > @threshold)&\
-            ({1} <= @drop_threshold)'.format(filter_sessions_on, kernel))
+            ({2} <= @drop_threshold)'.format(active_str, filter_sessions_on, kernel))
     else:
-        weights = weights_df.query('(not passive)&\
+        weights = weights_df.query('({0})&\
             (targeted_structure in @area_filter)&\
             (cre_line in @cell_list)&\
             (equipment_name in @equipment_list)&\
-            ({0} in @session_filter) &\
+            ({1} in @session_filter) &\
             (ophys_session_id not in @problem_sessions) &\
             (imaging_depth < @depth_filter[1]) &\
             (imaging_depth > @depth_filter[0])&\
-            (variance_explained_full > @threshold)'.format(filter_sessions_on))
+            (variance_explained_full > @threshold)'.format(active_str, filter_sessions_on))
     
     # Determine unique groups of cells by the categorical attributes in compare
     groups = list(weights.groupby(compare).groups.keys())

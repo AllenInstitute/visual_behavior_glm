@@ -76,7 +76,7 @@ def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='bo
     # Save Figure
     if savefig:
         filename = PSTH_DIR + data+'/population_averages/'+\
-            plot_strategy+'_'+'_'.join(conditions)+'_psth.png'
+            plot_strategy+'_'+'_'.join(conditions)+'_psth.svg'
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 
@@ -165,7 +165,7 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
         else:
             extra_split = ''
         filename = PSTH_DIR + data+'/population_averages/'+\
-            condition+'_psth'+extra_split+'.png'
+            condition+'_psth'+extra_split+'.svg'
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 

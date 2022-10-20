@@ -97,7 +97,7 @@ def compare_cre_kernels(weights_beh, run_params, ym='omissions',
     depth_filter=[0,1000]):
 
     cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
-    fig, ax = plt.subplots(2,len(cres),figsize=(len(sessions)*4,6),sharey=sharey)
+    fig, ax = plt.subplots(2,len(cres),figsize=(12,6),sharey=sharey)
     for dex, cre in enumerate(cres):
         show_legend = dex == len(cres) - 1
         out = strategy_kernel_comparison(weights_beh, run_params, ym, 
@@ -123,7 +123,7 @@ def compare_cre_kernels(weights_beh, run_params, ym='omissions',
     if savefig:
         filename = ym+'_by_cre_line_'+'_'.join(compare)+'_'+equipment_filter
         save_figure(fig,run_params['version'], ym, filename)
-
+    return ax 
 
 def strategy_kernel_comparison(weights_df, run_params, kernel, drop_threshold=0,
     session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",

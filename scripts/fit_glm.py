@@ -32,3 +32,4 @@ def fit_experiment(oeid, version, log_results=True, log_weights=True, use_previo
 if __name__ == '__main__':
     args = parser.parse_args()
     fit_experiment(args.oeid, args.version, use_previous_fit=args.use_previous_fit)
+    print('fitting finished')

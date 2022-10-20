@@ -117,7 +117,7 @@ if False: # Code snippets for doing analyses.
     inventory17 = gat.inventory_glm_version('17_dff_all_L2_optimize_by_session')
     
     # Get a table for GLM versions in the range "vrange"
-    inventory_table = gat.build_inventory_table(vrange=[24,25])
+    inventory_table = gat.build_inventory_table(vrange=[24,26])
 
     # Compare two model versions
     versions = [x[2:] for x in inventory_table.index.values[-2:]]

@@ -37,7 +37,7 @@ def plot_all_conditions(dfs, labels,data='filtered_events'):
             print(c)
             print(e)
 
-def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both',data='filtered_events'):
+def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both',data='filtered_events',areas=['VISp','VISl'],depths=['upper','lower']):
     # If we have just one cell type, wrap in a list 
     if type(dfs)!=list:
         dfs = [dfs]
@@ -59,13 +59,13 @@ def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='bo
             color = colors(cdex+2)
             max_y.append(plot_condition_experience(full_df, condition, 'Familiar',
                 'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel, 
-                plot_strategy=plot_strategy,set_color=color))
+                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas))
             max_y.append(plot_condition_experience(full_df, condition, 'Novel 1',
                 'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='', 
-                plot_strategy=plot_strategy,set_color=color))
+                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas))
             max_y.append(plot_condition_experience(full_df, condition, 'Novel >1',
                 'visual_strategy_session', ax=ax[index, 2],title=index==0,ylabel='', 
-                plot_strategy=plot_strategy,set_color=color))
+                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas))
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
 
     # Add Title 
@@ -83,7 +83,7 @@ def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='bo
     return ax
 
 def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
-    split_by_engaged=False,plot_strategy='both',data='filtered_events'):
+    split_by_engaged=False,plot_strategy='both',data='filtered_events',areas=['VISl','VISp'],depths=['upper','lower']):
     '''
         Plot the population average response to condition for each element of dfs
 
@@ -112,7 +112,7 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             max_y = [0,0,0]
             max_y[0] = plot_condition_experience(full_df, condition, 'Familiar',
                 'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel,
-                error_type=error_type)
+                error_type=error_type,areas=areas, depths=depths)
             max_y[1] = plot_condition_experience(full_df, condition, 'Novel 1',
                 'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='',
                 error_type=error_type)
@@ -173,12 +173,13 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 
 def plot_condition_experience(full_df, condition, experience_level, split, 
     ax=None,ylabel='Population Average',xlabel=True,title=False,error_type='sem',
-    split_by_engaged=False, plot_strategy ='both',set_color=None):
+    split_by_engaged=False, plot_strategy ='both',set_color=None,areas=['VISp','VISl'],
+    depths=['upper','lower']):
     
     if ax is None:
         fig, ax = plt.subplots()
     
-    df = full_df.query('(condition ==@condition)&(experience_level ==@experience_level)')
+    df = full_df.query('(condition ==@condition)&(experience_level ==@experience_level)&(targeted_structure in @areas)&(layer in @depths)')
     colors = gvt.project_colors() 
     if plot_strategy != 'both':
         if plot_strategy == 'visual':

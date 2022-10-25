@@ -96,6 +96,12 @@ vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-
 sst_full_filtered = bd.load_population_df('filtered_events','full_df','Sst-IRES-Cre')
 exc_full_filtered = bd.load_population_df('filtered_events','full_df','Slc17a7-IRES2-Cre')
 
+# Add area, depth
+experiment_table = glm_params.get_experiment_table()
+vip_full_filtered = bd.add_area_depth(vip_full_filtered, experiment_table)
+sst_full_filtered = bd.add_area_depth(sst_full_filtered, experiment_table)
+exc_full_filtered = bd.add_area_depth(exc_full_filtered, experiment_table)
+
 # merge cell types
 dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]
 labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']

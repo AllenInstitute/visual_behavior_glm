@@ -10,6 +10,14 @@ import psy_output_tools as po
 
 BEHAVIOR_VERSION = 21
 
+def add_area_depth(df,experiment_table):
+    df = pd.merge(df, 
+        experiment_table.reset_index()[[\
+            'ophys_experiment_id',
+            'targeted_structure',
+            'layer']],
+        on='ophys_experiment_id')
+    return df
 
 def load_population_df(data,df_type,cre,summary_df=None):
     path ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\

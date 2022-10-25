@@ -352,6 +352,7 @@ def plot_heatmap(full_df,cre,condition,experience_level,savefig=False,data='filt
             'heatmap_{}_{}_{}.png'.format(cre,condition,experience_level)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
+    return ax1,ax2
 
 def plot_QQ_engagement(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None,
     data='filtered_events'):
@@ -421,8 +422,8 @@ def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,quanti
         fig, ax = plt.subplots()
     ax.plot(x_quantiles, y_quantiles, 'o-',alpha=.5)
     ax.plot([0,1.05*max_val],[0,1.05*max_val],'k--',alpha=.5)
-    ax.set_ylabel('visual session cell quantiles',fontsize=16)
-    ax.set_xlabel('timing session cell quantiles',fontsize=16)
+    ax.set_ylabel('visual session cell responses',fontsize=16)
+    ax.set_xlabel('timing session cell responses',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
@@ -436,6 +437,47 @@ def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,quanti
     if savefig:
         filename = PSTH_DIR + data+'/QQ/' +\
             'QQ_{}_{}_{}.png'.format(cre,condition,experience_level)
+        print('Figure saved to {}'.format(filename))
+        plt.savefig(filename) 
+
+    return ax
+
+
+def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None,data='filtered_events',nbins=50):
+    
+    # Prep data
+    df = full_df\
+            .query('(condition==@condition)&(experience_level==@experience_level)')\
+            .copy()     
+    df['max'] = [np.nanmax(x) for x in df['response']] 
+ 
+    x = df.query('visual_strategy_session')['max'].values
+    y = df.query('not visual_strategy_session')['max'].values
+    max_val = np.max([np.max(x),np.max(y)])
+    if cre == 'Exc':
+        max_y = .25
+    elif cre == 'Vip':
+        max_y = .5   
+    bins = np.linspace(0,max_y,nbins)
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    vis,bins,_ = ax.hist(x,bins=bins,color='orange',alpha=.5,density=True,label='visual')
+    time,bins,_= ax.hist(y,bins=bins,color='blue',alpha=.5,density=True,label='timing')
+    ax.set_ylabel('density',fontsize=16)
+    ax.set_xlabel('Avg. Cell response',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_yscale('log')
+    ax.set_xlim(left=0)
+    ax.set_title('{}, {}, {}'.format(cre, condition, experience_level),fontsize=16)
+
+    # Save figure
+    if savefig:
+        filename = PSTH_DIR + data+'/hist/' +\
+            'hist_{}_{}_{}.png'.format(cre,condition,experience_level)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 

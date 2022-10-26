@@ -26,11 +26,11 @@ image_regression.py analyzes the image by image activity of every cell based on 
 ## Example ophys schematic
 ################################################################################
 experiment_table = glm_params.get_experiment_table()
-oeid  = experiment_table.index.values[754]
+oeid = 956903412 
+cell_id = 1086505751
 run_params = glm_params.load_run_json(GLM_VERSION)
 session = gft.load_data(oeid, run_params)
-cell_id = 1086620268
-time=[]
+time=[1220.5, 1226.25]
 gsm.strategy_paper_ophys_example(session, cell_id, time)
  
 

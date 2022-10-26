@@ -11,6 +11,21 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_visualization_tools as gvt
 
+def strategy_paper_ophys_example(session, cell_id, time):
+
+    # Isolate timewindow of interest
+    timestamps = session.ophys_timestamps
+    events = session.events.loc[cell_id].events
+    dff = session.dff_traces.loc[cell_id].dff
+
+    # Plot cell activity
+    fig, ax = plt.subplots()
+    ax.plot(timestamps, dff,'b')
+    ax.stem(timestamps[events!=0], events[events!=0],linefmt='r-',markerfmt='ro')
+
+    # Annotate stimulus
+
+
 def change_breakdown_schematic(run_params):
     plt.figure(figsize=(2.5,1.5))
     ax = plt.gca()

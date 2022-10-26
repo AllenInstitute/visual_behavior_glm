@@ -10,6 +10,8 @@ import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_strategy_tools as gst
 import visual_behavior_glm.GLM_params as glm_params
+import visual_behavior_glm.GLM_fit_tools as gft
+import visual_behavior_glm.GLM_schematic_plots as gsm
 from importlib import reload
 from alex_utils import *
 plt.ion()
@@ -21,6 +23,17 @@ build_dataframes.py generates response_dataframes
 PSTH.py plots average population activity using the response_df
 image_regression.py analyzes the image by image activity of every cell based on peak_response_df 
 '''
+## Example ophys schematic
+################################################################################
+experiment_table = glm_params.get_experiment_table()
+oeid  = experiment_table.index.values[754]
+run_params = glm_params.load_run_json(GLM_VERSION)
+session = gft.load_data(oeid, run_params)
+cell_id = 1086620268
+time=[]
+gsm.strategy_paper_ophys_example(session, cell_id, time)
+ 
+
 ## Kernel Regression Analyses
 ################################################################################
 

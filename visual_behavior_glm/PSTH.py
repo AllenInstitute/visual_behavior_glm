@@ -539,7 +539,7 @@ def running_responses(df,condition, savefig=False,data='filtered_events'):
     plt.errorbar(timing.running_bins*bin_width, timing.response,
         yerr=timing_sem.response,color='blue',fmt='o')
     ax.set_ylabel(condition+' response',fontsize=16)
-    ax.set_xlabel('running speed (m/s)',fontsize=16)
+    ax.set_xlabel('running speed (cm/s)',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)

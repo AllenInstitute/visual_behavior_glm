@@ -562,36 +562,37 @@ def running_responses(df,condition, savefig=False,data='filtered_events'):
         plt.savefig(filename) 
 
 
-def plot_hierarchy(mean_df):
+def plot_hierarchy(mean_df,visual=True):
     '''
         mean_df is the image_df for just change images, with area, layer, and visual_strategy annotations
     Then perform a groupby on area, layer, strategy, and get the mean/sem for response
     '''
     fig,ax = plt.subplots()
 
-    vis_hits = mean_df.query('(hit==1)&(visual_strategy_session)').set_index(['targeted_structure','layer'])
-    plt.plot(1,vis_hits.loc['VISp','upper']['response'],'o',color='darkorange',label='Visual Session - hit')
-    plt.plot(2,vis_hits.loc['VISp','lower']['response'],'o',color='darkorange')
-    plt.plot(3,vis_hits.loc['VISl','upper']['response'],'o',color='darkorange')
-    plt.plot(4,vis_hits.loc['VISl','lower']['response'],'o',color='darkorange')
+    if visual:
+        vis_hits = mean_df.query('(hit==1)&(visual_strategy_session)').set_index(['targeted_structure','layer'])
+        plt.plot(1,vis_hits.loc['VISp','upper']['response'],'o',color='darkorange',label='Visual Session - hit')
+        plt.plot(2,vis_hits.loc['VISp','lower']['response'],'o',color='darkorange')
+        plt.plot(3,vis_hits.loc['VISl','upper']['response'],'o',color='darkorange')
+        plt.plot(4,vis_hits.loc['VISl','lower']['response'],'o',color='darkorange')
 
-    vis_miss = mean_df.query('(hit==0)&(visual_strategy_session)').set_index(['targeted_structure','layer'])
-    plt.plot(1,vis_miss.loc['VISp','upper']['response'],'x',color='darkorange',label='Visual Session - miss')
-    plt.plot(2,vis_miss.loc['VISp','lower']['response'],'x',color='darkorange')
-    plt.plot(3,vis_miss.loc['VISl','upper']['response'],'x',color='darkorange')
-    plt.plot(4,vis_miss.loc['VISl','lower']['response'],'x',color='darkorange')
+        vis_miss = mean_df.query('(hit==0)&(visual_strategy_session)').set_index(['targeted_structure','layer'])
+        plt.plot(1,vis_miss.loc['VISp','upper']['response'],'x',color='darkorange',label='Visual Session - miss')
+        plt.plot(2,vis_miss.loc['VISp','lower']['response'],'x',color='darkorange')
+        plt.plot(3,vis_miss.loc['VISl','upper']['response'],'x',color='darkorange')
+        plt.plot(4,vis_miss.loc['VISl','lower']['response'],'x',color='darkorange')
+    else:
+        time_hits = mean_df.query('(hit==1)&(not visual_strategy_session)').set_index(['targeted_structure','layer'])
+        plt.plot(1,time_hits.loc['VISp','upper']['response'],'o',color='blue',label='Timing Session - hit')
+        plt.plot(2,time_hits.loc['VISp','lower']['response'],'o',color='blue')
+        plt.plot(3,time_hits.loc['VISl','upper']['response'],'o',color='blue')
+        plt.plot(4,time_hits.loc['VISl','lower']['response'],'o',color='blue')
 
-    time_hits = mean_df.query('(hit==1)&(not visual_strategy_session)').set_index(['targeted_structure','layer'])
-    plt.plot(1,time_hits.loc['VISp','upper']['response'],'o',color='blue')
-    plt.plot(2,time_hits.loc['VISp','lower']['response'],'o',color='blue')
-    plt.plot(3,time_hits.loc['VISl','upper']['response'],'o',color='blue')
-    plt.plot(4,time_hits.loc['VISl','lower']['response'],'o',color='blue')
-
-    time_miss = mean_df.query('(hit==0)&(not visual_strategy_session)').set_index(['targeted_structure','layer'])
-    plt.plot(1,time_miss.loc['VISp','upper']['response'],'x',color='blue')
-    plt.plot(2,time_miss.loc['VISp','lower']['response'],'x',color='blue')
-    plt.plot(3,time_miss.loc['VISl','upper']['response'],'x',color='blue')
-    plt.plot(4,time_miss.loc['VISl','lower']['response'],'x',color='blue')
+        time_miss = mean_df.query('(hit==0)&(not visual_strategy_session)').set_index(['targeted_structure','layer'])
+        plt.plot(1,time_miss.loc['VISp','upper']['response'],'x',color='blue',label='Timing Session - miss')
+        plt.plot(2,time_miss.loc['VISp','lower']['response'],'x',color='blue')
+        plt.plot(3,time_miss.loc['VISl','upper']['response'],'x',color='blue')
+        plt.plot(4,time_miss.loc['VISl','lower']['response'],'x',color='blue')
 
 
     plt.ylim(bottom=0)

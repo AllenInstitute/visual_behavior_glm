@@ -171,7 +171,9 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 
     return ax
 
-def plot_figure_4_averages(dfs,data='filtered_events'):
+def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,areas=['VISp','VISl'],
+    depths=['upper','lower']):
+
     fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
     error_type='sem'
@@ -180,13 +182,13 @@ def plot_figure_4_averages(dfs,data='filtered_events'):
         ylabel=labels[index]
         max_y[0] = plot_condition_experience(full_df, 'omission', 'Familiar',
             'visual_strategy_session', ax=ax[index, 0], ylabel=ylabel,
-            error_type=error_type)
+            error_type=error_type,areas=areas,depths=depths)
         max_y[1] = plot_condition_experience(full_df, 'hit', 'Familiar',
             'visual_strategy_session', ax=ax[index, 1],ylabel='',
-            error_type=error_type)
+            error_type=error_type,areas=areas,depths=depths)
         max_y[2] = plot_condition_experience(full_df, 'miss', 'Familiar',
             'visual_strategy_session', ax=ax[index, 2],ylabel='',
-            error_type=error_type)
+            error_type=error_type,areas=areas,depths=depths)
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
     for x in [0,1,2]:
             ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
@@ -195,10 +197,11 @@ def plot_figure_4_averages(dfs,data='filtered_events'):
 
     # Clean up
     plt.tight_layout()
-    filename = PSTH_DIR + data + '/population_averages/'+\
-        'figure_4_comparisons_psth.svg' 
-    print('Figure saved to: '+filename)
-    plt.savefig(filename)
+    if savefig:
+        filename = PSTH_DIR + data + '/population_averages/'+\
+            'figure_4_comparisons_psth.svg' 
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
 
 
 def plot_condition_experience(full_df, condition, experience_level, split, 
@@ -557,3 +560,49 @@ def running_responses(df,condition, savefig=False,data='filtered_events'):
             'running_vip_familiar_{}.svg'.format(condition)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
+
+
+def plot_hierarchy(mean_df):
+    '''
+        mean_df is the image_df for just change images, with area, layer, and visual_strategy annotations
+    Then perform a groupby on area, layer, strategy, and get the mean/sem for response
+    '''
+    fig,ax = plt.subplots()
+
+    vis_hits = mean_df.query('(hit==1)&(visual_strategy_session)').set_index(['targeted_structure','layer'])
+    plt.plot(1,vis_hits.loc['VISp','upper']['response'],'o',color='darkorange',label='Visual Session - hit')
+    plt.plot(2,vis_hits.loc['VISp','lower']['response'],'o',color='darkorange')
+    plt.plot(3,vis_hits.loc['VISl','upper']['response'],'o',color='darkorange')
+    plt.plot(4,vis_hits.loc['VISl','lower']['response'],'o',color='darkorange')
+
+    vis_miss = mean_df.query('(hit==0)&(visual_strategy_session)').set_index(['targeted_structure','layer'])
+    plt.plot(1,vis_miss.loc['VISp','upper']['response'],'x',color='darkorange',label='Visual Session - miss')
+    plt.plot(2,vis_miss.loc['VISp','lower']['response'],'x',color='darkorange')
+    plt.plot(3,vis_miss.loc['VISl','upper']['response'],'x',color='darkorange')
+    plt.plot(4,vis_miss.loc['VISl','lower']['response'],'x',color='darkorange')
+
+    time_hits = mean_df.query('(hit==1)&(not visual_strategy_session)').set_index(['targeted_structure','layer'])
+    plt.plot(1,time_hits.loc['VISp','upper']['response'],'o',color='blue')
+    plt.plot(2,time_hits.loc['VISp','lower']['response'],'o',color='blue')
+    plt.plot(3,time_hits.loc['VISl','upper']['response'],'o',color='blue')
+    plt.plot(4,time_hits.loc['VISl','lower']['response'],'o',color='blue')
+
+    time_miss = mean_df.query('(hit==0)&(not visual_strategy_session)').set_index(['targeted_structure','layer'])
+    plt.plot(1,time_miss.loc['VISp','upper']['response'],'x',color='blue')
+    plt.plot(2,time_miss.loc['VISp','lower']['response'],'x',color='blue')
+    plt.plot(3,time_miss.loc['VISl','upper']['response'],'x',color='blue')
+    plt.plot(4,time_miss.loc['VISl','lower']['response'],'x',color='blue')
+
+
+    plt.ylim(bottom=0)
+    ax.set_ylabel('Change response',fontsize=16)
+    ax.set_xticks([1,2,3,4])
+    ax.set_xticklabels(['VISp upper','VISp lower','VISl upper', 'VISl lower'])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    plt.legend()
+    plt.tight_layout()
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+
+

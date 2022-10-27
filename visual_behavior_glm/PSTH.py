@@ -171,6 +171,36 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 
     return ax
 
+def plot_figure_4_averages(dfs,data='filtered_events'):
+    fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
+    labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
+    error_type='sem'
+    for index, full_df in enumerate(dfs): 
+        max_y = [0,0,0]
+        ylabel=labels[index]
+        max_y[0] = plot_condition_experience(full_df, 'omission', 'Familiar',
+            'visual_strategy_session', ax=ax[index, 0], ylabel=ylabel,
+            error_type=error_type)
+        max_y[1] = plot_condition_experience(full_df, 'hit', 'Familiar',
+            'visual_strategy_session', ax=ax[index, 1],ylabel='',
+            error_type=error_type)
+        max_y[2] = plot_condition_experience(full_df, 'miss', 'Familiar',
+            'visual_strategy_session', ax=ax[index, 2],ylabel='',
+            error_type=error_type)
+        ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+    for x in [0,1,2]:
+            ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
+            ax[x,1].set_xlabel('time from hit (s)',fontsize=16)
+            ax[x,2].set_xlabel('time from miss (s)',fontsize=16)
+
+    # Clean up
+    plt.tight_layout()
+    filename = PSTH_DIR + data + '/population_averages/'+\
+        'figure_4_comparisons_psth.svg' 
+    print('Figure saved to: '+filename)
+    plt.savefig(filename)
+
+
 def plot_condition_experience(full_df, condition, experience_level, split, 
     ax=None,ylabel='Population Average',xlabel=True,title=False,error_type='sem',
     split_by_engaged=False, plot_strategy ='both',set_color=None,areas=['VISp','VISl'],

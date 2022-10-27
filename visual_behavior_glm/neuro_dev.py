@@ -100,6 +100,21 @@ bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','dff')
 vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
 vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
 
+## Running controls
+################################################################################
+vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+vip_omission = vip_image_filtered.query('omitted').copy()
+vip_omission = pd.merge(vip_omission, 
+    summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
+    on='behavior_session_id')
+vip_omission = vip_omission.query('experience_level=="Familiar"').copy()
+
+vip_image = vip_image_filtered.query('(not omitted)&(not is_change)').copy()
+vip_image = pd.merge(vip_image, 
+    summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
+    on='behavior_session_id')
+vip_image = vip_image.query('experience_level=="Familiar"').copy()
+
 
 ## PSTH - Population average response
 ################################################################################
@@ -118,6 +133,9 @@ exc_full_filtered = bd.add_area_depth(exc_full_filtered, experiment_table)
 # merge cell types
 dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]
 labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
+
+# Make Figure 4 panels
+psth.plot_figure_4_averages(dfs_filtered, data='filtered_events')
     
 # Plot population response
 ax = psth.plot_condition(dfs_filtered,'omission',labels,data='filtered_events')

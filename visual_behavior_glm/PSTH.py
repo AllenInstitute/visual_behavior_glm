@@ -493,7 +493,7 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
 
     if ax is None:
         fig, ax = plt.subplots()
-    vis,bins,_ = ax.hist(x,bins=bins,color='orange',alpha=.5,density=True,label='visual')
+    vis,bins,_ = ax.hist(x,bins=bins,color='darkorange',alpha=.5,density=True,label='visual')
     time,bins,_= ax.hist(y,bins=bins,color='blue',alpha=.5,density=True,label='timing')
     ax.set_ylabel('density',fontsize=16)
     ax.set_xlabel('Avg. Cell response',fontsize=16)
@@ -514,7 +514,46 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
 
     return ax
 
+def running_responses(df,condition, savefig=False,data='filtered_events'):
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=2
+
+    fig, ax = plt.subplots(figsize=(4,3))
 
 
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
 
+    summary = df.groupby(['visual_strategy_session','running_bins'])['response'].mean()\
+        .reset_index()
+    visual = summary.query('visual_strategy_session')
+    timing = summary.query('not visual_strategy_session')
+    summary_sem = df.groupby(['visual_strategy_session','running_bins'])['response'].sem()\
+        .reset_index()
+    visual_sem = summary_sem.query('visual_strategy_session')
+    timing_sem = summary_sem.query('not visual_strategy_session')
 
+    plt.errorbar(visual.running_bins*bin_width, visual.response,
+        yerr=visual_sem.response,color='darkorange',fmt='o')
+    plt.errorbar(timing.running_bins*bin_width, timing.response,
+        yerr=timing_sem.response,color='blue',fmt='o')
+    ax.set_ylabel(condition+' response',fontsize=16)
+    ax.set_xlabel('running speed (m/s)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12) 
+    ax.set_xlim(-1,61)
+    if condition =='omission':
+        ax.set_ylim(0,.06) 
+    elif condition =='image':
+        ax.set_ylim(0,.015)
+    plt.tight_layout() 
+
+    # Save fig
+    if savefig:
+        filename = PSTH_DIR + data+'/running/'+\
+            'running_vip_familiar_{}.svg'.format(condition)
+        print('Figure saved to {}'.format(filename))
+        plt.savefig(filename) 

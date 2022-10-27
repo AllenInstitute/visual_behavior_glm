@@ -115,6 +115,9 @@ vip_image = pd.merge(vip_image,
     on='behavior_session_id')
 vip_image = vip_image.query('experience_level=="Familiar"').copy()
 
+psth.running_responses(vip_omission, 'omission')
+psth.running_responses(vip_image, 'image')
+
 
 ## PSTH - Population average response
 ################################################################################

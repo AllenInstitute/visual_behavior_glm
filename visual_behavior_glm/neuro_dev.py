@@ -102,6 +102,8 @@ vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-
 
 ## Running controls
 ################################################################################
+
+# Load image_df for Vip omission responses
 vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
 vip_omission = vip_image_filtered.query('omitted').copy()
 vip_omission = pd.merge(vip_omission, 
@@ -109,16 +111,46 @@ vip_omission = pd.merge(vip_omission,
     on='behavior_session_id')
 vip_omission = vip_omission.query('experience_level=="Familiar"').copy()
 
+# Load image_df for Vip image responses
 vip_image = vip_image_filtered.query('(not omitted)&(not is_change)').copy()
 vip_image = pd.merge(vip_image, 
     summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
     on='behavior_session_id')
 vip_image = vip_image.query('experience_level=="Familiar"').copy()
 
+# Generate figures
 psth.running_responses(vip_omission, 'omission')
 psth.running_responses(vip_image, 'image')
 psth.running_responses(vip_omission, 'omission',split='engagement_v2')
 psth.running_responses(vip_image, 'image',split='engagement_v2')
+
+## Change response across hierarchy 
+################################################################################
+
+# Load exc image_df for change images only
+exc_change = bd.load_population_df('filtered_events','image_df','Slc17a7-IRES2-Cre')
+exc_change.drop(exc_change[~exc_change['is_change']].index,inplace=True)
+experiment_table = glm_params.get_experiment_table()
+exc_change = bd.add_area_depth(exc_change,experiment_table)
+exc_change = pd.merge(exc_change, summary_df[['behavior_session_id','visual_strategy_session',
+    'experience_level']])
+
+exc_change = exc_change.query('experience_level == "Familiar"')
+#
+psth.plot_hierarchy(exc_change)
+psth.plot_hierarchy(exc_change,depth='binned_depth')
+psth.plot_hierarchy(exc_change.query('hit == 1'),splits=['visual_strategy_session'],extra='hit - ')
+psth.plot_hierarchy(exc_change.query('hit == 1'),splits=['visual_strategy_session'],extra='hit - ',
+    depth='binned_depth')
+psth.plot_hierarchy(exc_change.query('visual_strategy_session'),splits=['hit'],
+    extra='visual session - ')
+psth.plot_hierarchy(exc_change.query('visual_strategy_session'),splits=['hit'],
+    extra='visual session - ',depth='binned_depth')
+psth.plot_hierarchy(exc_change.query('not visual_strategy_session'),splits=['hit'],
+    extra='timing session - ')
+psth.plot_hierarchy(exc_change.query('not visual_strategy_session'),splits=['hit'],
+    extra='timing session - ',depth='binned_depth')
+
 
 
 ## PSTH - Population average response

@@ -573,48 +573,103 @@ def running_responses(df,condition, savefig=False,data='filtered_events',split='
         plt.savefig(filename) 
 
 
-def plot_hierarchy(mean_df,visual=True):
+def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_events',
+    savefig=True):
     '''
-        mean_df is the image_df for just change images, with area, layer, and visual_strategy annotations
-    Then perform a groupby on area, layer, strategy, and get the mean/sem for response
+        exc_change is the image_df for just change images, with area, 
+            layer, and visual_strategy annotations
     '''
-    fig,ax = plt.subplots()
+    if depth == 'layer':
+        mean_df = exc_change.groupby(splits+['targeted_structure','layer'])['response']\
+            .mean().reset_index()
+        sem_df = exc_change.groupby(splits+['targeted_structure','layer'])['response']\
+            .sem().reset_index()
+        mean_df['sem'] = sem_df['response']*1.96
+        mean_df['location'] = mean_df['targeted_structure'] + '_' + mean_df['layer']
+        mapper = {
+            'VISp_upper':1,
+            'VISp_lower':2,
+            'VISl_upper':3,
+            'VISl_lower':4
+            }
+        mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
+    elif depth == 'binned_depth':
+        mean_df = exc_change.groupby(splits+['targeted_structure','binned_depth'])['response']\
+            .mean().reset_index()
+        sem_df = exc_change.groupby(splits+['targeted_structure','binned_depth'])['response']\
+            .sem().reset_index()
+        mean_df['sem'] = sem_df['response']*1.96
+        mean_df['location'] = mean_df['targeted_structure'] + '_' +\
+             mean_df['binned_depth'].astype(str)
+        mapper = {
+            'VISp_75':1,
+            'VISp_175':2,
+            'VISp_275':3,
+            'VISp_375':4,
+            'VISl_75':5,
+            'VISl_175':6,
+            'VISl_275':7,
+            'VISl_375':8,
+            }
+        mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
 
-    if visual:
-        vis_hits = mean_df.query('(hit==1)&(visual_strategy_session)').set_index(['targeted_structure','layer'])
-        plt.plot(1,vis_hits.loc['VISp','upper']['response'],'o',color='darkorange',label='Visual Session - hit')
-        plt.plot(2,vis_hits.loc['VISp','lower']['response'],'o',color='darkorange')
-        plt.plot(3,vis_hits.loc['VISl','upper']['response'],'o',color='darkorange')
-        plt.plot(4,vis_hits.loc['VISl','lower']['response'],'o',color='darkorange')
-
-        vis_miss = mean_df.query('(hit==0)&(visual_strategy_session)').set_index(['targeted_structure','layer'])
-        plt.plot(1,vis_miss.loc['VISp','upper']['response'],'x',color='darkorange',label='Visual Session - miss')
-        plt.plot(2,vis_miss.loc['VISp','lower']['response'],'x',color='darkorange')
-        plt.plot(3,vis_miss.loc['VISl','upper']['response'],'x',color='darkorange')
-        plt.plot(4,vis_miss.loc['VISl','lower']['response'],'x',color='darkorange')
+    if depth == 'layer':
+        fig,ax = plt.subplots(figsize=(5,4))
     else:
-        time_hits = mean_df.query('(hit==1)&(not visual_strategy_session)').set_index(['targeted_structure','layer'])
-        plt.plot(1,time_hits.loc['VISp','upper']['response'],'o',color='blue',label='Timing Session - hit')
-        plt.plot(2,time_hits.loc['VISp','lower']['response'],'o',color='blue')
-        plt.plot(3,time_hits.loc['VISl','upper']['response'],'o',color='blue')
-        plt.plot(4,time_hits.loc['VISl','lower']['response'],'o',color='blue')
+        fig,ax = plt.subplots(figsize=(8,4))
 
-        time_miss = mean_df.query('(hit==0)&(not visual_strategy_session)').set_index(['targeted_structure','layer'])
-        plt.plot(1,time_miss.loc['VISp','upper']['response'],'x',color='blue',label='Timing Session - miss')
-        plt.plot(2,time_miss.loc['VISp','lower']['response'],'x',color='blue')
-        plt.plot(3,time_miss.loc['VISl','upper']['response'],'x',color='blue')
-        plt.plot(4,time_miss.loc['VISl','lower']['response'],'x',color='blue')
+    if len(splits) >0:
+        for index, value in enumerate(splits):
+            unique = mean_df[value].unique()
+            for sdex, split_value in enumerate(unique):
+                if value == 'hit':
+                    if bool(split_value):
+                        color = 'black'
+                        label = 'hit'
+                    else:
+                        color = 'lightgray'
+                        label = 'miss'
+                elif value == 'visual_strategy_session':
+                    if bool(split_value):
+                        color = 'darkorange'
+                        label = 'visual session'                   
+                    else:
+                        color = 'blue'
+                        label = 'timing session'
+                else:
+                    color= plt.cm.get_cmap('tab10').colors[sdex]
+                    label = str(value)+' '+str(split_value) 
+                if isinstance(split_value, str):
+                    temp = mean_df.query('{} == @split_value'.format(value))         
+                else:
+                    temp = mean_df.query('{} == {}'.format(value, split_value))            
+                ax.errorbar(temp['xloc'],temp['response'],yerr=temp['sem'],fmt='o',color=color,
+                    label=extra + label)
+    else:
+        ax.plot(mean_df['xloc'],mean_df['response'], 'o',label='all cells')
 
 
-    plt.ylim(bottom=0)
+    plt.ylim(0,0.01)
     ax.set_ylabel('Change response',fontsize=16)
-    ax.set_xticks([1,2,3,4])
-    ax.set_xticklabels(['VISp upper','VISp lower','VISl upper', 'VISl lower'])
+    ax.set_xlabel('Area & depth',fontsize=16)
+    if depth == 'layer':
+        ax.set_xticks([1,2,3,4])
+        ax.set_xticklabels(['V1 upper','V1 lower','LM upper', 'LM lower'])
+    else:
+        ax.set_xticks([1,2,3,4,5,6,7,8])
+        ax.set_xticklabels(['V1 75','V1 175','V1 275','V1 375','LM 75','LM 175','LM 275','LM 375'])
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     plt.legend()
     plt.tight_layout()
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)
-
+   
+    if savefig:
+        extra = extra + '_'.join(splits)
+        filename = PSTH_DIR + data+'/hierarchy/'+\
+            'exc_change_hierarchy_{}_{}.svg'.format(extra,depth)
+        
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
 

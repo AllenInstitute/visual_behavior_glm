@@ -574,7 +574,7 @@ def running_responses(df,condition, savefig=False,data='filtered_events',split='
 
 
 def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_events',
-    savefig=True):
+    savefig=True,response_type='change',ax=None):
     '''
         exc_change is the image_df for just change images, with area, 
             layer, and visual_strategy annotations
@@ -613,10 +613,11 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
             }
         mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
 
-    if depth == 'layer':
-        fig,ax = plt.subplots(figsize=(5,4))
-    else:
-        fig,ax = plt.subplots(figsize=(8,4))
+    if ax is None:
+        if depth == 'layer':
+            fig,ax = plt.subplots(figsize=(5,4))
+        else:
+            fig,ax = plt.subplots(figsize=(8,4))
 
     if len(splits) >0:
         for index, value in enumerate(splits):
@@ -636,6 +637,20 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
                     else:
                         color = 'blue'
                         label = 'timing session'
+                elif value == 'is_change':
+                    if bool(split_value):
+                        color=(0.1215,0.466,.7058)
+                        label='change'
+                    else:
+                        color='lightgray'
+                        label='repeat'
+                elif value == 'engagement_v2':
+                    if bool(split_value):
+                        color = 'darkorange'
+                        label='engaged'
+                    else:
+                        color = 'red'
+                        label='disengaged'
                 else:
                     color= plt.cm.get_cmap('tab10').colors[sdex]
                     label = str(value)+' '+str(split_value) 
@@ -649,8 +664,15 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
         ax.plot(mean_df['xloc'],mean_df['response'], 'o',label='all cells')
 
 
-    plt.ylim(0,0.01)
-    ax.set_ylabel('Change response',fontsize=16)
+    if response_type == 'change':
+        plt.ylim(0,0.01)
+        ax.set_ylabel('change response',fontsize=16)
+    elif response_type == 'image':
+        plt.ylim(0,0.006)
+        ax.set_ylabel('image response',fontsize=16)   
+    else:
+        plt.ylim(0,0.01)
+        ax.set_ylabel('response',fontsize=16)   
     ax.set_xlabel('Area & depth',fontsize=16)
     if depth == 'layer':
         ax.set_xticks([1,2,3,4])
@@ -668,8 +690,10 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
     if savefig:
         extra = extra + '_'.join(splits)
         filename = PSTH_DIR + data+'/hierarchy/'+\
-            'exc_change_hierarchy_{}_{}.svg'.format(extra,depth)
+            'exc_{}_hierarchy_{}_{}.svg'.format(response_type,extra,depth)
         
         print('Figure saved to: '+filename)
         plt.savefig(filename)
+    
+    return ax
 

@@ -517,7 +517,7 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
 
     return ax
 
-def running_responses(df,condition, savefig=False,data='filtered_events'):
+def running_responses(df,condition, savefig=False,data='filtered_events',split='visual_strategy_session'):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -528,19 +528,29 @@ def running_responses(df,condition, savefig=False,data='filtered_events'):
 
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
 
-    summary = df.groupby(['visual_strategy_session','running_bins'])['response'].mean()\
+    summary = df.groupby([split,'running_bins'])['response'].mean()\
         .reset_index()
-    visual = summary.query('visual_strategy_session')
-    timing = summary.query('not visual_strategy_session')
-    summary_sem = df.groupby(['visual_strategy_session','running_bins'])['response'].sem()\
+    visual = summary.query(split)
+    timing = summary.query('not {}'.format(split))
+    summary_sem = df.groupby([split,'running_bins'])['response'].sem()\
         .reset_index()
-    visual_sem = summary_sem.query('visual_strategy_session')
-    timing_sem = summary_sem.query('not visual_strategy_session')
+    visual_sem = summary_sem.query(split)
+    timing_sem = summary_sem.query('not {}'.format(split))
+    if split == "visual_strategy_session":
+        vis_color = 'darkorange'
+        tim_color = 'blue'
+        vis_label = 'visual session'
+        tim_label = 'timing session'
+    else:
+        vis_color = 'darkorange'
+        tim_color = 'red'
+        vis_label = 'engaged'
+        tim_label = 'disengaged'
 
     plt.errorbar(visual.running_bins*bin_width, visual.response,
-        yerr=visual_sem.response,color='darkorange',fmt='o')
+        yerr=visual_sem.response,color=vis_color,fmt='o',label=vis_label)
     plt.errorbar(timing.running_bins*bin_width, timing.response,
-        yerr=timing_sem.response,color='blue',fmt='o')
+        yerr=timing_sem.response,color=tim_color,fmt='o',label=tim_label)
     ax.set_ylabel(condition+' response',fontsize=16)
     ax.set_xlabel('running speed (cm/s)',fontsize=16)
     ax.spines['right'].set_visible(False)
@@ -548,6 +558,7 @@ def running_responses(df,condition, savefig=False,data='filtered_events'):
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12) 
     ax.set_xlim(-1,61)
+    plt.legend()
     if condition =='omission':
         ax.set_ylim(0,.06) 
     elif condition =='image':
@@ -557,7 +568,7 @@ def running_responses(df,condition, savefig=False,data='filtered_events'):
     # Save fig
     if savefig:
         filename = PSTH_DIR + data+'/running/'+\
-            'running_vip_familiar_{}.svg'.format(condition)
+            'running_vip_familiar_{}_{}.svg'.format(condition,split)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 

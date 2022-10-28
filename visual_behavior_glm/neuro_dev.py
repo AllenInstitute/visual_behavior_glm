@@ -117,6 +117,8 @@ vip_image = vip_image.query('experience_level=="Familiar"').copy()
 
 psth.running_responses(vip_omission, 'omission')
 psth.running_responses(vip_image, 'image')
+psth.running_responses(vip_omission, 'omission',split='engagement_v2')
+psth.running_responses(vip_image, 'image',split='engagement_v2')
 
 
 ## PSTH - Population average response

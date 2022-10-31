@@ -3,6 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 
+'''
+    df = hb.make_data()
+    means = hb.bootstrap(df)
+    hb.plot_data(df,means) 
+    
+'''
 def make_data():
     level_1_diff = 1
     level_2_var = 4
@@ -61,7 +67,7 @@ def sample_hierarchically(df, metric, levels):
 
 def test(df,means):
     diff = np.array(means[1]) - np.array(means[0])
-    p_boot = np.sum(means['diff'] <=0)/len(diff)
+    p_boot = np.sum(diff <=0)/len(diff)
 
     a = df.query('group == 0')['response']
     b = df.query('group == 1')['response']
@@ -82,7 +88,7 @@ def plot_data(df,means):
     ax[0].set_xlabel('groups')
     ax[0].set_title('group mean + sem')
     ax[0].set_xlim(-.5,1.5)
-    ax[0].text(0,2,'p value: {:0.2f}'.format(stats[1]))
+    ax[0].text(0,2,'p value: {:0.3f}'.format(stats[1]))
 
     ax[3].plot(0, mean.loc[0],'o',color='r',alpha=.5)
     ax[3].plot(1, mean.loc[1],'o',color='b',alpha=.5)
@@ -92,7 +98,7 @@ def plot_data(df,means):
     ax[3].set_xlabel('groups')
     ax[3].set_title('bootstrap')
     ax[3].set_xlim(-.5,1.5)
-    ax[3].text(0,2,'p value: {:0.2f}'.format(stats[0]))
+    ax[3].text(0,2,'p value: {:0.3f}'.format(stats[0]))
 
     mean = df.groupby(['group','subject'])['response'].mean().to_frame().reset_index()
     sem = df.groupby(['group','subject'])['response'].sem().to_frame().reset_index()

@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.stats as stats
 
 def make_data():
     level_1_diff = 1
-    level_2_var = 1
-    level_3_var = 1
+    level_2_var = 4
+    level_3_var = 4
 
     n1 = 2
     n2 = 3
@@ -14,9 +15,10 @@ def make_data():
     
     for group in range(0,n1):
         for subject in range(0,n2):
+            subject_mean = np.random.rand()*level_2_var
             for cell in range(0, n3):
                 mean = group*level_1_diff + \
-                    np.random.rand()*level_2_var + \
+                    subject_mean + \
                     np.random.rand()*level_3_var
                 this_df = {
                     'group':group,
@@ -33,26 +35,43 @@ def bootstrap(df,metric='response', levels=['group','subject','cell'],nboots=100
     means = {}
     for g in groups:
         means[g]= []
-
-    for i in range(0,nboots):
-        sample = sample_hierarchically(df, metric, levels)            
-    return
+        for i in range(0,nboots):
+            temp = df.query('{} == @g'.format(levels[0]))
+            sum_val, count = sample_hierarchically(temp, metric, levels[1:])
+            means[g].append(sum_val/count)            
+    return means
 
 def sample_hierarchically(df, metric, levels):
-    if len(levels) = 1:
-        return df[metric].sample(n=len(df),replace=True)
+    if len(levels) == 1:
+        sum_val = df[metric].sample(n=len(df),replace=True).sum()
+        count = len(df)
+        return sum_val, count
     else:
         items = df[levels[0]].unique()     
         n = len(items)
-        vals = []
+        sum_val = 0
+        count = 0
         for i in range(0,n):
             choice = np.random.choice(items)
-            vals.append(sample_hierarchically(df.query('{} == @choice'.format(levels[0]
+            temp = df.query('{} == @choice'.format(levels[0]))
+            temp_sum_val, temp_count = sample_hierarchically(temp, metric, levels[1:])
+            sum_val +=temp_sum_val
+            count += temp_count
+        return sum_val, count
 
+def test(df,means):
+    diff = np.array(means[1]) - np.array(means[0])
+    p_boot = np.sum(means['diff'] <=0)/len(diff)
 
+    a = df.query('group == 0')['response']
+    b = df.query('group == 1')['response']
+    p_ttest = stats.ttest_ind(a,b).pvalue
 
-def plot_data(df):
-    fig, ax = plt.subplots(1,3,figsize=(8,4),sharey=True)
+    return p_boot, p_ttest
+
+def plot_data(df,means):
+    stats = test(df,means)
+    fig, ax = plt.subplots(1,4,figsize=(8,4),sharey=True)
     mean = df.groupby(['group'])['response'].mean()
     sem = df.groupby(['group'])['response'].sem()
     ax[0].plot(0, mean.loc[0],'o',color='r',alpha=.5)
@@ -63,16 +82,32 @@ def plot_data(df):
     ax[0].set_xlabel('groups')
     ax[0].set_title('group mean + sem')
     ax[0].set_xlim(-.5,1.5)
-    
+    ax[0].text(0,2,'p value: {:0.2f}'.format(stats[1]))
+
+    ax[3].plot(0, mean.loc[0],'o',color='r',alpha=.5)
+    ax[3].plot(1, mean.loc[1],'o',color='b',alpha=.5)
+    ax[3].errorbar(0, mean.loc[0],np.std(means[0]),color='r',alpha=.5)
+    ax[3].errorbar(1, mean.loc[1],np.std(means[1]),color='b',alpha=.5)
+    ax[3].set_ylabel('response')
+    ax[3].set_xlabel('groups')
+    ax[3].set_title('bootstrap')
+    ax[3].set_xlim(-.5,1.5)
+    ax[3].text(0,2,'p value: {:0.2f}'.format(stats[0]))
+
     mean = df.groupby(['group','subject'])['response'].mean().to_frame().reset_index()
     sem = df.groupby(['group','subject'])['response'].sem().to_frame().reset_index()
     mean['sem'] = sem['response']
+    tab20 = plt.get_cmap('tab10')
     mapper = {
-        0:'r',
-        1:'b'
+        0:tab20(0),
+        1:tab20(1),
+        2:tab20(2),
+        3:tab20(4),
+        4:tab20(5),
+        5:tab20(6)
         }
     for index, row in mean.iterrows():
-        color = mapper[row.group]
+        color = mapper[row.subject]
         ax[1].plot(row.group+index*.05, row.response,'o',color=color,alpha=.5)
         ax[1].errorbar(row.group+index*.05, row.response, row['sem'],color=color,alpha=.5)
     ax[1].set_ylabel('response')
@@ -82,14 +117,10 @@ def plot_data(df):
 
     mean = df.groupby(['group','subject','cell'])['response']\
         .mean().to_frame().reset_index()
-    mapper = {
-        0:'r',
-        1:'b'
-        }
 
     for index, row in mean.iterrows():
         xoffset = np.random.rand()*.1
-        color = mapper[row.group]
+        color = mapper[row.subject]
         ax[2].plot(row.group+xoffset, row.response,'o',color=color,alpha=.1)
     ax[2].set_ylabel('response')
     ax[2].set_xlabel('groups')

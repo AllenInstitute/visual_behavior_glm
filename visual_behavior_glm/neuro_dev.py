@@ -120,11 +120,13 @@ vip_image = pd.merge(vip_image,
 vip_image = vip_image.query('experience_level=="Familiar"').copy()
 
 # Generate bootstrapped errorbars:
-bootstraps = psth.compute_running_bootstrap(vip_omission,'omission')
-psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps)
+bootstraps_omission = psth.compute_running_bootstrap(vip_omission,'omission')
+psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps_omission)
 
+bootstraps_image = psth.compute_running_bootstrap(vip_image,'image')
+psth.running_responses(vip_image, 'image',bootstraps=bootstraps_image)
 
-# Generate figures
+# Generate figures without bootstraps
 psth.running_responses(vip_omission, 'omission')
 psth.running_responses(vip_image, 'image')
 psth.running_responses(vip_omission, 'omission',split='engagement_v2')
@@ -134,8 +136,6 @@ psth.running_responses(vip_image, 'image',split='engagement_v2')
 ################################################################################
 vip_omission, bootstrap_means = psth.load_vip_omission_df(summary_df)
 psth.plot_vip_omission_summary(vip_omission, bootstrap_means)
-
-
 
 ## Change response across hierarchy 
 ################################################################################

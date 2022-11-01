@@ -523,7 +523,7 @@ def compute_running_bootstrap(df,condition):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
-        bin_width=2   
+        bin_width=5#2   
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
     
     bootstraps = {}
@@ -562,7 +562,7 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
     elif condition =='image':
         bin_width=2
 
-    fig, ax = plt.subplots(figsize=(4,3))
+    fig, ax = plt.subplots(figsize=(3.75,2.75))
 
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
 
@@ -577,8 +577,8 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
     if split == "visual_strategy_session":
         vis_color = 'darkorange'
         tim_color = 'blue'
-        vis_label = 'visual session'
-        tim_label = 'timing session'
+        vis_label = 'visual strategy'
+        tim_label = 'timing strategy'
     else:
         vis_color = 'darkorange'
         tim_color = 'red'
@@ -603,7 +603,7 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
             yerr=visual_sem.response,color=vis_color,fmt='o',label=vis_label)
         plt.errorbar(timing.running_bins*bin_width, timing.response,
             yerr=timing_sem.response,color=tim_color,fmt='o',label=tim_label)
-    ax.set_ylabel('Vip '+condition+' response',fontsize=16)
+    ax.set_ylabel('Vip '+condition,fontsize=16)
     ax.set_xlabel('running speed (cm/s)',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
@@ -777,7 +777,7 @@ def plot_vip_omission_summary(vip_omission, bootstrap_means):
     x = vip_omission.groupby(['visual_strategy_session'])['response'].mean()
     y = vip_omission.groupby(['visual_strategy_session'])['response'].sem()
 
-    plt.figure(figsize=(3,5))
+    plt.figure(figsize=(1.75,2.75))
     plt.plot(1,x.loc[True],'o',color='darkorange')
     plt.plot(2,x.loc[False],'o',color='blue')
     plt.errorbar(1,x.loc[True],y.loc[True],color='darkorange')
@@ -785,20 +785,20 @@ def plot_vip_omission_summary(vip_omission, bootstrap_means):
     plt.errorbar(1,x.loc[True],visual_sem,color='darkorange')
     plt.errorbar(2,x.loc[False],timing_sem,color='blue')
     plt.xlim(.5,2.5)
-    plt.ylim(0,.04)
-    plt.plot([1,2],[.039,.039],'k')
-    plt.plot([1,1],[.038,.039],'k')
-    plt.plot([2,2],[.038,.039],'k')
+    plt.ylim(0,.0425)
+    plt.plot([1,2],[.038,.038],'k')
+    plt.plot([1,1],[.037,.038],'k')
+    plt.plot([2,2],[.037,.038],'k')
     if p_boot < .05:
         plt.plot(1.5,.0395,'k*' )
-    plt.ylabel('Vip omission response',fontsize=16)
+    plt.ylabel('Vip omission',fontsize=16)
     ax = plt.gca()
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)
     ax.set_xticks([1,2])
-    ax.set_xticklabels(['Visual','Timing'],fontsize=16)
+    ax.set_xticklabels(['V','T'],fontsize=16)
     plt.tight_layout()
 
     data = 'filtered_events'

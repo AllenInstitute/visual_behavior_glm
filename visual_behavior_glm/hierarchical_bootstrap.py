@@ -89,7 +89,7 @@ def sample_hierarchically(df, metric, levels):
     if len(levels) == 1:
         sum_val = df[metric].sample(n=len(df),replace=True).sum()
         count = len(df)
-        return sum_val, count
+        return sum_val, count  
     else:
         items = df[levels[0]].unique()     
         n = len(items)

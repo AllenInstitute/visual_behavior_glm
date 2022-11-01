@@ -5,11 +5,14 @@ import psy_output_tools as po
 import visual_behavior_glm.PSTH as psth
 import visual_behavior_glm.image_regression as ir
 import visual_behavior_glm.build_dataframes as bd
+import visual_behavior_glm.hierarchical_bootstrap as hb
 import visual_behavior_glm.GLM_fit_dev as gfd
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_strategy_tools as gst
 import visual_behavior_glm.GLM_params as glm_params
+import visual_behavior_glm.GLM_fit_tools as gft
+import visual_behavior_glm.GLM_schematic_plots as gsm
 from importlib import reload
 from alex_utils import *
 plt.ion()
@@ -21,6 +24,17 @@ build_dataframes.py generates response_dataframes
 PSTH.py plots average population activity using the response_df
 image_regression.py analyzes the image by image activity of every cell based on peak_response_df 
 '''
+## Example ophys schematic
+################################################################################
+experiment_table = glm_params.get_experiment_table()
+oeid = 956903412 
+cell_id = 1086505751
+run_params = glm_params.load_run_json(GLM_VERSION)
+session = gft.load_data(oeid, run_params)
+time=[1220.5, 1226.25]
+gsm.strategy_paper_ophys_example(session, cell_id, time)
+ 
+
 ## Kernel Regression Analyses
 ################################################################################
 
@@ -87,6 +101,159 @@ bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','dff')
 vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
 vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
 
+## Running controls
+################################################################################
+
+# Load image_df for Vip omission responses
+vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+vip_omission = vip_image_filtered.query('omitted').copy()
+vip_omission = pd.merge(vip_omission, 
+    summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
+    on='behavior_session_id')
+vip_omission = vip_omission.query('experience_level=="Familiar"').copy()
+
+# Load image_df for Vip image responses
+vip_image = vip_image_filtered.query('(not omitted)&(not is_change)').copy()
+vip_image = pd.merge(vip_image, 
+    summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
+    on='behavior_session_id')
+vip_image = vip_image.query('experience_level=="Familiar"').copy()
+
+# Generate bootstrapped errorbars:
+bootstraps_omission = psth.compute_running_bootstrap(vip_omission,'omission')
+psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps_omission)
+
+bootstraps_image = psth.compute_running_bootstrap(vip_image,'image')
+psth.running_responses(vip_image, 'image',bootstraps=bootstraps_image)
+
+# Generate figures without bootstraps
+psth.running_responses(vip_omission, 'omission')
+psth.running_responses(vip_image, 'image')
+psth.running_responses(vip_omission, 'omission',split='engagement_v2')
+psth.running_responses(vip_image, 'image',split='engagement_v2')
+
+## VIP Omission
+################################################################################
+vip_omission, bootstrap_means = psth.load_vip_omission_df(summary_df)
+psth.plot_vip_omission_summary(vip_omission, bootstrap_means)
+
+## Change response across hierarchy 
+################################################################################
+# Loading the image_df is very slow and uses a ton of memory. care must be taken
+
+# Load exc image_df for change images only
+exc_change = bd.load_population_df('filtered_events','image_df','Slc17a7-IRES2-Cre')
+exc_change.drop(exc_change[~exc_change['is_change']].index,inplace=True)
+experiment_table = glm_params.get_experiment_table()
+exc_change = bd.add_area_depth(exc_change,experiment_table)
+exc_change = pd.merge(exc_change, experiment_table.reset_index()[['ophys_experiment_id',
+    'binned_depth']],on='ophys_experiment_id')
+exc_change = pd.merge(exc_change, summary_df[['behavior_session_id','visual_strategy_session',
+    'experience_level']])
+exc_change = exc_change.query('experience_level == "Familiar"')
+
+
+# Plot hierarchy
+psth.plot_hierarchy(exc_change)
+psth.plot_hierarchy(exc_change,depth='binned_depth')
+psth.plot_hierarchy(exc_change.query('hit == 1'),splits=['visual_strategy_session'],extra='hit - ')
+psth.plot_hierarchy(exc_change.query('hit == 1'),splits=['visual_strategy_session'],extra='hit - ',
+    depth='binned_depth')
+psth.plot_hierarchy(exc_change.query('visual_strategy_session'),splits=['hit'],
+    extra='visual_strategy_')
+psth.plot_hierarchy(exc_change.query('visual_strategy_session'),splits=['hit'],
+    extra='visual_strategy_',depth='binned_depth')
+psth.plot_hierarchy(exc_change.query('not visual_strategy_session'),splits=['hit'],
+    extra='timing_strategy_')
+psth.plot_hierarchy(exc_change.query('not visual_strategy_session'),splits=['hit'],
+    extra='timing_strategy_',depth='binned_depth')
+psth.plot_hierarchy(exc_change,splits=['engagement_v2'])
+psth.plot_hierarchy(exc_change,splits=['engagement_v2'],depth='binned_depth')
+psth.plot_hierarchy(exc_change.query('visual_strategy_session'),splits=['engagement_v2'],
+    extra='visual_strategy_')
+psth.plot_hierarchy(exc_change.query('visual_strategy_session'),splits=['engagement_v2'],
+    extra='visual_strategy_',depth='binned_depth')
+psth.plot_hierarchy(exc_change.query('not visual_strategy_session'),splits=['engagement_v2'],
+    extra='timing_strategy_')
+psth.plot_hierarchy(exc_change.query('not visual_strategy_session'),splits=['engagement_v2'],
+    extra='timing_strategy_',depth='binned_depth')
+
+
+# Same thing for images
+exc_image = bd.load_population_df('filtered_events','image_df','Slc17a7-IRES2-Cre')
+exc_image.drop(exc_image[exc_image['is_change'] | exc_image['omitted']].index,inplace=True)
+familiar_summary_df = summary_df.query('experience_level == "Familiar"')
+familiar_bsid = familiar_summary_df['behavior_session_id'].unique()
+exc_image.drop(exc_image[~exc_image['behavior_session_id'].isin(familiar_bsid)].index, inplace=True)
+exc_image = pd.merge(exc_image, summary_df[['behavior_session_id','visual_strategy_session']])
+experiment_table = glm_params.get_experiment_table()
+exc_image = bd.add_area_depth(exc_image, experiment_table)
+exc_image = pd.merge(exc_image, experiment_table.reset_index()[['ophys_experiment_id',
+    'binned_depth']],on='ophys_experiment_id')
+
+# plot hierarchy
+psth.plot_hierarchy(exc_image,response_type='image')
+psth.plot_hierarchy(exc_image,response_type='image',depth='binned_depth')
+psth.plot_hierarchy(exc_image,response_type='image',splits=['visual_strategy_session'])
+psth.plot_hierarchy(exc_image,response_type='image',splits=['visual_strategy_session'],
+    depth='binned_depth')
+psth.plot_hierarchy(exc_image,response_type='image',splits=['engagement_v2'])
+psth.plot_hierarchy(exc_image,response_type='image',splits=['engagement_v2'],depth='binned_depth')
+psth.plot_hierarchy(exc_image.query('visual_strategy_session'),response_type='image',
+    splits=['engagement_v2'],extra='visual_strategy_')
+psth.plot_hierarchy(exc_image.query('visual_strategy_session'),response_type='image',
+    splits=['engagement_v2'],extra='visual_strategy_',depth='binned_depth')
+psth.plot_hierarchy(exc_image.query('not visual_strategy_session'),response_type='image',
+    splits=['engagement_v2'],extra='timing_strategy_')
+psth.plot_hierarchy(exc_image.query('not visual_strategy_session'),response_type='image',
+    splits=['engagement_v2'],extra='timing_strategy_',depth='binned_depth')
+
+
+# Look at changes and images together
+exc_both = bd.load_population_df('filtered_events','image_df','Slc17a7-IRES2-Cre')
+exc_both.drop(exc_both[exc_both['omitted']].index,inplace=True)
+familiar_summary_df = summary_df.query('experience_level == "Familiar"')
+familiar_bsid = familiar_summary_df['behavior_session_id'].unique()
+exc_both.drop(exc_both[~exc_both['behavior_session_id'].isin(familiar_bsid)].index, inplace=True)
+exc_both = pd.merge(exc_both, summary_df[['behavior_session_id','visual_strategy_session']])
+experiment_table = glm_params.get_experiment_table()
+exc_both = bd.add_area_depth(exc_both, experiment_table)
+exc_both = pd.merge(exc_both, experiment_table.reset_index()[['ophys_experiment_id',
+    'binned_depth']],on='ophys_experiment_id')
+
+# plot hierarchy
+psth.plot_hierarchy(exc_both, response_type='both',splits=['is_change'])
+psth.plot_hierarchy(exc_both, response_type='both',splits=['is_change'],depth='binned_depth')
+psth.plot_hierarchy(exc_both.query('visual_strategy_session'), response_type='both',
+    splits=['is_change'],extra='visual_strategy_')
+psth.plot_hierarchy(exc_both.query('visual_strategy_session'), response_type='both',
+    splits=['is_change'],depth='binned_depth',extra='visual_strategy_')
+psth.plot_hierarchy(exc_both.query('not visual_strategy_session'), response_type='both',
+    splits=['is_change'],extra='timing_strategy_')
+psth.plot_hierarchy(exc_both.query('not visual_strategy_session'), response_type='both',
+    splits=['is_change'],depth='binned_depth',extra='timing_strategy_')
+
+psth.plot_hierarchy(exc_both.query('visual_strategy_session & engagement_v2'), response_type='both',
+    splits=['is_change'],extra='engaged_visual_strategy_')
+psth.plot_hierarchy(exc_both.query('visual_strategy_session & engagement_v2'), response_type='both',
+    splits=['is_change'],extra='engaged_visual_strategy_',depth='binned_depth')
+psth.plot_hierarchy(exc_both.query('(not visual_strategy_session) & engagement_v2'), 
+    response_type='both',splits=['is_change'],extra='engaged_timing_strategy_')
+psth.plot_hierarchy(exc_both.query('(not visual_strategy_session) & engagement_v2'), 
+    response_type='both',splits=['is_change'],extra='engaged_timing_strategy_',
+    depth='binned_depth')
+
+psth.plot_hierarchy(exc_both.query('visual_strategy_session & (not engagement_v2)'), 
+    response_type='both',splits=['is_change'],extra='disengaged_visual_strategy_')
+psth.plot_hierarchy(exc_both.query('visual_strategy_session & (not engagement_v2)'), 
+    response_type='both',splits=['is_change'],extra='disengaged_visual_strategy_',
+    depth='binned_depth')
+psth.plot_hierarchy(exc_both.query('(not visual_strategy_session) & (not engagement_v2)'), 
+    response_type='both',splits=['is_change'],extra='disengaged_timing_strategy_')
+psth.plot_hierarchy(exc_both.query('(not visual_strategy_session) & (not engagement_v2)'), 
+    response_type='both',splits=['is_change'],extra='disengaged_timing_strategy_',
+    depth='binned_depth')
+
 
 ## PSTH - Population average response
 ################################################################################
@@ -96,9 +263,18 @@ vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-
 sst_full_filtered = bd.load_population_df('filtered_events','full_df','Sst-IRES-Cre')
 exc_full_filtered = bd.load_population_df('filtered_events','full_df','Slc17a7-IRES2-Cre')
 
+# Add area, depth
+experiment_table = glm_params.get_experiment_table()
+vip_full_filtered = bd.add_area_depth(vip_full_filtered, experiment_table)
+sst_full_filtered = bd.add_area_depth(sst_full_filtered, experiment_table)
+exc_full_filtered = bd.add_area_depth(exc_full_filtered, experiment_table)
+
 # merge cell types
 dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]
 labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
+
+# Make Figure 4 panels
+psth.plot_figure_4_averages(dfs_filtered, data='filtered_events')
     
 # Plot population response
 ax = psth.plot_condition(dfs_filtered,'omission',labels,data='filtered_events')

@@ -11,6 +11,63 @@ import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_visualization_tools as gvt
 
+def strategy_paper_ophys_example(session, cell_id, time):
+    
+    # Isolate timewindow of interest
+    timestamps = session.ophys_timestamps
+    good_times = (timestamps > time[0])&(timestamps<time[1])
+    timestamps = timestamps[good_times]
+    events = session.events.loc[cell_id].events[good_times]
+    dff = np.array(session.dff_traces.loc[cell_id].dff)[good_times]
+
+    # Plot cell activity
+    fig, ax = plt.subplots(figsize=(3.65,2.625))
+    ax.plot(timestamps, dff,'gray',linewidth=2,label=r'$\Delta f/f$')
+    markerline, stemlines, baseline = ax.stem(\
+            np.concatenate([[time[0]],timestamps[events!=0],[time[1]]]), 
+            np.concatenate([[0],events[events!=0],[0]]),
+            linefmt='k-',markerfmt='ko',label=r'Ca$^{2+}$ events')
+    plt.setp(stemlines, 'linewidth',2)
+    plt.setp(baseline,'color','k')
+
+    # Annotate stimulus
+    omissions = session.stimulus_presentations.query('omitted')\
+        .query('start_time >@time[0]')\
+        .query('start_time <@time[1]')
+    for index, row in omissions.iterrows():
+        ax.axvline(row.start_time, linestyle='--', color='c')
+
+    changes = session.stimulus_presentations.query('is_change')\
+        .query('start_time >@time[0]')\
+        .query('start_time <@time[1]')
+    color = gvt.project_colors()['schematic_change']
+    color=[.1215,.4666,.7058]
+    for index, row in changes.iterrows():
+        ax.axvspan(row.start_time, row.start_time+0.25, color=color,alpha=.25)
+
+    images = session.stimulus_presentations.query('(not omitted) & (not is_change)')\
+        .query('start_time >@time[0]')\
+        .query('start_time <@time[1]')
+    for index, row in images.iterrows():
+        ax.axvspan(row.start_time, row.start_time+0.25, color='k',alpha=.1)
+
+    # Clean up plot
+    ax.set_xlim(time[0]+1,time[1]-1)
+    ax.set_xlabel('time (s)',fontsize=16)
+    ax.set_ylabel('activity',fontsize=16)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend()
+    plt.tight_layout()
+    
+    # Save figure
+    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/ophys_processing_schematic.svg'
+    plt.savefig(filename)
+    print('Figure saved to: '+filename)
+
+
 def change_breakdown_schematic(run_params):
     plt.figure(figsize=(2.5,1.5))
     ax = plt.gca()

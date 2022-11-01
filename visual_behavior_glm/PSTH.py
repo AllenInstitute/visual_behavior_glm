@@ -7,6 +7,8 @@ from mpl_toolkits.axes_grid1 import Divider, Size
 plt.ion()
 
 import psy_output_tools as po
+import visual_behavior_glm.build_dataframes as bd
+import visual_behavior_glm.hierarchical_bootstrap as hb
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_strategy_tools as gst
 import visual_behavior.data_access.loading as loading
@@ -37,7 +39,7 @@ def plot_all_conditions(dfs, labels,data='filtered_events'):
             print(c)
             print(e)
 
-def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both',data='filtered_events'):
+def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both',data='filtered_events',areas=['VISp','VISl'],depths=['upper','lower']):
     # If we have just one cell type, wrap in a list 
     if type(dfs)!=list:
         dfs = [dfs]
@@ -59,13 +61,13 @@ def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='bo
             color = colors(cdex+2)
             max_y.append(plot_condition_experience(full_df, condition, 'Familiar',
                 'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel, 
-                plot_strategy=plot_strategy,set_color=color))
+                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas))
             max_y.append(plot_condition_experience(full_df, condition, 'Novel 1',
                 'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='', 
-                plot_strategy=plot_strategy,set_color=color))
+                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas))
             max_y.append(plot_condition_experience(full_df, condition, 'Novel >1',
                 'visual_strategy_session', ax=ax[index, 2],title=index==0,ylabel='', 
-                plot_strategy=plot_strategy,set_color=color))
+                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas))
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
 
     # Add Title 
@@ -83,7 +85,7 @@ def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='bo
     return ax
 
 def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
-    split_by_engaged=False,plot_strategy='both',data='filtered_events'):
+    split_by_engaged=False,plot_strategy='both',data='filtered_events',areas=['VISl','VISp'],depths=['upper','lower']):
     '''
         Plot the population average response to condition for each element of dfs
 
@@ -112,7 +114,7 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             max_y = [0,0,0]
             max_y[0] = plot_condition_experience(full_df, condition, 'Familiar',
                 'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel,
-                error_type=error_type)
+                error_type=error_type,areas=areas, depths=depths)
             max_y[1] = plot_condition_experience(full_df, condition, 'Novel 1',
                 'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='',
                 error_type=error_type)
@@ -171,14 +173,48 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 
     return ax
 
+def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,areas=['VISp','VISl'],
+    depths=['upper','lower']):
+
+    fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
+    labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
+    error_type='sem'
+    for index, full_df in enumerate(dfs): 
+        max_y = [0,0,0]
+        ylabel=labels[index]
+        max_y[0] = plot_condition_experience(full_df, 'omission', 'Familiar',
+            'visual_strategy_session', ax=ax[index, 0], ylabel=ylabel,
+            error_type=error_type,areas=areas,depths=depths)
+        max_y[1] = plot_condition_experience(full_df, 'hit', 'Familiar',
+            'visual_strategy_session', ax=ax[index, 1],ylabel='',
+            error_type=error_type,areas=areas,depths=depths)
+        max_y[2] = plot_condition_experience(full_df, 'miss', 'Familiar',
+            'visual_strategy_session', ax=ax[index, 2],ylabel='',
+            error_type=error_type,areas=areas,depths=depths)
+        ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+    for x in [0,1,2]:
+            ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
+            ax[x,1].set_xlabel('time from hit (s)',fontsize=16)
+            ax[x,2].set_xlabel('time from miss (s)',fontsize=16)
+
+    # Clean up
+    plt.tight_layout()
+    if savefig:
+        filename = PSTH_DIR + data + '/population_averages/'+\
+            'figure_4_comparisons_psth.svg' 
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+
+
 def plot_condition_experience(full_df, condition, experience_level, split, 
     ax=None,ylabel='Population Average',xlabel=True,title=False,error_type='sem',
-    split_by_engaged=False, plot_strategy ='both',set_color=None):
+    split_by_engaged=False, plot_strategy ='both',set_color=None,areas=['VISp','VISl'],
+    depths=['upper','lower']):
     
     if ax is None:
         fig, ax = plt.subplots()
     
-    df = full_df.query('(condition ==@condition)&(experience_level ==@experience_level)')
+    df = full_df.query('(condition ==@condition)&(experience_level ==@experience_level)&(targeted_structure in @areas)&(layer in @depths)')
     colors = gvt.project_colors() 
     if plot_strategy != 'both':
         if plot_strategy == 'visual':
@@ -352,6 +388,7 @@ def plot_heatmap(full_df,cre,condition,experience_level,savefig=False,data='filt
             'heatmap_{}_{}_{}.png'.format(cre,condition,experience_level)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
+    return ax1,ax2
 
 def plot_QQ_engagement(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None,
     data='filtered_events'):
@@ -421,8 +458,8 @@ def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,quanti
         fig, ax = plt.subplots()
     ax.plot(x_quantiles, y_quantiles, 'o-',alpha=.5)
     ax.plot([0,1.05*max_val],[0,1.05*max_val],'k--',alpha=.5)
-    ax.set_ylabel('visual session cell quantiles',fontsize=16)
-    ax.set_xlabel('timing session cell quantiles',fontsize=16)
+    ax.set_ylabel('visual session cell responses',fontsize=16)
+    ax.set_xlabel('timing session cell responses',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
@@ -442,6 +479,331 @@ def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,quanti
     return ax
 
 
+def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None,data='filtered_events',nbins=50):
+    
+    # Prep data
+    df = full_df\
+            .query('(condition==@condition)&(experience_level==@experience_level)')\
+            .copy()     
+    df['max'] = [np.nanmax(x) for x in df['response']] 
+ 
+    x = df.query('visual_strategy_session')['max'].values
+    y = df.query('not visual_strategy_session')['max'].values
+    max_val = np.max([np.max(x),np.max(y)])
+    if cre == 'Exc':
+        max_y = .25
+    elif cre == 'Vip':
+        max_y = .5   
+    bins = np.linspace(0,max_y,nbins)
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    vis,bins,_ = ax.hist(x,bins=bins,color='darkorange',alpha=.5,density=True,label='visual')
+    time,bins,_= ax.hist(y,bins=bins,color='blue',alpha=.5,density=True,label='timing')
+    ax.set_ylabel('density',fontsize=16)
+    ax.set_xlabel('Avg. Cell response',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_yscale('log')
+    ax.set_xlim(left=0)
+    ax.set_title('{}, {}, {}'.format(cre, condition, experience_level),fontsize=16)
+
+    # Save figure
+    if savefig:
+        filename = PSTH_DIR + data+'/hist/' +\
+            'hist_{}_{}_{}.png'.format(cre,condition,experience_level)
+        print('Figure saved to {}'.format(filename))
+        plt.savefig(filename) 
+
+    return ax
+
+def compute_running_bootstrap(df,condition):
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5#2   
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+    
+    bootstraps = {}
+    bins = df['running_bins'].unique()
+    for b in bins:
+        temp = df.query('running_bins == @b')[['visual_strategy_session',
+            'ophys_experiment_id','cell_specimen_id','response']]
+        means = hb.bootstrap(temp, levels=['visual_strategy_session',
+            'ophys_experiment_id','cell_specimen_id'])
+        if (True in means) & (False in means):
+            diff = np.array(means[True]) - np.array(means[False])
+            pboot = np.sum(diff<0)/len(diff)
+            visual = np.std(means[True])
+            timing = np.std(means[False])
+        else:
+            pboot = 1
+            if (True in means):
+                visual = np.std(means[True])
+            else:
+                visual = 0 
+            if (False in means):
+                timing = np.std(means[False])
+            else:
+                timing = 0 
+        bootstraps[b]={
+            'pval':pboot,
+            'visual':visual,
+            'timing':timing,
+            }
+    return bootstraps
+
+def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered_events',
+    split='visual_strategy_session'):
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5
+
+    fig, ax = plt.subplots(figsize=(3.75,2.75))
+
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+
+    summary = df.groupby([split,'running_bins'])['response'].mean()\
+        .reset_index()
+    visual = summary.query(split)
+    timing = summary.query('not {}'.format(split))
+    summary_sem = df.groupby([split,'running_bins'])['response'].sem()\
+        .reset_index()
+    visual_sem = summary_sem.query(split)
+    timing_sem = summary_sem.query('not {}'.format(split))
+    if split == "visual_strategy_session":
+        vis_color = 'darkorange'
+        tim_color = 'blue'
+        vis_label = 'visual strategy'
+        tim_label = 'timing strategy'
+    else:
+        vis_color = 'darkorange'
+        tim_color = 'red'
+        vis_label = 'engaged'
+        tim_label = 'disengaged'
+
+    if bootstraps is not None:
+        vtemp = visual.set_index('running_bins')
+        ttemp = timing.set_index('running_bins')
+        for b in visual['running_bins'].unique():
+            plt.errorbar(b*bin_width, vtemp.loc[b].response,
+                yerr=bootstraps[b]['visual'],color=vis_color,fmt='o')   
+        for b in timing['running_bins'].unique():
+            plt.errorbar(b*bin_width, ttemp.loc[b].response,
+                yerr=bootstraps[b]['timing'],color=tim_color,fmt='o')     
+        plt.plot(visual.running_bins*bin_width, visual.response,'o',
+            color=vis_color,label=vis_label)
+        plt.plot(timing.running_bins*bin_width, timing.response,'o',
+            color=tim_color,label=tim_label)
+    else:
+        plt.errorbar(visual.running_bins*bin_width, visual.response,
+            yerr=visual_sem.response,color=vis_color,fmt='o',label=vis_label)
+        plt.errorbar(timing.running_bins*bin_width, timing.response,
+            yerr=timing_sem.response,color=tim_color,fmt='o',label=tim_label)
+    ax.set_ylabel('Vip '+condition,fontsize=16)
+    ax.set_xlabel('running speed (cm/s)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12) 
+    ax.set_xlim(-1,61)
+    plt.legend()
+    if condition =='omission':
+        ax.set_ylim(0,.06) 
+    elif condition =='image':
+        ax.set_ylim(0,.015)
+    plt.tight_layout() 
+
+    # Save fig
+    if savefig:
+        filename = PSTH_DIR + data+'/running/'+\
+            'running_vip_familiar_{}_{}.svg'.format(condition,split)
+        print('Figure saved to {}'.format(filename))
+        plt.savefig(filename) 
+
+
+def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_events',
+    savefig=True,response_type='change',ax=None):
+    '''
+        exc_change is the image_df for just change images, with area, 
+            layer, and visual_strategy annotations
+    '''
+    if depth == 'layer':
+        mean_df = exc_change.groupby(splits+['targeted_structure','layer'])['response']\
+            .mean().reset_index()
+        sem_df = exc_change.groupby(splits+['targeted_structure','layer'])['response']\
+            .sem().reset_index()
+        mean_df['sem'] = sem_df['response']*1.96
+        mean_df['location'] = mean_df['targeted_structure'] + '_' + mean_df['layer']
+        mapper = {
+            'VISp_upper':1,
+            'VISp_lower':2,
+            'VISl_upper':3,
+            'VISl_lower':4
+            }
+        mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
+    elif depth == 'binned_depth':
+        mean_df = exc_change.groupby(splits+['targeted_structure','binned_depth'])['response']\
+            .mean().reset_index()
+        sem_df = exc_change.groupby(splits+['targeted_structure','binned_depth'])['response']\
+            .sem().reset_index()
+        mean_df['sem'] = sem_df['response']*1.96
+        mean_df['location'] = mean_df['targeted_structure'] + '_' +\
+             mean_df['binned_depth'].astype(str)
+        mapper = {
+            'VISp_75':1,
+            'VISp_175':2,
+            'VISp_275':3,
+            'VISp_375':4,
+            'VISl_75':5,
+            'VISl_175':6,
+            'VISl_275':7,
+            'VISl_375':8,
+            }
+        mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
+
+    if ax is None:
+        if depth == 'layer':
+            fig,ax = plt.subplots(figsize=(5,4))
+        else:
+            fig,ax = plt.subplots(figsize=(8,4))
+
+    if len(splits) >0:
+        for index, value in enumerate(splits):
+            unique = mean_df[value].unique()
+            for sdex, split_value in enumerate(unique):
+                if value == 'hit':
+                    if bool(split_value):
+                        color = 'black'
+                        label = 'hit'
+                    else:
+                        color = 'lightgray'
+                        label = 'miss'
+                elif value == 'visual_strategy_session':
+                    if bool(split_value):
+                        color = 'darkorange'
+                        label = 'visual session'                   
+                    else:
+                        color = 'blue'
+                        label = 'timing session'
+                elif value == 'is_change':
+                    if bool(split_value):
+                        color=(0.1215,0.466,.7058)
+                        label='change'
+                    else:
+                        color='lightgray'
+                        label='repeat'
+                elif value == 'engagement_v2':
+                    if bool(split_value):
+                        color = 'darkorange'
+                        label='engaged'
+                    else:
+                        color = 'red'
+                        label='disengaged'
+                else:
+                    color= plt.cm.get_cmap('tab10').colors[sdex]
+                    label = str(value)+' '+str(split_value) 
+                if isinstance(split_value, str):
+                    temp = mean_df.query('{} == @split_value'.format(value))         
+                else:
+                    temp = mean_df.query('{} == {}'.format(value, split_value))            
+                ax.errorbar(temp['xloc'],temp['response'],yerr=temp['sem'],fmt='o',color=color,
+                    label=extra + label)
+    else:
+        ax.plot(mean_df['xloc'],mean_df['response'], 'o',label='all cells')
+
+
+    if response_type == 'change':
+        plt.ylim(0,0.01)
+        ax.set_ylabel('change response',fontsize=16)
+    elif response_type == 'image':
+        plt.ylim(0,0.006)
+        ax.set_ylabel('image response',fontsize=16)   
+    else:
+        plt.ylim(0,0.01)
+        ax.set_ylabel('response',fontsize=16)   
+    ax.set_xlabel('Area & depth',fontsize=16)
+    if depth == 'layer':
+        ax.set_xticks([1,2,3,4])
+        ax.set_xticklabels(['V1 upper','V1 lower','LM upper', 'LM lower'])
+    else:
+        ax.set_xticks([1,2,3,4,5,6,7,8])
+        ax.set_xticklabels(['V1 75','V1 175','V1 275','V1 375','LM 75','LM 175','LM 275','LM 375'])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    plt.legend()
+    plt.tight_layout()
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+   
+    if savefig:
+        extra = extra + '_'.join(splits)
+        filename = PSTH_DIR + data+'/hierarchy/'+\
+            'exc_{}_hierarchy_{}_{}.svg'.format(response_type,extra,depth)
+        
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+    
+    return ax
+
+def load_vip_omission_df(summary_df):
+    print('loading vip image_df')
+    vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+    vip_omission = vip_image_filtered.query('omitted').copy()
+    vip_omission = pd.merge(vip_omission, 
+        summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
+        on='behavior_session_id')
+    vip_omission = vip_omission.query('experience_level=="Familiar"').copy()
+
+    # processing
+    print('bootstrapping')
+    vip_omission = vip_omission[['visual_strategy_session','ophys_experiment_id',
+        'cell_specimen_id','stimulus_presentations_id','response']]
+    bootstrap_means = hb.bootstrap(vip_omission, levels=['visual_strategy_session',
+        'ophys_experiment_id','cell_specimen_id'],nboots=100)
+    return vip_omission, bootstrap_means
 
 
 
+def plot_vip_omission_summary(vip_omission, bootstrap_means):
+    diff = np.array(bootstrap_means[True])-np.array(bootstrap_means[False])
+    p_boot = np.sum(diff<=0)/len(diff)
+    visual_sem = np.std(bootstrap_means[True])
+    timing_sem = np.std(bootstrap_means[False])
+
+    x = vip_omission.groupby(['visual_strategy_session'])['response'].mean()
+    y = vip_omission.groupby(['visual_strategy_session'])['response'].sem()
+
+    plt.figure(figsize=(1.75,2.75))
+    plt.plot(1,x.loc[True],'o',color='darkorange')
+    plt.plot(2,x.loc[False],'o',color='blue')
+    plt.errorbar(1,x.loc[True],y.loc[True],color='darkorange')
+    plt.errorbar(2,x.loc[False],y.loc[False],color='blue')
+    plt.errorbar(1,x.loc[True],visual_sem,color='darkorange')
+    plt.errorbar(2,x.loc[False],timing_sem,color='blue')
+    plt.xlim(.5,2.5)
+    plt.ylim(0,.0425)
+    plt.plot([1,2],[.038,.038],'k')
+    plt.plot([1,1],[.037,.038],'k')
+    plt.plot([2,2],[.037,.038],'k')
+    if p_boot < .05:
+        plt.plot(1.5,.0395,'k*' )
+    plt.ylabel('Vip omission',fontsize=16)
+    ax = plt.gca()
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_xticks([1,2])
+    ax.set_xticklabels(['V','T'],fontsize=16)
+    plt.tight_layout()
+
+    data = 'filtered_events'
+    filename = PSTH_DIR + data+'/summary/'+\
+        'vip_omission_summary.svg'
+        
+    print('Figure saved to: '+filename)
+    plt.savefig(filename)

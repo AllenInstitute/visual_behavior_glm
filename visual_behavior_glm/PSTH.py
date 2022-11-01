@@ -560,7 +560,7 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
-        bin_width=2
+        bin_width=5
 
     fig, ax = plt.subplots(figsize=(3.75,2.75))
 

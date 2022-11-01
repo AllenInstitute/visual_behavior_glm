@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
+from tqdm import tqdm
 
 '''
     df = hb.make_data()
@@ -80,7 +81,7 @@ def bootstrap(df,metric='response', levels=['group','subject','cell'],nboots=100
     for g in groups:
         means[g]= []
         temp = df.query('{} == @g'.format(levels[0]))
-        for i in range(0,nboots):
+        for i in tqdm(range(0,nboots)):
             sum_val, count = sample_hierarchically(temp, metric, levels[1:])
             means[g].append(sum_val/count)            
     return means

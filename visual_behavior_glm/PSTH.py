@@ -7,6 +7,8 @@ from mpl_toolkits.axes_grid1 import Divider, Size
 plt.ion()
 
 import psy_output_tools as po
+import visual_behavior_glm.build_dataframes as bd
+import visual_behavior_glm.hierarchical_bootstrap as hb
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_strategy_tools as gst
 import visual_behavior.data_access.loading as loading
@@ -517,14 +519,50 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
 
     return ax
 
-def running_responses(df,condition, savefig=False,data='filtered_events',split='visual_strategy_session'):
+def compute_running_bootstrap(df,condition):
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=2   
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+    
+    bootstraps = {}
+    bins = df['running_bins'].unique()
+    for b in bins:
+        temp = df.query('running_bins == @b')[['visual_strategy_session',
+            'ophys_experiment_id','cell_specimen_id','response']]
+        means = hb.bootstrap(temp, levels=['visual_strategy_session',
+            'ophys_experiment_id','cell_specimen_id'])
+        if (True in means) & (False in means):
+            diff = np.array(means[True]) - np.array(means[False])
+            pboot = np.sum(diff<0)/len(diff)
+            visual = np.std(means[True])
+            timing = np.std(means[False])
+        else:
+            pboot = 1
+            if (True in means):
+                visual = np.std(means[True])
+            else:
+                visual = 0 
+            if (False in means):
+                timing = np.std(means[False])
+            else:
+                timing = 0 
+        bootstraps[b]={
+            'pval':pboot,
+            'visual':visual,
+            'timing':timing,
+            }
+    return bootstraps
+
+def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered_events',
+    split='visual_strategy_session'):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
         bin_width=2
 
     fig, ax = plt.subplots(figsize=(4,3))
-
 
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
 
@@ -547,11 +585,25 @@ def running_responses(df,condition, savefig=False,data='filtered_events',split='
         vis_label = 'engaged'
         tim_label = 'disengaged'
 
-    plt.errorbar(visual.running_bins*bin_width, visual.response,
-        yerr=visual_sem.response,color=vis_color,fmt='o',label=vis_label)
-    plt.errorbar(timing.running_bins*bin_width, timing.response,
-        yerr=timing_sem.response,color=tim_color,fmt='o',label=tim_label)
-    ax.set_ylabel(condition+' response',fontsize=16)
+    if bootstraps is not None:
+        vtemp = visual.set_index('running_bins')
+        ttemp = timing.set_index('running_bins')
+        for b in visual['running_bins'].unique():
+            plt.errorbar(b*bin_width, vtemp.loc[b].response,
+                yerr=bootstraps[b]['visual'],color=vis_color,fmt='o')   
+        for b in timing['running_bins'].unique():
+            plt.errorbar(b*bin_width, ttemp.loc[b].response,
+                yerr=bootstraps[b]['timing'],color=tim_color,fmt='o')     
+        plt.plot(visual.running_bins*bin_width, visual.response,'o',
+            color=vis_color,label=vis_label)
+        plt.plot(timing.running_bins*bin_width, timing.response,'o',
+            color=tim_color,label=tim_label)
+    else:
+        plt.errorbar(visual.running_bins*bin_width, visual.response,
+            yerr=visual_sem.response,color=vis_color,fmt='o',label=vis_label)
+        plt.errorbar(timing.running_bins*bin_width, timing.response,
+            yerr=timing_sem.response,color=tim_color,fmt='o',label=tim_label)
+    ax.set_ylabel('Vip '+condition+' response',fontsize=16)
     ax.set_xlabel('running speed (cm/s)',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
@@ -697,3 +749,61 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
     
     return ax
 
+def load_vip_omission_df(summary_df):
+    print('loading vip image_df')
+    vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+    vip_omission = vip_image_filtered.query('omitted').copy()
+    vip_omission = pd.merge(vip_omission, 
+        summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
+        on='behavior_session_id')
+    vip_omission = vip_omission.query('experience_level=="Familiar"').copy()
+
+    # processing
+    print('bootstrapping')
+    vip_omission = vip_omission[['visual_strategy_session','ophys_experiment_id',
+        'cell_specimen_id','stimulus_presentations_id','response']]
+    bootstrap_means = hb.bootstrap(vip_omission, levels=['visual_strategy_session',
+        'ophys_experiment_id','cell_specimen_id'],nboots=100)
+    return vip_omission, bootstrap_means
+
+
+
+def plot_vip_omission_summary(vip_omission, bootstrap_means):
+    diff = np.array(bootstrap_means[True])-np.array(bootstrap_means[False])
+    p_boot = np.sum(diff<=0)/len(diff)
+    visual_sem = np.std(bootstrap_means[True])
+    timing_sem = np.std(bootstrap_means[False])
+
+    x = vip_omission.groupby(['visual_strategy_session'])['response'].mean()
+    y = vip_omission.groupby(['visual_strategy_session'])['response'].sem()
+
+    plt.figure(figsize=(3,5))
+    plt.plot(1,x.loc[True],'o',color='darkorange')
+    plt.plot(2,x.loc[False],'o',color='blue')
+    plt.errorbar(1,x.loc[True],y.loc[True],color='darkorange')
+    plt.errorbar(2,x.loc[False],y.loc[False],color='blue')
+    plt.errorbar(1,x.loc[True],visual_sem,color='darkorange')
+    plt.errorbar(2,x.loc[False],timing_sem,color='blue')
+    plt.xlim(.5,2.5)
+    plt.ylim(0,.04)
+    plt.plot([1,2],[.039,.039],'k')
+    plt.plot([1,1],[.038,.039],'k')
+    plt.plot([2,2],[.038,.039],'k')
+    if p_boot < .05:
+        plt.plot(1.5,.0395,'k*' )
+    plt.ylabel('Vip omission response',fontsize=16)
+    ax = plt.gca()
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_xticks([1,2])
+    ax.set_xticklabels(['Visual','Timing'],fontsize=16)
+    plt.tight_layout()
+
+    data = 'filtered_events'
+    filename = PSTH_DIR + data+'/summary/'+\
+        'vip_omission_summary.svg'
+        
+    print('Figure saved to: '+filename)
+    plt.savefig(filename)

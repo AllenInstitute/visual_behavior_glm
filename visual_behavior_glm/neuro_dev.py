@@ -5,6 +5,7 @@ import psy_output_tools as po
 import visual_behavior_glm.PSTH as psth
 import visual_behavior_glm.image_regression as ir
 import visual_behavior_glm.build_dataframes as bd
+import visual_behavior_glm.hierarchical_bootstrap as hb
 import visual_behavior_glm.GLM_fit_dev as gfd
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_analysis_tools as gat
@@ -118,11 +119,23 @@ vip_image = pd.merge(vip_image,
     on='behavior_session_id')
 vip_image = vip_image.query('experience_level=="Familiar"').copy()
 
+# Generate bootstrapped errorbars:
+bootstraps = psth.compute_running_bootstrap(vip_omission,'omission')
+psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps)
+
+
 # Generate figures
 psth.running_responses(vip_omission, 'omission')
 psth.running_responses(vip_image, 'image')
 psth.running_responses(vip_omission, 'omission',split='engagement_v2')
 psth.running_responses(vip_image, 'image',split='engagement_v2')
+
+## VIP Omission
+################################################################################
+vip_omission, bootstrap_means = psth.load_vip_omission_df(summary_df)
+psth.plot_vip_omission_summary(vip_omission, bootstrap_means)
+
+
 
 ## Change response across hierarchy 
 ################################################################################

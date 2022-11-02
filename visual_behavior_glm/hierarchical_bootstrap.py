@@ -17,14 +17,20 @@ from tqdm import tqdm
 
 def bootstrap(df,metric='response', levels=['group','subject','cell'],nboots=100):
     '''
-    
-    # TODO
+        Computes a hierarchical bootstrap of <metric> across the hierarchy
+        defined in <levels>. 
+        levels, strings referring to columns in 'df' from highest level to lowest
     '''
+
     groups = df[levels[0]].unique()
     means = {}
+
+    # Iterate over top level groups
     for g in groups:
         means[g]= []
         temp = df.query('{} == @g'.format(levels[0]))
+    
+        # Perform each bootstrap
         for i in tqdm(range(0,nboots)):
             sum_val, count = sample_hierarchically(temp, metric, levels[1:])
             means[g].append(sum_val/count)            
@@ -32,19 +38,24 @@ def bootstrap(df,metric='response', levels=['group','subject','cell'],nboots=100
 
 def sample_hierarchically(df, metric, levels):
     '''
-    
-    # TODO
+        Sample the levels of the hierarchy and return the mean.
+        For efficiency, we return the running total and number of samples
+        instead of the list of actual values
     '''
     if len(levels) == 1:
+        # At the bottom level
         sum_val = df[metric].sample(n=len(df),replace=True).sum()
         count = len(df)
         return sum_val, count  
     else:
+        # Sample with replacement an equal number of times to how many
+        # data points we have at this level
         items = df[levels[0]].unique()     
         n = len(items)
         sum_val = 0
         count = 0
         for i in range(0,n):
+            # Sample, then recurse to lower levels
             choice = np.random.choice(items)
             temp = df.query('{} == @choice'.format(levels[0]))
             temp_sum_val, temp_count = sample_hierarchically(temp, metric, levels[1:])

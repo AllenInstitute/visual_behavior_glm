@@ -750,8 +750,11 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
     return ax
 
 def load_vip_omission_df(summary_df):
+    '''
+        Load the Vip omission responses, compute the bootstrap intervals
+    '''
     print('loading vip image_df')
-    vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+    vip_image_filtered= bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
     vip_omission = vip_image_filtered.query('omitted').copy()
     vip_omission = pd.merge(vip_omission, 
         summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
@@ -766,9 +769,12 @@ def load_vip_omission_df(summary_df):
         'ophys_experiment_id','cell_specimen_id'],nboots=100)
     return vip_omission, bootstrap_means
 
-
-
 def plot_vip_omission_summary(vip_omission, bootstrap_means):
+    '''
+        Plot a summary figure of the average omission response split by
+        strategy
+    '''
+
     diff = np.array(bootstrap_means[True])-np.array(bootstrap_means[False])
     p_boot = np.sum(diff<=0)/len(diff)
     visual_sem = np.std(bootstrap_means[True])

@@ -6,24 +6,85 @@ import scipy.stats as stats
 from tqdm import tqdm
 
 '''
+    # Demonstration
     df = hb.make_data()
-    means = hb.bootstrap(df)
-    hb.plot_data(df,means) 
+    bootstrap_means = hb.bootstrap(df,levels=['group','subject','cell','image'])
+    hb.plot_data(df,bootstrap_means) 
     
+    # Use on real data
+    bootstrap_means = hb.bootstrap(df)
 '''
-def make_data():
+
+def bootstrap(df,metric='response', levels=['group','subject','cell'],nboots=100):
+    '''
+        Computes a hierarchical bootstrap of <metric> across the hierarchy
+        defined in <levels>. 
+        levels, strings referring to columns in 'df' from highest level to lowest
+    '''
+
+    groups = df[levels[0]].unique()
+    means = {}
+
+    # Iterate over top level groups
+    for g in groups:
+        means[g]= []
+        temp = df.query('{} == @g'.format(levels[0]))
+    
+        # Perform each bootstrap
+        for i in tqdm(range(0,nboots)):
+            sum_val, count = sample_hierarchically(temp, metric, levels[1:])
+            means[g].append(sum_val/count)            
+    return means
+
+def sample_hierarchically(df, metric, levels):
+    '''
+        Sample the levels of the hierarchy and return the mean.
+        For efficiency, we return the running total and number of samples
+        instead of the list of actual values
+    '''
+    if len(levels) == 1:
+        # At the bottom level
+        sum_val = df[metric].sample(n=len(df),replace=True).sum()
+        count = len(df)
+        return sum_val, count  
+    else:
+        # Sample with replacement an equal number of times to how many
+        # data points we have at this level
+        items = df[levels[0]].unique()     
+        n = len(items)
+        sum_val = 0
+        count = 0
+        for i in range(0,n):
+            # Sample, then recurse to lower levels
+            choice = np.random.choice(items)
+            temp = df.query('{} == @choice'.format(levels[0]))
+            temp_sum_val, temp_count = sample_hierarchically(temp, metric, levels[1:])
+            sum_val +=temp_sum_val
+            count += temp_count
+        return sum_val, count
+
+## Example code below here
+################################################################################
+
+def make_data_simple():
+    '''
+        Generates some synthetic data without image level sampling
+    '''
     level_1_diff = 1
     level_2_var = 1
     level_3_var = 1
-
     n1 = 2
     n2 = 3
     n3 = 100
     dfs = []
-    
+   
+    # Iterate over groups 
     for group in range(0,n1):
+        # Iterate over subjects
         for subject in range(0,n2):
             subject_mean = np.random.randn()*level_2_var
+
+            # Iterate over cells
             for cell in range(0, n3):
                 mean = group*level_1_diff + \
                     subject_mean + \
@@ -35,28 +96,40 @@ def make_data():
                     'response':mean
                     }
                 dfs.append(pd.DataFrame(this_df,index=[0]))
+
+    # Combine all the responses
     df = pd.concat(dfs).reset_index(drop=True)
     return df
 
-def make_data_2():
+def make_data():
+    '''
+        Generates synthetic data with groups, subjects, cells, and image level sampling
+    '''
+
     level_1_diff = 1
     level_2_var = 1
     level_3_var = 1
     level_4_var = 1
-
     n1 = 2
     n2 = 3
     n3 = 100
     n4 = 10
     dfs = []
-    
+
+    # Iterate over groups    
     for group in range(0,n1):
+    
+        # Iterate over subjects
         for subject in range(0,n2):
             subject_mean = np.random.randn()*level_2_var
+
+            # Iterate over cells
             for cell in range(0, n3):
                 mean = group*level_1_diff + \
                     subject_mean + \
                     np.random.randn()*level_3_var
+    
+                # Iterate over image responses
                 for image in range(0,n4):
                     response = mean+np.random.randn()*level_4_var
                     this_df = {
@@ -67,55 +140,32 @@ def make_data_2():
                         'response':response
                         }
                     dfs.append(pd.DataFrame(this_df,index=[0]))
+
+    # Combine responses
     df = pd.concat(dfs).reset_index(drop=True)
     return df
-
-def compare_hierarchy(df):
-    bootstrap_subjects = bootstrap(df, levels=['group','subject'])
-    bootstrap_cells = bootstrap(df, levels=['group','subject','cell'])
-    bootstrap_images = bootstrap(df, levels=['group','subject','cell','image'])
-
-def bootstrap(df,metric='response', levels=['group','subject','cell'],nboots=100):
-    groups = df[levels[0]].unique()
-    means = {}
-    for g in groups:
-        means[g]= []
-        temp = df.query('{} == @g'.format(levels[0]))
-        for i in tqdm(range(0,nboots)):
-            sum_val, count = sample_hierarchically(temp, metric, levels[1:])
-            means[g].append(sum_val/count)            
-    return means
-
-def sample_hierarchically(df, metric, levels):
-    if len(levels) == 1:
-        sum_val = df[metric].sample(n=len(df),replace=True).sum()
-        count = len(df)
-        return sum_val, count  
-    else:
-        items = df[levels[0]].unique()     
-        n = len(items)
-        sum_val = 0
-        count = 0
-        for i in range(0,n):
-            choice = np.random.choice(items)
-            temp = df.query('{} == @choice'.format(levels[0]))
-            temp_sum_val, temp_count = sample_hierarchically(temp, metric, levels[1:])
-            sum_val +=temp_sum_val
-            count += temp_count
-        return sum_val, count
-        
-def test(df,means):
+ 
+def stat_test(df,means):
+    '''
+        Compute p-value from hierarchical bootstrap and from naive t-test
+    '''
+    
+    # Compute p-value from bootstrap
     diff = np.array(means[1]) - np.array(means[0])
     p_boot = np.sum(diff <=0)/len(diff)
 
+    # naive t-test
     a = df.query('group == 0')['response']
     b = df.query('group == 1')['response']
     p_ttest = stats.ttest_ind(a,b).pvalue
 
     return p_boot, p_ttest
 
-def plot_data(df,means):
-    stats = test(df,means)
+def plot_data_simple(df,means):
+    '''
+        Visualize simple demonstration without image level sampling
+    '''
+    stats = stat_test(df,means)
     fig, ax = plt.subplots(1,4,figsize=(8,4),sharey=True)
     mean = df.groupby(['group'])['response'].mean()
     sem = df.groupby(['group'])['response'].sem()
@@ -174,10 +224,12 @@ def plot_data(df,means):
 
     plt.tight_layout()
 
-
-
-def plot_data_2(df,means):
-    stats = test(df,means)
+def plot_data(df,means):
+    '''
+        Visualize demonstration of naive standard error 
+        vs hierarchical approach 
+    '''
+    stats = stat_test(df,means)
     fig, ax = plt.subplots(1,5,figsize=(10,4),sharey=True)
     mean = df.groupby(['group'])['response'].mean()
     sem = df.groupby(['group'])['response'].sem()

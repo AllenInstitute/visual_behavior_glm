@@ -7,6 +7,7 @@ from mpl_toolkits.axes_grid1 import Divider, Size
 plt.ion()
 
 import psy_output_tools as po
+import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.build_dataframes as bd
 import visual_behavior_glm.hierarchical_bootstrap as hb
 import visual_behavior_glm.GLM_visualization_tools as gvt
@@ -626,7 +627,7 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
 
 
 def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_events',
-    savefig=True,response_type='change',ax=None):
+    savefig=True,response_type='change',ax=None,exc=True):
     '''
         exc_change is the image_df for just change images, with area, 
             layer, and visual_strategy annotations
@@ -716,14 +717,16 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
         ax.plot(mean_df['xloc'],mean_df['response'], 'o',label='all cells')
 
 
-    if response_type == 'change':
+    if (response_type == 'change') & exc:
         plt.ylim(0,0.01)
         ax.set_ylabel('change response',fontsize=16)
-    elif response_type == 'image':
+    elif (response_type == 'image') & exc:
         plt.ylim(0,0.006)
         ax.set_ylabel('image response',fontsize=16)   
-    else:
+    elif exc:
         plt.ylim(0,0.01)
+        ax.set_ylabel('response',fontsize=16)   
+    else:
         ax.set_ylabel('response',fontsize=16)   
     ax.set_xlabel('Area & depth',fontsize=16)
     if depth == 'layer':
@@ -749,26 +752,111 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
     
     return ax
 
-def load_vip_omission_df(summary_df):
+def load_change_df(summary_df,cre):
+
+    # Load everything
+    df = bd.load_population_df('filtered_events','image_df',cre)
+
+    # filter to changes
+    df.drop(df[~df['is_change']].index,inplace=True)
+
+    # add additional details
+    experiment_table = glm_params.get_experiment_table()
+    df = bd.add_area_depth(df,experiment_table)
+    df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
+    'binned_depth']],on='ophys_experiment_id')
+    df = pd.merge(df, summary_df[['behavior_session_id',
+        'visual_strategy_session','experience_level']])
+
+    # limit to familiar
+    df = df.query('experience_level == "Familiar"')
+
+    return df
+
+def load_image_df(summary_df, cre):
+    '''
+        This function is optimized for memory conservation
+    '''
+
+    # Load everything
+    df = bd.load_population_df('filtered_events','image_df',)
+
+    # Drop changes and omissions
+    df.drop(df[df['is_change'] | df['omitted']].index,inplace=True)
+
+    # drop familiar sessions
+    familiar_summary_df = summary_df.query('experience_level == "Familiar"')
+    familiar_bsid = familiar_summary_df['behavior_session_id'].unique()
+    df.drop(df[~df['behavior_session_id'].isin(familiar_bsid)].index, inplace=True)
+
+    # Add additional details
+    df = pd.merge(df,summary_df[['behavior_session_id','visual_strategy_session']])
+    experiment_table = glm_params.get_experiment_table()
+    df = bd.add_area_depth(df, experiment_table)
+    df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
+        'binned_depth']],on='ophys_experiment_id')
+
+    return df
+
+def load_image_and_change_df(summary_df, cre):
+    # load everything
+    df = bd.load_population_df('filtered_events','image_df',cre)
+    
+    # drop omissions
+    df.drop(df[df['omitted']].index,inplace=True)
+
+    # limit to familiar
+    familiar_summary_df = summary_df.query('experience_level == "Familiar"')
+    familiar_bsid = familiar_summary_df['behavior_session_id'].unique()
+    df.drop(df[~df['behavior_session_id'].isin(familiar_bsid)].index, inplace=True)
+
+    # Add additional details
+    df = pd.merge(df,summary_df[['behavior_session_id','visual_strategy_session']])
+    experiment_table = glm_params.get_experiment_table()
+    df = bd.add_area_depth(df, experiment_table)
+    df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
+        'binned_depth']],on='ophys_experiment_id')
+    return df
+
+def load_vip_image_df(summary_df):
     print('loading vip image_df')
-    vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+    vip_image_filtered=bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+    vip_image = vip_image_filtered.query('(not omitted)&(not is_change)').copy()
+    vip_image = pd.merge(vip_image, 
+        summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
+        on='behavior_session_id')
+    vip_image = vip_image.query('experience_level=="Familiar"').copy()
+    return vip_image
+
+def load_vip_omission_df(summary_df,bootstrap=False):
+    '''
+        Load the Vip omission responses, compute the bootstrap intervals
+    '''
+    print('loading vip image_df')
+    vip_image_filtered= bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
     vip_omission = vip_image_filtered.query('omitted').copy()
     vip_omission = pd.merge(vip_omission, 
         summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
         on='behavior_session_id')
     vip_omission = vip_omission.query('experience_level=="Familiar"').copy()
-
-    # processing
-    print('bootstrapping')
-    vip_omission = vip_omission[['visual_strategy_session','ophys_experiment_id',
-        'cell_specimen_id','stimulus_presentations_id','response']]
-    bootstrap_means = hb.bootstrap(vip_omission, levels=['visual_strategy_session',
-        'ophys_experiment_id','cell_specimen_id'],nboots=100)
-    return vip_omission, bootstrap_means
-
-
+    
+    if bootstrap:
+        # processing
+        print('bootstrapping')
+        vip_omission = vip_omission[['visual_strategy_session','ophys_experiment_id',
+            'cell_specimen_id','stimulus_presentations_id','response']]
+        bootstrap_means = hb.bootstrap(vip_omission, levels=['visual_strategy_session',
+            'ophys_experiment_id','cell_specimen_id'],nboots=100)
+        return vip_omission, bootstrap_means
+    else:
+        return vip_omission
 
 def plot_vip_omission_summary(vip_omission, bootstrap_means):
+    '''
+        Plot a summary figure of the average omission response split by
+        strategy
+    '''
+
     diff = np.array(bootstrap_means[True])-np.array(bootstrap_means[False])
     p_boot = np.sum(diff<=0)/len(diff)
     visual_sem = np.std(bootstrap_means[True])

@@ -752,10 +752,10 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
     
     return ax
 
-def load_change_df(summary_df,cre):
+def load_change_df(summary_df,cre,data='filtered_events'):
 
     # Load everything
-    df = bd.load_population_df('filtered_events','image_df',cre)
+    df = bd.load_population_df(data,'image_df',cre)
 
     # filter to changes
     df.drop(df[~df['is_change']].index,inplace=True)
@@ -773,13 +773,13 @@ def load_change_df(summary_df,cre):
 
     return df
 
-def load_image_df(summary_df, cre):
+def load_image_df(summary_df, cre,data='filtered_events'):
     '''
         This function is optimized for memory conservation
     '''
 
     # Load everything
-    df = bd.load_population_df('filtered_events','image_df',)
+    df = bd.load_population_df(data,'image_df',)
 
     # Drop changes and omissions
     df.drop(df[df['is_change'] | df['omitted']].index,inplace=True)
@@ -798,9 +798,9 @@ def load_image_df(summary_df, cre):
 
     return df
 
-def load_image_and_change_df(summary_df, cre):
+def load_image_and_change_df(summary_df, cre,data='filtered_events'):
     # load everything
-    df = bd.load_population_df('filtered_events','image_df',cre)
+    df = bd.load_population_df(data,'image_df',cre)
     
     # drop omissions
     df.drop(df[df['omitted']].index,inplace=True)
@@ -818,9 +818,9 @@ def load_image_and_change_df(summary_df, cre):
         'binned_depth']],on='ophys_experiment_id')
     return df
 
-def load_vip_image_df(summary_df):
+def load_vip_image_df(summary_df,data='filtered_events'):
     print('loading vip image_df')
-    vip_image_filtered=bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+    vip_image_filtered=bd.load_population_df(data,'image_df','Vip-IRES-Cre')
     vip_image = vip_image_filtered.query('(not omitted)&(not is_change)').copy()
     vip_image = pd.merge(vip_image, 
         summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
@@ -828,12 +828,12 @@ def load_vip_image_df(summary_df):
     vip_image = vip_image.query('experience_level=="Familiar"').copy()
     return vip_image
 
-def load_vip_omission_df(summary_df,bootstrap=False):
+def load_vip_omission_df(summary_df,bootstrap=False,data='filtered_events'):
     '''
         Load the Vip omission responses, compute the bootstrap intervals
     '''
     print('loading vip image_df')
-    vip_image_filtered= bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+    vip_image_filtered= bd.load_population_df(data,'image_df','Vip-IRES-Cre')
     vip_omission = vip_image_filtered.query('omitted').copy()
     vip_omission = pd.merge(vip_omission, 
         summary_df[['behavior_session_id','visual_strategy_session','experience_level']],

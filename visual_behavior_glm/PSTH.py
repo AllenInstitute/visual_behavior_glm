@@ -895,3 +895,15 @@ def plot_vip_omission_summary(vip_omission, bootstrap_means):
         
     print('Figure saved to: '+filename)
     plt.savefig(filename)
+
+
+def find_preferred(df):
+    g = df.groupby(['cell_specimen_id','image_index'])['response'].mean()
+    g = g.unstack()
+    g['max'] = g.idxmax(axis=1)
+    df['preferred_image'] = df['cell_specimen_id'].map(g['max'])
+    df['is_preferred'] = df['preferred_image'] == df['image_index']
+    return df
+
+   
+

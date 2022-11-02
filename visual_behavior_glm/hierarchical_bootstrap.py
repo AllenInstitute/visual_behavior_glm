@@ -15,6 +15,13 @@ from tqdm import tqdm
     bootstrap_means = hb.bootstrap(df)
 '''
 
+def summary(bootstrap):
+    keys = list(bootstrap.keys())
+    for key in keys:
+        print('{}: {} +/- {}'.format(key,np.mean(bootstrap[key]),np.std(bootstrap[key])))
+    diff = np.array(bootstrap[keys[0]]) - np.array(bootstrap[keys[1]])
+    print('p value: ' + str(np.sum(diff > 0)/len(diff)))
+
 def bootstrap(df,metric='response', levels=['group','subject','cell'],nboots=100):
     '''
         Computes a hierarchical bootstrap of <metric> across the hierarchy

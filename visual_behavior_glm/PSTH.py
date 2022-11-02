@@ -627,7 +627,7 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
 
 
 def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_events',
-    savefig=True,response_type='change',ax=None):
+    savefig=True,response_type='change',ax=None,exc=True):
     '''
         exc_change is the image_df for just change images, with area, 
             layer, and visual_strategy annotations
@@ -717,14 +717,16 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
         ax.plot(mean_df['xloc'],mean_df['response'], 'o',label='all cells')
 
 
-    if response_type == 'change':
+    if (response_type == 'change') & exc:
         plt.ylim(0,0.01)
         ax.set_ylabel('change response',fontsize=16)
-    elif response_type == 'image':
+    elif (response_type == 'image') & exc:
         plt.ylim(0,0.006)
         ax.set_ylabel('image response',fontsize=16)   
-    else:
+    elif exc:
         plt.ylim(0,0.01)
+        ax.set_ylabel('response',fontsize=16)   
+    else:
         ax.set_ylabel('response',fontsize=16)   
     ax.set_xlabel('Area & depth',fontsize=16)
     if depth == 'layer':

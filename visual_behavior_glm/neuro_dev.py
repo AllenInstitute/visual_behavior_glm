@@ -104,26 +104,16 @@ vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-
 ## Running controls
 ################################################################################
 
-# Load image_df for Vip omission responses
-vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
-vip_omission = vip_image_filtered.query('omitted').copy()
-vip_omission = pd.merge(vip_omission, 
-    summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
-    on='behavior_session_id')
-vip_omission = vip_omission.query('experience_level=="Familiar"').copy()
-
-# Load image_df for Vip image responses
-vip_image = vip_image_filtered.query('(not omitted)&(not is_change)').copy()
-vip_image = pd.merge(vip_image, 
-    summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
-    on='behavior_session_id')
-vip_image = vip_image.query('experience_level=="Familiar"').copy()
+# Load image_dfs 
+vip_omission = psth.load_vip_omission_df(summary_df, bootstrap=False)
+vip_image = psth.load_vip_image_df(summary_df) 
 
 # Generate bootstrapped errorbars:
 bootstraps_omission = psth.compute_running_bootstrap(vip_omission,'omission')
-psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps_omission)
-
 bootstraps_image = psth.compute_running_bootstrap(vip_image,'image')
+
+# Generate figures with bootstraps
+psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps_omission)
 psth.running_responses(vip_image, 'image',bootstraps=bootstraps_image)
 
 # Generate figures without bootstraps
@@ -134,7 +124,9 @@ psth.running_responses(vip_image, 'image',split='engagement_v2')
 
 ## VIP Omission
 ################################################################################
-vip_omission, bootstrap_means = psth.load_vip_omission_df(summary_df)
+
+# Make summary plot of mean response
+vip_omission, bootstrap_means = psth.load_vip_omission_df(summary_df,bootstrap=True)
 psth.plot_vip_omission_summary(vip_omission, bootstrap_means)
 
 ## Change response across hierarchy 

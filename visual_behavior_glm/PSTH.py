@@ -749,7 +749,17 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
     
     return ax
 
-def load_vip_omission_df(summary_df):
+def load_vip_image_df(summary_df):
+    print('loading vip image_df')
+    vip_image_filtered=bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+    vip_image = vip_image_filtered.query('(not omitted)&(not is_change)').copy()
+    vip_image = pd.merge(vip_image, 
+        summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
+        on='behavior_session_id')
+    vip_image = vip_image.query('experience_level=="Familiar"').copy()
+    return vip_image
+
+def load_vip_omission_df(summary_df,bootstrap=False):
     '''
         Load the Vip omission responses, compute the bootstrap intervals
     '''
@@ -760,14 +770,17 @@ def load_vip_omission_df(summary_df):
         summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
         on='behavior_session_id')
     vip_omission = vip_omission.query('experience_level=="Familiar"').copy()
-
-    # processing
-    print('bootstrapping')
-    vip_omission = vip_omission[['visual_strategy_session','ophys_experiment_id',
-        'cell_specimen_id','stimulus_presentations_id','response']]
-    bootstrap_means = hb.bootstrap(vip_omission, levels=['visual_strategy_session',
-        'ophys_experiment_id','cell_specimen_id'],nboots=100)
-    return vip_omission, bootstrap_means
+    
+    if bootstrap:
+        # processing
+        print('bootstrapping')
+        vip_omission = vip_omission[['visual_strategy_session','ophys_experiment_id',
+            'cell_specimen_id','stimulus_presentations_id','response']]
+        bootstrap_means = hb.bootstrap(vip_omission, levels=['visual_strategy_session',
+            'ophys_experiment_id','cell_specimen_id'],nboots=100)
+        return vip_omission, bootstrap_means
+    else:
+        return vip_omission
 
 def plot_vip_omission_summary(vip_omission, bootstrap_means):
     '''

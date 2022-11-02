@@ -627,7 +627,7 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
 
 
 def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_events',
-    savefig=True,response_type='change',ax=None,exc=True):
+    savefig=False,response_type='change',ax=None,exc=True):
     '''
         exc_change is the image_df for just change images, with area, 
             layer, and visual_strategy annotations

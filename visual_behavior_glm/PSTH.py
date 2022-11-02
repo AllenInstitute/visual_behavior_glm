@@ -7,6 +7,7 @@ from mpl_toolkits.axes_grid1 import Divider, Size
 plt.ion()
 
 import psy_output_tools as po
+import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.build_dataframes as bd
 import visual_behavior_glm.hierarchical_bootstrap as hb
 import visual_behavior_glm.GLM_visualization_tools as gvt

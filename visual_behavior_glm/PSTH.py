@@ -627,7 +627,7 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
 
 
 def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_events',
-    savefig=False,response_type='change',ax=None,exc=True):
+    savefig=False,response_type='change',ax=None,cre='exc'):
     '''
         exc_change is the image_df for just change images, with area, 
             layer, and visual_strategy annotations
@@ -717,17 +717,18 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
         ax.plot(mean_df['xloc'],mean_df['response'], 'o',label='all cells')
 
 
-    if (response_type == 'change') & exc:
+    if (response_type == 'change') & (cre=='exc'):
         plt.ylim(0,0.01)
         ax.set_ylabel('change response',fontsize=16)
-    elif (response_type == 'image') & exc:
+    elif (response_type == 'image') & (cre=='exc'):
         plt.ylim(0,0.006)
         ax.set_ylabel('image response',fontsize=16)   
-    elif exc:
+    elif cre=='exc':
         plt.ylim(0,0.01)
         ax.set_ylabel('response',fontsize=16)   
     else:
         ax.set_ylabel('response',fontsize=16)   
+        plt.ylim(bottom=0)
     ax.set_xlabel('Area & depth',fontsize=16)
     if depth == 'layer':
         ax.set_xticks([1,2,3,4])
@@ -745,7 +746,7 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
     if savefig:
         extra = extra + '_'.join(splits)
         filename = PSTH_DIR + data+'/hierarchy/'+\
-            'exc_{}_hierarchy_{}_{}.svg'.format(response_type,extra,depth)
+            '_{}_hierarchy_{}_{}.svg'.format(cre,response_type,extra,depth)
         
         print('Figure saved to: '+filename)
         plt.savefig(filename)
@@ -779,7 +780,7 @@ def load_image_df(summary_df, cre,data='filtered_events'):
     '''
 
     # Load everything
-    df = bd.load_population_df(data,'image_df',)
+    df = bd.load_population_df(data,'image_df',cre)
 
     # Drop changes and omissions
     df.drop(df[df['is_change'] | df['omitted']].index,inplace=True)

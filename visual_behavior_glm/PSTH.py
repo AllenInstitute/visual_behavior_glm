@@ -703,11 +703,7 @@ def get_hierarchy(cell_type, response, data, depth, splits=[]):
     #load_file
     return
 
-def plot_hierarchy(cell_type, response, data, depth, splits=[]):
-    hierarchy = get_hierarchy(cell_type, response, data, depth, splits)
-    plot_hierarchy_inner(hierarchy, cell_type, response, data, depth, splits, savefig)
-
-def plot_hierarchy_inner(hierarchy, cell_type, response, data, depth, splits, savefig=False):
+def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False):
 
     if depth == 'layer':
         fig,ax = plt.subplots(figsize=(5,4))
@@ -753,8 +749,9 @@ def plot_hierarchy_inner(hierarchy, cell_type, response, data, depth, splits, sa
                     temp = hierarchy.query('{} == @split_value'.format(value))         
                 else:
                     temp = hierarchy.query('{} == {}'.format(value, split_value))            
-                ax.errorbar(temp['xloc'],temp['response'],yerr=temp['bootstrap_sem'],fmt='o',color=color,
-                    label= label)
+                ax.errorbar(temp['xloc'],temp['response'],yerr=temp['bootstrap_sem'],
+                    fmt='o',color=color,alpha=.5)
+                ax.plot(temp['xloc'],temp['response'],'o',color=color,label= label)
     else:
         ax.plot(hierarchy['xloc'],hierarchy['response'], 'o',label='all cells')
 

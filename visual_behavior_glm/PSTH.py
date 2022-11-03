@@ -625,17 +625,15 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
-
-def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_events',
-    savefig=False,response_type='change',ax=None,cre='exc'):
+def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True):
     '''
-        exc_change is the image_df for just change images, with area, 
-            layer, and visual_strategy annotations
+        Generates a dataframe with the mean + bootstraps values for each split of the data
+        saves dataframe to file for fast access
     '''
     if depth == 'layer':
-        mean_df = exc_change.groupby(splits+['targeted_structure','layer'])['response']\
+        mean_df = df.groupby(splits+['targeted_structure','layer'])['response']\
             .mean().reset_index()
-        sem_df = exc_change.groupby(splits+['targeted_structure','layer'])['response']\
+        sem_df = df.groupby(splits+['targeted_structure','layer'])['response']\
             .sem().reset_index()
         mean_df['sem'] = sem_df['response']*1.96
         mean_df['location'] = mean_df['targeted_structure'] + '_' + mean_df['layer']
@@ -647,9 +645,188 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
             }
         mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
     elif depth == 'binned_depth':
-        mean_df = exc_change.groupby(splits+['targeted_structure','binned_depth'])['response']\
+        mean_df = df.groupby(splits+['targeted_structure','binned_depth'])['response']\
             .mean().reset_index()
-        sem_df = exc_change.groupby(splits+['targeted_structure','binned_depth'])['response']\
+        sem_df = df.groupby(splits+['targeted_structure','binned_depth'])['response']\
+            .sem().reset_index()
+        mean_df['sem'] = sem_df['response']*1.96
+        mean_df['location'] = mean_df['targeted_structure'] + '_' +\
+             mean_df['binned_depth'].astype(str)
+        mapper = {
+            'VISp_75':1,
+            'VISp_175':2,
+            'VISp_275':3,
+            'VISp_375':4,
+            'VISl_75':5,
+            'VISl_175':6,
+            'VISl_275':7,
+            'VISl_375':8,
+            }
+        mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
+
+    if bootstrap:
+        groups = mean_df[['targeted_structure',depth]].drop_duplicates()
+        for index, row in groups.iterrows():
+            temp = df.query('(targeted_structure == @row.targeted_structure)&({} == {})'.format(
+                depth, row[depth]))
+            bootstrap = hb.bootstrap(temp,levels=splits+['ophys_experiment_id','cell_specimen_id'])
+            if len(splits) == 1:
+                keys = list(bootstrap.keys()) 
+                if len(keys) == 2:
+                    diff = np.array(bootstrap[keys[0]]) > np.array(bootstrap[keys[1]])
+                    p_boot = np.sum(diff)/len(diff)
+                else:
+                    p_boot = np.nan
+                for key in keys:
+                    sem = np.std(bootstrap[key])
+                    dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
+                        (mean_df[depth] == row.binned_depth)&\
+                        (mean_df[splits[0]] == key)
+                    mean_df.loc[dex,'bootstrap_sem'] = sem
+                    mean_df.loc[dex,'p_boot'] = p_boot 
+            else:
+                print('I dont know what to do here')
+
+    # Should do hochsberg-benjaminin correction
+
+    return mean_df
+
+
+
+def get_hierarchy(cell_type, response, data, depth, splits=[]):
+    '''
+        loads the dataframe from file
+    '''
+    #if not file_exists:
+    #    compute_file
+
+    #load_file
+    return
+
+def plot_hierarchy(cell_type, response, data, depth, splits=[]):
+    hierarchy = get_hierarchy(cell_type, response, data, depth, splits)
+    plot_hierarchy_inner(hierarchy, cell_type, response, data, depth, splits, savefig)
+
+def plot_hierarchy_inner(hierarchy, cell_type, response, data, depth, splits, savefig=False):
+
+    if depth == 'layer':
+        fig,ax = plt.subplots(figsize=(5,4))
+    else:
+        fig,ax = plt.subplots(figsize=(8,4))
+
+    if len(splits) >0:
+        for index, value in enumerate(splits):
+            unique = hierarchy[value].unique()
+            for sdex, split_value in enumerate(unique):
+                if value == 'hit':
+                    if bool(split_value):
+                        color = 'black'
+                        label = 'hit'
+                    else:
+                        color = 'lightgray'
+                        label = 'miss'
+                elif value == 'visual_strategy_session':
+                    if bool(split_value):
+                        color = 'darkorange'
+                        label = 'visual session'                   
+                    else:
+                        color = 'blue'
+                        label = 'timing session'
+                elif value == 'is_change':
+                    if bool(split_value):
+                        color=(0.1215,0.466,.7058)
+                        label='change'
+                    else:
+                        color='lightgray'
+                        label='repeat'
+                elif value == 'engagement_v2':
+                    if bool(split_value):
+                        color = 'darkorange'
+                        label='engaged'
+                    else:
+                        color = 'red'
+                        label='disengaged'
+                else:
+                    color= plt.cm.get_cmap('tab10').colors[sdex]
+                    label = str(value)+' '+str(split_value) 
+                if isinstance(split_value, str):
+                    temp = hierarchy.query('{} == @split_value'.format(value))         
+                else:
+                    temp = hierarchy.query('{} == {}'.format(value, split_value))            
+                ax.errorbar(temp['xloc'],temp['response'],yerr=temp['bootstrap_sem'],fmt='o',color=color,
+                    label= label)
+    else:
+        ax.plot(hierarchy['xloc'],hierarchy['response'], 'o',label='all cells')
+
+
+    if (response == 'change') & (cell_type=='exc'):
+        plt.ylim(0,0.01)
+        ax.set_ylabel('change response',fontsize=16)
+    elif (response == 'image') & (cell_type=='exc'):
+        plt.ylim(0,0.006)
+        ax.set_ylabel('image response',fontsize=16)   
+    elif cell_type=='exc':
+        plt.ylim(0,0.01)
+        ax.set_ylabel('response',fontsize=16)   
+    else:
+        ax.set_ylabel('response',fontsize=16)   
+        plt.ylim(bottom=0)
+    ax.set_xlabel('Area & depth',fontsize=16)
+    if depth == 'layer':
+        ax.set_xticks([1,2,3,4])
+        ax.set_xticklabels(['V1 upper','V1 lower','LM upper', 'LM lower'])
+    else:
+        ax.set_xticks([1,2,3,4,5,6,7,8])
+        ax.set_xticklabels(['V1 75','V1 175','V1 275','V1 375','LM 75','LM 175','LM 275','LM 375'])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    plt.legend()
+    plt.tight_layout()
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+
+    y =  ax.get_ylim()[1]*1.05
+    for index, row in hierarchy.iterrows():
+        if row.significant:
+            ax.plot(row.xloc, y, 'k*')  
+    ax.set_ylim(top=y*1.075)
+ 
+    if savefig:
+        #extra = extra + '_'.join(splits)
+        #filename = PSTH_DIR + data+'/hierarchy/'+\
+        #    '_{}_hierarchy_{}_{}.svg'.format(cre,response_type,extra,depth)
+        
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+    
+    return ax
+
+
+
+def plot_hierarchy_dev(df,splits=[],extra = '',depth='layer',data='filtered_events',
+    savefig=False,response_type='change',ax=None,cre='exc'):
+    '''
+        df is the image_df for just change images, with area, 
+            layer, and visual_strategy annotations
+    '''
+    if depth == 'layer':
+        mean_df = df.groupby(splits+['targeted_structure','layer'])['response']\
+            .mean().reset_index()
+        sem_df = df.groupby(splits+['targeted_structure','layer'])['response']\
+            .sem().reset_index()
+        mean_df['sem'] = sem_df['response']*1.96
+        mean_df['location'] = mean_df['targeted_structure'] + '_' + mean_df['layer']
+        mapper = {
+            'VISp_upper':1,
+            'VISp_lower':2,
+            'VISl_upper':3,
+            'VISl_lower':4
+            }
+        mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
+    elif depth == 'binned_depth':
+        mean_df = df.groupby(splits+['targeted_structure','binned_depth'])['response']\
+            .mean().reset_index()
+        sem_df = df.groupby(splits+['targeted_structure','binned_depth'])['response']\
             .sem().reset_index()
         mean_df['sem'] = sem_df['response']*1.96
         mean_df['location'] = mean_df['targeted_structure'] + '_' +\

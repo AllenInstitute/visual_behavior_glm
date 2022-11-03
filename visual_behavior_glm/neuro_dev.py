@@ -105,7 +105,7 @@ vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-
 ################################################################################
 
 # Load image_dfs 
-vip_omission = psth.load_vip_omission_df(summary_df, bootstrap=False)
+vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre')
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre')
 
 # Generate bootstrapped errorbars:
@@ -141,6 +141,9 @@ exc_image = psth.load_image_df(summary_df,'Slc17a7-IRES2-Cre')
 
 # Look at changes and images together
 exc_both = psth.load_image_and_change_df(summary_df, 'Slc17a7-IRES2-Cre')
+
+# Look at omissions
+exc_omission = psth.load_omission_df(summary_df, 'Slc17a7-IRES2-Cre')
 
 # Plot hierarchy for change
 psth.plot_hierarchy(exc_change)

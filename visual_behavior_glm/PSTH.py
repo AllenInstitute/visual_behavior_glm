@@ -819,6 +819,26 @@ def load_image_and_change_df(summary_df, cre,data='filtered_events'):
         'binned_depth']],on='ophys_experiment_id')
     return df
 
+def load_omission_df(summary_df, cre, data='filtered_events'):
+    # load everything
+    df = bd.load_population_df(data,'image_df',cre)
+    
+    # drop omissions
+    df.drop(df[~df['omitted']].index,inplace=True)
+
+    # limit to familiar
+    familiar_summary_df = summary_df.query('experience_level == "Familiar"')
+    familiar_bsid = familiar_summary_df['behavior_session_id'].unique()
+    df.drop(df[~df['behavior_session_id'].isin(familiar_bsid)].index, inplace=True)
+
+    # Add additional details
+    df = pd.merge(df,summary_df[['behavior_session_id','visual_strategy_session']])
+    experiment_table = glm_params.get_experiment_table()
+    df = bd.add_area_depth(df, experiment_table)
+    df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
+        'binned_depth']],on='ophys_experiment_id')
+    return df
+
 def load_vip_omission_df(summary_df,bootstrap=False,data='filtered_events'):
     '''
         Load the Vip omission responses, compute the bootstrap intervals

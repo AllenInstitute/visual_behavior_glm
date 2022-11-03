@@ -819,16 +819,6 @@ def load_image_and_change_df(summary_df, cre,data='filtered_events'):
         'binned_depth']],on='ophys_experiment_id')
     return df
 
-def load_vip_image_df(summary_df,data='filtered_events'):
-    print('loading vip image_df')
-    vip_image_filtered=bd.load_population_df(data,'image_df','Vip-IRES-Cre')
-    vip_image = vip_image_filtered.query('(not omitted)&(not is_change)').copy()
-    vip_image = pd.merge(vip_image, 
-        summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
-        on='behavior_session_id')
-    vip_image = vip_image.query('experience_level=="Familiar"').copy()
-    return vip_image
-
 def load_vip_omission_df(summary_df,bootstrap=False,data='filtered_events'):
     '''
         Load the Vip omission responses, compute the bootstrap intervals

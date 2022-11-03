@@ -686,8 +686,8 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
                     mean_df.loc[dex,'p_boot'] = p_boot 
             else:
                 print('I dont know what to do here')
-
-    # Should do hochsberg-benjaminin correction
+        mean_df['significant'] = (mean_df['p_boot'] < 0.025) | (mean_df['p_boot'] > 0.975)
+        # Should do hochsberg-benjaminin correction
 
     return mean_df
 

@@ -625,11 +625,12 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
-def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True):
+def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True,extra='',nboots=200):
     '''
         Generates a dataframe with the mean + bootstraps values for each split of the data
         saves dataframe to file for fast access
     '''
+
     if depth == 'layer':
         mean_df = df.groupby(splits+['targeted_structure','layer'])['response']\
             .mean().reset_index()
@@ -669,7 +670,7 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
         for index, row in groups.iterrows():
             temp = df.query('(targeted_structure == @row.targeted_structure)&({} == {})'.format(
                 depth, row[depth]))
-            bootstrap = hb.bootstrap(temp,levels=splits+['ophys_experiment_id','cell_specimen_id'])
+            bootstrap = hb.bootstrap(temp,levels=splits+['ophys_experiment_id','cell_specimen_id'],nboots=nboots)
             if len(splits) == 1:
                 keys = list(bootstrap.keys()) 
                 if len(keys) == 2:
@@ -689,19 +690,31 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
         mean_df['significant'] = (mean_df['p_boot'] < 0.025) | (mean_df['p_boot'] > 0.97)
         # Should do hochsberg-benjaminin correction
 
+    # Save file
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,splits,extra)
+    print('saving bootstraps to: '+filepath)
+    mean_df.to_feather(filepath)
+    
     return mean_df
 
+def get_hierarchy_filename(cell_type, response, data, depth, splits, extra):
+    filepath = PSTH_DIR + data +'/bootstraps/' +\
+        '_'.join([cell_type,response,depth]+splits)
+    if extra != '':
+        filepath = filepath +'_'+extra
+    filepath = filepath+'.feather'
+    return filepath
 
-
-def get_hierarchy(cell_type, response, data, depth, splits=[]):
+def get_hierarchy(cell_type, response, data, depth, splits=[],extra=''):
     '''
         loads the dataframe from file
     '''
-    #if not file_exists:
-    #    compute_file
-
-    #load_file
-    return
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,splits,extra)
+    if os.path.isfile(filepath):
+        hierarchy = pd.read_feather(filepath)
+        return hierarchy
+    else:
+        print('file not found, compute the hierarchy first')
 
 def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False,
     ylim=None,extra=''):

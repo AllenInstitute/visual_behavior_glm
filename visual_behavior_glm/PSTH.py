@@ -628,32 +628,25 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
 def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True,
     extra='',nboots=200,alpha=0.05):
     '''
-        Generates a dataframe with the mean + bootstraps values for each split of the data
-        saves dataframe to file for fast access
+    Generates a dataframe with the mean + bootstraps values for each split of the data
+    saves dataframe to file for fast access
     '''
-
+    # Get mean response in each area/depth/split
+    mean_df = df.groupby(splits+['targeted_structure',depth])['response']\
+        .mean().reset_index()
+    sem_df = df.groupby(splits+['targeted_structure',depth])['response']\
+        .sem().reset_index()
+    mean_df['sem'] = sem_df['response']*1.96
+    mean_df['location'] = mean_df['targeted_structure'] + '_' +\
+         mean_df[depth].astype(str)
     if depth == 'layer':
-        mean_df = df.groupby(splits+['targeted_structure','layer'])['response']\
-            .mean().reset_index()
-        sem_df = df.groupby(splits+['targeted_structure','layer'])['response']\
-            .sem().reset_index()
-        mean_df['sem'] = sem_df['response']*1.96
-        mean_df['location'] = mean_df['targeted_structure'] + '_' + mean_df['layer']
         mapper = {
             'VISp_upper':1,
             'VISp_lower':2,
             'VISl_upper':3,
             'VISl_lower':4
             }
-        mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
     elif depth == 'binned_depth':
-        mean_df = df.groupby(splits+['targeted_structure','binned_depth'])['response']\
-            .mean().reset_index()
-        sem_df = df.groupby(splits+['targeted_structure','binned_depth'])['response']\
-            .sem().reset_index()
-        mean_df['sem'] = sem_df['response']*1.96
-        mean_df['location'] = mean_df['targeted_structure'] + '_' +\
-             mean_df['binned_depth'].astype(str)
         mapper = {
             'VISp_75':1,
             'VISp_175':2,
@@ -664,8 +657,9 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
             'VISl_275':7,
             'VISl_375':8,
             }
-        mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
+    mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
 
+    # Get number of cells and experiments in each area/depth/split
     counts = df.groupby(splits+['targeted_structure',depth])[['ophys_experiment_id',\
         'cell_specimen_id']].nunique().reset_index()
     mean_df = pd.merge(mean_df,counts, on=splits+['targeted_structure',depth],
@@ -675,6 +669,7 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
         'cell_specimen_id':'num_cells'
         })
 
+    # Add the bootstrap, can be slow
     if bootstrap:
         groups = mean_df[['targeted_structure',depth]].drop_duplicates()
         for index, row in groups.iterrows():
@@ -683,22 +678,19 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
                 depth, row[depth]))
             bootstrap = hb.bootstrap(temp,levels=splits+\
                 ['ophys_experiment_id','cell_specimen_id'],nboots=nboots)
-            if len(splits) == 1:
-                keys = list(bootstrap.keys()) 
-                if len(keys) == 2:
-                    diff = np.array(bootstrap[keys[0]]) > np.array(bootstrap[keys[1]])
-                    p_boot = np.sum(diff)/len(diff)
-                else:
-                    p_boot = np.nan
-                for key in keys:
-                    sem = np.std(bootstrap[key])
-                    dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
-                        (mean_df[depth] == row.binned_depth)&\
-                        (mean_df[splits[0]] == key)
-                    mean_df.loc[dex,'bootstrap_sem'] = sem
-                    mean_df.loc[dex,'p_boot'] = p_boot 
+            keys = list(bootstrap.keys()) 
+            if len(keys) == 2:
+                diff = np.array(bootstrap[keys[0]]) > np.array(bootstrap[keys[1]])
+                p_boot = np.sum(diff)/len(diff)
             else:
-                print('I dont know what to do here')
+                p_boot = np.nan
+            for key in keys:
+                sem = np.std(bootstrap[key])
+                dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
+                    (mean_df[depth] == row.binned_depth)&\
+                    (mean_df[splits[0]] == key)
+                mean_df.loc[dex,'bootstrap_sem'] = sem
+                mean_df.loc[dex,'p_boot'] = p_boot 
         
         # Determine significance
         mean_df['significant'] = (mean_df['p_boot'] <= alpha/2) | \

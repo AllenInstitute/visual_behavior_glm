@@ -683,7 +683,7 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
                 diff = np.array(bootstrap[keys[0]]) > np.array(bootstrap[keys[1]])
                 p_boot = np.sum(diff)/len(diff)
             else:
-                p_boot = np.nan
+                p_boot = 0.5
             for key in keys:
                 sem = np.std(bootstrap[key])
                 dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
@@ -691,11 +691,13 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
                     (mean_df[splits[0]] == key)
                 mean_df.loc[dex,'bootstrap_sem'] = sem
                 mean_df.loc[dex,'p_boot'] = p_boot 
-        
+       
         # Determine significance
-        mean_df['significant'] = (mean_df['p_boot'] <= alpha/2) | \
-            (mean_df['p_boot'] > (1-alpha/2))
-        # Should do hochsberg-benjaminin correction
+        mean_df['p_boot'] = [1-x if x > .5 else x for x in mean_df['p_boot']] 
+        mean_df['significant'] = mean_df['p_boot'] <= alpha
+
+        # Benjamini Hochberg Correction 
+        mean_df = add_hochberge_correct(mean_df)
 
     # Save file
     filepath = get_hierarchy_filename(cell_type,response,data,depth,splits,extra)
@@ -703,6 +705,29 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
     mean_df.to_feather(filepath)
     
     return mean_df
+
+def add_hochberg_correction(table):
+    '''
+        Performs the Benjamini Hochberg correction
+    '''    
+    # Sort table by pvalues
+    table = table.sort_values(by='p_boot').reset_index()
+    
+    # compute the corrected pvalue based on the rank of each test
+    # Need to use rank starting at 1
+    table['imq'] = (1+table.index.values)/len(table)*0.05
+
+    # Find the largest pvalue less than its corrected pvalue
+    # all tests above that are significant
+    table['bh_significant'] = False
+    passing_tests = table[table['p_boot'] < table['imq']]
+    if len(passing_tests) >0:
+        last_index = table[table['p_boot'] < table['imq']].tail(1).index.values[0]
+        table.at[last_index,'bh_significant'] = True
+        table.at[0:last_index,'bh_significant'] = True
+    
+    # reset order of table and return
+    return table.sort_values(by='index').set_index('index') 
 
 def get_hierarchy_filename(cell_type, response, data, depth, splits, extra):
     filepath = PSTH_DIR + data +'/bootstraps/' +\

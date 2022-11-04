@@ -686,7 +686,7 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
                     mean_df.loc[dex,'p_boot'] = p_boot 
             else:
                 print('I dont know what to do here')
-        mean_df['significant'] = (mean_df['p_boot'] < 0.025) | (mean_df['p_boot'] > 0.975)
+        mean_df['significant'] = (mean_df['p_boot'] < 0.025) | (mean_df['p_boot'] > 0.97)
         # Should do hochsberg-benjaminin correction
 
     return mean_df
@@ -703,7 +703,8 @@ def get_hierarchy(cell_type, response, data, depth, splits=[]):
     #load_file
     return
 
-def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False):
+def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False,
+    ylim=None,extra=''):
 
     if depth == 'layer':
         fig,ax = plt.subplots(figsize=(5,4))
@@ -748,56 +749,55 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
                 if isinstance(split_value, str):
                     temp = hierarchy.query('{} == @split_value'.format(value))         
                 else:
-                    temp = hierarchy.query('{} == {}'.format(value, split_value))            
+                    temp = hierarchy.query('{} == {}'.format(value, split_value))        
                 ax.errorbar(temp['xloc'],temp['response'],yerr=temp['bootstrap_sem'],
                     fmt='o',color=color,alpha=.5)
                 ax.plot(temp['xloc'],temp['response'],'o',color=color,label= label)
     else:
         ax.plot(hierarchy['xloc'],hierarchy['response'], 'o',label='all cells')
 
+    # Determine xlabels
+    xlabels = hierarchy.sort_values(by='xloc')\
+        .drop_duplicates(subset=['targeted_structure',depth])
+    mapper = {
+        'VISp':'V1',
+        'VISl':'LM'
+        }
+    xlabels['labels'] = [mapper[row.targeted_structure]\
+        +' '+str(row[depth]) for index, row in xlabels.iterrows()]
+    ax.set_xlabel('area & depth',fontsize=16)
+    ax.set_xticks(xlabels['xloc'])
+    ax.set_xticklabels(xlabels['labels'])
 
-    if (response == 'change') & (cell_type=='exc'):
-        plt.ylim(0,0.01)
-        ax.set_ylabel('change response',fontsize=16)
-    elif (response == 'image') & (cell_type=='exc'):
-        plt.ylim(0,0.006)
-        ax.set_ylabel('image response',fontsize=16)   
-    elif cell_type=='exc':
-        plt.ylim(0,0.01)
-        ax.set_ylabel('response',fontsize=16)   
-    else:
-        ax.set_ylabel('response',fontsize=16)   
-        plt.ylim(bottom=0)
-    ax.set_xlabel('Area & depth',fontsize=16)
-    if depth == 'layer':
-        ax.set_xticks([1,2,3,4])
-        ax.set_xticklabels(['V1 upper','V1 lower','LM upper', 'LM lower'])
-    else:
-        ax.set_xticks([1,2,3,4,5,6,7,8])
-        ax.set_xticklabels(['V1 75','V1 175','V1 275','V1 375','LM 75','LM 175','LM 275','LM 375'])
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    plt.legend()
-    plt.tight_layout()
-    ax.xaxis.set_tick_params(labelsize=12)
-    ax.yaxis.set_tick_params(labelsize=12)
+    # Determine y labels and limits
+    ax.set_ylabel('response',fontsize=16)   
+    plt.ylim(bottom=0)
+    if ylim is not None:
+        plt.ylim(top=ylim)
 
+    # Annotate significance
     y =  ax.get_ylim()[1]*1.05
     for index, row in hierarchy.iterrows():
         if row.significant:
             ax.plot(row.xloc, y, 'k*')  
     ax.set_ylim(top=y*1.075)
+
+    # Clean up
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    plt.legend()
+    plt.tight_layout()
  
     if savefig:
-        #extra = extra + '_'.join(splits)
-        #filename = PSTH_DIR + data+'/hierarchy/'+\
-        #    '_{}_hierarchy_{}_{}.svg'.format(cre,response_type,extra,depth)
-        
+        extra = extra + '_'.join(splits)
+        filename = PSTH_DIR + data+'/hierarchy/'+\
+            '{}_hierarchy_{}_{}.svg'.format(cell_type,response,extra,depth) 
         print('Figure saved to: '+filename)
         plt.savefig(filename)
     
     return ax
-
 
 
 def plot_hierarchy_dev(df,splits=[],extra = '',depth='layer',data='filtered_events',

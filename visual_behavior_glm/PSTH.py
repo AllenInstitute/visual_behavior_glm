@@ -694,10 +694,10 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
        
         # Determine significance
         mean_df['p_boot'] = [1-x if x > .5 else x for x in mean_df['p_boot']] 
-        mean_df['significant'] = mean_df['p_boot'] <= alpha
+        mean_df['ind_significant'] = mean_df['p_boot'] <= alpha
 
         # Benjamini Hochberg Correction 
-        mean_df = add_hochberge_correct(mean_df)
+        mean_df = add_hochberg_correction(mean_df)
 
     # Save file
     filepath = get_hierarchy_filename(cell_type,response,data,depth,splits,extra)
@@ -711,11 +711,12 @@ def add_hochberg_correction(table):
         Performs the Benjamini Hochberg correction
     '''    
     # Sort table by pvalues
-    table = table.sort_values(by='p_boot').reset_index()
-    
+    table = table.sort_values(by=['p_boot','location']).reset_index()
+    table['test_number'] = (~table['location'].duplicated()).cumsum()   
+ 
     # compute the corrected pvalue based on the rank of each test
     # Need to use rank starting at 1
-    table['imq'] = (1+table.index.values)/len(table)*0.05
+    table['imq'] = (1+table['test_number'])/table['test_number'].max()*0.05
 
     # Find the largest pvalue less than its corrected pvalue
     # all tests above that are significant
@@ -727,7 +728,9 @@ def add_hochberg_correction(table):
         table.at[0:last_index,'bh_significant'] = True
     
     # reset order of table and return
-    return table.sort_values(by='index').set_index('index') 
+    table = table.sort_values(by='index').reset_index()
+    table = table.drop(columns='index')
+    return table
 
 def get_hierarchy_filename(cell_type, response, data, depth, splits, extra):
     filepath = PSTH_DIR + data +'/bootstraps/' +\
@@ -823,7 +826,7 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
     # Annotate significance
     y =  ax.get_ylim()[1]*1.05
     for index, row in hierarchy.iterrows():
-        if row.significant:
+        if row.bh_significant:
             ax.plot(row.xloc, y, 'k*')  
     ax.set_ylim(top=y*1.075)
 

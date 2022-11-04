@@ -625,7 +625,8 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
-def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True,extra='',nboots=200):
+def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True,
+    extra='',nboots=200,alpha=0.05):
     '''
         Generates a dataframe with the mean + bootstraps values for each split of the data
         saves dataframe to file for fast access
@@ -665,12 +666,23 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
             }
         mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
 
+    counts = df.groupby(splits+['targeted_structure',depth])[['ophys_experiment_id',\
+        'cell_specimen_id']].nunique().reset_index()
+    mean_df = pd.merge(mean_df,counts, on=splits+['targeted_structure',depth],
+        validate='1:1')
+    mean_df = mean_df.rename(columns={
+        'ophys_experiment_id':'num_oeid',
+        'cell_specimen_id':'num_cells'
+        })
+
     if bootstrap:
         groups = mean_df[['targeted_structure',depth]].drop_duplicates()
         for index, row in groups.iterrows():
-            temp = df.query('(targeted_structure == @row.targeted_structure)&({} == {})'.format(
+            temp = df.query(\
+                '(targeted_structure == @row.targeted_structure)&({} == {})'.format(
                 depth, row[depth]))
-            bootstrap = hb.bootstrap(temp,levels=splits+['ophys_experiment_id','cell_specimen_id'],nboots=nboots)
+            bootstrap = hb.bootstrap(temp,levels=splits+\
+                ['ophys_experiment_id','cell_specimen_id'],nboots=nboots)
             if len(splits) == 1:
                 keys = list(bootstrap.keys()) 
                 if len(keys) == 2:
@@ -687,7 +699,10 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
                     mean_df.loc[dex,'p_boot'] = p_boot 
             else:
                 print('I dont know what to do here')
-        mean_df['significant'] = (mean_df['p_boot'] < 0.025) | (mean_df['p_boot'] > 0.97)
+        
+        # Determine significance
+        mean_df['significant'] = (mean_df['p_boot'] <= alpha/2) | \
+            (mean_df['p_boot'] > (1-alpha/2))
         # Should do hochsberg-benjaminin correction
 
     # Save file

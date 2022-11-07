@@ -132,6 +132,11 @@ psth.plot_vip_omission_summary(vip_omission, bootstrap_means)
 ## Change response across hierarchy 
 ################################################################################
 # Loading the image_df is very slow and uses a ton of memory. care must be taken
+sst_omission = psth.load_omission_df(summary_df,'Sst-IRES-Cre')
+sst_omission_hierarchy = psth.compute_hierarchy(sst_omission, 'sst', 'omission',
+    'filtered_events','binned_depth',splits=['visual_strategy_session',nboots=200)
+sst_omission_hierarchy = psth.get_hierarchy('sst', 'omission',
+    'filtered_events','binned_depth',splits=['visual_strategy_session')
 
 # Load exc image_df for change images only
 exc_change = psth.load_change_df(summary_df, 'Slc17a7-IRES2-Cre')

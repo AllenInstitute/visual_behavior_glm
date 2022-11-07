@@ -715,8 +715,7 @@ def add_hochberg_correction(table):
     table['test_number'] = (~table['location'].duplicated()).cumsum()   
  
     # compute the corrected pvalue based on the rank of each test
-    # Need to use rank starting at 1
-    table['imq'] = (1+table['test_number'])/table['test_number'].max()*0.05
+    table['imq'] = (table['test_number'])/table['test_number'].max()*0.05
 
     # Find the largest pvalue less than its corrected pvalue
     # all tests above that are significant

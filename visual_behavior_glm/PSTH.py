@@ -761,13 +761,23 @@ def get_hierarchy(cell_type, response, data, depth, splits=[],extra=''):
     else:
         print('file not found, compute the hierarchy first')
 
-def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False,
-    ylim=None,extra=''):
+def compare_hierarchy(hierarchies, response,data,depth,splits):
 
-    if depth == 'layer':
-        fig,ax = plt.subplots(figsize=(5,4))
-    else:
-        fig,ax = plt.subplots(figsize=(8,4))
+    ax = plot_hierarchy(hierarchies[0],'vip',response,data,depth,splits)
+    ax = plot_hierarchy(hierarchies[1],'sst',response,data,depth,splits,ax=ax)
+    
+    ax2 = ax.twinx()
+    ax = plot_hierarchy(hierarchies[2],'exc',response,data,depth,splits,ax=ax2)
+
+
+def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False,
+    ylim=None,extra='',ax=None):
+
+    if ax is None:
+        if depth == 'layer':
+            fig,ax = plt.subplots(figsize=(5,4))
+        else:
+            fig,ax = plt.subplots(figsize=(8,4))
 
     if len(splits) >0:
         for index, value in enumerate(splits):
@@ -812,9 +822,15 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
                     fmt='o',color=color,alpha=.5)
                 ax.plot(temp['xloc'],temp['response'],'o',color=color,label= label)
     else:
-        ax.plot(hierarchy['xloc'],hierarchy['response'], 'ko',label=cell_type)
+        colors={
+            'sst':(158/255,218/255,229/255),
+            'exc':(255/255,152/255,150/255),
+            'vip':(197/255,176/255,213/255),
+        }
+        ax.plot(hierarchy['xloc'],hierarchy['response'], 'o',label=cell_type,
+            color=colors[cell_type])
         ax.errorbar(hierarchy['xloc'],hierarchy['response'],
-            yerr=hierarchy['bootstrap_sem'],fmt='o',alpha=.5,color='k')
+            yerr=hierarchy['bootstrap_sem'],fmt='o',alpha=.5,color=colors[cell_type])
 
     # Determine xlabels
     xlabels = hierarchy.sort_values(by='xloc')\

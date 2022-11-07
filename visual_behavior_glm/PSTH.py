@@ -626,7 +626,7 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
         plt.savefig(filename) 
 
 def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True,
-    extra='',nboots=200,alpha=0.05):
+    extra='',nboots=10000,alpha=0.05):
     '''
     Generates a dataframe with the mean + bootstraps values for each split of the data
     saves dataframe to file for fast access

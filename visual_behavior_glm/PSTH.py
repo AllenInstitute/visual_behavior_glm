@@ -673,31 +673,42 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
     if bootstrap:
         groups = mean_df[['targeted_structure',depth]].drop_duplicates()
         for index, row in groups.iterrows():
-            test = row[depth]
+            row_depth = row[depth]
             temp = df.query(\
-                '(targeted_structure == @row.targeted_structure)&({} == @test)'.format(depth))
-            bootstrap = hb.bootstrap(temp,levels=splits+\
-                ['ophys_experiment_id','cell_specimen_id'],nboots=nboots)
-            keys = list(bootstrap.keys()) 
-            if len(keys) == 2:
-                diff = np.array(bootstrap[keys[0]]) > np.array(bootstrap[keys[1]])
-                p_boot = np.sum(diff)/len(diff)
-            else:
-                p_boot = 0.5
-            for key in keys:
-                sem = np.std(bootstrap[key])
+                '(targeted_structure == @row.targeted_structure)&({} == @row_depth)'\
+                .format(depth))
+
+            if len(splits) == 0:
+                bootstrap = hb.bootstrap(temp,levels=splits+\
+                    ['ophys_experiment_id','cell_specimen_id'],nboots=nboots,no_top_level=True)
+                sem = np.std(bootstrap)
                 dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
-                    (mean_df[depth] == row[depth])&\
-                    (mean_df[splits[0]] == key)
+                    (mean_df[depth] == row[depth])
                 mean_df.loc[dex,'bootstrap_sem'] = sem
-                mean_df.loc[dex,'p_boot'] = p_boot 
+            else:
+                bootstrap = hb.bootstrap(temp,levels=splits+\
+                    ['ophys_experiment_id','cell_specimen_id'],nboots=nboots)
+                keys = list(bootstrap.keys()) 
+                if len(keys) == 2:
+                    diff = np.array(bootstrap[keys[0]]) > np.array(bootstrap[keys[1]])
+                    p_boot = np.sum(diff)/len(diff)
+                else:
+                    p_boot = 0.5
+                for key in keys:
+                    sem = np.std(bootstrap[key])
+                    dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
+                        (mean_df[depth] == row[depth])&\
+                        (mean_df[splits[0]] == key)
+                    mean_df.loc[dex,'bootstrap_sem'] = sem
+                    mean_df.loc[dex,'p_boot'] = p_boot 
        
         # Determine significance
-        mean_df['p_boot'] = [1-x if x > .5 else x for x in mean_df['p_boot']] 
-        mean_df['ind_significant'] = mean_df['p_boot'] <= alpha
-
-        # Benjamini Hochberg Correction 
-        mean_df = add_hochberg_correction(mean_df)
+        if len(splits) > 0:
+            mean_df['p_boot'] = [1-x if x > .5 else x for x in mean_df['p_boot']] 
+            mean_df['ind_significant'] = mean_df['p_boot'] <= alpha
+    
+            # Benjamini Hochberg Correction 
+            mean_df = add_hochberg_correction(mean_df)
 
     # Save file
     filepath = get_hierarchy_filename(cell_type,response,data,depth,splits,extra)
@@ -801,7 +812,9 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
                     fmt='o',color=color,alpha=.5)
                 ax.plot(temp['xloc'],temp['response'],'o',color=color,label= label)
     else:
-        ax.plot(hierarchy['xloc'],hierarchy['response'], 'o',label='all cells')
+        ax.plot(hierarchy['xloc'],hierarchy['response'], 'ko',label=cell_type)
+        ax.errorbar(hierarchy['xloc'],hierarchy['response'],
+            yerr=hierarchy['bootstrap_sem'],fmt='o',alpha=.5,color='k')
 
     # Determine xlabels
     xlabels = hierarchy.sort_values(by='xloc')\

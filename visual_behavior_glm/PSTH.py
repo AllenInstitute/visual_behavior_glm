@@ -673,9 +673,9 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
     if bootstrap:
         groups = mean_df[['targeted_structure',depth]].drop_duplicates()
         for index, row in groups.iterrows():
+            test = row[depth]
             temp = df.query(\
-                '(targeted_structure == @row.targeted_structure)&({} == {})'.format(
-                depth, row[depth]))
+                '(targeted_structure == @row.targeted_structure)&({} == @test)'.format(depth))
             bootstrap = hb.bootstrap(temp,levels=splits+\
                 ['ophys_experiment_id','cell_specimen_id'],nboots=nboots)
             keys = list(bootstrap.keys()) 
@@ -687,7 +687,7 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
             for key in keys:
                 sem = np.std(bootstrap[key])
                 dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
-                    (mean_df[depth] == row.binned_depth)&\
+                    (mean_df[depth] == row[depth])&\
                     (mean_df[splits[0]] == key)
                 mean_df.loc[dex,'bootstrap_sem'] = sem
                 mean_df.loc[dex,'p_boot'] = p_boot 
@@ -823,11 +823,12 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
         plt.ylim(top=ylim)
 
     # Annotate significance
-    y =  ax.get_ylim()[1]*1.05
-    for index, row in hierarchy.iterrows():
-        if row.bh_significant:
-            ax.plot(row.xloc, y, 'k*')  
-    ax.set_ylim(top=y*1.075)
+    if 'bh_significant' in hierarchy.columns:
+        y =  ax.get_ylim()[1]*1.05
+        for index, row in hierarchy.iterrows():
+            if row.bh_significant:
+                ax.plot(row.xloc, y, 'k*')  
+        ax.set_ylim(top=y*1.075)
 
     # Clean up
     ax.spines['right'].set_visible(False)

@@ -728,7 +728,7 @@ def add_hochberg_correction(table):
         table.at[0:last_index,'bh_significant'] = True
     
     # reset order of table and return
-    table = table.sort_values(by='index').reset_index()
+    table = table.sort_values(by='index').reset_index(drop=True)
     table = table.drop(columns='index')
     return table
 

@@ -625,6 +625,34 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
+def compute_all_hierarchy(summary_df,cre,data='events'):
+    mapper={
+        'Slc17a7-IRES2-Cre':'exc',
+        'Sst-IRES-Cre':'sst',
+        'Vip-IRES-Cre':'vip'
+        }
+    simple_cre=mapper[cre]
+
+    image_df = load_image_df(summary_df,cre,data=data)
+    image_hierarchy = compute_hierarchy(image_df,simple_cre, 'image',data,\
+        'binned_depth',splits=[])
+    image_hierarchy = compute_hierarchy(image_df,simple_cre, 'image',data,\
+        'layer',splits=[])
+    image_hierarchy = compute_hierarchy(image_df,simple_cre, 'image',data,\
+        'binned_depth',splits=['visual_strategy_session'])
+    image_hierarchy = compute_hierarchy(image_df,simple_cre, 'image',data,\
+        'layer',splits=['visual_strategy_session'])
+
+    omission_df = load_omission_df(summary_df,cre,data=data)
+    omission_hierarchy = compute_hierarchy(omission_df,simple_cre, 'omission',data,\
+        'binned_depth',splits=[])
+    omission_hierarchy = compute_hierarchy(omission_df,simple_cre, 'omission',data,\
+        'layer',splits=[])
+    omission_hierarchy = compute_hierarchy(omission_df,simple_cre, 'omission',data,\
+        'binned_depth',splits=['visual_strategy_session'])
+    omission_hierarchy = compute_hierarchy(omission_df,simple_cre, 'omission',data,\
+        'layer',splits=['visual_strategy_session'])
+
 def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True,
     extra='',nboots=10000,alpha=0.05):
     '''
@@ -871,7 +899,7 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
     if savefig:
         extra = extra + '_'.join(splits)
         filename = PSTH_DIR + data+'/hierarchy/'+\
-            '{}_hierarchy_{}_{}.svg'.format(cell_type,response,extra,depth) 
+            '{}_hierarchy_{}_{}_{}.svg'.format(cell_type,response,depth,extra) 
         print('Figure saved to: '+filename)
         plt.savefig(filename)
     
@@ -981,7 +1009,7 @@ def load_vip_omission_df(summary_df,bootstrap=False,data='filtered_events'):
         vip_omission = vip_omission[['visual_strategy_session','ophys_experiment_id',
             'cell_specimen_id','stimulus_presentations_id','response']]
         bootstrap_means = hb.bootstrap(vip_omission, levels=['visual_strategy_session',
-            'ophys_experiment_id','cell_specimen_id'],nboots=100)
+            'ophys_experiment_id','cell_specimen_id'],nboots=10000)
         return vip_omission, bootstrap_means
     else:
         return vip_omission

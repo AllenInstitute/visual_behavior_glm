@@ -625,13 +625,16 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
+
 def compute_all_hierarchy(summary_df,cre,data='events'):
-    mapper={
-        'Slc17a7-IRES2-Cre':'exc',
-        'Sst-IRES-Cre':'sst',
-        'Vip-IRES-Cre':'vip'
-        }
-    simple_cre=mapper[cre]
+    cell_types=['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre'] 
+    responses = ['image','omission','change','both']
+    depths = ['layer','binned_depth']
+    for cell_type in cell_types:
+        df = load_image_df(summary_df, cell_type,data=data)
+        for response in responses:
+            for depth in depths:
+                _ = compute_hierarchy(df, cell_type, simple_cell_type, response, data, depth,splits)
 
     image_df = load_image_df(summary_df,cre,data=data)
     image_hierarchy = compute_hierarchy(image_df,simple_cre, 'image',data,\
@@ -652,6 +655,8 @@ def compute_all_hierarchy(summary_df,cre,data='events'):
         'binned_depth',splits=['visual_strategy_session'])
     omission_hierarchy = compute_hierarchy(omission_df,simple_cre, 'omission',data,\
         'layer',splits=['visual_strategy_session'])
+
+
 
 def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True,
     extra='',nboots=10000,alpha=0.05):
@@ -729,6 +734,8 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
                         (mean_df[splits[0]] == key)
                     mean_df.loc[dex,'bootstrap_sem'] = sem
                     mean_df.loc[dex,'p_boot'] = p_boot 
+                    mean_df.loc[dex, 'n_boots'] = nboots
+                    mean_df.loc[dex,'bootstraps'] = bootstrap[key]
        
         # Determine significance
         if len(splits) > 0:
@@ -799,7 +806,7 @@ def compare_hierarchy(hierarchies, response,data,depth,splits):
 
 
 def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False,
-    ylim=None,extra='',ax=None):
+    ylim=None,extra='',ax=None,in_color=None):
 
     if ax is None:
         if depth == 'layer':
@@ -855,6 +862,8 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
             'exc':(255/255,152/255,150/255),
             'vip':(197/255,176/255,213/255),
         }
+        if in_color is not None:
+            colors[cell_type] = in_color
         ax.plot(hierarchy['xloc'],hierarchy['response'], 'o',label=cell_type,
             color=colors[cell_type])
         ax.errorbar(hierarchy['xloc'],hierarchy['response'],

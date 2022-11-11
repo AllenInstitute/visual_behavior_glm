@@ -625,38 +625,31 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
+def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, nboots, 
+    splits, query='', extra=''):
+    mapper = {
+        'exc':'Slc17a7-IRES2-Cre',
+        'sst':'Sst-IRES-Cre',
+        'vip':'Vip-IRES-Cre'
+        }
+    if response == 'image':
+        df = load_image_df(summary_df, mapper[cell_type], data)
+    elif response == 'omission':
+        df = load_omission_df(summary_df, mapper[cell_type], data)
+    elif response == 'hit':
+        df = load_change_df(summary_df, mapper[cell_type], data)
+        df = df.query('hit == 1')
+    elif response == 'miss':
+        df = load_change_df(summary_df, mapper[cell_type], data)
+        df = df.query('hit == 0')
+    elif response == 'change':
+        df = load_change_df(summary_df, mapper[cell_type], data)
+    
+    if query is not '':
+        df = df.query(query)
 
-def compute_all_hierarchy(summary_df,cre,data='events'):
-    cell_types=['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre'] 
-    responses = ['image','omission','change','both']
-    depths = ['layer','binned_depth']
-    splits = [[],['visual_strategy_session']]
-    for cell_type in cell_types:
-        df = load_image_df(summary_df, cell_type,data=data)
-        for response in responses:
-            for depth in depths:
-                _ = compute_hierarchy(df, cell_type, simple_cell_type, response, data, depth,splits)
-
-    image_df = load_image_df(summary_df,cre,data=data)
-    image_hierarchy = compute_hierarchy(image_df,simple_cre, 'image',data,\
-        'binned_depth',splits=[])
-    image_hierarchy = compute_hierarchy(image_df,simple_cre, 'image',data,\
-        'layer',splits=[])
-    image_hierarchy = compute_hierarchy(image_df,simple_cre, 'image',data,\
-        'binned_depth',splits=['visual_strategy_session'])
-    image_hierarchy = compute_hierarchy(image_df,simple_cre, 'image',data,\
-        'layer',splits=['visual_strategy_session'])
-
-    omission_df = load_omission_df(summary_df,cre,data=data)
-    omission_hierarchy = compute_hierarchy(omission_df,simple_cre, 'omission',data,\
-        'binned_depth',splits=[])
-    omission_hierarchy = compute_hierarchy(omission_df,simple_cre, 'omission',data,\
-        'layer',splits=[])
-    omission_hierarchy = compute_hierarchy(omission_df,simple_cre, 'omission',data,\
-        'binned_depth',splits=['visual_strategy_session'])
-    omission_hierarchy = compute_hierarchy(omission_df,simple_cre, 'omission',data,\
-        'layer',splits=['visual_strategy_session'])
-
+    hierarchy = compute_hierarchy(df, cell_type, response, data, depth, splits=splits, 
+        nboots=nboots, extra=extra)
 
 
 def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True,
@@ -795,7 +788,7 @@ def get_hierarchy(cell_type, response, data, depth, nboots,splits=[],extra=''):
     '''
         loads the dataframe from file
     '''
-    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots, splits,extra)
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,extra)
     if os.path.isfile(filepath):
         hierarchy = pd.read_feather(filepath)
         return hierarchy

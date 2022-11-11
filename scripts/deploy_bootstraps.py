@@ -16,50 +16,45 @@ if __name__ == "__main__":
     args = parser.parse_args()
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
-    python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/across_session.py"  ## TODO
-    stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm" ## TODO
-    stdout_location = os.path.join(stdout_basedir, 'job_records_across_session')
+    python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/bootstraps.py"  
+    stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm" 
+    stdout_location = os.path.join(stdout_basedir, 'job_records_bootstraps')
     if not os.path.exists(stdout_location):
         print('making folder {}'.format(stdout_location))
         os.mkdir(stdout_location)
     print('stdout files will be at {}'.format(stdout_location))
-    cell_table = gas.get_cell_list(glm_version) ## TODO
-    cell_ids = cell_table['cell_specimen_id'].unique() # TODO
+
+    jobs = {}
 
     job_count = 0
-
     job_string = "--cell {} --version {}" # TODO
-
     n_cell_ids = len(cell_ids)
 
-    for cell_id in cell_ids:
-        if already_fit(cell_id,glm_version):
-            print('already fit, skipping')
-        else:
-            job_count += 1
-            print('starting cluster job for {}, job count = {}'.format(cell_id, job_count))
-            job_title = 'cell_{}'.format(cell_id)
-            walltime = '2:00:00'
-            mem = '100gb'
-            job_id = Slurm.JOB_ARRAY_ID
-            job_array_id = Slurm.JOB_ARRAY_MASTER_ID
-            output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+"_"+str(cell_id)+".out"
+    for index, row in jobs.iterrows():
+        job_count += 1
+        print('starting cluster job. job count = {}'.format(job_count))
+        job_title = 'bootstraps'
+        walltime = '10:00:00'
+        mem = '100gb'
+        job_id = Slurm.JOB_ARRAY_ID
+        job_array_id = Slurm.JOB_ARRAY_MASTER_ID
+        output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+"_bootstrap.out"
         
-            # instantiate a SLURM object
-            slurm = Slurm(
-                cpus_per_task=4,
-                job_name=job_title,
-                time=walltime,
-                mem=mem,
-                output= output,
-                partition="braintv"
-            )
+        # instantiate a SLURM object
+        slurm = Slurm(
+            cpus_per_task=4,
+            job_name=job_title,
+            time=walltime,
+            mem=mem,
+            output= output,
+            partition="braintv"
+        )
     
-            args_string = job_string.format(cell_id,glm_version)
-            slurm.sbatch('{} {} {}'.format(
-                    python_executable,
-                    python_file,
-                    args_string,
-                )
+        args_string = job_string.format(cell_id,glm_version)
+        slurm.sbatch('{} {} {}'.format(
+                python_executable,
+                python_file,
+                args_string,
             )
-            time.sleep(0.001)
+        )
+        time.sleep(0.001)

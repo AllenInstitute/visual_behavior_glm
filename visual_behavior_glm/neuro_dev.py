@@ -129,7 +129,12 @@ psth.running_responses(vip_image, 'image',split='engagement_v2')
 vip_omission, bootstrap_means = psth.load_vip_omission_df(summary_df,bootstrap=True)
 psth.plot_vip_omission_summary(vip_omission, bootstrap_means)
 
-## Change response across hierarchy 
+## Hierarchy plots with bootstraps
+################################################################################
+
+
+
+## DEV -  Change response across hierarchy 
 ################################################################################
 # Loading the image_df is very slow and uses a ton of memory. care must be taken
 sst_omission = psth.load_omission_df(summary_df,'Sst-IRES-Cre')

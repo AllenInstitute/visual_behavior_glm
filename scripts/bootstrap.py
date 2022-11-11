@@ -86,4 +86,4 @@ if __name__ == '__main__':
         args.query,
         args.extra
         )
-    
+    print('finished') 

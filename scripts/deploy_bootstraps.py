@@ -78,12 +78,12 @@ def get_bootstrap_jobs():
         {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'visual_strategy_session','extra':'visual'},
         {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'visual_strategy_session','extra':'visual'},
         {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'visual_strategy_session','extra':'visual'},
-        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'not visual_strategy_session','extra':'timing'},
-        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'not visual_strategy_session','extra':'timing'},
-        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'not visual_strategy_session','extra':'timing'},
-        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'not visual_strategy_session','extra':'timing'},
-        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'not visual_strategy_session','extra':'timing'},
-        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'not visual_strategy_session','extra':'timing'},
+        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing'},
+        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing'},
+        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing'},
+        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing'},
+        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing'},
+        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing'},
         ]
     jobs = pd.DataFrame(jobs)
     return jobs

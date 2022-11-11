@@ -633,6 +633,7 @@ def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, 
         'vip':'Vip-IRES-Cre'
         }
     if response == 'image':
+        print('loading image') #DEBUG
         df = load_image_df(summary_df, mapper[cell_type], data)
     elif response == 'omission':
         df = load_omission_df(summary_df, mapper[cell_type], data)
@@ -646,6 +647,7 @@ def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, 
         df = load_change_df(summary_df, mapper[cell_type], data)
     
     if query is not '':
+        print('querying!') # DEBUG
         df = df.query(query)
 
     hierarchy = compute_hierarchy(df, cell_type, response, data, depth, splits=splits, 

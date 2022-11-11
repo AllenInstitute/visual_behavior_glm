@@ -73,6 +73,7 @@ if __name__ == '__main__':
     print('splits    {}'.format(args.splits))
     print('query     {}'.format(args.query))
     print('extra     {}'.format(args.extra))
+    print('')
     summary_df = po.get_ophys_summary_table(21)
     hierarchy = psth.load_df_and_compute_hierarchy(
         summary_df,

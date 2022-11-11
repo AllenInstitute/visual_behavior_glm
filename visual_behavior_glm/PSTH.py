@@ -630,6 +630,7 @@ def compute_all_hierarchy(summary_df,cre,data='events'):
     cell_types=['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre'] 
     responses = ['image','omission','change','both']
     depths = ['layer','binned_depth']
+    splits = [[],['visual_strategy_session']]
     for cell_type in cell_types:
         df = load_image_df(summary_df, cell_type,data=data)
         for response in responses:
@@ -701,6 +702,7 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
         'ophys_experiment_id':'num_oeid',
         'cell_specimen_id':'num_cells'
         })
+    mean_df['bootstraps'] = [ [] for x in range(0,len(mean_df))] 
 
     # Add the bootstrap, can be slow
     if bootstrap:
@@ -718,6 +720,9 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
                 dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
                     (mean_df[depth] == row[depth])
                 mean_df.loc[dex,'bootstrap_sem'] = sem
+                mean_df.loc[dex, 'n_boots'] = nboots
+                index_dex = dex[dex].index.values[0]
+                mean_df.at[index_dex,'bootstraps'] = bootstrap
             else:
                 bootstrap = hb.bootstrap(temp,levels=splits+\
                     ['ophys_experiment_id','cell_specimen_id'],nboots=nboots)
@@ -735,7 +740,8 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
                     mean_df.loc[dex,'bootstrap_sem'] = sem
                     mean_df.loc[dex,'p_boot'] = p_boot 
                     mean_df.loc[dex, 'n_boots'] = nboots
-                    mean_df.loc[dex,'bootstraps'] = bootstrap[key]
+                    index_dex = dex[dex].index.values[0]
+                    mean_df.at[index_dex,'bootstraps'] = bootstrap[key]
        
         # Determine significance
         if len(splits) > 0:
@@ -746,7 +752,7 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
             mean_df = add_hochberg_correction(mean_df)
 
     # Save file
-    filepath = get_hierarchy_filename(cell_type,response,data,depth,splits,extra)
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,extra)
     print('saving bootstraps to: '+filepath)
     mean_df.to_feather(filepath)
     
@@ -777,19 +783,19 @@ def add_hochberg_correction(table):
     table = table.drop(columns='index')
     return table
 
-def get_hierarchy_filename(cell_type, response, data, depth, splits, extra):
+def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, extra):
     filepath = PSTH_DIR + data +'/bootstraps/' +\
-        '_'.join([cell_type,response,depth]+splits)
+        '_'.join([cell_type,response,depth,str(nboots)]+splits)
     if extra != '':
         filepath = filepath +'_'+extra
     filepath = filepath+'.feather'
     return filepath
 
-def get_hierarchy(cell_type, response, data, depth, splits=[],extra=''):
+def get_hierarchy(cell_type, response, data, depth, nboots,splits=[],extra=''):
     '''
         loads the dataframe from file
     '''
-    filepath = get_hierarchy_filename(cell_type,response,data,depth,splits,extra)
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots, splits,extra)
     if os.path.isfile(filepath):
         hierarchy = pd.read_feather(filepath)
         return hierarchy

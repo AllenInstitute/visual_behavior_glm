@@ -105,12 +105,16 @@ vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-
 ################################################################################
 
 # Load image_dfs 
-vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre')
-vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre')
+vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
+vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')
 
 # Generate bootstrapped errorbars:
-bootstraps_omission = psth.compute_running_bootstrap(vip_omission,'omission')
-bootstraps_image = psth.compute_running_bootstrap(vip_image,'image')
+bootstraps_omission = psth.compute_running_bootstrap(vip_omission,'omission','vip',data='events')
+bootstraps_image = psth.compute_running_bootstrap(vip_image,'image','vip',data='events')
+
+# load already computed bootstrapped errors:
+bootstraps_omission = psth.get_running_bootstraps('vip','omission','events',nboots)
+bootstraps_image = psth.get_running_bootstraps('vip','image','events',nboots)
 
 # Generate figures with bootstraps
 psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps_omission)

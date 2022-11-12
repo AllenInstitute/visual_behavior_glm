@@ -17,7 +17,7 @@ import visual_behavior.visualization.utils as utils
 
 PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
-def plot_all_heatmaps(dfs, labels,data='filtered_events'):
+def plot_all_heatmaps(dfs, labels,data='events'):
     conditions = dfs[0]['condition'].unique()
     cres = ['Exc','Sst','Vip']
     experience = ['Familiar','Novel 1','Novel >1']   
@@ -31,7 +31,7 @@ def plot_all_heatmaps(dfs, labels,data='filtered_events'):
                     print(c)
                     print(ex)
 
-def plot_all_conditions(dfs, labels,data='filtered_events'):
+def plot_all_conditions(dfs, labels,data='events'):
     conditions = dfs[0]['condition'].unique()
     for c in conditions:
         try:
@@ -520,20 +520,20 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
 
     return ax
 
-def compute_running_bootstrap(df,condition):
+def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events'):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
         bin_width=5#2   
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
-    
-    bootstraps = {}
+
+    bootstraps = []
     bins = df['running_bins'].unique()
     for b in bins:
         temp = df.query('running_bins == @b')[['visual_strategy_session',
             'ophys_experiment_id','cell_specimen_id','response']]
         means = hb.bootstrap(temp, levels=['visual_strategy_session',
-            'ophys_experiment_id','cell_specimen_id'])
+            'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
         if (True in means) & (False in means):
             diff = np.array(means[True]) - np.array(means[False])
             pboot = np.sum(diff<0)/len(diff)
@@ -549,14 +549,37 @@ def compute_running_bootstrap(df,condition):
                 timing = np.std(means[False])
             else:
                 timing = 0 
-        bootstraps[b]={
-            'pval':pboot,
-            'visual':visual,
-            'timing':timing,
-            }
+        bootstraps.append({
+            'running_bin':b,
+            'p_boot':pboot,
+            'visual_sem':visual,
+            'timing_sem':timing,
+            'n_boots':nboots,
+            })
+    
+    # Convert to dataframe, do multiple comparisons corrections
+    bootstraps = pd.DataFrame(bootstraps)
+    bootstraps['p_boot'] = [1-x if x > .5 else x for x in bootstraps['p_boot']] 
+    bootstraps['ind_significant'] = bootstraps['p_boot'] <= 0.05 
+    bootstraps['location'] = bootstraps['running_bin']
+    bootstraps = add_hochberg_correction(bootstraps)
+    bootstraps = bootstraps.drop(columns=['location'])
+
+    # Save file
+    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,['visual_strategy_session'],'running')
+    print('saving bootstraps to: '+filepath)
+    bootstraps.to_feather(filepath)
     return bootstraps
 
-def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered_events',
+def get_running_bootstraps(cell_type, condition,data,nboots):
+    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,['visual_strategy_session'],'running') 
+    if os.path.isfile(filepath):
+        bootstraps = pd.read_feather(filepath)
+        return bootstraps
+    else:
+        print('file not found, compute the running bootstraps first')
+
+def running_responses(df,condition, bootstraps=None,savefig=False,data='events',
     split='visual_strategy_session'):
     if condition =='omission':
         bin_width=5        
@@ -589,12 +612,13 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
     if bootstraps is not None:
         vtemp = visual.set_index('running_bins')
         ttemp = timing.set_index('running_bins')
+        bootstraps = bootstraps.set_index('running_bin')
         for b in visual['running_bins'].unique():
             plt.errorbar(b*bin_width, vtemp.loc[b].response,
-                yerr=bootstraps[b]['visual'],color=vis_color,fmt='o')   
+                yerr=bootstraps.loc[b]['visual_sem'],color=vis_color,fmt='o')   
         for b in timing['running_bins'].unique():
             plt.errorbar(b*bin_width, ttemp.loc[b].response,
-                yerr=bootstraps[b]['timing'],color=tim_color,fmt='o')     
+                yerr=bootstraps.loc[b]['timing_sem'],color=tim_color,fmt='o')     
         plt.plot(visual.running_bins*bin_width, visual.response,'o',
             color=vis_color,label=vis_label)
         plt.plot(timing.running_bins*bin_width, timing.response,'o',
@@ -610,12 +634,22 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12) 
-    ax.set_xlim(-1,61)
-    plt.legend()
+
     if condition =='omission':
         ax.set_ylim(0,.06) 
     elif condition =='image':
         ax.set_ylim(0,.015)
+
+    if (bootstraps is not None) & ('bh_significant' in bootstraps.columns):
+        y =  ax.get_ylim()[1]*1.05
+        for index, row in bootstraps.iterrows():
+            if row.bh_significant:
+                ax.plot(index*bin_width, y, 'k*')  
+        ax.set_ylim(top=y*1.075)
+
+    ax.set_xlim(-1,61)
+    plt.legend()
+
     plt.tight_layout() 
 
     # Save fig
@@ -915,7 +949,7 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
     
     return ax
 
-def load_change_df(summary_df,cre,data='filtered_events'):
+def load_change_df(summary_df,cre,data='events'):
 
     # Load everything
     df = bd.load_population_df(data,'image_df',cre)
@@ -936,7 +970,7 @@ def load_change_df(summary_df,cre,data='filtered_events'):
 
     return df
 
-def load_image_df(summary_df, cre,data='filtered_events'):
+def load_image_df(summary_df, cre,data='events'):
     '''
         This function is optimized for memory conservation
     '''
@@ -961,7 +995,7 @@ def load_image_df(summary_df, cre,data='filtered_events'):
 
     return df
 
-def load_image_and_change_df(summary_df, cre,data='filtered_events'):
+def load_image_and_change_df(summary_df, cre,data='events'):
     # load everything
     df = bd.load_population_df(data,'image_df',cre)
     
@@ -981,7 +1015,7 @@ def load_image_and_change_df(summary_df, cre,data='filtered_events'):
         'binned_depth']],on='ophys_experiment_id')
     return df
 
-def load_omission_df(summary_df, cre, data='filtered_events'):
+def load_omission_df(summary_df, cre, data='events'):
     # load everything
     df = bd.load_population_df(data,'image_df',cre)
     
@@ -1001,7 +1035,7 @@ def load_omission_df(summary_df, cre, data='filtered_events'):
         'binned_depth']],on='ophys_experiment_id')
     return df
 
-def load_vip_omission_df(summary_df,bootstrap=False,data='filtered_events'):
+def load_vip_omission_df(summary_df,bootstrap=False,data='events'):
     '''
         Load the Vip omission responses, compute the bootstrap intervals
     '''
@@ -1062,7 +1096,7 @@ def plot_vip_omission_summary(vip_omission, bootstrap_means):
     ax.set_xticklabels(['V','T'],fontsize=16)
     plt.tight_layout()
 
-    data = 'filtered_events'
+    data = 'events'
     filename = PSTH_DIR + data+'/summary/'+\
         'vip_omission_summary.svg'
         

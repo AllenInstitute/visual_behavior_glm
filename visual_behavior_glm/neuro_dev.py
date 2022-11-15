@@ -155,6 +155,10 @@ vip_full_filtered = bd.add_area_depth(vip_full_filtered, experiment_table)
 sst_full_filtered = bd.add_area_depth(sst_full_filtered, experiment_table)
 exc_full_filtered = bd.add_area_depth(exc_full_filtered, experiment_table)
 
+vip_full_filtered = pd.merge(vip_full_filtered, experiment_table.reset_index()[['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+sst_full_filtered = pd.merge(sst_full_filtered, experiment_table.reset_index()[['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+exc_full_filtered = pd.merge(exc_full_filtered, experiment_table.reset_index()[['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+
 # merge cell types
 dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]
 labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']

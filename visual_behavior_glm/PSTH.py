@@ -40,7 +40,7 @@ def plot_all_conditions(dfs, labels,data='events'):
             print(c)
             print(e)
 
-def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both',data='filtered_events',areas=['VISp','VISl'],depths=['upper','lower']):
+def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both',data='filtered_events',areas=['VISp','VISl'],depths=['upper','lower'],depth='layer'):
     # If we have just one cell type, wrap in a list 
     if type(dfs)!=list:
         dfs = [dfs]
@@ -62,13 +62,16 @@ def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='bo
             color = colors(cdex+2)
             max_y.append(plot_condition_experience(full_df, condition, 'Familiar',
                 'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel, 
-                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas))
+                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas,
+                depth=depth))
             max_y.append(plot_condition_experience(full_df, condition, 'Novel 1',
                 'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='', 
-                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas))
+                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas,
+                depth=depth))
             max_y.append(plot_condition_experience(full_df, condition, 'Novel >1',
                 'visual_strategy_session', ax=ax[index, 2],title=index==0,ylabel='', 
-                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas))
+                plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas,
+                depth=depth))
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
 
     # Add Title 
@@ -85,8 +88,41 @@ def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='bo
 
     return ax
 
+def plot_condition_by_depth(dfs, condition,labels,savefig=False,error_type='sem',
+    plot_strategy='both',data='events',areas=['VISp','VISl'],depths=['upper','lower'],
+    depth='layer'):
+   
+    # If we have just one cell type, wrap in a list 
+    if type(dfs)!=list:
+        dfs = [dfs]
+
+    # Determine the number of cell types
+    num_rows = len(dfs)
+    num_cols = len(depths)
+    fig, ax = plt.subplots(num_rows,num_cols,figsize=((10/3)*num_cols,2.75*num_rows),
+        sharey='row', squeeze=False)
+
+    # Iterate through cell types   
+    for index, full_df in enumerate(dfs): 
+        if labels is None:
+            ylabel='Population Average'
+        else:
+            ylabel=labels[index]
+        max_y = [0]*num_cols
+        for dex, col in enumerate(depths):
+            max_y[dex] = plot_condition_experience(full_df, condition, 'Familiar',
+            'visual_strategy_session', ax=ax[index, dex], title=index==0,ylabel=ylabel,
+            error_type=error_type,areas=areas, depths=[col],depth=depth)
+        ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+    
+    # Add Title    
+    title_str = condition
+    plt.suptitle(title_str,fontsize=16)
+    plt.tight_layout()
+
+
 def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
-    split_by_engaged=False,plot_strategy='both',data='filtered_events',areas=['VISl','VISp'],depths=['upper','lower']):
+    split_by_engaged=False,plot_strategy='both',data='filtered_events',areas=['VISl','VISp'],depths=['upper','lower'],depth='layer'):
     '''
         Plot the population average response to condition for each element of dfs
 
@@ -115,42 +151,42 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             max_y = [0,0,0]
             max_y[0] = plot_condition_experience(full_df, condition, 'Familiar',
                 'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel,
-                error_type=error_type,areas=areas, depths=depths)
+                error_type=error_type,areas=areas, depths=depths,depth=depth)
             max_y[1] = plot_condition_experience(full_df, condition, 'Novel 1',
                 'visual_strategy_session', ax=ax[index, 1],title=index==0,ylabel='',
-                error_type=error_type)
+                error_type=error_type,depth=depth)
             max_y[2] = plot_condition_experience(full_df, condition, 'Novel >1',
                 'visual_strategy_session', ax=ax[index, 2],title=index==0,ylabel='',
-                error_type=error_type)
+                error_type=error_type,depth=depth)
             ax[index,0].set_ylim(top = 1.05*np.max(max_y))
         else:
             max_y = [] 
             temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Familiar',
                 'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel,
-                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy,depth=depth)
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
                 'Familiar','visual_strategy_session', ax=ax[index, 0], title=index==0,
                 ylabel=ylabel,error_type=error_type,split_by_engaged=True,
-                plot_strategy=plot_strategy)
+                plot_strategy=plot_strategy,depth=depth)
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Novel 1',
                 'visual_strategy_session', ax=ax[index, 1], title=index==0,ylabel=ylabel,
-                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy,depth=depth)
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
                 'Novel 1','visual_strategy_session', ax=ax[index, 1], title=index==0,
                 ylabel=ylabel,error_type=error_type,split_by_engaged=True,
-                plot_strategy=plot_strategy)
+                plot_strategy=plot_strategy,depth=depth)
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Novel >1',
                 'visual_strategy_session', ax=ax[index, 2], title=index==0,ylabel=ylabel,
-                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy)
+                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy,depth=depth)
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
                 'Novel >1','visual_strategy_session', ax=ax[index, 2], title=index==0,
                 ylabel=ylabel,error_type=error_type,split_by_engaged=True,
-                plot_strategy=plot_strategy)
+                plot_strategy=plot_strategy,depth=depth)
             max_y.append(temp)
             ax[index,0].set_ylim(top = 1.05*np.max(max_y))
     
@@ -210,12 +246,12 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,areas=['VISp
 def plot_condition_experience(full_df, condition, experience_level, split, 
     ax=None,ylabel='Population Average',xlabel=True,title=False,error_type='sem',
     split_by_engaged=False, plot_strategy ='both',set_color=None,areas=['VISp','VISl'],
-    depths=['upper','lower']):
+    depths=['upper','lower'],depth='layer'):
     
     if ax is None:
         fig, ax = plt.subplots()
     
-    df = full_df.query('(condition ==@condition)&(experience_level ==@experience_level)&(targeted_structure in @areas)&(layer in @depths)')
+    df = full_df.query('(condition ==@condition)&(experience_level ==@experience_level)&(targeted_structure in @areas)&({} in @depths)'.format(depth))
     colors = gvt.project_colors() 
     if plot_strategy != 'both':
         if plot_strategy == 'visual':

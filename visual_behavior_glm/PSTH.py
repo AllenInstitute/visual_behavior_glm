@@ -840,6 +840,10 @@ def compare_hierarchy(hierarchies, response,data,depth,splits):
     ax = plot_hierarchy(hierarchies[2],'exc',response,data,depth,splits,ax=ax2)
 
 
+def get_and_plot(cell_type, response, data, depth, nboots=10000,splits=[], extra='', savefig=False):
+    hierarchy = get_hierarchy(cell_type, response, data, depth,nboots, splits, extra)
+    plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=savefig,extra=extra)
+
 def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False,
     ylim=None,extra='',ax=None,in_color=None):
 

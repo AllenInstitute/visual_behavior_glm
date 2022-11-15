@@ -24,16 +24,16 @@ def already_fit(row):
 def get_bootstrap_jobs():
     nboots=10000
     jobs = [
-        {'cell_type':'exc','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':''},
+        {'cell_type':'exc','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':''}, ## did not run
         {'cell_type':'sst','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':''},
-        {'cell_type':'vip','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':''},
-        {'cell_type':'exc','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':''},
+        {'cell_type':'vip','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':''}, ## did not run
+        {'cell_type':'exc','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':''}, ## did not run
         {'cell_type':'sst','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':''},
         {'cell_type':'vip','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':''},
-        {'cell_type':'exc','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':''},
+        {'cell_type':'exc','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':''}, ## did not run
         {'cell_type':'sst','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':''},
         {'cell_type':'vip','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':''},
-        {'cell_type':'exc','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':''},
+        {'cell_type':'exc','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':''}, ## did not run
         {'cell_type':'sst','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':''},
         {'cell_type':'vip','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':''},
         {'cell_type':'exc','response':'omission','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':''},
@@ -125,7 +125,7 @@ if __name__ == "__main__":
             print('starting cluster job. job count = {}'.format(job_count))
             print('   ' + args_string)
             job_title = 'bootstraps'
-            walltime = '24:00:00'
+            walltime = '72:00:00'
             mem = '100gb'
             job_id = Slurm.JOB_ARRAY_ID
             job_array_id = Slurm.JOB_ARRAY_MASTER_ID

@@ -17,7 +17,7 @@ import visual_behavior.visualization.utils as utils
 
 PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
 
-def plot_all_heatmaps(dfs, labels,data='filtered_events'):
+def plot_all_heatmaps(dfs, labels,data='events'):
     conditions = dfs[0]['condition'].unique()
     cres = ['Exc','Sst','Vip']
     experience = ['Familiar','Novel 1','Novel >1']   
@@ -31,7 +31,7 @@ def plot_all_heatmaps(dfs, labels,data='filtered_events'):
                     print(c)
                     print(ex)
 
-def plot_all_conditions(dfs, labels,data='filtered_events'):
+def plot_all_conditions(dfs, labels,data='events'):
     conditions = dfs[0]['condition'].unique()
     for c in conditions:
         try:
@@ -520,20 +520,20 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
 
     return ax
 
-def compute_running_bootstrap(df,condition):
+def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events'):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
         bin_width=5#2   
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
-    
-    bootstraps = {}
+
+    bootstraps = []
     bins = df['running_bins'].unique()
     for b in bins:
         temp = df.query('running_bins == @b')[['visual_strategy_session',
             'ophys_experiment_id','cell_specimen_id','response']]
         means = hb.bootstrap(temp, levels=['visual_strategy_session',
-            'ophys_experiment_id','cell_specimen_id'])
+            'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
         if (True in means) & (False in means):
             diff = np.array(means[True]) - np.array(means[False])
             pboot = np.sum(diff<0)/len(diff)
@@ -549,14 +549,37 @@ def compute_running_bootstrap(df,condition):
                 timing = np.std(means[False])
             else:
                 timing = 0 
-        bootstraps[b]={
-            'pval':pboot,
-            'visual':visual,
-            'timing':timing,
-            }
+        bootstraps.append({
+            'running_bin':b,
+            'p_boot':pboot,
+            'visual_sem':visual,
+            'timing_sem':timing,
+            'n_boots':nboots,
+            })
+    
+    # Convert to dataframe, do multiple comparisons corrections
+    bootstraps = pd.DataFrame(bootstraps)
+    bootstraps['p_boot'] = [1-x if x > .5 else x for x in bootstraps['p_boot']] 
+    bootstraps['ind_significant'] = bootstraps['p_boot'] <= 0.05 
+    bootstraps['location'] = bootstraps['running_bin']
+    bootstraps = add_hochberg_correction(bootstraps)
+    bootstraps = bootstraps.drop(columns=['location'])
+
+    # Save file
+    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,['visual_strategy_session'],'running')
+    print('saving bootstraps to: '+filepath)
+    bootstraps.to_feather(filepath)
     return bootstraps
 
-def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered_events',
+def get_running_bootstraps(cell_type, condition,data,nboots):
+    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,['visual_strategy_session'],'running') 
+    if os.path.isfile(filepath):
+        bootstraps = pd.read_feather(filepath)
+        return bootstraps
+    else:
+        print('file not found, compute the running bootstraps first')
+
+def running_responses(df,condition, bootstraps=None,savefig=False,data='events',
     split='visual_strategy_session'):
     if condition =='omission':
         bin_width=5        
@@ -589,12 +612,13 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
     if bootstraps is not None:
         vtemp = visual.set_index('running_bins')
         ttemp = timing.set_index('running_bins')
+        bootstraps = bootstraps.set_index('running_bin')
         for b in visual['running_bins'].unique():
             plt.errorbar(b*bin_width, vtemp.loc[b].response,
-                yerr=bootstraps[b]['visual'],color=vis_color,fmt='o')   
+                yerr=bootstraps.loc[b]['visual_sem'],color=vis_color,fmt='o')   
         for b in timing['running_bins'].unique():
             plt.errorbar(b*bin_width, ttemp.loc[b].response,
-                yerr=bootstraps[b]['timing'],color=tim_color,fmt='o')     
+                yerr=bootstraps.loc[b]['timing_sem'],color=tim_color,fmt='o')     
         plt.plot(visual.running_bins*bin_width, visual.response,'o',
             color=vis_color,label=vis_label)
         plt.plot(timing.running_bins*bin_width, timing.response,'o',
@@ -610,12 +634,22 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12) 
-    ax.set_xlim(-1,61)
-    plt.legend()
+
     if condition =='omission':
         ax.set_ylim(0,.06) 
     elif condition =='image':
         ax.set_ylim(0,.015)
+
+    if (bootstraps is not None) & ('bh_significant' in bootstraps.columns):
+        y =  ax.get_ylim()[1]*1.05
+        for index, row in bootstraps.iterrows():
+            if row.bh_significant:
+                ax.plot(index*bin_width, y, 'k*')  
+        ax.set_ylim(top=y*1.075)
+
+    ax.set_xlim(-1,61)
+    plt.legend()
+
     plt.tight_layout() 
 
     # Save fig
@@ -625,35 +659,57 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='filtered
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
+def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, nboots, 
+    splits, query='', extra=''):
+    mapper = {
+        'exc':'Slc17a7-IRES2-Cre',
+        'sst':'Sst-IRES-Cre',
+        'vip':'Vip-IRES-Cre'
+        }
+    if response == 'image':
+        print('loading image') #DEBUG
+        df = load_image_df(summary_df, mapper[cell_type], data)
+    elif response == 'omission':
+        df = load_omission_df(summary_df, mapper[cell_type], data)
+    elif response == 'hit':
+        df = load_change_df(summary_df, mapper[cell_type], data)
+        df = df.query('hit == 1')
+    elif response == 'miss':
+        df = load_change_df(summary_df, mapper[cell_type], data)
+        df = df.query('hit == 0')
+    elif response == 'change':
+        df = load_change_df(summary_df, mapper[cell_type], data)
+    
+    if query is not '':
+        print('querying!') # DEBUG
+        df = df.query(query)
 
-def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_events',
-    savefig=True,response_type='change',ax=None,exc=True):
+    hierarchy = compute_hierarchy(df, cell_type, response, data, depth, splits=splits, 
+        nboots=nboots, extra=extra)
+
+
+def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True,
+    extra='',nboots=10000,alpha=0.05):
     '''
-        exc_change is the image_df for just change images, with area, 
-            layer, and visual_strategy annotations
+    Generates a dataframe with the mean + bootstraps values for each split of the data
+    saves dataframe to file for fast access
     '''
+    # Get mean response in each area/depth/split
+    mean_df = df.groupby(splits+['targeted_structure',depth])['response']\
+        .mean().reset_index()
+    sem_df = df.groupby(splits+['targeted_structure',depth])['response']\
+        .sem().reset_index()
+    mean_df['sem'] = sem_df['response']*1.96
+    mean_df['location'] = mean_df['targeted_structure'] + '_' +\
+         mean_df[depth].astype(str)
     if depth == 'layer':
-        mean_df = exc_change.groupby(splits+['targeted_structure','layer'])['response']\
-            .mean().reset_index()
-        sem_df = exc_change.groupby(splits+['targeted_structure','layer'])['response']\
-            .sem().reset_index()
-        mean_df['sem'] = sem_df['response']*1.96
-        mean_df['location'] = mean_df['targeted_structure'] + '_' + mean_df['layer']
         mapper = {
             'VISp_upper':1,
             'VISp_lower':2,
             'VISl_upper':3,
             'VISl_lower':4
             }
-        mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
     elif depth == 'binned_depth':
-        mean_df = exc_change.groupby(splits+['targeted_structure','binned_depth'])['response']\
-            .mean().reset_index()
-        sem_df = exc_change.groupby(splits+['targeted_structure','binned_depth'])['response']\
-            .sem().reset_index()
-        mean_df['sem'] = sem_df['response']*1.96
-        mean_df['location'] = mean_df['targeted_structure'] + '_' +\
-             mean_df['binned_depth'].astype(str)
         mapper = {
             'VISp_75':1,
             'VISp_175':2,
@@ -664,7 +720,133 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
             'VISl_275':7,
             'VISl_375':8,
             }
-        mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
+    mean_df['xloc'] = [mapper[x] for x in mean_df['location']] 
+
+    # Get number of cells and experiments in each area/depth/split
+    counts = df.groupby(splits+['targeted_structure',depth])[['ophys_experiment_id',\
+        'cell_specimen_id']].nunique().reset_index()
+    mean_df = pd.merge(mean_df,counts, on=splits+['targeted_structure',depth],
+        validate='1:1')
+    mean_df = mean_df.rename(columns={
+        'ophys_experiment_id':'num_oeid',
+        'cell_specimen_id':'num_cells'
+        })
+    mean_df['bootstraps'] = [ [] for x in range(0,len(mean_df))] 
+
+    # Add the bootstrap, can be slow
+    if bootstrap:
+        groups = mean_df[['targeted_structure',depth]].drop_duplicates()
+        for index, row in groups.iterrows():
+            row_depth = row[depth]
+            temp = df.query(\
+                '(targeted_structure == @row.targeted_structure)&({} == @row_depth)'\
+                .format(depth))
+
+            if len(splits) == 0:
+                bootstrap = hb.bootstrap(temp,levels=splits+\
+                    ['ophys_experiment_id','cell_specimen_id'],nboots=nboots,no_top_level=True)
+                sem = np.std(bootstrap)
+                dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
+                    (mean_df[depth] == row[depth])
+                mean_df.loc[dex,'bootstrap_sem'] = sem
+                mean_df.loc[dex, 'n_boots'] = nboots
+                index_dex = dex[dex].index.values[0]
+                mean_df.at[index_dex,'bootstraps'] = bootstrap
+            else:
+                bootstrap = hb.bootstrap(temp,levels=splits+\
+                    ['ophys_experiment_id','cell_specimen_id'],nboots=nboots)
+                keys = list(bootstrap.keys()) 
+                if len(keys) == 2:
+                    diff = np.array(bootstrap[keys[0]]) > np.array(bootstrap[keys[1]])
+                    p_boot = np.sum(diff)/len(diff)
+                else:
+                    p_boot = 0.5
+                for key in keys:
+                    sem = np.std(bootstrap[key])
+                    dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
+                        (mean_df[depth] == row[depth])&\
+                        (mean_df[splits[0]] == key)
+                    mean_df.loc[dex,'bootstrap_sem'] = sem
+                    mean_df.loc[dex,'p_boot'] = p_boot 
+                    mean_df.loc[dex, 'n_boots'] = nboots
+                    index_dex = dex[dex].index.values[0]
+                    mean_df.at[index_dex,'bootstraps'] = bootstrap[key]
+       
+        # Determine significance
+        if len(splits) > 0:
+            mean_df['p_boot'] = [1-x if x > .5 else x for x in mean_df['p_boot']] 
+            mean_df['ind_significant'] = mean_df['p_boot'] <= alpha
+    
+            # Benjamini Hochberg Correction 
+            mean_df = add_hochberg_correction(mean_df)
+
+    # Save file
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,extra)
+    print('saving bootstraps to: '+filepath)
+    mean_df.to_feather(filepath)
+    
+    return mean_df
+
+def add_hochberg_correction(table):
+    '''
+        Performs the Benjamini Hochberg correction
+    '''    
+    # Sort table by pvalues
+    table = table.sort_values(by=['p_boot','location']).reset_index()
+    table['test_number'] = (~table['location'].duplicated()).cumsum()   
+ 
+    # compute the corrected pvalue based on the rank of each test
+    table['imq'] = (table['test_number'])/table['test_number'].max()*0.05
+
+    # Find the largest pvalue less than its corrected pvalue
+    # all tests above that are significant
+    table['bh_significant'] = False
+    passing_tests = table[table['p_boot'] < table['imq']]
+    if len(passing_tests) >0:
+        last_index = table[table['p_boot'] < table['imq']].tail(1).index.values[0]
+        table.at[last_index,'bh_significant'] = True
+        table.at[0:last_index,'bh_significant'] = True
+    
+    # reset order of table and return
+    table = table.sort_values(by='index').reset_index(drop=True)
+    table = table.drop(columns='index')
+    return table
+
+def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, extra):
+    filepath = PSTH_DIR + data +'/bootstraps/' +\
+        '_'.join([cell_type,response,depth,str(nboots)]+splits)
+    if extra != '':
+        filepath = filepath +'_'+extra
+    filepath = filepath+'.feather'
+    return filepath
+
+def get_hierarchy(cell_type, response, data, depth, nboots,splits=[],extra=''):
+    '''
+        loads the dataframe from file
+    '''
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,extra)
+    if os.path.isfile(filepath):
+        hierarchy = pd.read_feather(filepath)
+        return hierarchy
+    else:
+        print('file not found, compute the hierarchy first')
+
+def compare_hierarchy(response,data,depth,splits):
+
+    ax = get_and_plot('vip',response,data,depth,splits=splits)
+    ax = get_and_plot('sst',response,data,depth,splits=splits,ax=ax)
+    
+    #ax2 = ax.twinx()
+    ax = get_and_plot('exc',response,data,depth,splits=splits,ax=ax)
+
+
+def get_and_plot(cell_type, response, data, depth, nboots=10000,splits=[], extra='', savefig=False,ax=None):
+    hierarchy = get_hierarchy(cell_type, response, data, depth,nboots, splits, extra)
+    ax = plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=savefig,extra=extra,ax=ax)
+    return ax
+
+def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False,
+    ylim=None,extra='',ax=None,in_color=None):
 
     if ax is None:
         if depth == 'layer':
@@ -674,7 +856,7 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
 
     if len(splits) >0:
         for index, value in enumerate(splits):
-            unique = mean_df[value].unique()
+            unique = hierarchy[value].unique()
             for sdex, split_value in enumerate(unique):
                 if value == 'hit':
                     if bool(split_value):
@@ -708,54 +890,74 @@ def plot_hierarchy(exc_change,splits=[],extra = '',depth='layer',data='filtered_
                     color= plt.cm.get_cmap('tab10').colors[sdex]
                     label = str(value)+' '+str(split_value) 
                 if isinstance(split_value, str):
-                    temp = mean_df.query('{} == @split_value'.format(value))         
+                    temp = hierarchy.query('{} == @split_value'.format(value))         
                 else:
-                    temp = mean_df.query('{} == {}'.format(value, split_value))            
-                ax.errorbar(temp['xloc'],temp['response'],yerr=temp['sem'],fmt='o',color=color,
-                    label=extra + label)
+                    temp = hierarchy.query('{} == {}'.format(value, split_value))        
+                ax.errorbar(temp['xloc'],temp['response'],yerr=temp['bootstrap_sem'],
+                    fmt='o',color=color,alpha=.5)
+                ax.plot(temp['xloc'],temp['response'],'o',color=color,label= label)
     else:
-        ax.plot(mean_df['xloc'],mean_df['response'], 'o',label='all cells')
+        colors={
+            'sst':(158/255,218/255,229/255),
+            'exc':(255/255,152/255,150/255),
+            'vip':(197/255,176/255,213/255),
+        }
+        if in_color is not None:
+            colors[cell_type] = in_color
+        ax.plot(hierarchy['xloc'],hierarchy['response'], 'o',label=cell_type,
+            color=colors[cell_type])
+        ax.errorbar(hierarchy['xloc'],hierarchy['response'],
+            yerr=hierarchy['bootstrap_sem'],fmt='o',alpha=.5,color=colors[cell_type])
 
+    # Determine xlabels
+    xlabels = hierarchy.sort_values(by='xloc')\
+        .drop_duplicates(subset=['targeted_structure',depth])
+    mapper = {
+        'VISp':'V1',
+        'VISl':'LM'
+        }
+    xlabels['labels'] = [mapper[row.targeted_structure]\
+        +' '+str(row[depth]) for index, row in xlabels.iterrows()]
+    ax.set_xlabel('area & depth',fontsize=16)
+    ax.set_xticks(xlabels['xloc'])
+    ax.set_xticklabels(xlabels['labels'])
 
-    if (response_type == 'change') & exc:
-        plt.ylim(0,0.01)
-        ax.set_ylabel('change response',fontsize=16)
-    elif (response_type == 'image') & exc:
-        plt.ylim(0,0.006)
-        ax.set_ylabel('image response',fontsize=16)   
-    elif exc:
-        plt.ylim(0,0.01)
-        ax.set_ylabel('response',fontsize=16)   
-    else:
-        ax.set_ylabel('response',fontsize=16)   
-    ax.set_xlabel('Area & depth',fontsize=16)
-    if depth == 'layer':
-        ax.set_xticks([1,2,3,4])
-        ax.set_xticklabels(['V1 upper','V1 lower','LM upper', 'LM lower'])
-    else:
-        ax.set_xticks([1,2,3,4,5,6,7,8])
-        ax.set_xticklabels(['V1 75','V1 175','V1 275','V1 375','LM 75','LM 175','LM 275','LM 375'])
+    # Determine y labels and limits
+    ax.set_ylabel('response',fontsize=16)   
+    plt.ylim(bottom=0)
+    if ylim is not None:
+        plt.ylim(top=ylim)
+
+    # Annotate significance
+    if 'bh_significant' in hierarchy.columns:
+        y =  ax.get_ylim()[1]*1.05
+        for index, row in hierarchy.iterrows():
+            if row.bh_significant:
+                ax.plot(row.xloc, y, 'k*')  
+        ax.set_ylim(top=y*1.075)
+
+    # Clean up
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-    plt.legend()
-    plt.tight_layout()
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)
-   
+    plt.legend()
+    plt.tight_layout()
+
+    # Save figure 
     if savefig:
         extra = extra + '_'.join(splits)
         filename = PSTH_DIR + data+'/hierarchy/'+\
-            'exc_{}_hierarchy_{}_{}.svg'.format(response_type,extra,depth)
-        
+            '{}_hierarchy_{}_{}_{}.svg'.format(cell_type,response,depth,extra) 
         print('Figure saved to: '+filename)
         plt.savefig(filename)
     
     return ax
 
-def load_change_df(summary_df,cre):
+def load_change_df(summary_df,cre,data='events'):
 
     # Load everything
-    df = bd.load_population_df('filtered_events','image_df',cre)
+    df = bd.load_population_df(data,'image_df',cre)
 
     # filter to changes
     df.drop(df[~df['is_change']].index,inplace=True)
@@ -773,13 +975,13 @@ def load_change_df(summary_df,cre):
 
     return df
 
-def load_image_df(summary_df, cre):
+def load_image_df(summary_df, cre,data='events'):
     '''
         This function is optimized for memory conservation
     '''
 
     # Load everything
-    df = bd.load_population_df('filtered_events','image_df',)
+    df = bd.load_population_df(data,'image_df',cre)
 
     # Drop changes and omissions
     df.drop(df[df['is_change'] | df['omitted']].index,inplace=True)
@@ -798,9 +1000,9 @@ def load_image_df(summary_df, cre):
 
     return df
 
-def load_image_and_change_df(summary_df, cre):
+def load_image_and_change_df(summary_df, cre,data='events'):
     # load everything
-    df = bd.load_population_df('filtered_events','image_df',cre)
+    df = bd.load_population_df(data,'image_df',cre)
     
     # drop omissions
     df.drop(df[df['omitted']].index,inplace=True)
@@ -818,22 +1020,32 @@ def load_image_and_change_df(summary_df, cre):
         'binned_depth']],on='ophys_experiment_id')
     return df
 
-def load_vip_image_df(summary_df):
-    print('loading vip image_df')
-    vip_image_filtered=bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
-    vip_image = vip_image_filtered.query('(not omitted)&(not is_change)').copy()
-    vip_image = pd.merge(vip_image, 
-        summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
-        on='behavior_session_id')
-    vip_image = vip_image.query('experience_level=="Familiar"').copy()
-    return vip_image
+def load_omission_df(summary_df, cre, data='events'):
+    # load everything
+    df = bd.load_population_df(data,'image_df',cre)
+    
+    # drop omissions
+    df.drop(df[~df['omitted']].index,inplace=True)
 
-def load_vip_omission_df(summary_df,bootstrap=False):
+    # limit to familiar
+    familiar_summary_df = summary_df.query('experience_level == "Familiar"')
+    familiar_bsid = familiar_summary_df['behavior_session_id'].unique()
+    df.drop(df[~df['behavior_session_id'].isin(familiar_bsid)].index, inplace=True)
+
+    # Add additional details
+    df = pd.merge(df,summary_df[['behavior_session_id','visual_strategy_session']])
+    experiment_table = glm_params.get_experiment_table()
+    df = bd.add_area_depth(df, experiment_table)
+    df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
+        'binned_depth']],on='ophys_experiment_id')
+    return df
+
+def load_vip_omission_df(summary_df,bootstrap=False,data='events'):
     '''
         Load the Vip omission responses, compute the bootstrap intervals
     '''
     print('loading vip image_df')
-    vip_image_filtered= bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
+    vip_image_filtered= bd.load_population_df(data,'image_df','Vip-IRES-Cre')
     vip_omission = vip_image_filtered.query('omitted').copy()
     vip_omission = pd.merge(vip_omission, 
         summary_df[['behavior_session_id','visual_strategy_session','experience_level']],
@@ -846,7 +1058,7 @@ def load_vip_omission_df(summary_df,bootstrap=False):
         vip_omission = vip_omission[['visual_strategy_session','ophys_experiment_id',
             'cell_specimen_id','stimulus_presentations_id','response']]
         bootstrap_means = hb.bootstrap(vip_omission, levels=['visual_strategy_session',
-            'ophys_experiment_id','cell_specimen_id'],nboots=100)
+            'ophys_experiment_id','cell_specimen_id'],nboots=10000)
         return vip_omission, bootstrap_means
     else:
         return vip_omission
@@ -889,9 +1101,21 @@ def plot_vip_omission_summary(vip_omission, bootstrap_means):
     ax.set_xticklabels(['V','T'],fontsize=16)
     plt.tight_layout()
 
-    data = 'filtered_events'
+    data = 'events'
     filename = PSTH_DIR + data+'/summary/'+\
         'vip_omission_summary.svg'
         
     print('Figure saved to: '+filename)
     plt.savefig(filename)
+
+
+def find_preferred(df):
+    g = df.groupby(['cell_specimen_id','image_index'])['response'].mean()
+    g = g.unstack()
+    g['max'] = g.idxmax(axis=1)
+    df['preferred_image'] = df['cell_specimen_id'].map(g['max'])
+    df['is_preferred'] = df['preferred_image'] == df['image_index']
+    return df
+
+   
+

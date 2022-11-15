@@ -15,25 +15,38 @@ from tqdm import tqdm
     bootstrap_means = hb.bootstrap(df)
 '''
 
-def bootstrap(df,metric='response', levels=['group','subject','cell'],nboots=100):
+def summary(bootstrap):
+    keys = list(bootstrap.keys())
+    for key in keys:
+        print('{}: {} +/- {}'.format(key,np.mean(bootstrap[key]),np.std(bootstrap[key])))
+    diff = np.array(bootstrap[keys[0]]) - np.array(bootstrap[keys[1]])
+    print('p value: ' + str(np.sum(diff > 0)/len(diff)))
+
+def bootstrap(df,metric='response', levels=['group','subject','cell'],nboots=100,no_top_level=False):
     '''
         Computes a hierarchical bootstrap of <metric> across the hierarchy
         defined in <levels>. 
         levels, strings referring to columns in 'df' from highest level to lowest
     '''
 
-    groups = df[levels[0]].unique()
-    means = {}
-
-    # Iterate over top level groups
-    for g in groups:
-        means[g]= []
-        temp = df.query('{} == @g'.format(levels[0]))
-    
+    if no_top_level:
+        means = []
         # Perform each bootstrap
         for i in tqdm(range(0,nboots)):
-            sum_val, count = sample_hierarchically(temp, metric, levels[1:])
-            means[g].append(sum_val/count)            
+            sum_val, count = sample_hierarchically(df, metric, levels)
+            means.append(sum_val/count)               
+    else:
+        means = {}
+        groups = df[levels[0]].unique()
+        # Iterate over top level groups
+        for g in groups:
+            means[g]= []
+            temp = df.query('{} == @g'.format(levels[0]))
+    
+            # Perform each bootstrap
+            for i in tqdm(range(0,nboots)):
+                sum_val, count = sample_hierarchically(temp, metric, levels[1:])
+                means[g].append(sum_val/count)            
     return means
 
 def sample_hierarchically(df, metric, levels):

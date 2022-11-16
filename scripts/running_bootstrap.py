@@ -53,7 +53,7 @@ if __name__ == '__main__':
     print('bin_num   {}'.format(args.bin_num))
     print('')
     summary_df = po.get_ophys_summary_table(21)
-    hierarchy = psth.load_df_and_compute_hierarchy(
+    psth.load_df_and_compute_running(
         summary_df,
         args.cell_type,
         args.response,

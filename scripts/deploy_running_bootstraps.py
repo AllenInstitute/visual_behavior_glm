@@ -15,10 +15,10 @@ def already_fit(row):
         row.cell_type,
         row.response,
         row['data'],
-        row.depth,
+        'all',
         row.nboots,
-        row.splits,
-        row.extra)
+        ['visual_strategy_session'],
+        'running_{}'.format(row.bin_num))
     return os.path.exists(filename) 
 
 def get_bootstrap_jobs():

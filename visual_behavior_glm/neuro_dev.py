@@ -108,6 +108,10 @@ vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-
 vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')
 
+# To make things work on the HPC, you can compute just one running bin
+psth.compute_running_bootstrap_bin(vip_omission,'omission','vip',bin_num,data='events',
+    nboots=nboots)
+
 # Generate bootstrapped errorbars:
 bootstraps_omission = psth.compute_running_bootstrap(vip_omission,'omission','vip',
     data='events',nboots=nboots)

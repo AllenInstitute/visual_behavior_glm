@@ -1,4 +1,5 @@
 import os
+import pickle
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -557,6 +558,63 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
 
     return ax
 
+def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=10000,
+    data='events'):
+
+    filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_{}'.format(bin_num))  
+    if os.path.isfile(filename):
+        print('Already computed {}'.format(bin_num))
+        return 
+
+    # Figure out bins
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5#2   
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+    bins = np.sort(df['running_bins'].unique())  
+
+    # Check if any data 
+    if bin_num not in bins:
+        print('No data for this running bin')
+        return 
+   
+    # Compute bootstrap for this bin 
+    temp = df.query('running_bins == @bin_num')[['visual_strategy_session',
+        'ophys_experiment_id','cell_specimen_id','response']]
+    means = hb.bootstrap(temp, levels=['visual_strategy_session',
+        'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
+    if (True in means) & (False in means):
+        diff = np.array(means[True]) - np.array(means[False])
+        pboot = np.sum(diff<0)/len(diff)
+        visual = np.std(means[True])
+        timing = np.std(means[False])
+    else:
+        pboot = 1
+        if (True in means):
+            visual = np.std(means[True])
+        else:
+            visual = 0 
+        if (False in means):
+            timing = np.std(means[False])
+        else:
+            timing = 0 
+    bootstrap = {
+        'running_bin':bin_num,
+        'p_boot':pboot,
+        'visual_sem':visual,
+        'timing_sem':timing,
+        'n_boots':nboots,
+        }
+
+    # Save to file
+    filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_{}'.format(bin_num))
+    with open(filename,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bin saved to {}'.format(filename)) 
+
 def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events'):
     if condition =='omission':
         bin_width=5        
@@ -565,34 +623,45 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events')
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
 
     bootstraps = []
-    bins = df['running_bins'].unique()
+    bins = np.sort(df['running_bins'].unique())
     for b in bins:
-        temp = df.query('running_bins == @b')[['visual_strategy_session',
-            'ophys_experiment_id','cell_specimen_id','response']]
-        means = hb.bootstrap(temp, levels=['visual_strategy_session',
-            'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
-        if (True in means) & (False in means):
-            diff = np.array(means[True]) - np.array(means[False])
-            pboot = np.sum(diff<0)/len(diff)
-            visual = np.std(means[True])
-            timing = np.std(means[False])
+        # First check if this running bin has already been computed
+        filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+            ['visual_strategy_session'],'running_{}'.format(int(b)))
+        if os.path.isfile(filename):
+            # Load this bin
+            with open(filename,'rb') as handle:
+                this_boot = pickle.load(handle)
+            print('loading this boot from file: {}'.format(b))
+            bootstraps.append(this_boot) 
         else:
-            pboot = 1
-            if (True in means):
+            print('Need to compute this bin: {}'.format(b))
+            temp = df.query('running_bins == @b')[['visual_strategy_session',
+                'ophys_experiment_id','cell_specimen_id','response']]
+            means = hb.bootstrap(temp, levels=['visual_strategy_session',
+                'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
+            if (True in means) & (False in means):
+                diff = np.array(means[True]) - np.array(means[False])
+                pboot = np.sum(diff<0)/len(diff)
                 visual = np.std(means[True])
-            else:
-                visual = 0 
-            if (False in means):
                 timing = np.std(means[False])
             else:
-                timing = 0 
-        bootstraps.append({
-            'running_bin':b,
-            'p_boot':pboot,
-            'visual_sem':visual,
-            'timing_sem':timing,
-            'n_boots':nboots,
-            })
+                pboot = 1
+                if (True in means):
+                    visual = np.std(means[True])
+                else:
+                    visual = 0 
+                if (False in means):
+                    timing = np.std(means[False])
+                else:
+                    timing = 0 
+            bootstraps.append({
+                'running_bin':b,
+                'p_boot':pboot,
+                'visual_sem':visual,
+                'timing_sem':timing,
+                'n_boots':nboots,
+                })
     
     # Convert to dataframe, do multiple comparisons corrections
     bootstraps = pd.DataFrame(bootstraps)
@@ -603,21 +672,23 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events')
     bootstraps = bootstraps.drop(columns=['location'])
 
     # Save file
-    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,['visual_strategy_session'],'running')
+    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running')
     print('saving bootstraps to: '+filepath)
     bootstraps.to_feather(filepath)
     return bootstraps
 
 def get_running_bootstraps(cell_type, condition,data,nboots):
-    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,['visual_strategy_session'],'running') 
+    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running') 
     if os.path.isfile(filepath):
         bootstraps = pd.read_feather(filepath)
         return bootstraps
     else:
         print('file not found, compute the running bootstraps first')
 
-def running_responses(df,condition, cre='vip', bootstraps=None,savefig=False,data='events',
-    split='visual_strategy_session'):
+def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
+    data='events', split='visual_strategy_session'):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -697,6 +768,19 @@ def running_responses(df,condition, cre='vip', bootstraps=None,savefig=False,dat
             'running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
+
+def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, bin_num):
+    mapper = {
+        'exc':'Slc17a7-IRES2-Cre',
+        'sst':'Sst-IRES-Cre',
+        'vip':'Vip-IRES-Cre'
+        }
+    if response == 'image':
+        df = load_image_df(summary_df, mapper[cell_type], data)
+    elif response == 'omission':
+        df = load_omission_df(summary_df, mapper[cell_type], data)
+    compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots)
+
 
 def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, nboots, 
     splits, query='', extra=''):

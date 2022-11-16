@@ -439,7 +439,7 @@ def get_full_df(cell_df, session,cell_specimen_id,summary_df,data,first=False):
  
     # Save
     ophys_experiment_id = session.metadata['ophys_experiment_id']
-    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','full_df',data,\  
+    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','full_df',data,\
         first=first)
     averages.to_hdf(path,key='df')
 

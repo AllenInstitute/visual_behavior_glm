@@ -53,9 +53,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
-    python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/bootstrap.py"  
+    python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/running_bootstrap.py"  
     stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm" 
-    stdout_location = os.path.join(stdout_basedir, 'job_records_bootstraps')
+    stdout_location = os.path.join(stdout_basedir, 'job_records_running_bootstraps')
     if not os.path.exists(stdout_location):
         print('making folder {}'.format(stdout_location))
         os.mkdir(stdout_location)

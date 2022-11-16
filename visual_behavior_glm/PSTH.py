@@ -560,17 +560,21 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
 
 def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=10000,
     data='events'):
+    
+    # Figure out bins
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
         bin_width=5#2   
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
     bins = np.sort(df['running_bins'].unique())  
-    
+
+    # Check if any data 
     if bin_num not in bins:
         print('No data for this running bin')
-        return # Should I save a dummy file?
-    
+        return 
+   
+    # Compute bootstrap for this bin 
     temp = df.query('running_bins == @bin_num')[['visual_strategy_session',
         'ophys_experiment_id','cell_specimen_id','response']]
     means = hb.bootstrap(temp, levels=['visual_strategy_session',
@@ -597,6 +601,7 @@ def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=1000
         'timing_sem':timing,
         'n_boots':nboots,
         }
+
     # Save to file
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
         ['visual_strategy_session'],'running_{}'.format(bin_num))
@@ -614,10 +619,11 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events')
     bootstraps = []
     bins = np.sort(df['running_bins'].unique())
     for b in bins:
+        # First check if this running bin has already been computed
         filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
             ['visual_strategy_session'],'running_{}'.format(int(b)))
-
         if os.path.isfile(filename):
+            # Load this bin
             with open(filename,'rb') as handle:
                 this_boot = pickle.load(handle)
             print('loading this boot from file: {}'.format(b))
@@ -660,21 +666,23 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events')
     bootstraps = bootstraps.drop(columns=['location'])
 
     # Save file
-    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,['visual_strategy_session'],'running')
+    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running')
     print('saving bootstraps to: '+filepath)
     bootstraps.to_feather(filepath)
     return bootstraps
 
 def get_running_bootstraps(cell_type, condition,data,nboots):
-    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,['visual_strategy_session'],'running') 
+    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running') 
     if os.path.isfile(filepath):
         bootstraps = pd.read_feather(filepath)
         return bootstraps
     else:
         print('file not found, compute the running bootstraps first')
 
-def running_responses(df,condition, cre='vip', bootstraps=None,savefig=False,data='events',
-    split='visual_strategy_session'):
+def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
+    data='events', split='visual_strategy_session'):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':

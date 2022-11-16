@@ -207,10 +207,15 @@ def build_behavior_df_experiment(session):
         print('errors')
 
 
-def build_response_df_experiment(session,data):
+def build_response_df_experiment(session,data,first=False):
     '''
         For each cell in this experiment
     '''
+    
+    if first:
+        time = [0.05, 0.425]
+    else:
+        time = [0.05, 0.8]
 
     # get session level behavior metrics
     load_behavior_summary(session)
@@ -225,7 +230,7 @@ def build_response_df_experiment(session,data):
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
-            this_image = build_response_df_cell(session, cell_id,data)
+            this_image = build_response_df_cell(session, cell_id,data,time=time)
             image_dfs.append(this_image)
         except Exception as e:
             print('error with '+str(cell_id))
@@ -236,6 +241,10 @@ def build_response_df_experiment(session,data):
         'image_df',data)
     image_df = pd.concat(image_dfs)
     image_df.to_hdf(path, key='df')
+
+    if first:
+        print('skipping full_df because first=True')
+        print('Finished!')
 
     print('Iterating over cells for this experiment to build full dataframes')
     full_dfs = []
@@ -263,14 +272,14 @@ def get_path(cell_id, oeid, filetype,df_type,data):
     return filepath
 
 
-def build_response_df_cell(session, cell_specimen_id,data):
+def build_response_df_cell(session, cell_specimen_id,data,time=[0.05,0.8]):
 
     # Get neural activity
     cell_df = get_cell_df(session,cell_specimen_id,data)
 
     # get running speed
     try:
-        run = get_running_etr(session)
+        run = get_running_etr(session,time=time)
         run_df = run.groupby('stimulus_presentations_id')['speed'].mean()
     except Exception as e:
         print('error procesing running '+str(cell_specimen_id))
@@ -279,7 +288,7 @@ def build_response_df_cell(session, cell_specimen_id,data):
 
     # get pupil
     try:
-        pupil = get_pupil_etr(session)
+        pupil = get_pupil_etr(session,time=time)
         pupil_df = pupil.groupby('stimulus_presentations_id')['pupil_width'].mean()  
     except Exception as e:
         print('error processing pupil '+str(cell_specimen_id))
@@ -287,7 +296,7 @@ def build_response_df_cell(session, cell_specimen_id,data):
         pupil_df = None
  
     # Get the max response to each image presentation   
-    image_df = get_image_df(cell_df, run_df, pupil_df, session, cell_specimen_id,data) 
+    image_df = get_image_df(cell_df, run_df, pupil_df, session, cell_specimen_id,data,time=time) 
     return image_df
 
 
@@ -349,11 +358,11 @@ def get_cell_etr(df,session,time = [0.05,0.8]):
     return etr
 
    
-def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data):
+def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data,time=[0.05,0.8]):
 
     # Interpolate neural activity onto stimulus timestamps
     # then align to stimulus times
-    etr = get_cell_etr(cell_df, session)
+    etr = get_cell_etr(cell_df, session,time=time)
 
     # Get max response for each image
     image_df = etr.groupby('stimulus_presentations_id')['response'].mean()

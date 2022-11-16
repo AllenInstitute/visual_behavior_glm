@@ -615,7 +615,7 @@ def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=1000
         pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print('bin saved to {}'.format(filename)) 
 
-def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events'):
+def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',compute=True):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -624,6 +624,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events')
 
     bootstraps = []
     bins = np.sort(df['running_bins'].unique())
+    missing=False
     for b in bins:
         # First check if this running bin has already been computed
         filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
@@ -634,7 +635,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events')
                 this_boot = pickle.load(handle)
             print('loading this boot from file: {}'.format(b))
             bootstraps.append(this_boot) 
-        else:
+        elif compute:
             print('Need to compute this bin: {}'.format(b))
             temp = df.query('running_bins == @b')[['visual_strategy_session',
                 'ophys_experiment_id','cell_specimen_id','response']]
@@ -662,6 +663,9 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events')
                 'timing_sem':timing,
                 'n_boots':nboots,
                 })
+        else:
+            missing=True 
+            print('Missing bin: {}, and compute=False'.format(b))
     
     # Convert to dataframe, do multiple comparisons corrections
     bootstraps = pd.DataFrame(bootstraps)
@@ -672,10 +676,11 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events')
     bootstraps = bootstraps.drop(columns=['location'])
 
     # Save file
-    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running')
-    print('saving bootstraps to: '+filepath)
-    bootstraps.to_feather(filepath)
+    if not missing:
+        filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+            ['visual_strategy_session'],'running')
+        print('saving bootstraps to: '+filepath)
+        bootstraps.to_feather(filepath)
     return bootstraps
 
 def get_running_bootstraps(cell_type, condition,data,nboots):

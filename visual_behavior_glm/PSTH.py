@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import Divider, Size
 plt.ion()
 
+import psy_style as pstyle
 import psy_output_tools as po
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.build_dataframes as bd
@@ -615,7 +616,7 @@ def get_running_bootstraps(cell_type, condition,data,nboots):
     else:
         print('file not found, compute the running bootstraps first')
 
-def running_responses(df,condition, bootstraps=None,savefig=False,data='events',
+def running_responses(df,condition, cre='vip', bootstraps=None,savefig=False,data='events',
     split='visual_strategy_session'):
     if condition =='omission':
         bin_width=5        
@@ -664,19 +665,21 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='events',
             yerr=visual_sem.response,color=vis_color,fmt='o',label=vis_label)
         plt.errorbar(timing.running_bins*bin_width, timing.response,
             yerr=timing_sem.response,color=tim_color,fmt='o',label=tim_label)
-    ax.set_ylabel('Vip '+condition,fontsize=16)
+    ax.set_ylabel(cre+' '+condition,fontsize=16)
     ax.set_xlabel('running speed (cm/s)',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12) 
 
-    if condition =='omission':
+    if (cre == 'vip') and (condition =='omission'):
         ax.set_ylim(0,.06) 
-    elif condition =='image':
+    elif (cre == 'vip') and (condition =='image'):
         ax.set_ylim(0,.015)
+    else:
+        ax.set_ylim(bottom=0)
 
-    if (bootstraps is not None) & ('bh_significant' in bootstraps.columns):
+    if (bootstraps is not None) and ('bh_significant' in bootstraps.columns):
         y =  ax.get_ylim()[1]*1.05
         for index, row in bootstraps.iterrows():
             if row.bh_significant:
@@ -691,7 +694,7 @@ def running_responses(df,condition, bootstraps=None,savefig=False,data='events',
     # Save fig
     if savefig:
         filename = PSTH_DIR + data+'/running/'+\
-            'running_vip_familiar_{}_{}.svg'.format(condition,split)
+            'running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
@@ -876,13 +879,76 @@ def compare_hierarchy(response,data,depth,splits):
     ax = get_and_plot('exc',response,data,depth,splits=splits,ax=ax)
 
 
-def get_and_plot(cell_type, response, data, depth, nboots=10000,splits=[], extra='', savefig=False,ax=None):
-    hierarchy = get_hierarchy(cell_type, response, data, depth,nboots, splits, extra)
-    ax = plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=savefig,extra=extra,ax=ax)
+def get_and_plot(cell_type, response, data, depth, nboots=10000,splits=[], extra='', 
+    savefig=False,ax=None,strategy =None):
+    style = pstyle.get_style()
+    colors={
+        'omission':style['schematic_omission'],
+        'image':'gray',
+        'change':style['schematic_change']
+        }
+    if type(response) is list:
+        hierarchies = []
+    
+        # plot each response type
+        for r in response:
+            if strategy is not None:
+                hierarchy = get_hierarchy(cell_type, r, data, depth,nboots,
+                    ['visual_strategy_session'], extra)
+                if strategy == 'visual':
+                    hierarchy=hierarchy.query('visual_strategy_session').copy()
+                    label = 'visual ' + cell_type + ' ' + r
+                else:
+                    hierarchy=hierarchy.query('not visual_strategy_session').copy()
+                    label = 'timing ' + cell_type + ' ' + r
+            else:
+                hierarchy = get_hierarchy(cell_type, r, data, depth,nboots, splits, 
+                    extra)
+                label = cell_type +' '+r
+            ax = plot_hierarchy(hierarchy, cell_type, response, data, depth, [], 
+                savefig=False,extra=extra,ax=ax,in_color=colors[r],in_label=label,
+                polish=False)
+            hierarchy['response_type'] = r
+            hierarchies.append(hierarchy)
+        mean_df = pd.concat(hierarchies)
+
+        # do stats
+        if len(response) == 2:
+            location = mean_df['location'].unique()
+            for l in location:
+                temp =mean_df.query('location == @l') 
+                num_groups = len(temp)
+                if num_groups == 2:
+                    diff = temp.iloc[0]['bootstraps'] > temp.iloc[1]['bootstraps']
+                    p_boot = np.sum(diff)/len(diff)
+                else:
+                    p_boot = 0.5
+                for r in response:
+                    dex = (mean_df['location'] == l)&(mean_df['response_type']==r)
+                    mean_df.loc[dex,'p_boot'] = p_boot 
+
+            # determine significance with hochberg correction
+            mean_df['p_boot'] = [1-x if x > .5 else x for x in mean_df['p_boot']] 
+            mean_df['ind_significant'] = mean_df['p_boot'] <= 0.05 
+            mean_df = add_hochberg_correction(mean_df)
+
+            # Add significance stars to plot
+            y =  ax.get_ylim()[1]*1.05
+            for index, row in mean_df.iterrows():
+                if row.bh_significant:
+                    ax.plot(row.xloc, y, 'k*')  
+            ax.set_ylim(top=y*1.075)
+
+        plt.tight_layout()
+
+    else:
+        hierarchy = get_hierarchy(cell_type, response, data, depth,nboots, splits, extra)
+        ax = plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, 
+            savefig=savefig,extra=extra,ax=ax)
     return ax
 
 def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False,
-    ylim=None,extra='',ax=None,in_color=None):
+    ylim=None,extra='',ax=None,in_color=None,in_label=None,polish=True):
 
     if ax is None:
         if depth == 'layer':
@@ -940,7 +1006,11 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
         }
         if in_color is not None:
             colors[cell_type] = in_color
-        ax.plot(hierarchy['xloc'],hierarchy['response'], 'o',label=cell_type,
+        if in_label is not None:
+            label=in_label
+        else:
+            label=cell_type
+        ax.plot(hierarchy['xloc'],hierarchy['response'], 'o',label=label,
             color=colors[cell_type])
         ax.errorbar(hierarchy['xloc'],hierarchy['response'],
             yerr=hierarchy['bootstrap_sem'],fmt='o',alpha=.5,color=colors[cell_type])
@@ -960,12 +1030,13 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
 
     # Determine y labels and limits
     ax.set_ylabel('response',fontsize=16)   
-    plt.ylim(bottom=0)
+    if polish:
+        plt.ylim(bottom=0)
     if ylim is not None:
         plt.ylim(top=ylim)
 
     # Annotate significance
-    if 'bh_significant' in hierarchy.columns:
+    if ('bh_significant' in hierarchy.columns) and (polish):
         y =  ax.get_ylim()[1]*1.05
         for index, row in hierarchy.iterrows():
             if row.bh_significant:

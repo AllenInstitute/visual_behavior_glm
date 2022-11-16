@@ -141,6 +141,9 @@ psth.plot_vip_omission_summary(vip_omission, bootstrap_means)
 psth.get_and_plot('vip','omission','events','binned_depth',
     nboots, splits=['visual_strategy_session'])
 
+psth.get_and_plot('vip',['change','image'],'events','binned_depth',
+    nboots, strategy='visual')
+
 ## PSTH - Population average response
 ################################################################################
 

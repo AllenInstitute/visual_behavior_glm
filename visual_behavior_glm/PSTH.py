@@ -560,7 +560,13 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
 
 def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=10000,
     data='events'):
-    
+
+    filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_{}'.format(bin_num))  
+    if os.path.isfile(filename):
+        print('Already computed {}'.format(bin_num))
+        return 
+
     # Figure out bins
     if condition =='omission':
         bin_width=5        
@@ -762,6 +768,19 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
             'running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
+
+def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, bin_num):
+    mapper = {
+        'exc':'Slc17a7-IRES2-Cre',
+        'sst':'Sst-IRES-Cre',
+        'vip':'Vip-IRES-Cre'
+        }
+    if response == 'image':
+        df = load_image_df(summary_df, mapper[cell_type], data)
+    elif response == 'omission':
+        df = load_omission_df(summary_df, mapper[cell_type], data)
+    compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots)
+
 
 def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, nboots, 
     splits, query='', extra=''):

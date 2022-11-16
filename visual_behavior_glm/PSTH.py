@@ -591,7 +591,7 @@ def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=1000
         visual = np.std(means[True])
         timing = np.std(means[False])
     else:
-        pboot = 1
+        pboot = 0.5
         if (True in means):
             visual = np.std(means[True])
         else:
@@ -647,7 +647,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
                 visual = np.std(means[True])
                 timing = np.std(means[False])
             else:
-                pboot = 1
+                pboot = 0.5
                 if (True in means):
                     visual = np.std(means[True])
                 else:
@@ -669,6 +669,8 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
     
     # Convert to dataframe, do multiple comparisons corrections
     bootstraps = pd.DataFrame(bootstraps)
+    bootstraps['p_boot'] = [0.5 if ((row.visual_sem ==0)or(row.timing_sem==0)) \
+                                else row.p_boot for index, row in bootstraps.iterrows()]
     bootstraps['p_boot'] = [1-x if x > .5 else x for x in bootstraps['p_boot']] 
     bootstraps['ind_significant'] = bootstraps['p_boot'] <= 0.05 
     bootstraps['location'] = bootstraps['running_bin']

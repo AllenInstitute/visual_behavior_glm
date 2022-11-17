@@ -245,6 +245,7 @@ def build_response_df_experiment(session,data,first=False):
     if first:
         print('skipping full_df because first=True')
         print('Finished!')
+        return
 
     print('Iterating over cells for this experiment to build full dataframes')
     full_dfs = []

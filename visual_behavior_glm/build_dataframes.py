@@ -33,7 +33,7 @@ def load_population_df(data,df_type,cre,summary_df=None):
 
 
 def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
-    data='filtered_events',savefile=True,first=False):
+    data='filtered_events',savefile=True,first=False,familiar_only=True):
 
     batch_size=50
     batch=False
@@ -45,6 +45,8 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
 
     # get list of experiments
     summary_df = summary_df.query('cre_line == @cre')
+    if familiar_only:
+        summary_df = summary_df.query('experience_level == "Familiar"')
     oeids = np.concatenate(summary_df['ophys_experiment_id'].values) 
 
     # make list of columns to drop for space
@@ -380,6 +382,10 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data,
     image_df['behavior_session_id'] = session.metadata['behavior_session_id']   
     image_df['ophys_experiment_id'] = session.metadata['ophys_experiment_id']
     image_df['cre_line'] = session.metadata['cre_line']
+
+    # Add post omission
+    image_df['post_omitted_1'] = image_df['omitted'].shift(1,fill_value=False)
+    image_df['post_omitted_2'] = image_df['omitted'].shift(2,fill_value=False)
 
     # Add running speed
     if run_df is not None:

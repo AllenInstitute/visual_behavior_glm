@@ -19,9 +19,13 @@ def add_area_depth(df,experiment_table):
         on='ophys_experiment_id')
     return df
 
-def load_population_df(data,df_type,cre,summary_df=None):
+def load_population_df(data,df_type,cre,summary_df=None,first=False):
+    if first:
+        extra = '_first_half'
+    else:
+        extra =  ''
     path ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-        +df_type+'s/'+data+'/summary_'+cre+'.feather'
+        +df_type+'s/'+data+'/summary_'+cre+extra+'.feather'
     df = pd.read_feather(path)
 
     if (df_type =='image_df') and (summary_df is not None):

@@ -79,6 +79,7 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
     if batch:
         batch_num=0
 
+    failed_to_load = 0
     for idx,value in tqdm(enumerate(oeids),total = num_rows):
         try:
             path=get_path('',value, 'experiment',df_type,data,first)
@@ -87,6 +88,7 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
                 this_df = this_df.drop(columns=cols_to_drop)
             dfs.append(this_df)
         except:
+            failed_to_load += 1
             pass 
         if batch:
             if np.mod(idx,batch_size) == batch_size-1:
@@ -96,6 +98,8 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
                 temp.to_feather(path)
                 batch_num+=1
                 dfs = []
+
+    print('Experiments that did not load: {}'.format(failed_to_load))
 
     if batch:
         temp = pd.concat(dfs, ignore_index=True, sort=False)
@@ -119,8 +123,12 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
     # save
     if savefile:
         print('saving')
+        if first:
+            extra = '_first_half'
+        else:
+            extra = ''
         path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-            +df_type+'s/'+data+'/summary_'+cre+'.feather'
+            +df_type+'s/'+data+'/summary_'+cre+extra+'.feather'
         try:
             population_df.to_feather(path)
         except Exception as e:

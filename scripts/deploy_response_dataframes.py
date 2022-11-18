@@ -20,13 +20,15 @@ if __name__ == "__main__":
     print('python executable = {}'.format(python_executable))
     python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/response_dataframes.py"
     stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
-    stdout_location = os.path.join(stdout_basedir, 'job_records_response_dataframes_filtered_events')
+    stdout_location = os.path.join(stdout_basedir, 'job_records_response_dataframes_events_1')
     if not os.path.exists(stdout_location):
         print('making folder {}'.format(stdout_location))
         os.mkdir(stdout_location)
     print('stdout files will be at {}'.format(stdout_location))
 
     summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION)
+    print('limiting to familiar')
+    summary_df = summary_df.query('experience_level == "Familiar"')
     oeids = np.concatenate(summary_df['ophys_experiment_id'].values) 
 
     job_count = 0

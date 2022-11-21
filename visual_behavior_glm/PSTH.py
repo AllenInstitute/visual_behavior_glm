@@ -790,7 +790,7 @@ def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, b
 
 
 def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, nboots, 
-    splits, query='', extra=''):
+    splits, query='', extra='',first=False):
     mapper = {
         'exc':'Slc17a7-IRES2-Cre',
         'sst':'Sst-IRES-Cre',
@@ -798,28 +798,28 @@ def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, 
         }
     if response == 'image':
         print('loading image') #DEBUG
-        df = load_image_df(summary_df, mapper[cell_type], data)
+        df = load_image_df(summary_df, mapper[cell_type], data,first)
     elif response == 'omission':
-        df = load_omission_df(summary_df, mapper[cell_type], data)
+        df = load_omission_df(summary_df, mapper[cell_type], data,first)
     elif response == 'hit':
-        df = load_change_df(summary_df, mapper[cell_type], data)
+        df = load_change_df(summary_df, mapper[cell_type], data,first)
         df = df.query('hit == 1')
     elif response == 'miss':
-        df = load_change_df(summary_df, mapper[cell_type], data)
+        df = load_change_df(summary_df, mapper[cell_type], data,first)
         df = df.query('hit == 0')
     elif response == 'change':
-        df = load_change_df(summary_df, mapper[cell_type], data)
+        df = load_change_df(summary_df, mapper[cell_type], data,first)
     
     if query is not '':
         print('querying!') # DEBUG
         df = df.query(query)
 
     hierarchy = compute_hierarchy(df, cell_type, response, data, depth, splits=splits, 
-        nboots=nboots, extra=extra)
+        nboots=nboots, extra=extra,first=first)
 
 
 def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=True,
-    extra='',nboots=10000,alpha=0.05):
+    extra='',nboots=10000,alpha=0.05,first=False):
     '''
     Generates a dataframe with the mean + bootstraps values for each split of the data
     saves dataframe to file for fast access
@@ -911,7 +911,7 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
             mean_df = add_hochberg_correction(mean_df)
 
     # Save file
-    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,extra)
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,extra,first)
     print('saving bootstraps to: '+filepath)
     mean_df.to_feather(filepath)
     
@@ -942,19 +942,21 @@ def add_hochberg_correction(table):
     table = table.drop(columns='index')
     return table
 
-def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, extra):
+def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, extra,first=False):
     filepath = PSTH_DIR + data +'/bootstraps/' +\
         '_'.join([cell_type,response,depth,str(nboots)]+splits)
     if extra != '':
         filepath = filepath +'_'+extra
+    if first:
+        filepath += '_first'
     filepath = filepath+'.feather'
     return filepath
 
-def get_hierarchy(cell_type, response, data, depth, nboots,splits=[],extra=''):
+def get_hierarchy(cell_type, response, data, depth, nboots,splits=[],extra='',first=False):
     '''
         loads the dataframe from file
     '''
-    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,extra)
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,extra,first)
     if os.path.isfile(filepath):
         hierarchy = pd.read_feather(filepath)
         return hierarchy
@@ -971,7 +973,7 @@ def compare_hierarchy(response,data,depth,splits):
 
 
 def get_and_plot(cell_type, response, data, depth, nboots=10000,splits=[], extra='', 
-    savefig=False,ax=None,strategy =None):
+    savefig=False,ax=None,strategy =None,first=False):
     style = pstyle.get_style()
     colors={
         'omission':style['schematic_omission'],
@@ -985,7 +987,7 @@ def get_and_plot(cell_type, response, data, depth, nboots=10000,splits=[], extra
         for r in response:
             if strategy is not None:
                 hierarchy = get_hierarchy(cell_type, r, data, depth,nboots,
-                    ['visual_strategy_session'], extra)
+                    ['visual_strategy_session'], extra,first)
                 if strategy == 'visual':
                     hierarchy=hierarchy.query('visual_strategy_session').copy()
                     label = 'visual ' + cell_type + ' ' + r
@@ -994,11 +996,11 @@ def get_and_plot(cell_type, response, data, depth, nboots=10000,splits=[], extra
                     label = 'timing ' + cell_type + ' ' + r
             else:
                 hierarchy = get_hierarchy(cell_type, r, data, depth,nboots, splits, 
-                    extra)
+                    extra,first)
                 label = cell_type +' '+r
             ax = plot_hierarchy(hierarchy, cell_type, response, data, depth, [], 
                 savefig=False,extra=extra,ax=ax,in_color=colors[r],in_label=label,
-                polish=False)
+                polish=False,first=first)
             hierarchy['response_type'] = r
             hierarchies.append(hierarchy)
         mean_df = pd.concat(hierarchies)
@@ -1033,13 +1035,13 @@ def get_and_plot(cell_type, response, data, depth, nboots=10000,splits=[], extra
         plt.tight_layout()
 
     else:
-        hierarchy = get_hierarchy(cell_type, response, data, depth,nboots, splits, extra)
+        hierarchy = get_hierarchy(cell_type, response, data, depth,nboots, splits, extra,first)
         ax = plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, 
-            savefig=savefig,extra=extra,ax=ax)
+            savefig=savefig,extra=extra,ax=ax,first=first)
     return ax
 
 def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=False,
-    ylim=None,extra='',ax=None,in_color=None,in_label=None,polish=True):
+    ylim=None,extra='',ax=None,in_color=None,in_label=None,polish=True,first=False):
 
     if ax is None:
         if depth == 'layer':
@@ -1145,6 +1147,8 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
     # Save figure 
     if savefig:
         extra = extra + '_'.join(splits)
+        if first:
+            extra+='_first'
         filename = PSTH_DIR + data+'/hierarchy/'+\
             '{}_hierarchy_{}_{}_{}.svg'.format(cell_type,response,depth,extra) 
         print('Figure saved to: '+filename)

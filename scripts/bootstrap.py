@@ -61,6 +61,11 @@ parser.add_argument(
     type=str,
     default = ''
     )
+parser.add_argument(
+    '--first',
+    default=False,
+    action='store_true'
+    )
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -73,6 +78,7 @@ if __name__ == '__main__':
     print('splits    {}'.format(args.splits))
     print('query     {}'.format(args.query))
     print('extra     {}'.format(args.extra))
+    print('first     {}'.format(args.first))
     print('')
     summary_df = po.get_ophys_summary_table(21)
     hierarchy = psth.load_df_and_compute_hierarchy(
@@ -84,6 +90,7 @@ if __name__ == '__main__':
         args.nboots,
         args.splits,
         args.query,
-        args.extra
+        args.extra,
+        args.first
         )
     print('finished') 

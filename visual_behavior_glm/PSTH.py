@@ -1152,10 +1152,10 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
     
     return ax
 
-def load_change_df(summary_df,cre,data='events'):
+def load_change_df(summary_df,cre,data='events',first=False):
 
     # Load everything
-    df = bd.load_population_df(data,'image_df',cre)
+    df = bd.load_population_df(data,'image_df',cre,first=first)
 
     # filter to changes
     df.drop(df[~df['is_change']].index,inplace=True)
@@ -1173,13 +1173,13 @@ def load_change_df(summary_df,cre,data='events'):
 
     return df
 
-def load_image_df(summary_df, cre,data='events'):
+def load_image_df(summary_df, cre,data='events',first=False):
     '''
         This function is optimized for memory conservation
     '''
 
     # Load everything
-    df = bd.load_population_df(data,'image_df',cre)
+    df = bd.load_population_df(data,'image_df',cre,first=first)
 
     # Drop changes and omissions
     df.drop(df[df['is_change'] | df['omitted']].index,inplace=True)
@@ -1198,9 +1198,9 @@ def load_image_df(summary_df, cre,data='events'):
 
     return df
 
-def load_image_and_change_df(summary_df, cre,data='events'):
+def load_image_and_change_df(summary_df, cre,data='events',first=False):
     # load everything
-    df = bd.load_population_df(data,'image_df',cre)
+    df = bd.load_population_df(data,'image_df',cre,first=first)
     
     # drop omissions
     df.drop(df[df['omitted']].index,inplace=True)
@@ -1218,9 +1218,9 @@ def load_image_and_change_df(summary_df, cre,data='events'):
         'binned_depth']],on='ophys_experiment_id')
     return df
 
-def load_omission_df(summary_df, cre, data='events'):
+def load_omission_df(summary_df, cre, data='events',first=False):
     # load everything
-    df = bd.load_population_df(data,'image_df',cre)
+    df = bd.load_population_df(data,'image_df',cre,first=first)
     
     # drop omissions
     df.drop(df[~df['omitted']].index,inplace=True)

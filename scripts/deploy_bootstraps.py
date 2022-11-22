@@ -25,66 +25,150 @@ def already_fit(row):
 def get_bootstrap_jobs(first=True):
     nboots=10000
     jobs = [
-        {'cell_type':'exc','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':'',first:first}, # did not run
-        {'cell_type':'sst','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':'',first:first}, # did not run
-        {'cell_type':'exc','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':'',first:first}, # did not run
-        {'cell_type':'sst','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first}, # did not run
-        {'cell_type':'sst','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'image','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first}, ## did not run
-        {'cell_type':'sst','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'image','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'omission','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'sst','response':'omission','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'omission','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'sst','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'omission','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'sst','response':'omission','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'omission','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'sst','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':[],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
-        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
-        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
-        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
+        {'cell_type':'exc','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first}, 
+        {'cell_type':'sst','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first}, 
+        {'cell_type':'exc','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first}, 
+        {'cell_type':'sst','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first}, 
+        {'cell_type':'sst','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first}, 
+        {'cell_type':'sst','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_1','extra':'post_omitted_1',first:first}, 
+        {'cell_type':'sst','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_1','extra':'post_omitted_1',first:first},
+        {'cell_type':'vip','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_1','extra':'post_omitted_1',first:first},
+        {'cell_type':'exc','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_1','extra':'post_omitted_1',first:first}, 
+        {'cell_type':'sst','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_1','extra':'post_omitted_1',first:first},
+        {'cell_type':'vip','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_1','extra':'post_omitted_1',first:first},               
+        {'cell_type':'exc','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_2','extra':'post_omitted_2',first:first}, 
+        {'cell_type':'sst','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_2','extra':'post_omitted_2',first:first},
+        {'cell_type':'vip','response':'image','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_2','extra':'post_omitted_2',first:first},
+        {'cell_type':'exc','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_2','extra':'post_omitted_2',first:first}, 
+        {'cell_type':'sst','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_2','extra':'post_omitted_2',first:first},
+        {'cell_type':'vip','response':'image','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'post_omitted_2','extra':'post_omitted_2',first:first},   
+        {'cell_type':'exc','response':'omission','data':'events','depth':'layer','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'sst','response':'omission','data':'events','depth':'layer','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'omission','data':'events','depth':'layer','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'sst','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'omission','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'sst','response':'omission','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'omission','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'sst','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'omission','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':[],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'','extra':'',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 1)"','extra':'hit',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['visual_strategy_session'],'query':'"(hit == 0)"','extra':'miss',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['hit'],'query':'visual_strategy_session','extra':'visual',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'layer','nboots':nboots,\
+			'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
+        {'cell_type':'exc','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
+        {'cell_type':'sst','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
+        {'cell_type':'vip','response':'change','data':'events','depth':'binned_depth','nboots':nboots,\
+			'splits':['hit'],'query':'"not visual_strategy_session"','extra':'timing',first:first},
         ]
     jobs = pd.DataFrame(jobs)
     return jobs

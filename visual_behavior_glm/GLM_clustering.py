@@ -4,7 +4,7 @@ from scipy.stats import chisquare
 from scipy.stats import chi2_contingency
 from scipy.stats import power_divergence
 from scipy.stats import fisher_exact
-import FisherExact
+# import FisherExact
 import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -247,13 +247,14 @@ def plot_cluster_proportions(df,areas=None):
     else:
         assert set(areas) == set(df['location'].unique()), "areas passed in don't match location column" 
 
-    fig, ax = plt.subplots(1,3,figsize=(8,4))
+    fig, ax = plt.subplots(1,3,figsize=(14,8))
     fig.subplots_adjust(left=0.1, bottom=0.25, right=0.9, top=0.9, wspace=1)
     plot_cluster_proportion_cre(df,areas, fig, ax[2], 'Slc17a7-IRES2-Cre')
     plot_cluster_proportion_cre(df,areas, fig, ax[1], 'Sst-IRES-Cre')
     plot_cluster_proportion_cre(df,areas, fig, ax[0], 'Vip-IRES-Cre')
     plt.savefig(filedir+'within_cluster_proportions.svg')
     plt.savefig(filedir+'within_cluster_proportions.png')
+    plt.savefig(filedir + 'within_cluster_proportions.pdf')
 
 def compute_cluster_proportion_cre(df, cre,areas):
     table = compute_proportion_cre(df, cre,areas)
@@ -282,7 +283,9 @@ def plot_cluster_proportion_cre(df,areas,fig,ax, cre,test='chi_squared_'):
     ax.set_xticks(range(0,len(areas)))
     ax.set_xticklabels(areas,rotation=90)
     ax.set_ylabel('Cluster #',fontsize=16)  
-    ax.set_title(mapper(cre),fontsize=16) 
+    ax.set_title(mapper(cre),fontsize=16)
+    ax.set_yticks(np.arange(len(table)))
+    ax.set_yticklabels(np.arange(1,len(table)+1))
     
     # add statistics
     table2 = stats(df, cre,areas,test=test)

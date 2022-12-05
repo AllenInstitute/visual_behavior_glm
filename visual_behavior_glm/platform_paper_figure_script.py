@@ -70,6 +70,11 @@ gvt.plot_kernel_comparison_by_experience(weights_df, run_params, 'omissions')
 # Returns a dataframe with rows for cre/dropout, and columns describing
 # the dropout score
 stats_D = gvt.plot_dropout_summary_population(results,run_params) 
+results_pivoted_active = results_pivoted.query('not passive').copy()
+anova, tukey = gvt.test_significant_across_cell(results_pivoted_active,'all-images')
+anova, tukey = gvt.test_significant_across_cell(results_pivoted_active,'omissions')
+anova, tukey = gvt.test_significant_across_cell(results_pivoted_active,'behavioral')
+anova, tukey = gvt.test_significant_across_cell(results_pivoted_active,'task')
 
 ## Panel E - Dropout averages for experience and cre-line
 '''

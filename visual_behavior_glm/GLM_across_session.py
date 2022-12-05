@@ -148,10 +148,13 @@ def load_cells(glm_version,clean_df=True):
         assert np.all(across_df[kernel+'_within'] <= across_df[kernel+'_across']+tol), 'Across session dropouts must be less than or equal to within session dropouts'
  
     # Construct dataframe of cells that could not load, for debugging purposes
-    # cells_table = cells_table.set_index('cell_specimen_id')
-    fail_df = cells_table.loc[fail_to_load]
-    #fail_df = cells_table.query('cell_specimen_id in @fail_to_load')
- 
+    if len(fail_to_load) > 0:
+        fail_df = cells_table.query('cell_specimen_id in @fail_to_load')
+        # The above command was behaving inconsistently. The code block
+        # below is equivalent, including it for posterity. 
+        # cells_table = cells_table.set_index('cell_specimen_id')
+        # fail_df = cells_table.loc[fail_to_load]
+
     # Assert that we have the correct number of cells
     assert len(across_df) + len(fail_df) == len(cells)*3, "incorrect number of cells"
     assert len(across_df['cell_specimen_id'].unique())+len(fail_df['cell_specimen_id'].unique()) == len(cells), "incorrect number of cells"

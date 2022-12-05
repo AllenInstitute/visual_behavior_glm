@@ -4,7 +4,7 @@ from scipy.stats import chisquare
 from scipy.stats import chi2_contingency
 from scipy.stats import power_divergence
 from scipy.stats import fisher_exact
-# import FisherExact
+# import FisherExact (Used for non2x2 tables of Fisher Exact test, not used but leaving a note)
 import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -409,7 +409,8 @@ def stats(df,cre,areas,test='chi_squared_',lambda_str='log-likelihood'):
         elif test == 'fisher_':
             contingency = np.array([f,not_f]) 
             if np.shape(contingency)[1] > 2:
-                pvalue = FisherExact.fisher_exact(contingency)
+                raise Exception('Need to import FisherExact package for non 2x2 tables')
+                #pvalue = FisherExact.fisher_exact(contingency)
             else:
                 oddsratio, pvalue = fisher_exact(contingency)
             table2.at[index, test+'pvalue'] = pvalue

@@ -797,21 +797,18 @@ def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, 
         'vip':'Vip-IRES-Cre'
         }
     if response == 'image':
-        print('loading image') #DEBUG
+        print('loading image')
         df = load_image_df(summary_df, mapper[cell_type], data,first)
     elif response == 'omission':
         df = load_omission_df(summary_df, mapper[cell_type], data,first)
-    elif response == 'hit':
-        df = load_change_df(summary_df, mapper[cell_type], data,first)
-        df = df.query('hit == 1')
-    elif response == 'miss':
-        df = load_change_df(summary_df, mapper[cell_type], data,first)
-        df = df.query('hit == 0')
     elif response == 'change':
         df = load_change_df(summary_df, mapper[cell_type], data,first)
+
+    # Append preferred image
+    df = find_preferred(df)
     
     if query is not '':
-        print('querying!') # DEBUG
+        print('querying!') 
         df = df.query(query)
 
     hierarchy = compute_hierarchy(df, cell_type, response, data, depth, splits=splits, 

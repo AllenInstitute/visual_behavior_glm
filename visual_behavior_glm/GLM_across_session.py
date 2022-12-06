@@ -154,6 +154,9 @@ def load_cells(glm_version,clean_df=True):
         # below is equivalent, including it for posterity. 
         # cells_table = cells_table.set_index('cell_specimen_id')
         # fail_df = cells_table.loc[fail_to_load]
+    else:
+        fail_df = pd.DataFrame()
+        fail_df['cell_specimen_id'] = []
 
     # Assert that we have the correct number of cells
     assert len(across_df) + len(fail_df) == len(cells)*3, "incorrect number of cells"

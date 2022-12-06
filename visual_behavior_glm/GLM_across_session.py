@@ -85,6 +85,7 @@ def get_cell_list(glm_version):
     run_params = glm_params.load_run_json(glm_version)
     include_4x2_data = run_params['include_4x2_data']
     cells_table = loading.get_cell_table(platform_paper_only=True,include_4x2_data=include_4x2_data).reset_index()
+    cells_table['passive'] = cells_table['passive'].astype(bool)
     cells_table = cells_table.query('not passive').copy()
     cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
@@ -115,7 +116,7 @@ def load_cells(glm_version,clean_df=True):
     print('Loading across session normalized dropout scores')
     for cell in tqdm(cells):
         try:
-            filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv' 
+            filename = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv'
             score_df = pd.read_csv(filename)
             score_df['cell_specimen_id'] = cell
             if clean_df:
@@ -147,8 +148,16 @@ def load_cells(glm_version,clean_df=True):
         assert np.all(across_df[kernel+'_within'] <= across_df[kernel+'_across']+tol), 'Across session dropouts must be less than or equal to within session dropouts'
  
     # Construct dataframe of cells that could not load, for debugging purposes
-    fail_df = cells_table.query('cell_specimen_id in @fail_to_load')   
- 
+    if len(fail_to_load) > 0:
+        fail_df = cells_table.query('cell_specimen_id in @fail_to_load')
+        # The above command was behaving inconsistently. The code block
+        # below is equivalent, including it for posterity. 
+        # cells_table = cells_table.set_index('cell_specimen_id')
+        # fail_df = cells_table.loc[fail_to_load]
+    else:
+        fail_df = pd.DataFrame()
+        fail_df['cell_specimen_id'] = []
+
     # Assert that we have the correct number of cells
     assert len(across_df) + len(fail_df) == len(cells)*3, "incorrect number of cells"
     assert len(across_df['cell_specimen_id'].unique())+len(fail_df['cell_specimen_id'].unique()) == len(cells), "incorrect number of cells"

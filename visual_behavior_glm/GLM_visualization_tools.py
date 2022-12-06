@@ -4257,6 +4257,28 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
     return summary_data
 
+def test_significant_across_cell(data, feature):
+
+    data = data[~data[feature].isnull()].copy()
+    anova = stats.f_oneway(
+        data.query('cre_line == "Slc17a7-IRES2-Cre"')[feature],  
+        data.query('cre_line == "Sst-IRES-Cre"')[feature],  
+        data.query('cre_line == "Vip-IRES-Cre"')[feature]
+        )
+    comp = mc.MultiComparison(data[feature], data['cre_line'])
+    post_hoc_res = comp.tukeyhsd()
+    tukey_table = pd.read_html(post_hoc_res.summary().as_html(),header=0, index_col=0)[0]
+    tukey_table = tukey_table.reset_index()
+    mapper = {
+        'Slc17a7-IRES2-Cre':0,
+        'Sst-IRES-Cre':1,
+        'Vip-IRES-Cre':2,
+        }
+    tukey_table['x1'] = [mapper[str(x)] for x in tukey_table['group1']]
+    tukey_table['x2'] = [mapper[str(x)] for x in tukey_table['group2']]
+    return anova, tukey_table
+
+
 
 def test_significant_dropout_averages(data,feature):
     data = data[~data[feature].isnull()].copy()

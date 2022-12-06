@@ -1310,6 +1310,63 @@ def plot_vip_omission_summary(vip_omission, bootstrap_means):
     print('Figure saved to: '+filename)
     plt.savefig(filename)
 
+def plot_exc_change_summary():
+    cell_type = 'exc'
+    response='change'
+    data='events'
+    depth='binned_depth'
+    nboots=10000
+    splits=['hit']
+    first=True
+    area = 'VISp'
+    layer='275'
+    visual = get_hierarchy(cell_type, response, data, depth, nboots,
+        splits,'visual',first)
+    timing = get_hierarchy(cell_type, response, data, depth, nboots,
+        splits,'timing',first)
+    visual = visual.query('targeted_structure == @area')\
+        .query('{}=={}'.format(depth, layer))\
+        .set_index('hit')
+    timing = timing.query('targeted_structure == @area')\
+        .query('{}=={}'.format(depth, layer))\
+        .set_index('hit')
+
+    plt.figure(figsize=(3,2.75))
+    plt.plot(0,visual.loc[1]['response'],'o',color='darkorange',label='visual hit')
+    plt.plot(0,visual.loc[0]['response'],'o',color='bisque',label='visual miss')
+    plt.plot(1,timing.loc[1]['response'],'o',color='blue',label='timing hit')
+    plt.plot(1,timing.loc[0]['response'],'o',color='lightblue',label='timing mis')
+    plt.errorbar(0,visual.loc[0]['response'],
+        visual.loc[0]['bootstrap_sem'],color='bisque')
+    plt.errorbar(0,visual.loc[1]['response'],
+        visual.loc[1]['bootstrap_sem'],color='darkorange')
+    plt.errorbar(1,timing.loc[0]['response'],
+        timing.loc[0]['bootstrap_sem'],color='lightblue')
+    plt.errorbar(1,timing.loc[1]['response'],
+        timing.loc[1]['bootstrap_sem'],color='blue')
+
+    plt.plot(0,.012,'k*' )
+    plt.ylim(0,.0125)
+    plt.xlim(-1,2)
+    
+    plt.ylabel('Exc response',fontsize=16)
+    ax = plt.gca()
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_xticks([0,1])
+    ax.set_xticklabels(['Vis.','Tim.'],fontsize=16)
+    plt.legend()
+    plt.tight_layout()
+
+    data = 'events'
+    filename = PSTH_DIR + data+'/summary/'+\
+        'exc_change_summary.svg'
+        
+    print('Figure saved to: '+filename)
+    plt.savefig(filename)
+ 
 
 def find_preferred(df):
     g = df.groupby(['cell_specimen_id','image_index'])['response'].mean()

@@ -42,7 +42,8 @@ def plot_all_conditions(dfs, labels,data='events'):
             print(c)
             print(e)
 
-def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both',data='filtered_events',areas=['VISp','VISl'],depths=['upper','lower'],depth='layer'):
+def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='both',
+    data='filtered_events',areas=['VISp','VISl'],depths=['upper','lower'],depth='layer'):
     # If we have just one cell type, wrap in a list 
     if type(dfs)!=list:
         dfs = [dfs]
@@ -63,7 +64,8 @@ def compare_conditions(dfs, conditions, labels, savefig=False, plot_strategy='bo
         for cdex, condition in enumerate(conditions):
             color = colors(cdex+2)
             max_y.append(plot_condition_experience(full_df, condition, 'Familiar',
-                'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel, 
+                'visual_strategy_session', ax=ax[index, 0], title=index==0,
+                ylabel=ylabel, 
                 plot_strategy=plot_strategy,set_color=color,depths=depths,areas=areas,
                 depth=depth))
             max_y.append(plot_condition_experience(full_df, condition, 'Novel 1',
@@ -124,7 +126,8 @@ def plot_condition_by_depth(dfs, condition,labels,savefig=False,error_type='sem'
 
 
 def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
-    split_by_engaged=False,plot_strategy='both',data='filtered_events',areas=['VISl','VISp'],depths=['upper','lower'],depth='layer'):
+    split_by_engaged=False,plot_strategy='both',data='filtered_events',
+    areas=['VISl','VISp'],depths=['upper','lower'],depth='layer'):
     '''
         Plot the population average response to condition for each element of dfs
 
@@ -165,7 +168,8 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             max_y = [] 
             temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Familiar',
                 'visual_strategy_session', ax=ax[index, 0], title=index==0,ylabel=ylabel,
-                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy,depth=depth)
+                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy,
+                depth=depth)
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
                 'Familiar','visual_strategy_session', ax=ax[index, 0], title=index==0,
@@ -174,7 +178,8 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Novel 1',
                 'visual_strategy_session', ax=ax[index, 1], title=index==0,ylabel=ylabel,
-                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy,depth=depth)
+                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy,
+                depth=depth)
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
                 'Novel 1','visual_strategy_session', ax=ax[index, 1], title=index==0,
@@ -183,7 +188,8 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'engaged_v1_'+condition,'Novel >1',
                 'visual_strategy_session', ax=ax[index, 2], title=index==0,ylabel=ylabel,
-                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy,depth=depth)
+                error_type=error_type,split_by_engaged=True,plot_strategy=plot_strategy,
+                depth=depth)
             max_y.append(temp)
             temp = plot_condition_experience(full_df,'disengaged_v1_'+condition,
                 'Novel >1','visual_strategy_session', ax=ax[index, 2], title=index==0,
@@ -212,8 +218,34 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 
     return ax
 
-def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,areas=['VISp','VISl'],
-    depths=['upper','lower']):
+def get_figure_4_psth(data='filtered_events'):
+ 
+    # Load each cell type
+    vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
+    sst_full_filtered = bd.load_population_df('filtered_events','full_df','Sst-IRES-Cre')
+    exc_full_filtered = bd.load_population_df('filtered_events','full_df',\
+        'Slc17a7-IRES2-Cre')
+
+    # Add area, depth
+    experiment_table = glm_params.get_experiment_table()
+    vip_full_filtered = bd.add_area_depth(vip_full_filtered, experiment_table)
+    sst_full_filtered = bd.add_area_depth(sst_full_filtered, experiment_table)
+    exc_full_filtered = bd.add_area_depth(exc_full_filtered, experiment_table)
+    vip_full_filtered = pd.merge(vip_full_filtered, experiment_table.reset_index()\
+        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+    sst_full_filtered = pd.merge(sst_full_filtered, experiment_table.reset_index()\
+        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+    exc_full_filtered = pd.merge(exc_full_filtered, experiment_table.reset_index()\
+        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+
+    # merge cell types
+    dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]
+    labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
+
+    return dfs_filtered
+
+def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
+    areas=['VISp','VISl'],depths=['upper','lower']):
 
     fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
@@ -361,7 +393,8 @@ def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False):
         ax.axvspan(amin, amax, color='k',alpha=.1,zorder=1)
     return ax
 
-def plot_heatmap(full_df,cre,condition,experience_level,savefig=False,data='filtered_events'):
+def plot_heatmap(full_df,cre,condition,experience_level,savefig=False,
+    data='filtered_events'):
 
     # Set up multi-axis figure
     height = 5
@@ -429,8 +462,8 @@ def plot_heatmap(full_df,cre,condition,experience_level,savefig=False,data='filt
         plt.savefig(filename) 
     return ax1,ax2
 
-def plot_QQ_engagement(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None,
-    data='filtered_events'):
+def plot_QQ_engagement(full_df,cre,condition,experience_level,savefig=False,
+    quantiles=200,ax=None,data='filtered_events'):
     
     # Prep data
     e_condition = 'engaged_v2_'+condition
@@ -478,8 +511,8 @@ def plot_QQ_engagement(full_df,cre,condition,experience_level,savefig=False,quan
 
 
 
-def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None,
-    data='filtered_events'):
+def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,
+    quantiles=200,ax=None,data='filtered_events'):
     
     # Prep data
     df = full_df\
@@ -518,7 +551,8 @@ def plot_QQ_strategy(full_df,cre,condition,experience_level,savefig=False,quanti
     return ax
 
 
-def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False,quantiles=200,ax=None,data='filtered_events',nbins=50):
+def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False,
+    quantiles=200,ax=None,data='filtered_events',nbins=50):
     
     # Prep data
     df = full_df\
@@ -537,7 +571,8 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
 
     if ax is None:
         fig, ax = plt.subplots()
-    vis,bins,_ = ax.hist(x,bins=bins,color='darkorange',alpha=.5,density=True,label='visual')
+    vis,bins,_ = ax.hist(x,bins=bins,color='darkorange',alpha=.5,density=True,
+        label='visual')
     time,bins,_= ax.hist(y,bins=bins,color='blue',alpha=.5,density=True,label='timing')
     ax.set_ylabel('density',fontsize=16)
     ax.set_xlabel('Avg. Cell response',fontsize=16)
@@ -615,7 +650,8 @@ def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=1000
         pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print('bin saved to {}'.format(filename)) 
 
-def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',compute=True):
+def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
+    compute=True):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -871,7 +907,8 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
 
             if len(splits) == 0:
                 bootstrap = hb.bootstrap(temp,levels=splits+\
-                    ['ophys_experiment_id','cell_specimen_id'],nboots=nboots,no_top_level=True)
+                    ['ophys_experiment_id','cell_specimen_id'],nboots=nboots,
+                    no_top_level=True)
                 sem = np.std(bootstrap)
                 dex = (mean_df['targeted_structure'] == row.targeted_structure)&\
                     (mean_df[depth] == row[depth])
@@ -908,7 +945,8 @@ def compute_hierarchy(df, cell_type, response, data, depth, splits=[],bootstrap=
             mean_df = add_hochberg_correction(mean_df)
 
     # Save file
-    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,extra,first)
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,
+        extra,first)
     print('saving bootstraps to: '+filepath)
     mean_df.to_feather(filepath)
     
@@ -939,7 +977,8 @@ def add_hochberg_correction(table):
     table = table.drop(columns='index')
     return table
 
-def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, extra,first=False):
+def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, extra,
+    first=False):
     filepath = PSTH_DIR + data +'/bootstraps/' +\
         '_'.join([cell_type,response,depth,str(nboots)]+splits)
     if extra != '':
@@ -949,11 +988,13 @@ def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, ext
     filepath = filepath+'.feather'
     return filepath
 
-def get_hierarchy(cell_type, response, data, depth, nboots,splits=[],extra='',first=False):
+def get_hierarchy(cell_type, response, data, depth, nboots,splits=[],extra='',
+    first=False):
     '''
         loads the dataframe from file
     '''
-    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,splits,extra,first)
+    filepath = get_hierarchy_filename(cell_type,response,data,depth,nboots,
+        splits,extra,first)
     if os.path.isfile(filepath):
         hierarchy = pd.read_feather(filepath)
         return hierarchy
@@ -1032,7 +1073,8 @@ def get_and_plot(cell_type, response, data, depth, nboots=10000,splits=[], extra
         plt.tight_layout()
 
     else:
-        hierarchy = get_hierarchy(cell_type, response, data, depth,nboots, splits, extra,first)
+        hierarchy = get_hierarchy(cell_type, response, data, depth,nboots, splits, 
+            extra,first)
         ax = plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, 
             savefig=savefig,extra=extra,ax=ax,first=first)
     return ax

@@ -194,30 +194,10 @@ ax = psth.plot_condition(dfs_filtered, 'omission',labels,
 ax = psth.compare_conditions(dfs_filtered, ['hit','miss'], labels, plot_strategy='visual',
     data='filtered_events')
 
-
 ## Population heatmaps
 ################################################################################
 psth.plot_heatmap(vip_full_filtered,'Vip', 'omission','Familiar',\
 	data='filtered_events')
-psth.plot_heatmap(vip_full_filtered,'Vip', 'omission','Novel 1',\
-	data='filtered_events')
-psth.plot_heatmap(vip_full_filtered,'Vip', 'omission','Novel >1',\
-	data='filtered_events')
-
-psth.plot_heatmap(sst_full_filtered,'Sst', 'omission','Familiar',\
-	data='filtered_events')
-psth.plot_heatmap(sst_full_filtered,'Sst', 'omission','Novel 1',\
-	data='filtered_events')
-psth.plot_heatmap(sst_full_filtered,'Sst', 'omission','Novel >1',\
-	data='filtered_events')
-
-psth.plot_heatmap(exc_full_filtered,'Exc', 'omission','Familiar',\
-	data='filtered_events')
-psth.plot_heatmap(exc_full_filtered,'Exc', 'omission','Novel 1',\
-	data='filtered_events')
-psth.plot_heatmap(exc_full_filtered,'Exc', 'omission','Novel >1',\
-	data='filtered_events')
-
 
 ## QQ Plots 
 ################################################################################

@@ -139,6 +139,10 @@ psth.running_responses(vip_image, 'image',split='engagement_v2')
 vip_omission, bootstrap_means = psth.load_vip_omission_df(summary_df,bootstrap=True)
 psth.plot_vip_omission_summary(vip_omission, bootstrap_means)
 
+## EXC Hit/Miss
+################################################################################
+psth.plot_exc_change_summary()
+
 ## Hierarchy plots with bootstraps
 ################################################################################
 

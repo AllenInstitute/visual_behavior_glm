@@ -411,6 +411,10 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data,
     image_df['post_omitted_1'] = image_df['omitted'].shift(1,fill_value=False)
     image_df['post_omitted_2'] = image_df['omitted'].shift(2,fill_value=False)
 
+    # Add post change
+    image_df['post_change_1'] = image_df['is_change'].shift(1,fill_value=False)
+    image_df['post_change_2'] = image_df['is_change'].shift(2,fill_value=False)
+
     # Add running speed
     if run_df is not None:
         image_df = pd.merge(image_df, run_df, on='stimulus_presentations_id')

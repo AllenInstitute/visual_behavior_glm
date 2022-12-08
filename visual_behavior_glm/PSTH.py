@@ -812,6 +812,80 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
+def compute_summary_bootstrap_strategy(df,data='events',nboots=10000,cell_type='exc',
+    first=True):
+
+    df['group'] = df['visual_strategy_session'].astype(str)
+    mapper = {
+        'True':'visual',
+        'False':'timing',
+    }
+    df['group'] = [mapper[x] for x in df['group']]
+    bootstrap = hb.bootstrap(df, levels=['group','ophys_experiment_id','cell_specimen_id'],
+        nboots=nboots)
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_omission_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    filepath = filepath+'.feather'
+
+    with open(filepath,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bootstrap saved to {}'.format(filepath)) 
+
+def get_summary_bootstrap_strategy(data='events',nboots=10000,cell_type='exc',first=True):
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_omission_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    filepath = filepath+'.feather'
+    if os.path.isfile(filepath):
+        # Load this bin
+        with open(filepath,'rb') as handle:
+            this_boot = pickle.load(handle)
+        print('loading from file')
+        return this_boot
+    else:
+        print('file not found')
+ 
+
+def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_type='exc',
+    first=True):
+
+    df['group'] = df['visual_strategy_session'].astype(str)+df['hit'].astype(str)
+    mapper = {
+        'True1.0':'visual_hit',
+        'True0.0':'visual_miss',
+        'False1.0':'timing_hit',
+        'False0.0':'timing_miss',
+    }
+    df['group'] = [mapper[x] for x in df['group']]
+    bootstrap = hb.bootstrap(df, levels=['group','ophys_experiment_id','cell_specimen_id'],
+        nboots=nboots)
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_hit_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    filepath = filepath+'.feather'
+
+    with open(filepath,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bootstrap saved to {}'.format(filepath)) 
+
+def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc',first=True):
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_hit_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    filepath = filepath+'.feather'
+    if os.path.isfile(filepath):
+        # Load this bin
+        with open(filepath,'rb') as handle:
+            this_boot = pickle.load(handle)
+        print('loading from file')
+        return this_boot
+    else:
+        print('file not found')
+    
+
 def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, bin_num):
     mapper = {
         'exc':'Slc17a7-IRES2-Cre',

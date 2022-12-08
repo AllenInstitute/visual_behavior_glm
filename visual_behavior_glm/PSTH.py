@@ -885,6 +885,11 @@ def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc
     else:
         print('file not found')
     
+def bootstrap_significance(bootstrap, k1, k2):
+    diff = np.array(bootstrap[k1]) - np.array(bootstrap[k2])
+    p = np.sum(diff >= 0)/len(diff)
+    return p
+
 
 def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, bin_num):
     mapper = {

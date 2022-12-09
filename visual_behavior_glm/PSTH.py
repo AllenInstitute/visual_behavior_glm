@@ -1191,10 +1191,10 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
                 elif value == 'visual_strategy_session':
                     if bool(split_value):
                         color = 'darkorange'
-                        label = 'visual session'                   
+                        label = 'visual strategy'                   
                     else:
                         color = 'blue'
-                        label = 'timing session'
+                        label = 'timing strategy'
                 elif value == 'is_change':
                     if bool(split_value):
                         color=(0.1215,0.466,.7058)
@@ -1245,12 +1245,13 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
         }
     xlabels['labels'] = [mapper[row.targeted_structure]\
         +' '+str(row[depth]) for index, row in xlabels.iterrows()]
-    ax.set_xlabel('area & depth',fontsize=16)
+    ax.set_xlabel('area & depth (um)',fontsize=16)
     ax.set_xticks(xlabels['xloc'])
     ax.set_xticklabels(xlabels['labels'])
 
     # Determine y labels and limits
-    ax.set_ylabel('response',fontsize=16)   
+    ylabel = cell_type +' '+response
+    ax.set_ylabel(ylabel,fontsize=16)   
     if polish:
         plt.ylim(bottom=0)
     if ylim is not None:

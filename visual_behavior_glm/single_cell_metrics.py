@@ -4,25 +4,47 @@ import matplotlib.pyplot as plt
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.build_dataframes as bd
 
-def metrics_by_strategy(avg,metric,bins=35,cell='Exc'):
-    plt.figure()
-    bins = plt.hist(avg.query('visual_strategy_session')[metric],
+def metrics_by_strategy(avg,metric,bins=35,cell='Exc',in_ax=None):
+    if in_ax is None:
+        fig, ax = plt.subplots()
+    else:
+        ax = in_ax   
+ 
+    vis_mean = avg.query('visual_strategy_session')[metric].mean()
+    tim_mean = avg.query('not visual_strategy_session')[metric].mean()
+
+    bins = ax.hist(avg.query('visual_strategy_session')[metric],
         alpha=.3,density=True,bins=bins,color='darkorange',label=cell+' Visual')
-    plt.hist(avg.query('not visual_strategy_session')[metric],
+    ax.hist(avg.query('not visual_strategy_session')[metric],
         alpha=.3, density=True,bins=bins[1],color='blue',label=cell+' Timing')
-    plt.ylim(top=1.1*np.max(bins[0][1:-1]))
-    #plt.xlim(bins[1][1],bins[1][-2])
-    plt.xlim(-.95,.95)
-    ax = plt.gca()
-    plt.axvline(0,linestyle='--',color='gray')
+    ymax = np.max(bins[0][1:-1])
+    ax.set_ylim(top=1.1*ymax)
+    ax.plot(vis_mean, 1.05*ymax,'v',color='darkorange')
+    ax.plot(tim_mean, 1.05*ymax,'v',color='blue')
+    ax.set_xlim(-1,1)
+    ax.axvline(0,linestyle='--',color='gray')
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)
-    plt.ylabel('density',fontsize=16)
-    plt.xlabel(metric.replace('_',' '),fontsize=16)
-    plt.legend()
-    plt.tight_layout()
+    ax.set_ylabel('density',fontsize=16)
+    ax.set_xlabel(metric.replace('_',' '),fontsize=16)
+    #ax.legend()
+
+    if in_ax is None:
+        plt.tight_layout()
+
+def plot_all(avg,bins=35,cell='Exc',savefig=False):
+    fig, ax = plt.subplots(2,3,figsize=(10,6))
+
+    metrics_by_strategy(avg, 'omission_vs_image', bins=bins, cell=cell,in_ax=ax[0,0])
+    metrics_by_strategy(avg, 'post_omitted_vs_image', bins=bins, cell=cell,in_ax=ax[1,0])
+    metrics_by_strategy(avg, 'hit_vs_image', bins=bins, cell=cell,in_ax=ax[0,1])   
+    metrics_by_strategy(avg, 'post_hit_vs_image', bins=bins, cell=cell,in_ax=ax[1,1])
+    metrics_by_strategy(avg, 'miss_vs_image', bins=bins, cell=cell,in_ax=ax[0,2])
+    metrics_by_strategy(avg, 'hit_vs_miss', bins=bins, cell=cell,in_ax=ax[1,2])
+    plt.tight_layout()    
+
 
 def compute_metrics(summary_df, cre, data='events',first=False, second=False):
 
@@ -40,6 +62,7 @@ def compute_metrics(summary_df, cre, data='events',first=False, second=False):
     df.at[df['hit']==1,'type'] = 'hit'
     df.at[df['miss']==1,'type'] = 'miss'
     df.at[df['post_omitted_1'],'type'] = 'post_omitted'
+    df.at[df['post_hit_1']==1,'type'] = 'post_hit'
 
     # Get average value for each image type for each cell
     avg = df.groupby(['ophys_experiment_id','cell_specimen_id','type'])['response'].mean().unstack().reset_index()
@@ -47,6 +70,7 @@ def compute_metrics(summary_df, cre, data='events',first=False, second=False):
     # Compute metrics
     avg['omission_vs_image']=(avg['omission']-avg['image'])/(avg['omission']+avg['image'])
     avg['post_omitted_vs_image']=(avg['post_omitted']-avg['image'])/(avg['post_omitted']+avg['image'])
+    avg['post_hit_vs_image']=(avg['post_hit']-avg['image'])/(avg['post_hit']+avg['image'])
     avg['hit_vs_image'] = (avg['hit']-avg['image'])/(avg['hit']+avg['image'])   
     avg['miss_vs_image'] = (avg['miss']-avg['image'])/(avg['miss']+avg['image'])   
     avg['hit_vs_miss'] = (avg['hit']-avg['miss'])/(avg['hit']+avg['miss'])   
@@ -58,6 +82,7 @@ def compute_metrics(summary_df, cre, data='events',first=False, second=False):
     avg = pd.merge(avg, experiment_table.reset_index()[cols],on='ophys_experiment_id')
     avg = pd.merge(avg, summary_df[['behavior_session_id','visual_strategy_session']],
         on='behavior_session_id')
+
     return avg
 
 

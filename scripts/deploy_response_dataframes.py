@@ -20,7 +20,7 @@ if __name__ == "__main__":
     print('python executable = {}'.format(python_executable))
     python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/response_dataframes.py"
     stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
-    stdout_location = os.path.join(stdout_basedir, 'job_records_response_dataframes_events_1')
+    stdout_location = os.path.join(stdout_basedir, 'job_records_response_dataframes_events')
     if not os.path.exists(stdout_location):
         print('making folder {}'.format(stdout_location))
         os.mkdir(stdout_location)
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         job_count += 1
         print('starting cluster job for {}, job count = {}'.format(oeid, job_count))
         job_title = 'oeid_{}'.format(oeid)
-        walltime = '2:00:00'
+        walltime = '4:00:00'
         mem = '100gb'
         job_id = Slurm.JOB_ARRAY_ID
         job_array_id = Slurm.JOB_ARRAY_MASTER_ID

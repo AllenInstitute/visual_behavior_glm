@@ -16,11 +16,11 @@ if __name__ == '__main__':
     session = bd.load_data(args.ophys_experiment_id)
     data = 'events'
 
-    print('second half') 
-    bd.build_response_df_experiment(session,data,first=True,second=False)
+    #print('second half') 
+    #bd.build_response_df_experiment(session,data,first=True,second=False)
 
-    print('first half') 
-    bd.build_response_df_experiment(session,data,first=False,second=True)
+    #print('first half') 
+    #bd.build_response_df_experiment(session,data,first=False,second=True)
 
     print('full interval') 
     bd.build_response_df_experiment(session,data,first=False,second=False)

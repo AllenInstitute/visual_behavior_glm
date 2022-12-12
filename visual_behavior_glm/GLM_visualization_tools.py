@@ -3547,7 +3547,7 @@ def plot_population_perturbation_inner(x,y,df, dropouts_to_show,sharey=True,all_
                 ax[index].set_title(feature,fontsize=12)
     return ax
 
-def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope",area='VISp',savefig=False):
+def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope",area=['VISp'],savefig=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -3568,8 +3568,8 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
         extra = extra+'_scientifica'
         results_pivoted = results_pivoted.query('equipment_name != "MESO.1"').copy()
 
-    extra = extra+area
-    results_pivoted=results_pivoted.query('targeted_structure == @area').copy()
+    extra = extra+'_'.join(area)
+    results_pivoted=results_pivoted.query('targeted_structure in @area').copy()
  
     # Filter for cells with low variance explained
     if include_zero_cells:
@@ -3662,7 +3662,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                     ax[index].text(2,y1h,'*')
                 ax[index].set_ylim(0,y1h*1.05)
         ax[0].set_ylabel('Coding Score',fontsize=20)
-        plt.suptitle(cell_type+', '+area,fontsize=20)
+        plt.suptitle(cell_type+', '+' '.join(area),fontsize=20)
         fig.tight_layout() 
         filename = run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg'
         if savefig:

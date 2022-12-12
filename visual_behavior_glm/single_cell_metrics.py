@@ -4,15 +4,21 @@ import matplotlib.pyplot as plt
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.build_dataframes as bd
 
-def metrics_by_strategy(avg,metric,bins=35,cell='Exc',in_ax=None):
+PSTH_DIR = '/home/alex.piet/codebase/behavior/PSTH/'
+
+def metrics_by_strategy(avg,metric,bins=35,cell='Exc',in_ax=None,remove_1=False):
     if in_ax is None:
         fig, ax = plt.subplots()
     else:
         ax = in_ax   
 
-     
-    vis = avg.query('visual_strategy_session')[metric].dropna()
-    tim = avg.query('not visual_strategy_session')[metric].dropna()
+    if remove_1:
+        avg=avg.query('({} > -1)&({} < 1)'.format(metric, metric))
+        vis = avg.query('visual_strategy_session')[metric].dropna()
+        tim = avg.query('not visual_strategy_session')[metric].dropna()   
+    else:
+        vis = avg.query('visual_strategy_session')[metric].dropna()
+        tim = avg.query('not visual_strategy_session')[metric].dropna()
     vis_mean = vis.mean()
     tim_mean = tim.mean()
 
@@ -36,17 +42,21 @@ def metrics_by_strategy(avg,metric,bins=35,cell='Exc',in_ax=None):
     if in_ax is None:
         plt.tight_layout()
 
-def plot_all(avg,bins=35,cell='Exc',savefig=False):
+def plot_all(avg,bins=35,cell='Exc',savefig=False,remove_1=False):
     fig, ax = plt.subplots(2,3,figsize=(10,6))
 
-    metrics_by_strategy(avg, 'omission_vs_image', bins=bins, cell=cell,in_ax=ax[0,0])
-    metrics_by_strategy(avg, 'post_omitted_vs_image', bins=bins, cell=cell,in_ax=ax[1,0])
-    metrics_by_strategy(avg, 'hit_vs_image', bins=bins, cell=cell,in_ax=ax[0,1])   
-    metrics_by_strategy(avg, 'post_hit_vs_image', bins=bins, cell=cell,in_ax=ax[1,1])
-    metrics_by_strategy(avg, 'miss_vs_image', bins=bins, cell=cell,in_ax=ax[0,2])
-    metrics_by_strategy(avg, 'hit_vs_miss', bins=bins, cell=cell,in_ax=ax[1,2])
+    metrics_by_strategy(avg, 'omission_vs_image', bins=bins, cell=cell,in_ax=ax[0,0],remove_1=remove_1)
+    metrics_by_strategy(avg, 'post_omitted_vs_image', bins=bins, cell=cell,in_ax=ax[1,0],remove_1=remove_1)
+    metrics_by_strategy(avg, 'hit_vs_image', bins=bins, cell=cell,in_ax=ax[0,1],remove_1=remove_1)   
+    metrics_by_strategy(avg, 'post_hit_vs_image', bins=bins, cell=cell,in_ax=ax[1,1],remove_1=remove_1)
+    metrics_by_strategy(avg, 'miss_vs_image', bins=bins, cell=cell,in_ax=ax[0,2],remove_1=remove_1)
+    metrics_by_strategy(avg, 'hit_vs_miss', bins=bins, cell=cell,in_ax=ax[1,2],remove_1=remove_1)
     plt.tight_layout()    
 
+    if savefig:
+        filepath = PSTH_DIR + 'events/cell_metrics/'+cell+'_all_metrics.svg'
+        plt.savefig(filepath)
+        print('Figure saved to: {}'.format(filepath))
 
 def compute_metrics(summary_df, cre, data='events',first=False, second=False):
 

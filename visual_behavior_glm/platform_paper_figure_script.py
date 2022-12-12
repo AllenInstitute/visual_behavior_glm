@@ -139,12 +139,15 @@ stats_S4 = gvt.plot_population_averages_by_area(results_pivoted, run_params)
 
 ## S5 - Depth V1
 stats_S5_V1 = gvt.plot_population_averages_by_depth(results_pivoted,run_params, 
-        area='VISp') 
+        area=['VISp']) 
 
 
 ## S5 - Depth LM
 stats_S5_LM = gvt.plot_population_averages_by_depth(results_pivoted,run_params, 
-        area='VISl')   
+        area=['VISl'])   
+
+stats_S5 = gvt.plot_population_averages_by_depth(results_pivoted,run_params, 
+        area=['VISl','VISp'])   
 
 
 ## For Supplemental figures S6-S9, you need to load the results from a different version

@@ -9,14 +9,16 @@ def metrics_by_strategy(avg,metric,bins=35,cell='Exc',in_ax=None):
         fig, ax = plt.subplots()
     else:
         ax = in_ax   
- 
-    vis_mean = avg.query('visual_strategy_session')[metric].mean()
-    tim_mean = avg.query('not visual_strategy_session')[metric].mean()
 
-    bins = ax.hist(avg.query('visual_strategy_session')[metric],
-        alpha=.3,density=True,bins=bins,color='darkorange',label=cell+' Visual')
-    ax.hist(avg.query('not visual_strategy_session')[metric],
-        alpha=.3, density=True,bins=bins[1],color='blue',label=cell+' Timing')
+     
+    vis = avg.query('visual_strategy_session')[metric].dropna()
+    tim = avg.query('not visual_strategy_session')[metric].dropna()
+    vis_mean = vis.mean()
+    tim_mean = tim.mean()
+
+    bins = ax.hist(vis,alpha=.3,density=True,bins=bins,color='darkorange',
+        label=cell+' Visual')
+    ax.hist(tim,alpha=.3, density=True,bins=bins[1],color='blue',label=cell+' Timing')
     ymax = np.max(bins[0][1:-1])
     ax.set_ylim(top=1.1*ymax)
     ax.plot(vis_mean, 1.05*ymax,'v',color='darkorange')
@@ -65,11 +67,13 @@ def compute_metrics(summary_df, cre, data='events',first=False, second=False):
     df.at[df['post_hit_1']==1,'type'] = 'post_hit'
 
     # Get average value for each image type for each cell
-    avg = df.groupby(['ophys_experiment_id','cell_specimen_id','type'])['response'].mean().unstack().reset_index()
+    avg = df.groupby(['ophys_experiment_id','cell_specimen_id','type'])\
+        ['response'].mean().unstack().reset_index()
 
     # Compute metrics
     avg['omission_vs_image']=(avg['omission']-avg['image'])/(avg['omission']+avg['image'])
-    avg['post_omitted_vs_image']=(avg['post_omitted']-avg['image'])/(avg['post_omitted']+avg['image'])
+    avg['post_omitted_vs_image']=(avg['post_omitted']-avg['image'])/\
+        (avg['post_omitted']+avg['image'])
     avg['post_hit_vs_image']=(avg['post_hit']-avg['image'])/(avg['post_hit']+avg['image'])
     avg['hit_vs_image'] = (avg['hit']-avg['image'])/(avg['hit']+avg['image'])   
     avg['miss_vs_image'] = (avg['miss']-avg['image'])/(avg['miss']+avg['image'])   

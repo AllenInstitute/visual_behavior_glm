@@ -285,20 +285,20 @@ def plot_engagement(dfs, data='filtered_events',savefig=False,\
     for index, full_df in enumerate(dfs): 
         max_y = [0,0,0]
         ylabel=labels[index]
-        max_y[0] = plot_condition_engagement(full_df, 'image',
+        max_y[0] = plot_condition_engagement(full_df, 'omission',
             ax=ax[index, 0], ylabel=ylabel, error_type=error_type,
             areas=areas,depths=depths,version=version)
-        max_y[1] = plot_condition_engagement(full_df, 'omission',
+        max_y[1] = plot_condition_engagement(full_df, 'miss',
             ax=ax[index, 1],ylabel='', error_type=error_type,
             areas=areas,depths=depths,version=version)
-        max_y[2] = plot_condition_engagement(full_df, 'miss',
+        max_y[2] = plot_condition_engagement(full_df, 'image',
             ax=ax[index, 2],ylabel='', error_type=error_type,
             areas=areas,depths=depths,version=version)
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
     for x in [0,1,2]:
-            ax[x,0].set_xlabel('time from image (s)',fontsize=16)
-            ax[x,1].set_xlabel('time from omission (s)',fontsize=16)
-            ax[x,2].set_xlabel('time from miss (s)',fontsize=16)
+            ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
+            ax[x,1].set_xlabel('time from miss (s)',fontsize=16)
+            ax[x,2].set_xlabel('time from image (s)',fontsize=16)
 
     plt.tight_layout()
     if savefig:
@@ -991,8 +991,9 @@ def engagement_running_responses(df, condition, cre='vip', bootstraps=None,
 
     # Save fig
     if savefig:
+        plot_str = '_'.join(plot_list)
         filename = PSTH_DIR + data+'/running/'+\
-            'engagement_running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
+            'engagement_running_{}_familiar_{}_{}_{}.svg'.format(cre,condition,split,plot_str)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 

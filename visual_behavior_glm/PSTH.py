@@ -221,9 +221,9 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 def get_figure_4_psth(data='filtered_events'):
  
     # Load each cell type
-    vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
-    sst_full_filtered = bd.load_population_df('filtered_events','full_df','Sst-IRES-Cre')
-    exc_full_filtered = bd.load_population_df('filtered_events','full_df',\
+    vip_full_filtered = bd.load_population_df(data,'full_df','Vip-IRES-Cre')
+    sst_full_filtered = bd.load_population_df(data,'full_df','Sst-IRES-Cre')
+    exc_full_filtered = bd.load_population_df(data,'full_df',\
         'Slc17a7-IRES2-Cre')
 
     # Add area, depth

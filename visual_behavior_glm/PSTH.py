@@ -740,7 +740,7 @@ def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=1000
     print('bin saved to {}'.format(filename)) 
 
 def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
-    compute=True):
+    compute=True,split='visual_strategy_session'):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -753,7 +753,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
     for b in bins:
         # First check if this running bin has already been computed
         filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            ['visual_strategy_session'],'running_{}'.format(int(b)))
+            [split],'running_{}'.format(int(b)))
         if os.path.isfile(filename):
             # Load this bin
             with open(filename,'rb') as handle:
@@ -762,9 +762,9 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
             bootstraps.append(this_boot) 
         elif compute:
             print('Need to compute this bin: {}'.format(b))
-            temp = df.query('running_bins == @b')[['visual_strategy_session',
+            temp = df.query('running_bins == @b')[[split,
                 'ophys_experiment_id','cell_specimen_id','response']]
-            means = hb.bootstrap(temp, levels=['visual_strategy_session',
+            means = hb.bootstrap(temp, levels=[split,
                 'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
             if (True in means) & (False in means):
                 diff = np.array(means[True]) - np.array(means[False])

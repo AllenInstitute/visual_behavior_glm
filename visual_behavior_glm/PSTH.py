@@ -821,9 +821,9 @@ def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,nboots=
 
     # Set up data
     if strategy == 'visual_strategy_session':
-        df = df.query('visual_strategy_session')
+        df = df.query('visual_strategy_session').copy()
     else:
-        df = df.query('not visual_strategy_session')
+        df = df.query('not visual_strategy_session').copy()
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
 
     bootstraps = []

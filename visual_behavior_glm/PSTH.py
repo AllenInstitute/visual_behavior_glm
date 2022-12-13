@@ -899,7 +899,104 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
         filename = PSTH_DIR + data+'/running/'+\
             'running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
         print('Figure saved to {}'.format(filename))
+        plt.savefig(filename)
+
+def engagement_running_responses(df, condition, cre='vip', bootstraps=None, 
+    savefig=False, data='events', split='visual_strategy_session',
+    plot_list=['visual','timing']):
+
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5
+
+    fig, ax = plt.subplots(figsize=(3.75,2.75))
+
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+
+    summary = df.groupby(['visual_strategy_session','engagement_v2','running_bins'])\
+        ['response'].mean().reset_index()
+    evisual = summary.query('(visual_strategy_session) &(engagement_v2)')
+    dvisual = summary.query('(visual_strategy_session) &(not engagement_v2)')
+    etiming = summary.query('(not visual_strategy_session) &(engagement_v2)')
+    dtiming = summary.query('(not visual_strategy_session) &(not engagement_v2)')
+
+    summary_sem = df.groupby(['visual_strategy_session','engagement_v2','running_bins'])\
+        ['response'].sem().reset_index()
+    evisual_sem = summary_sem.query('(visual_strategy_session) &(engagement_v2)')
+    dvisual_sem = summary_sem.query('(visual_strategy_session) &(not engagement_v2)')
+    etiming_sem = summary_sem.query('(not visual_strategy_session) &(engagement_v2)')
+    dtiming_sem = summary_sem.query('(not visual_strategy_session) &(not engagement_v2)')
+
+    evis_color = 'darkorange'
+    etim_color = 'blue'
+    dvis_color = 'bisque'
+    dtim_color = 'lightblue'
+    evis_label = 'engaged visual strategy'
+    etim_label = 'engaged timing strategy'
+    dvis_label = 'disengaged visual strategy'
+    dtim_label = 'disengaged timing strategy'
+
+    if bootstraps is not None:
+        print('need to implement')
+        #vtemp = visual.set_index('running_bins')
+        #ttemp = timing.set_index('running_bins')
+        #bootstraps = bootstraps.set_index('running_bin')
+        #for b in visual['running_bins'].unique():
+        #    plt.errorbar(b*bin_width, vtemp.loc[b].response,
+        #        yerr=bootstraps.loc[b]['visual_sem'],color=vis_color,fmt='o')   
+        #for b in timing['running_bins'].unique():
+        #    plt.errorbar(b*bin_width, ttemp.loc[b].response,
+        #        yerr=bootstraps.loc[b]['timing_sem'],color=tim_color,fmt='o')     
+        #plt.plot(visual.running_bins*bin_width, visual.response,'o',
+        #    color=vis_color,label=vis_label)
+        #plt.plot(timing.running_bins*bin_width, timing.response,'o',
+        #    color=tim_color,label=tim_label)
+    else:
+        if 'visual' in plot_list:
+            plt.errorbar(evisual.running_bins*bin_width, evisual.response,
+                yerr=evisual_sem.response,color=evis_color,fmt='o',label=evis_label)
+            plt.errorbar(dvisual.running_bins*bin_width, dvisual.response,
+                yerr=dvisual_sem.response,color=dvis_color,fmt='o',label=dvis_label)
+        if 'timing' in plot_list:
+            plt.errorbar(etiming.running_bins*bin_width, etiming.response,
+                yerr=etiming_sem.response,color=etim_color,fmt='o',label=etim_label)
+            plt.errorbar(dtiming.running_bins*bin_width, dtiming.response,
+                yerr=dtiming_sem.response,color=dtim_color,fmt='o',label=dtim_label)
+    ax.set_ylabel(cre+' '+condition,fontsize=16)
+    ax.set_xlabel('running speed (cm/s)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12) 
+
+    if (cre == 'vip') and (condition =='omission'):
+        ax.set_ylim(0,.06) 
+    elif (cre == 'vip') and (condition =='image'):
+        ax.set_ylim(0,.015)
+    else:
+        ax.set_ylim(bottom=0)
+
+    if (bootstraps is not None) and ('bh_significant' in bootstraps.columns):
+        y =  ax.get_ylim()[1]*1.05
+        for index, row in bootstraps.iterrows():
+            if row.bh_significant:
+                ax.plot(index*bin_width, y, 'k*')  
+        ax.set_ylim(top=y*1.075)
+
+    ax.set_xlim(-1,61)
+    plt.legend()
+
+    plt.tight_layout() 
+
+    # Save fig
+    if savefig:
+        filename = PSTH_DIR + data+'/running/'+\
+            'engagement_running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
+        print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
+
+
 
 def compute_summary_bootstrap_strategy(df,data='events',nboots=10000,cell_type='exc',
     first=True,second=False):

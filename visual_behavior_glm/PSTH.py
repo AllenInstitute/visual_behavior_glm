@@ -276,6 +276,95 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 
+def plot_engagement(dfs, data='filtered_events',savefig=False,\
+    areas=['VISp','VISl'],depths=['upper','lower'],error_type='sem',\
+    version='v2'):
+
+    fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
+    labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
+    for index, full_df in enumerate(dfs): 
+        max_y = [0,0,0]
+        ylabel=labels[index]
+        max_y[0] = plot_condition_engagement(full_df, 'image',
+            ax=ax[index, 0], ylabel=ylabel, error_type=error_type,
+            areas=areas,depths=depths,version=version)
+        max_y[1] = plot_condition_engagement(full_df, 'omission',
+            ax=ax[index, 1],ylabel='', error_type=error_type,
+            areas=areas,depths=depths,version=version)
+        max_y[2] = plot_condition_engagement(full_df, 'miss',
+            ax=ax[index, 2],ylabel='', error_type=error_type,
+            areas=areas,depths=depths,version=version)
+        ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+    for x in [0,1,2]:
+            ax[x,0].set_xlabel('time from image (s)',fontsize=16)
+            ax[x,1].set_xlabel('time from omission (s)',fontsize=16)
+            ax[x,2].set_xlabel('time from miss (s)',fontsize=16)
+
+    plt.tight_layout()
+    if savefig:
+        filename = PSTH_DIR + data + '/population_averages/'+\
+            'engagement_comparisons_psth.svg' 
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+
+
+
+
+def plot_condition_engagement(full_df, condition,experience_level='Familiar', 
+    plot_strategy='both',areas=['VISp','VISl'],depths=['upper','lower'],
+    depth='layer',ax=None, error_type='sem',xlabel=True, ylabel='Population Average',
+    title=False,version='v2'):
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    colors = gvt.project_colors()    
+    responses = []
+
+
+    condition1 = 'engaged_'+version+'_'+condition    
+    df = full_df.query('(condition ==@condition1)&(experience_level ==@experience_level)&(targeted_structure in @areas)&({} in @depths)'.format(depth))
+    r = plot_split(df.query('visual_strategy_session'),ax,color=colors['visual'],
+        error_type=error_type)
+    responses.append(r)
+    r = plot_split(df.query('not visual_strategy_session'),ax,color=colors['timing'],
+        error_type=error_type)
+    responses.append(r)
+
+    condition2 = 'disengaged_v2_'+condition    
+    df = full_df.query('(condition ==@condition2)&(experience_level ==@experience_level)&(targeted_structure in @areas)&({} in @depths)'.format(depth))
+    r = plot_split(df.query('visual_strategy_session'),ax,color='bisque',
+        error_type=error_type)
+    responses.append(r)
+    r = plot_split(df.query('not visual_strategy_session'),ax,color='lightblue',
+        error_type=error_type)
+    responses.append(r)
+
+
+
+    # Annotate figure
+    omitted = 'omission' in condition
+    change = (not omitted) and (('change' in condition) or \
+        ('hit' in condition) or ('miss' in condition))
+    timestamps = df.iloc[0]['time']
+    plot_flashes_on_trace(ax, timestamps, change=change, omitted=omitted)
+
+    # Clean up axis 
+    if xlabel:
+        ax.set_xlabel('time (s)',fontsize=16)
+    if ylabel != '':
+        ax.set_ylabel(ylabel,fontsize=16)
+    if title:
+        ax.set_title(experience_level,fontsize=16)
+    ax.set_ylim(bottom=0)
+    ax.set_xlim(timestamps[0],timestamps[-1])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    plt.tight_layout()
+
+    return np.max([ax.get_ylim()[1],np.nanmax(responses)]) 
 
 def plot_condition_experience(full_df, condition, experience_level, split, 
     ax=None,ylabel='Population Average',xlabel=True,title=False,error_type='sem',

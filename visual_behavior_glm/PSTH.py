@@ -1860,7 +1860,7 @@ def plot_exc_change_summary():
     plt.ylim(0,.0125)
     plt.xlim(-1,2)
     
-    plt.ylabel('Exc response',fontsize=16)
+    plt.ylabel('Excitatory \n avg. Ca$^{2+}$ events',fontsize=16)
     ax = plt.gca()
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)

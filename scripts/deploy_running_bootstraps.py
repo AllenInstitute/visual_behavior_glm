@@ -11,24 +11,32 @@ parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='
 
 
 def already_fit(row):
-    filename = psth.get_hierarchy_filename(
+    filename1 = psth.get_hierarchy_filename(
         row.cell_type,
         row.response,
         row['data'],
         'all',
         row.nboots,
         ['visual_strategy_session'],
-        'running_{}'.format(row.bin_num))
-    return os.path.exists(filename) 
+        'running_engaged_{}_{}'.format('visual',row.bin_num))
+    filename2 = psth.get_hierarchy_filename(
+        row.cell_type,
+        row.response,
+        row['data'],
+        'all',
+        row.nboots,
+        ['visual_strategy_session'],
+        'running_engaged_{}_{}'.format('timing',row.bin_num))
+    return os.path.exists(filename1) & os.path.exists(filename2)
 
 def get_bootstrap_jobs():
     nboots=10000
     base_jobs = [
-        {'cell_type':'exc','response':'image','data':'events','nboots':nboots}, 
-        {'cell_type':'sst','response':'image','data':'events','nboots':nboots},
+        #{'cell_type':'exc','response':'image','data':'events','nboots':nboots}, 
+        #{'cell_type':'sst','response':'image','data':'events','nboots':nboots},
         {'cell_type':'vip','response':'image','data':'events','nboots':nboots}, 
-        {'cell_type':'exc','response':'omission','data':'events','nboots':nboots},
-        {'cell_type':'sst','response':'omission','data':'events','nboots':nboots},
+        #{'cell_type':'exc','response':'omission','data':'events','nboots':nboots},
+        #{'cell_type':'sst','response':'omission','data':'events','nboots':nboots},
         {'cell_type':'vip','response':'omission','data':'events','nboots':nboots}
         ]
     jobs = []
@@ -71,7 +79,7 @@ if __name__ == "__main__":
             print('starting cluster job. job count = {}'.format(job_count))
             print('   ' + args_string)
             job_title = 'bootstraps'
-            walltime = '120:00:00'
+            walltime = '10:00:00'
             mem = '100gb'
             job_id = Slurm.JOB_ARRAY_ID
             job_array_id = Slurm.JOB_ARRAY_MASTER_ID

@@ -221,9 +221,9 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 def get_figure_4_psth(data='filtered_events'):
  
     # Load each cell type
-    vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
-    sst_full_filtered = bd.load_population_df('filtered_events','full_df','Sst-IRES-Cre')
-    exc_full_filtered = bd.load_population_df('filtered_events','full_df',\
+    vip_full_filtered = bd.load_population_df(data,'full_df','Vip-IRES-Cre')
+    sst_full_filtered = bd.load_population_df(data,'full_df','Sst-IRES-Cre')
+    exc_full_filtered = bd.load_population_df(data,'full_df',\
         'Slc17a7-IRES2-Cre')
 
     # Add area, depth
@@ -276,6 +276,95 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 
+def plot_engagement(dfs, data='filtered_events',savefig=False,\
+    areas=['VISp','VISl'],depths=['upper','lower'],error_type='sem',\
+    version='v2'):
+
+    fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
+    labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
+    for index, full_df in enumerate(dfs): 
+        max_y = [0,0,0]
+        ylabel=labels[index]
+        max_y[0] = plot_condition_engagement(full_df, 'omission',
+            ax=ax[index, 0], ylabel=ylabel, error_type=error_type,
+            areas=areas,depths=depths,version=version)
+        max_y[1] = plot_condition_engagement(full_df, 'miss',
+            ax=ax[index, 1],ylabel='', error_type=error_type,
+            areas=areas,depths=depths,version=version)
+        max_y[2] = plot_condition_engagement(full_df, 'image',
+            ax=ax[index, 2],ylabel='', error_type=error_type,
+            areas=areas,depths=depths,version=version)
+        ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+    for x in [0,1,2]:
+            ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
+            ax[x,1].set_xlabel('time from miss (s)',fontsize=16)
+            ax[x,2].set_xlabel('time from image (s)',fontsize=16)
+
+    plt.tight_layout()
+    if savefig:
+        filename = PSTH_DIR + data + '/population_averages/'+\
+            'engagement_comparisons_psth.svg' 
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+
+
+
+
+def plot_condition_engagement(full_df, condition,experience_level='Familiar', 
+    plot_strategy='both',areas=['VISp','VISl'],depths=['upper','lower'],
+    depth='layer',ax=None, error_type='sem',xlabel=True, ylabel='Population Average',
+    title=False,version='v2'):
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    colors = gvt.project_colors()    
+    responses = []
+
+
+    condition1 = 'engaged_'+version+'_'+condition    
+    df = full_df.query('(condition ==@condition1)&(experience_level ==@experience_level)&(targeted_structure in @areas)&({} in @depths)'.format(depth))
+    r = plot_split(df.query('visual_strategy_session'),ax,color=colors['visual'],
+        error_type=error_type)
+    responses.append(r)
+    r = plot_split(df.query('not visual_strategy_session'),ax,color=colors['timing'],
+        error_type=error_type)
+    responses.append(r)
+
+    condition2 = 'disengaged_v2_'+condition    
+    df = full_df.query('(condition ==@condition2)&(experience_level ==@experience_level)&(targeted_structure in @areas)&({} in @depths)'.format(depth))
+    r = plot_split(df.query('visual_strategy_session'),ax,color='bisque',
+        error_type=error_type)
+    responses.append(r)
+    r = plot_split(df.query('not visual_strategy_session'),ax,color='lightblue',
+        error_type=error_type)
+    responses.append(r)
+
+
+
+    # Annotate figure
+    omitted = 'omission' in condition
+    change = (not omitted) and (('change' in condition) or \
+        ('hit' in condition) or ('miss' in condition))
+    timestamps = df.iloc[0]['time']
+    plot_flashes_on_trace(ax, timestamps, change=change, omitted=omitted)
+
+    # Clean up axis 
+    if xlabel:
+        ax.set_xlabel('time (s)',fontsize=16)
+    if ylabel != '':
+        ax.set_ylabel(ylabel,fontsize=16)
+    if title:
+        ax.set_title(experience_level,fontsize=16)
+    ax.set_ylim(bottom=0)
+    ax.set_xlim(timestamps[0],timestamps[-1])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    plt.tight_layout()
+
+    return np.max([ax.get_ylim()[1],np.nanmax(responses)]) 
 
 def plot_condition_experience(full_df, condition, experience_level, split, 
     ax=None,ylabel='Population Average',xlabel=True,title=False,error_type='sem',
@@ -651,7 +740,7 @@ def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=1000
     print('bin saved to {}'.format(filename)) 
 
 def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
-    compute=True):
+    compute=True,split='visual_strategy_session'):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -664,7 +753,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
     for b in bins:
         # First check if this running bin has already been computed
         filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            ['visual_strategy_session'],'running_{}'.format(int(b)))
+            [split],'running_{}'.format(int(b)))
         if os.path.isfile(filename):
             # Load this bin
             with open(filename,'rb') as handle:
@@ -673,9 +762,9 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
             bootstraps.append(this_boot) 
         elif compute:
             print('Need to compute this bin: {}'.format(b))
-            temp = df.query('running_bins == @b')[['visual_strategy_session',
+            temp = df.query('running_bins == @b')[[split,
                 'ophys_experiment_id','cell_specimen_id','response']]
-            means = hb.bootstrap(temp, levels=['visual_strategy_session',
+            means = hb.bootstrap(temp, levels=[split,
                 'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
             if (True in means) & (False in means):
                 diff = np.array(means[True]) - np.array(means[False])
@@ -721,9 +810,177 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
         bootstraps.to_feather(filepath)
     return bootstraps
 
+
+def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
+    bin_num, nboots=10000, data='events'):
+
+    filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num))  
+    if os.path.isfile(filename):
+        print('Already computed {}'.format(bin_num))
+        return 
+
+    # Figure out bins
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5#2   
+
+    # Filter to strategy
+    if strategy == 'visual':
+        df = df.query('visual_strategy_session').copy()
+    elif strategy == 'timing':
+        df = df.query('not visual_strategy_session').copy()
+    else:
+        raise Exception('bad strategy')
+
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+    bins = np.sort(df['running_bins'].unique())  
+
+    # Check if any data 
+    if bin_num not in bins:
+        print('No data for this running bin')
+        return 
+   
+    # Compute bootstrap for this bin 
+    temp = df.query('running_bins == @bin_num')[['engagement_v2',
+        'ophys_experiment_id','cell_specimen_id','response']]
+    means = hb.bootstrap(temp, levels=['engagement_v2',
+        'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
+    if (True in means) & (False in means):
+        diff = np.array(means[True]) - np.array(means[False])
+        pboot = np.sum(diff<0)/len(diff)
+        engaged = np.std(means[True])
+        disengaged = np.std(means[False])
+        engaged_mean = np.mean(means[True])
+        disengaged_mean = np.mean(means[False])
+    else:
+        pboot = 0.5
+        if (True in means):
+            engaged = np.std(means[True])
+            engaged_mean = np.mean(means[True])
+        else:
+            engaged = 0 
+            engaged_mean=np.nan
+        if (False in means):
+            disengaged = np.std(means[False])
+            disengaged_mean = np.mean(means[False])
+        else:
+            disengaged = 0 
+            disengaged_mean= np.nan
+    bootstrap = {
+        'running_bin':bin_num,
+        'p_boot':pboot,
+        'engaged_sem':engaged,
+        'disengaged_sem':disengaged,
+        'engaged_mean':engaged_mean,
+        'disengaged_mean':disengaged_mean,
+        'n_boots':nboots,
+        }
+
+    # Save to file
+    filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num))
+    with open(filename,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bin saved to {}'.format(filename)) 
+
+
+
+def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,
+    nboots=10000,data='events',compute=True,split='engagement_v2'):
+    
+    # set up running bins
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5#2  
+
+    # Set up data
+    if strategy == 'visual':
+        df = df.query('visual_strategy_session').copy()
+    elif strategy == 'timing':
+        df = df.query('not visual_strategy_session').copy()
+    else:
+        raise Exception('bad strategy')
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+
+    bootstraps = []
+    bins = np.sort(df['running_bins'].unique())
+    missing=False
+    for b in bins:
+        # First check if this running bin has already been computed
+        filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+            ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,int(b))) 
+        if os.path.isfile(filename):
+            # Load this bin
+            with open(filename,'rb') as handle:
+                this_boot = pickle.load(handle)
+            print('loading this boot from file: {}'.format(b))
+            bootstraps.append(this_boot) 
+        elif compute:
+            print('Need to compute this bin: {}'.format(b))
+            temp = df.query('running_bins == @b')[[split,
+                'ophys_experiment_id','cell_specimen_id','response']]
+            means = hb.bootstrap(temp, levels=[split,
+                'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
+            if (True in means) & (False in means):
+                diff = np.array(means[True]) - np.array(means[False])
+                pboot = np.sum(diff<0)/len(diff)
+                engaged = np.std(means[True])
+                disengaged = np.std(means[False])
+            else:
+                pboot = 0.5
+                if (True in means):
+                    engaged = np.std(means[True])
+                else:
+                    engaged = 0 
+                if (False in means):
+                    disengaged = np.std(means[False])
+                else:
+                    disengaged = 0 
+            bootstraps.append({
+                'running_bin':b,
+                'p_boot':pboot,
+                'engaged_sem':engaged,
+                'disengaged_sem':disengaged,
+                'n_boots':nboots,
+                })
+        else:
+            missing=True 
+            print('Missing bin: {}, and compute=False'.format(b))
+    
+    # Convert to dataframe, do multiple comparisons corrections
+    bootstraps = pd.DataFrame(bootstraps)
+    bootstraps['p_boot'] = [0.5 if ((row.engaged_sem ==0)or(row.disengaged_sem==0)) \
+                                else row.p_boot for index, row in bootstraps.iterrows()]
+    bootstraps['p_boot'] = [1-x if x > .5 else x for x in bootstraps['p_boot']] 
+    bootstraps['ind_significant'] = bootstraps['p_boot'] <= 0.05 
+    bootstraps['location'] = bootstraps['running_bin']
+    bootstraps = add_hochberg_correction(bootstraps)
+    bootstraps = bootstraps.drop(columns=['location'])
+
+    # Save file
+    if not missing:
+        filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+            ['visual_strategy_session'],'running_engaged_{}'.format(strategy))
+        print('saving bootstraps to: '+filepath)
+        bootstraps.to_feather(filepath)
+    return bootstraps
+
+
 def get_running_bootstraps(cell_type, condition,data,nboots):
     filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
         ['visual_strategy_session'],'running') 
+    if os.path.isfile(filepath):
+        bootstraps = pd.read_feather(filepath)
+        return bootstraps
+    else:
+        print('file not found, compute the running bootstraps first')
+
+def get_engagement_running_bootstraps(cell_type, condition,data,nboots,strategy):
+    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_engaged_{}'.format(strategy)) 
     if os.path.isfile(filepath):
         bootstraps = pd.read_feather(filepath)
         return bootstraps
@@ -809,6 +1066,114 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
     if savefig:
         filename = PSTH_DIR + data+'/running/'+\
             'running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
+        print('Figure saved to {}'.format(filename))
+        plt.savefig(filename)
+
+def engagement_running_responses(df, condition, cre='vip', vis_boots=None, 
+    tim_boots=None, savefig=False, data='events', split='visual_strategy_session',
+    plot_list=['visual','timing']):
+
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5
+
+    fig, ax = plt.subplots(figsize=(3.75,2.75))
+
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+
+    summary = df.groupby(['visual_strategy_session','engagement_v2','running_bins'])\
+        ['response'].mean().reset_index()
+    evisual = summary.query('(visual_strategy_session) &(engagement_v2)')
+    dvisual = summary.query('(visual_strategy_session) &(not engagement_v2)')
+    etiming = summary.query('(not visual_strategy_session) &(engagement_v2)')
+    dtiming = summary.query('(not visual_strategy_session) &(not engagement_v2)')
+
+    summary_sem = df.groupby(['visual_strategy_session','engagement_v2','running_bins'])\
+        ['response'].sem().reset_index()
+    evisual_sem = summary_sem.query('(visual_strategy_session) &(engagement_v2)')
+    dvisual_sem = summary_sem.query('(visual_strategy_session) &(not engagement_v2)')
+    etiming_sem = summary_sem.query('(not visual_strategy_session) &(engagement_v2)')
+    dtiming_sem = summary_sem.query('(not visual_strategy_session) &(not engagement_v2)')
+
+    evis_color = 'darkorange'
+    etim_color = 'blue'
+    dvis_color = 'bisque'
+    dtim_color = 'lightblue'
+    evis_label = 'engaged visual strategy'
+    etim_label = 'engaged timing strategy'
+    dvis_label = 'disengaged visual strategy'
+    dtim_label = 'disengaged timing strategy'
+
+    if 'visual' in plot_list:
+        if vis_boots is not None:
+            evis = evisual.set_index('running_bins')
+            dvis = dvisual.set_index('running_bins')
+            vis_boots = vis_boots.set_index('running_bin')
+            bins = set(vis_boots.index.values).intersection(set(evis.index.values))
+            for b in bins:
+                plt.errorbar(b*bin_width, evis.loc[b].response,
+                    yerr=vis_boots.loc[b]['engaged_sem'],color=evis_color,fmt='o')   
+                plt.errorbar(b*bin_width, dvis.loc[b].response,
+                    yerr=vis_boots.loc[b]['disengaged_sem'],color=dvis_color,fmt='o')   
+        else:
+            plt.errorbar(evisual.running_bins*bin_width, evisual.response,
+                yerr=evisual_sem.response,color=evis_color,fmt='o',label=evis_label)
+            plt.errorbar(dvisual.running_bins*bin_width, dvisual.response,
+                yerr=dvisual_sem.response,color=dvis_color,fmt='o',label=dvis_label)
+    if 'timing' in plot_list:
+        if tim_boots is not None:
+            etim = etiming.set_index('running_bins')
+            dtim = dtiming.set_index('running_bins')
+            tim_boots = tim_boots.set_index('running_bin')
+            bins = set(tim_boots.index.values).intersection(set(etim.index.values))
+            for b in bins:
+                plt.errorbar(b*bin_width, etim.loc[b].response,
+                    yerr=tim_boots.loc[b]['engaged_sem'],color=etim_color,fmt='o')   
+                plt.errorbar(b*bin_width, dtim.loc[b].response,
+                    yerr=tim_boots.loc[b]['disengaged_sem'],color=dtim_color,fmt='o')   
+        else:
+            plt.errorbar(etiming.running_bins*bin_width, etiming.response,
+                yerr=etiming_sem.response,color=etim_color,fmt='o',label=etim_label)
+            plt.errorbar(dtiming.running_bins*bin_width, dtiming.response,
+                yerr=dtiming_sem.response,color=dtim_color,fmt='o',label=dtim_label)
+
+    ax.set_ylabel(cre+' '+condition,fontsize=16)
+    ax.set_xlabel('running speed (cm/s)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12) 
+
+    if (cre == 'vip') and (condition =='omission'):
+        ax.set_ylim(0,.06) 
+    elif (cre == 'vip') and (condition =='image'):
+        ax.set_ylim(0,.015)
+    else:
+        ax.set_ylim(bottom=0)
+
+    y =  ax.get_ylim()[1]*1.05
+    if (vis_boots is not None):
+        for index, row in vis_boots.iterrows():     
+            if row.bh_significant:
+                ax.plot(index*bin_width, y, '*',color='darkorange')  
+        ax.set_ylim(top=y*1.075)
+    if (tim_boots is not None):
+        for index, row in tim_boots.iterrows():     
+            if row.bh_significant:
+                ax.plot(index*bin_width, y*1.05, 'b*')  
+        ax.set_ylim(top=y*1.1)   
+
+    ax.set_xlim(-1,61)
+    #plt.legend()
+    plt.tight_layout() 
+
+    # Save fig
+    if savefig:
+        plot_str = '_'.join(plot_list)
+        filename = PSTH_DIR + data+'/running/'+\
+            'engagement_running_{}_familiar_{}_{}_{}.svg'.\
+            format(cre,condition,split,plot_str)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
@@ -910,6 +1275,20 @@ def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, b
     elif response == 'omission':
         df = load_omission_df(summary_df, mapper[cell_type], data)
     compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots)
+
+def load_df_and_compute_engagement_running(summary_df, cell_type, response, data, nboots, bin_num):
+    mapper = {
+        'exc':'Slc17a7-IRES2-Cre',
+        'sst':'Sst-IRES-Cre',
+        'vip':'Vip-IRES-Cre'
+        }
+    if response == 'image':
+        df = load_image_df(summary_df, mapper[cell_type], data)
+    elif response == 'omission':
+        df = load_omission_df(summary_df, mapper[cell_type], data)
+    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'visual',bin_num, nboots=nboots)
+    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'timing',bin_num, nboots=nboots)
+
 
 
 def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, nboots, 

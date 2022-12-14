@@ -1843,17 +1843,17 @@ def plot_exc_change_summary():
         .set_index('hit')
 
     plt.figure(figsize=(3,2.75))
-    plt.plot(0,visual.loc[1]['response'],'o',color='darkorange',label='visual hit')
-    plt.plot(0,visual.loc[0]['response'],'o',color='bisque',label='visual miss')
-    plt.plot(1,timing.loc[1]['response'],'o',color='blue',label='timing hit')
-    plt.plot(1,timing.loc[0]['response'],'o',color='lightblue',label='timing mis')
-    plt.errorbar(0,visual.loc[0]['response'],
-        visual.loc[0]['bootstrap_sem'],color='bisque')
-    plt.errorbar(0,visual.loc[1]['response'],
+    plt.plot(-.05,visual.loc[1]['response'],'o',color='darkorange',label='visual hit')
+    plt.plot(0.05,visual.loc[0]['response'],'x',color='darkorange',label='visual miss')
+    plt.plot(.95,timing.loc[1]['response'],'o',color='blue',label='timing hit')
+    plt.plot(1.05,timing.loc[0]['response'],'x',color='blue',label='timing mis')
+    plt.errorbar(0.05,visual.loc[0]['response'],
+        visual.loc[0]['bootstrap_sem'],color='darkorange')
+    plt.errorbar(-0.05,visual.loc[1]['response'],
         visual.loc[1]['bootstrap_sem'],color='darkorange')
-    plt.errorbar(1,timing.loc[0]['response'],
-        timing.loc[0]['bootstrap_sem'],color='lightblue')
-    plt.errorbar(1,timing.loc[1]['response'],
+    plt.errorbar(1.05,timing.loc[0]['response'],
+        timing.loc[0]['bootstrap_sem'],color='blue')
+    plt.errorbar(.95,timing.loc[1]['response'],
         timing.loc[1]['bootstrap_sem'],color='blue')
 
     plt.plot(0,.012,'k*' )

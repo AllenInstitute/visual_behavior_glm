@@ -829,7 +829,7 @@ def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
     # Filter to strategy
     if strategy == 'visual':
         df = df.query('visual_strategy_session').copy()
-    elif strategy == 'timing'
+    elif strategy == 'timing':
         df = df.query('not visual_strategy_session').copy()
     else:
         raise Exception('bad strategy')

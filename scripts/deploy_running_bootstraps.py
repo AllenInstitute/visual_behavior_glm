@@ -11,15 +11,23 @@ parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='
 
 
 def already_fit(row):
-    filename = psth.get_hierarchy_filename(
+    filename1 = psth.get_hierarchy_filename(
         row.cell_type,
         row.response,
         row['data'],
         'all',
         row.nboots,
         ['visual_strategy_session'],
-        'running_{}'.format(row.bin_num))
-    return os.path.exists(filename) 
+        'running_engaged_{}_{}'.format('visual',row.bin_num))
+    filename2 = psth.get_hierarchy_filename(
+        row.cell_type,
+        row.response,
+        row['data'],
+        'all',
+        row.nboots,
+        ['visual_strategy_session'],
+        'running_engaged_{}_{}'.format('timing',row.bin_num))
+    return os.path.exists(filename1) & os.path.exisits(filename2)
 
 def get_bootstrap_jobs():
     nboots=10000

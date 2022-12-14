@@ -48,7 +48,32 @@ psth.plot_exc_change_summary()
 ################################################################################
 
 
-## Engagement 
+## Fig. 5A Engagement PSTHs
 ################################################################################
+dfs = psth.get_figure_4_psth(data='events')
 psth.plot_engagement(dfs,data='events')
+
+## Fig. 5B - Running VIP control image
+################################################################################
+vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')
+bootstraps_image = psth.get_running_bootstraps('vip','image','events',10000)
+psth.engagement_running_responses(vip_image, 'image',vis_boots=boot_image_visual,
+    tim_boots=boot_image_timing, plot_list=['visual'])
+psth.engagement_running_responses(vip_image, 'image',vis_boots=boot_image_visual,
+    tim_boots=boot_image_timing, plot_list=['timing'])
+
+
+## Fig. 5C - Running VIP control Omission
+################################################################################
+vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
+bootstraps_omission = psth.get_running_bootstraps('vip','omission','events',10000)
+psth.engagement_running_responses(vip_omission, 'omission',
+    vis_boots=boot_omission_visual,
+    tim_boots=boot_omission_timing, plot_list=['visual'])
+psth.engagement_running_responses(vip_omission, 'omission',
+    vis_boots=boot_omission_visual,
+    tim_boots=boot_omission_timing, plot_list=['timing'])
+
+
+
 

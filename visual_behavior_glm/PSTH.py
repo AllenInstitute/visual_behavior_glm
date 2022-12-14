@@ -1138,7 +1138,7 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
             plt.errorbar(dtiming.running_bins*bin_width, dtiming.response,
                 yerr=dtiming_sem.response,color=dtim_color,fmt='o',label=dtim_label)
 
-    ax.set_ylabel(cre+' '+condition,fontsize=16)
+    ax.set_ylabel(cre.capitalize()+' '+condition+'\n(avg. Ca$^{2+}$ events)',fontsize=16)
     ax.set_xlabel('running speed (cm/s)',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
@@ -1153,16 +1153,16 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
         ax.set_ylim(bottom=0)
 
     y =  ax.get_ylim()[1]*1.05
-    if (vis_boots is not None):
+    if (vis_boots is not None) & ('visual' in plot_list):
         for index, row in vis_boots.iterrows():     
             if row.bh_significant:
                 ax.plot(index*bin_width, y, '*',color='darkorange')  
-        ax.set_ylim(top=y*1.075)
-    if (tim_boots is not None):
+
+    if (tim_boots is not None) & ('timing' in plot_list):
         for index, row in tim_boots.iterrows():     
             if row.bh_significant:
                 ax.plot(index*bin_width, y*1.05, 'b*')  
-        ax.set_ylim(top=y*1.1)   
+    ax.set_ylim(top=y*1.1)   
 
     ax.set_xlim(-1,61)
     #plt.legend()

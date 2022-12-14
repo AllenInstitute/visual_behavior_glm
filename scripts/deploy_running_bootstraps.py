@@ -24,11 +24,11 @@ def already_fit(row):
 def get_bootstrap_jobs():
     nboots=10000
     base_jobs = [
-        {'cell_type':'exc','response':'image','data':'events','nboots':nboots}, 
-        {'cell_type':'sst','response':'image','data':'events','nboots':nboots},
+        #{'cell_type':'exc','response':'image','data':'events','nboots':nboots}, 
+        #{'cell_type':'sst','response':'image','data':'events','nboots':nboots},
         {'cell_type':'vip','response':'image','data':'events','nboots':nboots}, 
-        {'cell_type':'exc','response':'omission','data':'events','nboots':nboots},
-        {'cell_type':'sst','response':'omission','data':'events','nboots':nboots},
+        #{'cell_type':'exc','response':'omission','data':'events','nboots':nboots},
+        #{'cell_type':'sst','response':'omission','data':'events','nboots':nboots},
         {'cell_type':'vip','response':'omission','data':'events','nboots':nboots}
         ]
     jobs = []
@@ -71,7 +71,7 @@ if __name__ == "__main__":
             print('starting cluster job. job count = {}'.format(job_count))
             print('   ' + args_string)
             job_title = 'bootstraps'
-            walltime = '120:00:00'
+            walltime = '10:00:00'
             mem = '100gb'
             job_id = Slurm.JOB_ARRAY_ID
             job_array_id = Slurm.JOB_ARRAY_MASTER_ID

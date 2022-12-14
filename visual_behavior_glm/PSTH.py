@@ -252,7 +252,7 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
     error_type='sem'
     for index, full_df in enumerate(dfs): 
         max_y = [0,0,0]
-        ylabel=labels[index]
+        ylabel=labels[index] +'\n avg. Ca$^{2+}$ events'
         max_y[0] = plot_condition_experience(full_df, 'omission', 'Familiar',
             'visual_strategy_session', ax=ax[index, 0], ylabel=ylabel,
             error_type=error_type,areas=areas,depths=depths)
@@ -284,7 +284,7 @@ def plot_engagement(dfs, data='filtered_events',savefig=False,\
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
     for index, full_df in enumerate(dfs): 
         max_y = [0,0,0]
-        ylabel=labels[index]
+        ylabel=labels[index] +'\n avg. Ca$^{2+}$ events'
         max_y[0] = plot_condition_engagement(full_df, 'omission',
             ax=ax[index, 0], ylabel=ylabel, error_type=error_type,
             areas=areas,depths=depths,version=version)

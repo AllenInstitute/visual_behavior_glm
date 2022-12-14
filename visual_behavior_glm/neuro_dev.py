@@ -132,6 +132,16 @@ psth.running_responses(vip_image, 'image')
 psth.running_responses(vip_omission, 'omission',split='engagement_v2')
 psth.running_responses(vip_image, 'image',split='engagement_v2')
 
+## VIP Engagement Running
+################################################################################
+
+boot_image_visual = psth.get_engagement_running_bootstraps('vip','image',
+    'events',nboots,'visual')
+boot_image_timing = psth.get_engagement_running_bootstraps('vip','image',
+    'events',nboots,'timing')
+psth.engagement_running_responses(vip_image,'image',vis_boots=boot_image_visual,
+    tim_boots=boot_image_timing)
+
 ## VIP Omission
 ################################################################################
 

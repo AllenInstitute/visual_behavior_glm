@@ -1140,23 +1140,28 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
     else:
         ax.set_ylim(bottom=0)
 
-    #if (bootstraps is not None) and ('bh_significant' in bootstraps.columns):
-    #    y =  ax.get_ylim()[1]*1.05
-    #    for index, row in bootstraps.iterrows():
-    #        if row.bh_significant:
-    #            ax.plot(index*bin_width, y, 'k*')  
-    #    ax.set_ylim(top=y*1.075)
+    y =  ax.get_ylim()[1]*1.05
+    if (vis_boots is not None):
+        for index, row in vis_boots.iterrows():     
+            if row.bh_significant:
+                ax.plot(index*bin_width, y, '*',color='darkorange')  
+        ax.set_ylim(top=y*1.075)
+    if (tim_boots is not None):
+        for index, row in tim_boots.iterrows():     
+            if row.bh_significant:
+                ax.plot(index*bin_width, y*1.05, 'b*')  
+        ax.set_ylim(top=y*1.1)   
 
     ax.set_xlim(-1,61)
-    plt.legend()
-
+    #plt.legend()
     plt.tight_layout() 
 
     # Save fig
     if savefig:
         plot_str = '_'.join(plot_list)
         filename = PSTH_DIR + data+'/running/'+\
-            'engagement_running_{}_familiar_{}_{}_{}.svg'.format(cre,condition,split,plot_str)
+            'engagement_running_{}_familiar_{}_{}_{}.svg'.\
+            format(cre,condition,split,plot_str)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 

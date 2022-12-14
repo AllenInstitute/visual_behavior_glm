@@ -810,6 +810,73 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
         bootstraps.to_feather(filepath)
     return bootstraps
 
+
+def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
+    bin_num, nboots=10000, data='events'):
+
+    filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num))  
+    if os.path.isfile(filename):
+        print('Already computed {}'.format(bin_num))
+        return 
+
+    # Figure out bins
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5#2   
+
+    # Filter to strategy
+    if strategy == 'visual':
+        df = df.query('visual_strategy_session').copy()
+    else:
+        df = df.query('not visual_strategy_session').copy()
+
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+    bins = np.sort(df['running_bins'].unique())  
+
+    # Check if any data 
+    if bin_num not in bins:
+        print('No data for this running bin')
+        return 
+   
+    # Compute bootstrap for this bin 
+    temp = df.query('running_bins == @bin_num')[['engagement_v2',
+        'ophys_experiment_id','cell_specimen_id','response']]
+    means = hb.bootstrap(temp, levels=['engagement_v2',
+        'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
+    if (True in means) & (False in means):
+        diff = np.array(means[True]) - np.array(means[False])
+        pboot = np.sum(diff<0)/len(diff)
+        engaged = np.std(means[True])
+        disengaged = np.std(means[False])
+    else:
+        pboot = 0.5
+        if (True in means):
+            engaged = np.std(means[True])
+        else:
+            engaged = 0 
+        if (False in means):
+            disengaged = np.std(means[False])
+        else:
+            disengaged = 0 
+    bootstrap = {
+        'running_bin':bin_num,
+        'p_boot':pboot,
+        'engaged_sem':engaged,
+        'disengaged_sem':disengaged,
+        'n_boots':nboots,
+        }
+
+    # Save to file
+    filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num))
+    with open(filename,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bin saved to {}'.format(filename)) 
+
+
+
 def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,nboots=10000,data='events',
     compute=True,split='engagement_v2'):
     
@@ -832,7 +899,7 @@ def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,nboots=
     for b in bins:
         # First check if this running bin has already been computed
         filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            [split],'running_{}_{}'.format(int(b),strategy)) 
+            ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,int(b))) 
         if os.path.isfile(filename):
             # Load this bin
             with open(filename,'rb') as handle:
@@ -1193,6 +1260,20 @@ def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, b
     elif response == 'omission':
         df = load_omission_df(summary_df, mapper[cell_type], data)
     compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots)
+
+def load_df_and_compute_engagement_running(summary_df, cell_type, response, data, nboots, bin_num):
+    mapper = {
+        'exc':'Slc17a7-IRES2-Cre',
+        'sst':'Sst-IRES-Cre',
+        'vip':'Vip-IRES-Cre'
+        }
+    if response == 'image':
+        df = load_image_df(summary_df, mapper[cell_type], data)
+    elif response == 'omission':
+        df = load_omission_df(summary_df, mapper[cell_type], data)
+    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'visual',bin_num, nboots=nboots)
+    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'timing',bin_num, nboots=nboots)
+
 
 
 def load_df_and_compute_hierarchy(summary_df, cell_type, response, data, depth, nboots, 

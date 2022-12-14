@@ -20,8 +20,8 @@ gsm.strategy_paper_ophys_example(session, cell_id, time)
 
 ## Fig. 4D - Population average response
 ################################################################################
-dfs_filtered = psth.get_figure_4_psth(data='filtered_events')
-psth.plot_figure_4_averages(dfs_filtered, data='filtered_events')
+dfs = psth.get_figure_4_psth(data='events')
+psth.plot_figure_4_averages(dfs, data='events')
 
 ## Fig. 4E - Running VIP control Omission
 ################################################################################
@@ -44,11 +44,68 @@ psth.plot_exc_change_summary()
 ## Hierarchy Supplement
 ################################################################################
 
+psth.get_and_plot('vip','omission','events','binned_depth',
+    nboots, splits=['visual_strategy_session'])
+psth.get_and_plot('sst','omission','events','binned_depth',
+    nboots, splits=['visual_strategy_session'],second=True)
+psth.get_and_plot('sst','change','events','binned_depth',
+    nboots, splits=['visual_strategy_session'],extra='hit',second=True)
+psth.get_and_plot('exc','change','events','binned_depth',
+    nboots, splits=['hit'],extra='visual',first=True)
+psth.get_and_plot('exc','change','events','binned_depth',
+    nboots, splits=['hit'],extra='timing',first=True)
+
 ## Running Supplement
 ################################################################################
 
+sst_image = psth.load_image_df(summary_df, cre='Sst-IRES-Cre',data='events')
+bootstraps_image = psth.get_running_bootstraps('sst','image','events',10000)
+psth.running_responses(sst_image, 'image',bootstraps=bootstraps_image)
 
-## Engagement 
+sst_omission = psth.load_omission_df(summary_df, cre='Sst-IRES-Cre',data='events')
+bootstraps_omission = psth.get_running_bootstraps('sst','omission','events',10000)
+psth.running_responses(sst_omission, 'omission',bootstraps=bootstraps_omission)
+
+exc_image = psth.load_image_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events')
+bootstraps_image = psth.get_running_bootstraps('exc','image','events',10000)
+psth.running_responses(exc_image, 'image',bootstraps=bootstraps_image)
+
+exc_omission = psth.load_omission_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events')
+bootstraps_omission = psth.get_running_bootstraps('exc','omission','events',10000)
+psth.running_responses(exc_omission, 'omission',bootstraps=bootstraps_omission)
+
+## Fig. 5A Engagement PSTHs
 ################################################################################
-psth.plot_engagement(dfs_filtered)
+dfs = psth.get_figure_4_psth(data='events')
+psth.plot_engagement(dfs,data='events')
+
+## Fig. 5B - Running VIP control image
+################################################################################
+vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')
+boot_image_visual = psth.compute_engagement_running_bootstrap(vip_image,'image',
+    'vip','visual',nboots=10000)
+boot_image_timing = psth.compute_engagement_running_bootstrap(vip_image,'image',
+    'vip','timing',nboots=10000)
+psth.engagement_running_responses(vip_image, 'image',vis_boots=boot_image_visual,
+    tim_boots=boot_image_timing, plot_list=['visual'])
+psth.engagement_running_responses(vip_image, 'image',vis_boots=boot_image_visual,
+    tim_boots=boot_image_timing, plot_list=['timing'])
+
+
+## Fig. 5C - Running VIP control Omission
+################################################################################
+vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
+boot_omission_visual = psth.compute_engagement_running_bootstrap(vip_omission,
+    'omission','vip','visual',nboots=10000)
+boot_omission_timing = psth.compute_engagement_running_bootstrap(vip_omission,
+    'omission','vip','timing',nboots=10000)
+psth.engagement_running_responses(vip_omission, 'omission',
+    vis_boots=boot_omission_visual,
+    tim_boots=boot_omission_timing, plot_list=['visual'])
+psth.engagement_running_responses(vip_omission, 'omission',
+    vis_boots=boot_omission_visual,
+    tim_boots=boot_omission_timing, plot_list=['timing'])
+
+
+
 

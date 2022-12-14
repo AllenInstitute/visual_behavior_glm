@@ -252,7 +252,7 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
     error_type='sem'
     for index, full_df in enumerate(dfs): 
         max_y = [0,0,0]
-        ylabel=labels[index]
+        ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
         max_y[0] = plot_condition_experience(full_df, 'omission', 'Familiar',
             'visual_strategy_session', ax=ax[index, 0], ylabel=ylabel,
             error_type=error_type,areas=areas,depths=depths)
@@ -284,7 +284,7 @@ def plot_engagement(dfs, data='filtered_events',savefig=False,\
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
     for index, full_df in enumerate(dfs): 
         max_y = [0,0,0]
-        ylabel=labels[index]
+        ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
         max_y[0] = plot_condition_engagement(full_df, 'omission',
             ax=ax[index, 0], ylabel=ylabel, error_type=error_type,
             areas=areas,depths=depths,version=version)
@@ -1036,7 +1036,7 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
             yerr=visual_sem.response,color=vis_color,fmt='o',label=vis_label)
         plt.errorbar(timing.running_bins*bin_width, timing.response,
             yerr=timing_sem.response,color=tim_color,fmt='o',label=tim_label)
-    ax.set_ylabel(cre+' '+condition,fontsize=16)
+    ax.set_ylabel(cre.capitalize()+' '+condition+'\n(avg. Ca$^{2+}$ events)',fontsize=16)
     ax.set_xlabel('running speed (cm/s)',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
@@ -1138,7 +1138,7 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
             plt.errorbar(dtiming.running_bins*bin_width, dtiming.response,
                 yerr=dtiming_sem.response,color=dtim_color,fmt='o',label=dtim_label)
 
-    ax.set_ylabel(cre+' '+condition,fontsize=16)
+    ax.set_ylabel(cre.capitalize()+' '+condition+'\n(avg. Ca$^{2+}$ events)',fontsize=16)
     ax.set_xlabel('running speed (cm/s)',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
@@ -1153,16 +1153,16 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
         ax.set_ylim(bottom=0)
 
     y =  ax.get_ylim()[1]*1.05
-    if (vis_boots is not None):
+    if (vis_boots is not None) & ('visual' in plot_list):
         for index, row in vis_boots.iterrows():     
             if row.bh_significant:
                 ax.plot(index*bin_width, y, '*',color='darkorange')  
-        ax.set_ylim(top=y*1.075)
-    if (tim_boots is not None):
+
+    if (tim_boots is not None) & ('timing' in plot_list):
         for index, row in tim_boots.iterrows():     
             if row.bh_significant:
                 ax.plot(index*bin_width, y*1.05, 'b*')  
-        ax.set_ylim(top=y*1.1)   
+    ax.set_ylim(top=y*1.1)   
 
     ax.set_xlim(-1,61)
     #plt.legend()
@@ -1843,24 +1843,24 @@ def plot_exc_change_summary():
         .set_index('hit')
 
     plt.figure(figsize=(3,2.75))
-    plt.plot(0,visual.loc[1]['response'],'o',color='darkorange',label='visual hit')
-    plt.plot(0,visual.loc[0]['response'],'o',color='bisque',label='visual miss')
-    plt.plot(1,timing.loc[1]['response'],'o',color='blue',label='timing hit')
-    plt.plot(1,timing.loc[0]['response'],'o',color='lightblue',label='timing mis')
-    plt.errorbar(0,visual.loc[0]['response'],
-        visual.loc[0]['bootstrap_sem'],color='bisque')
-    plt.errorbar(0,visual.loc[1]['response'],
+    plt.plot(-.05,visual.loc[1]['response'],'o',color='darkorange',label='visual hit')
+    plt.plot(0.05,visual.loc[0]['response'],'x',color='darkorange',label='visual miss')
+    plt.plot(.95,timing.loc[1]['response'],'o',color='blue',label='timing hit')
+    plt.plot(1.05,timing.loc[0]['response'],'x',color='blue',label='timing mis')
+    plt.errorbar(0.05,visual.loc[0]['response'],
+        visual.loc[0]['bootstrap_sem'],color='darkorange')
+    plt.errorbar(-0.05,visual.loc[1]['response'],
         visual.loc[1]['bootstrap_sem'],color='darkorange')
-    plt.errorbar(1,timing.loc[0]['response'],
-        timing.loc[0]['bootstrap_sem'],color='lightblue')
-    plt.errorbar(1,timing.loc[1]['response'],
+    plt.errorbar(1.05,timing.loc[0]['response'],
+        timing.loc[0]['bootstrap_sem'],color='blue')
+    plt.errorbar(.95,timing.loc[1]['response'],
         timing.loc[1]['bootstrap_sem'],color='blue')
 
     plt.plot(0,.012,'k*' )
     plt.ylim(0,.0125)
     plt.xlim(-1,2)
     
-    plt.ylabel('Exc response',fontsize=16)
+    plt.ylabel('Excitatory \n(avg. Ca$^{2+}$ events)',fontsize=16)
     ax = plt.gca()
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)

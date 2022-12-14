@@ -284,7 +284,7 @@ def plot_engagement(dfs, data='filtered_events',savefig=False,\
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
     for index, full_df in enumerate(dfs): 
         max_y = [0,0,0]
-        ylabel=labels[index] +'\nCa$^{2+}$ events'
+        ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
         max_y[0] = plot_condition_engagement(full_df, 'omission',
             ax=ax[index, 0], ylabel=ylabel, error_type=error_type,
             areas=areas,depths=depths,version=version)

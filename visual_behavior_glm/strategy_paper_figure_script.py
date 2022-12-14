@@ -50,5 +50,5 @@ psth.plot_exc_change_summary()
 
 ## Engagement 
 ################################################################################
-psth.plot_engagement(dfs_filtered)
+psth.plot_engagement(dfs,data='events')
 

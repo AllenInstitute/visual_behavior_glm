@@ -47,6 +47,21 @@ psth.plot_exc_change_summary()
 ## Running Supplement
 ################################################################################
 
+sst_image = psth.load_image_df(summary_df, cre='Sst-IRES-Cre',data='events')
+bootstraps_image = psth.get_running_bootstraps('sst','image','events',10000)
+psth.running_responses(sst_image, 'image',bootstraps=bootstraps_image)
+
+sst_omission = psth.load_omission_df(summary_df, cre='Sst-IRES-Cre',data='events')
+bootstraps_omission = psth.get_running_bootstraps('sst','omission','events',10000)
+psth.running_responses(sst_omission, 'omission',bootstraps=bootstraps_omission)
+
+exc_image = psth.load_image_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events')
+bootstraps_image = psth.get_running_bootstraps('exc','image','events',10000)
+psth.running_responses(exc_image, 'image',bootstraps=bootstraps_image)
+
+exc_omission = psth.load_omission_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events')
+bootstraps_omission = psth.get_running_bootstraps('exc','omission','events',10000)
+psth.running_responses(exc_omission, 'omission',bootstraps=bootstraps_omission)
 
 ## Fig. 5A Engagement PSTHs
 ################################################################################

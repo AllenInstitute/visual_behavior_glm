@@ -852,23 +852,29 @@ def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
         pboot = np.sum(diff<0)/len(diff)
         engaged = np.std(means[True])
         disengaged = np.std(means[False])
+        engaged_mean = np.mean(means[True])
+        disengaged_mean = np.mean(means[False])
     else:
         pboot = 0.5
         if (True in means):
             engaged = np.std(means[True])
+            engaged_mean = np.mean(means[True])
         else:
             engaged = 0 
+            engaged_mean=np.nan
         if (False in means):
             disengaged = np.std(means[False])
+            disengaged_mean = np.mean(means[False])
         else:
             disengaged = 0 
+            disengaged_mean= np.nan
     bootstrap = {
         'running_bin':bin_num,
         'p_boot':pboot,
         'engaged_sem':engaged,
         'disengaged_sem':disengaged,
-        'engaged_mean':np.mean(means[True]),
-        'disengaged_mean':np.mean(means[False]),
+        'engaged_mean':engaged_mean,
+        'disengaged_mean':disengaged_mean,
         'n_boots':nboots,
         }
 

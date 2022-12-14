@@ -27,7 +27,7 @@ def already_fit(row):
         row.nboots,
         ['visual_strategy_session'],
         'running_engaged_{}_{}'.format('timing',row.bin_num))
-    return os.path.exists(filename1) & os.path.exisits(filename2)
+    return os.path.exists(filename1) & os.path.exists(filename2)
 
 def get_bootstrap_jobs():
     nboots=10000

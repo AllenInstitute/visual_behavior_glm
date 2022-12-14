@@ -44,6 +44,17 @@ psth.plot_exc_change_summary()
 ## Hierarchy Supplement
 ################################################################################
 
+psth.get_and_plot('vip','omission','events','binned_depth',
+    nboots, splits=['visual_strategy_session'])
+psth.get_and_plot('sst','omission','events','binned_depth',
+    nboots, splits=['visual_strategy_session'],second=True)
+psth.get_and_plot('sst','change','events','binned_depth',
+    nboots, splits=['visual_strategy_session'],extra='hit',second=True)
+psth.get_and_plot('exc','change','events','binned_depth',
+    nboots, splits=['hit'],extra='visual',first=True)
+psth.get_and_plot('exc','change','events','binned_depth',
+    nboots, splits=['hit'],extra='timing',first=True)
+
 ## Running Supplement
 ################################################################################
 

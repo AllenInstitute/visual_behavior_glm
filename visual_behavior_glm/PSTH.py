@@ -829,8 +829,10 @@ def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
     # Filter to strategy
     if strategy == 'visual':
         df = df.query('visual_strategy_session').copy()
-    else:
+    elif strategy == 'timing'
         df = df.query('not visual_strategy_session').copy()
+    else:
+        raise Exception('bad strategy')
 
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
     bins = np.sort(df['running_bins'].unique())  
@@ -865,6 +867,8 @@ def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
         'p_boot':pboot,
         'engaged_sem':engaged,
         'disengaged_sem':disengaged,
+        'engaged_mean':np.mean(means[True]),
+        'disengaged_mean':np.mean(means[False]),
         'n_boots':nboots,
         }
 
@@ -877,8 +881,8 @@ def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
 
 
 
-def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,nboots=10000,data='events',
-    compute=True,split='engagement_v2'):
+def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,
+    nboots=10000,data='events',compute=True,split='engagement_v2'):
     
     # set up running bins
     if condition =='omission':
@@ -887,10 +891,12 @@ def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,nboots=
         bin_width=5#2  
 
     # Set up data
-    if strategy == 'visual_strategy_session':
+    if strategy == 'visual':
         df = df.query('visual_strategy_session').copy()
-    else:
+    elif strategy == 'timing':
         df = df.query('not visual_strategy_session').copy()
+    else:
+        raise Exception('bad strategy')
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
 
     bootstraps = []
@@ -1164,8 +1170,6 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
             format(cre,condition,split,plot_str)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
-
-
 
 def compute_summary_bootstrap_strategy(df,data='events',nboots=10000,cell_type='exc',
     first=True,second=False):

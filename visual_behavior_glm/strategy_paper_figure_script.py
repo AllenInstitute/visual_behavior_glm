@@ -20,8 +20,8 @@ gsm.strategy_paper_ophys_example(session, cell_id, time)
 
 ## Fig. 4D - Population average response
 ################################################################################
-dfs_filtered = psth.get_figure_4_psth(data='filtered_events')
-psth.plot_figure_4_averages(dfs_filtered, data='filtered_events')
+dfs = psth.get_figure_4_psth(data='events')
+psth.plot_figure_4_averages(dfs, data='events')
 
 ## Fig. 4E - Running VIP control Omission
 ################################################################################

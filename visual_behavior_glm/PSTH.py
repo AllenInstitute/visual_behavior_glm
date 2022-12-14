@@ -252,7 +252,7 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
     error_type='sem'
     for index, full_df in enumerate(dfs): 
         max_y = [0,0,0]
-        ylabel=labels[index] +'\n avg. Ca$^{2+}$ events'
+        ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
         max_y[0] = plot_condition_experience(full_df, 'omission', 'Familiar',
             'visual_strategy_session', ax=ax[index, 0], ylabel=ylabel,
             error_type=error_type,areas=areas,depths=depths)
@@ -284,7 +284,7 @@ def plot_engagement(dfs, data='filtered_events',savefig=False,\
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
     for index, full_df in enumerate(dfs): 
         max_y = [0,0,0]
-        ylabel=labels[index] +'\n avg. Ca$^{2+}$ events'
+        ylabel=labels[index] +'\nCa$^{2+}$ events'
         max_y[0] = plot_condition_engagement(full_df, 'omission',
             ax=ax[index, 0], ylabel=ylabel, error_type=error_type,
             areas=areas,depths=depths,version=version)
@@ -1036,7 +1036,7 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
             yerr=visual_sem.response,color=vis_color,fmt='o',label=vis_label)
         plt.errorbar(timing.running_bins*bin_width, timing.response,
             yerr=timing_sem.response,color=tim_color,fmt='o',label=tim_label)
-    ax.set_ylabel(cre+' '+condition,fontsize=16)
+    ax.set_ylabel(cre.capitalize()+' '+condition+'\n(avg. Ca$^{2+}$ events)',fontsize=16)
     ax.set_xlabel('running speed (cm/s)',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
@@ -1860,7 +1860,7 @@ def plot_exc_change_summary():
     plt.ylim(0,.0125)
     plt.xlim(-1,2)
     
-    plt.ylabel('Excitatory \n avg. Ca$^{2+}$ events',fontsize=16)
+    plt.ylabel('Excitatory \n(avg. Ca$^{2+}$ events)',fontsize=16)
     ax = plt.gca()
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)

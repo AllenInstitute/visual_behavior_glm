@@ -1089,12 +1089,28 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
     etiming = summary.query('(not visual_strategy_session) &(engagement_v2)')
     dtiming = summary.query('(not visual_strategy_session) &(not engagement_v2)')
 
+    # If we don't have bootstrap, use sem of responses
     summary_sem = df.groupby(['visual_strategy_session','engagement_v2','running_bins'])\
         ['response'].sem().reset_index()
     evisual_sem = summary_sem.query('(visual_strategy_session) &(engagement_v2)')
     dvisual_sem = summary_sem.query('(visual_strategy_session) &(not engagement_v2)')
     etiming_sem = summary_sem.query('(not visual_strategy_session) &(engagement_v2)')
     dtiming_sem = summary_sem.query('(not visual_strategy_session) &(not engagement_v2)')
+
+    # Remove running bins with less than 100 responses
+    counts = df.groupby(['running_bins','visual_strategy_session','engagement_v2'])\
+        ['response'].count().unstack().reset_index()
+    counts['remove'] = [(row[False]<100)or(row[True]<100) for \
+        index, row in counts.iterrows()]
+    counts['running_bin'] = counts['running_bins'].astype(int)
+    vis_counts = counts.query('visual_strategy_session')
+    tim_counts = counts.query('not visual_strategy_session')
+    if vis_boots is not None:
+        vis_boots = pd.merge(vis_boots, vis_counts[['running_bin','remove']],\
+            on='running_bin')
+    if tim_boots is not None:
+        tim_boots = pd.merge(tim_boots, tim_counts[['running_bin','remove']],\
+            on='running_bin')
 
     evis_color = 'darkorange'
     etim_color = 'blue'
@@ -1153,16 +1169,25 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
         ax.set_ylim(bottom=0)
 
     y =  ax.get_ylim()[1]*1.05
+
     if (vis_boots is not None) & ('visual' in plot_list):
+        vis_boots=vis_boots.reset_index()
         for index, row in vis_boots.iterrows():     
             if row.bh_significant:
-                ax.plot(index*bin_width, y, '*',color='darkorange')  
+                if row.remove:
+                    print('not significant b/c of low count: {}'.format(row.running_bin))
+                else:
+                    ax.plot(row.running_bin*bin_width, y, '*',color='darkorange')  
 
     if (tim_boots is not None) & ('timing' in plot_list):
+        tim_boots=tim_boots.reset_index()
         for index, row in tim_boots.iterrows():     
             if row.bh_significant:
-                ax.plot(index*bin_width, y*1.05, 'b*')  
-    ax.set_ylim(top=y*1.1)   
+                if row.remove:
+                    print('not significant b/c of low count: {}'.format(row.running_bin))
+                else:
+                    ax.plot(row.running_bin*bin_width, y*1.05, 'b*')  
+        ax.set_ylim(top=y*1.1)   
 
     ax.set_xlim(-1,61)
     #plt.legend()

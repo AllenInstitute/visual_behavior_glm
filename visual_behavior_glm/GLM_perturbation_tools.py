@@ -19,7 +19,8 @@ def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig
     ylim2 = out2[2].get_ylim()
     ylim3 = out3[2].get_ylim()
     ylim4 = out4[2].get_ylim()
-    ylim = [np.min([ylim1[0],ylim2[0],ylim3[0],ylim4[0]]), np.max([ylim1[1],ylim2[1],ylim3[1],ylim4[1]])]
+    ylim = [np.min([ylim1[0],ylim2[0],ylim3[0],ylim4[0]]), \
+        np.max([ylim1[1],ylim2[1],ylim3[1],ylim4[1]])]
     out1[2].set_ylim(ylim)
     out2[2].set_ylim(ylim)
     out3[2].set_ylim(ylim)
@@ -28,10 +29,11 @@ def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig
     out2[2].set_title('Timing, Familiar',fontsize=16)
     out3[2].set_title('Visual, Novel ',fontsize=16)
     out4[2].set_title('Timing, Novel ',fontsize=16)
-    filename = run_params['figure_dir']+\
-            '/strategy/'+kernel+'_visual_familiar_dynamics.svg'
-    out1[1].savefig(filename)
-    print('Figure saved to: '+filename)
+    if savefig:
+        filename = run_params['figure_dir']+\
+                '/strategy/'+kernel+'_visual_familiar_dynamics.svg'
+        out1[1].savefig(filename)
+        print('Figure saved to: '+filename)
 
     ax = plot_perturbation(weights_beh, run_params, kernel,savefig=savefig,lims=lims)
     return ax 
@@ -210,8 +212,9 @@ def get_kernel_averages(weights_df, run_params, kernel, drop_threshold=0,
             query_str = '&'.join(['('+x[0]+'==\"'+x[1]+'\")' for x in zip(compare,group)])
         # Filter for this group, and plot
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
-        k=get_average_kernels_inner(weights_dfiltered) 
+        k,sem=get_average_kernels_inner(weights_dfiltered) 
         outputs[group]=k
+        outputs[group+'_sem']=sem
     return outputs
 
 
@@ -230,6 +233,10 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
     Ftiming['y'] = -Ftiming['Sst-IRES-Cre'] + Ftiming['Vip-IRES-Cre']
     Nvisual['y'] = -Nvisual['Sst-IRES-Cre'] + Nvisual['Vip-IRES-Cre']
     Ntiming['y'] = -Ntiming['Sst-IRES-Cre'] + Ntiming['Vip-IRES-Cre']
+    Fvisual['y_sem'] = np.sum([Fvisual['Sst-IRES-Cre_sem'],Fvisual['Vip-IRES-Cre_sem']],axis=0)
+    Ftiming['y_sem'] = np.sum([Ftiming['Sst-IRES-Cre_sem'],Ftiming['Vip-IRES-Cre_sem']],axis=0)
+    Nvisual['y_sem'] = np.sum([Nvisual['Sst-IRES-Cre_sem'],Nvisual['Vip-IRES-Cre_sem']],axis=0)
+    Ntiming['y_sem'] = np.sum([Ntiming['Sst-IRES-Cre_sem'],Ntiming['Vip-IRES-Cre_sem']],axis=0)
     time = Fvisual['time']
     offset = 0
     multiimage = kernel in ['hits','misses','omissions']
@@ -243,6 +250,14 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
 
     colors = gvt.project_colors()
     fig, ax = plt.subplots(1,2,sharey=True,sharex=True,figsize=(7,3.5))
+
+    ax[0].errorbar(Fvisual['Slc17a7-IRES2-Cre'][0:pi3],Fvisual['y'][0:pi3],
+        xerr=Fvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
+        yerr=Fvisual['y_sem'][0:pi3],color=colors['visual'],alpha=.5)
+    ax[0].errorbar(Ftiming['Slc17a7-IRES2-Cre'][0:pi3],Ftiming['y'][0:pi3],
+        xerr=Ftiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
+        yerr=Ftiming['y_sem'][0:pi3],color=colors['timing'],alpha=.5)
+
     ax[0].plot(Fvisual['Slc17a7-IRES2-Cre'][0:pi3], Fvisual['y'][0:pi3],
         color=colors['visual'],label='Visual',linewidth=3)
     ax[0].plot(Ftiming['Slc17a7-IRES2-Cre'][0:pi3], Ftiming['y'][0:pi3],
@@ -265,6 +280,14 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
     ax[0].legend() 
     ax[0].axhline(0,color='k',linestyle='--',alpha=.25)
     ax[0].axvline(0,color='k',linestyle='--',alpha=.25)
+
+
+    ax[1].errorbar(Nvisual['Slc17a7-IRES2-Cre'][1:pi3],Nvisual['y'][1:pi3],
+        xerr=Nvisual['Slc17a7-IRES2-Cre_sem'][1:pi3],
+        yerr=Nvisual['y_sem'][1:pi3],color=colors['visual'],alpha=.5)
+    ax[1].errorbar(Ntiming['Slc17a7-IRES2-Cre'][1:pi3],Ntiming['y'][1:pi3],
+        xerr=Ntiming['Slc17a7-IRES2-Cre_sem'][1:pi3],
+        yerr=Ntiming['y_sem'][1:pi3],color=colors['timing'],alpha=.5)
  
     ax[1].plot(Nvisual['Slc17a7-IRES2-Cre'][0:pi3], Nvisual['y'][0:pi3],
         color=colors['visual'],linewidth=3)
@@ -298,7 +321,31 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
 
+    return ax, Fvisual, Ftiming
     return ax
+
+def plot_perturbation_3D(weights_df,run_params, kernel, session='Familiar'):
+    visual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
+        run_params, kernel, session_filter=[session])
+    timing = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
+        run_params, kernel, session_filter=[session])
+    ax = plt.figure().add_subplot(projection='3d')
+    ax.plot(visual['Slc17a7-IRES2-Cre'],
+        visual['Sst-IRES-Cre'], 
+        visual['Vip-IRES-Cre'],
+        color='darkorange',
+        linewidth=3)
+    ax.plot(timing['Slc17a7-IRES2-Cre'],
+        timing['Sst-IRES-Cre'], 
+        timing['Vip-IRES-Cre'],
+        color='blue',
+        linewidth=3)
+    ax.set_xlabel('Exc',fontsize=16)
+    ax.set_ylabel('Sst',fontsize=16)
+    ax.set_zlabel('Vip',fontsize=16)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.zaxis.set_tick_params(labelsize=12)
 
 
 def get_average_kernels_inner(df):
@@ -318,6 +365,6 @@ def get_average_kernels_inner(df):
         df_norm = np.empty((2,len(time_vec)))
         df_norm[:] = np.nan
     
-    return df_norm.mean(axis=0)
+    return df_norm.mean(axis=0),df_norm.std(axis=0)/np.sqrt(np.shape(df_norm)[0])
 
 

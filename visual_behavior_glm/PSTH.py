@@ -1162,7 +1162,7 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
     ax.yaxis.set_tick_params(labelsize=12) 
 
     if (cre == 'vip') and (condition =='omission'):
-        ax.set_ylim(0,.06) 
+        ax.set_ylim(0,.07) 
     elif (cre == 'vip') and (condition =='image'):
         ax.set_ylim(0,.015)
     else:
@@ -1187,7 +1187,7 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
                     print('not significant b/c of low count: {}'.format(row.running_bin))
                 else:
                     ax.plot(row.running_bin*bin_width, y*1.05, 'b*')  
-        ax.set_ylim(top=y*1.1)   
+    ax.set_ylim(top=y*1.1)   
 
     ax.set_xlim(-1,61)
     #plt.legend()

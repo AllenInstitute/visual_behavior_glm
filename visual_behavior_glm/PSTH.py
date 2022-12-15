@@ -1002,10 +1002,22 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
         .reset_index()
     visual = summary.query(split)
     timing = summary.query('not {}'.format(split))
+   
     summary_sem = df.groupby([split,'running_bins'])['response'].sem()\
         .reset_index()
     visual_sem = summary_sem.query(split)
     timing_sem = summary_sem.query('not {}'.format(split))
+
+    # Remove running bins with less than 100 responses
+    counts = df.groupby(['running_bins','visual_strategy_session'])\
+        ['response'].count().unstack().reset_index()
+    counts['remove'] = [(row[False]<100)or(row[True]<100) for \
+        index, row in counts.iterrows()]
+    counts['running_bin'] = counts['running_bins'].astype(int)
+    if bootstraps is not None:
+        bootstraps = pd.merge(bootstraps, counts[['running_bin','remove']],\
+            on='running_bin')
+
     if split == "visual_strategy_session":
         vis_color = 'darkorange'
         tim_color = 'blue'
@@ -1052,9 +1064,13 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
 
     if (bootstraps is not None) and ('bh_significant' in bootstraps.columns):
         y =  ax.get_ylim()[1]*1.05
+        bootstraps = bootstraps.reset_index()
         for index, row in bootstraps.iterrows():
             if row.bh_significant:
-                ax.plot(index*bin_width, y, 'k*')  
+                if row.remove:
+                    print('Not significant b/c of low count: {}'.format(row.running_bin))
+                else:
+                    ax.plot(row.running_bin*bin_width, y, 'k*')  
         ax.set_ylim(top=y*1.075)
 
     ax.set_xlim(-1,61)

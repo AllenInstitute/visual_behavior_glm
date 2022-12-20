@@ -13,6 +13,7 @@ import visual_behavior_glm.GLM_strategy_tools as gst
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_schematic_plots as gsm
+import visual_behavior_glm.GLM_perturbation_tools as gpt
 from importlib import reload
 from alex_utils import *
 plt.ion()
@@ -82,6 +83,10 @@ gpt.analysis(weights_beh, run_params, 'hits')
 gpt.analysis(weights_beh, run_params, 'misses')
 gpt.analysis(weights_beh, run_params, 'all-images')
 gpt.analysis(weights_beh, run_params, 'preferred_image')
+gpt.plot_perturbation(weights_beh, run_params, 'omissions')
+gpt.plot_perturbation(weights_beh, run_params, 'omissions',show_steps=True)
+
+
 
 ## Generate response dataframes
 ################################################################################

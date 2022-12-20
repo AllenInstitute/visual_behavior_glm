@@ -1,8 +1,10 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_strategy_tools as gst
 import os
+from scipy.spatial import ConvexHull as ch
 from mpl_toolkits.axes_grid1 import Divider, Size
 
 def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig=False,
@@ -19,7 +21,8 @@ def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig
     ylim2 = out2[2].get_ylim()
     ylim3 = out3[2].get_ylim()
     ylim4 = out4[2].get_ylim()
-    ylim = [np.min([ylim1[0],ylim2[0],ylim3[0],ylim4[0]]), np.max([ylim1[1],ylim2[1],ylim3[1],ylim4[1]])]
+    ylim = [np.min([ylim1[0],ylim2[0],ylim3[0],ylim4[0]]), \
+        np.max([ylim1[1],ylim2[1],ylim3[1],ylim4[1]])]
     out1[2].set_ylim(ylim)
     out2[2].set_ylim(ylim)
     out3[2].set_ylim(ylim)
@@ -28,10 +31,11 @@ def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig
     out2[2].set_title('Timing, Familiar',fontsize=16)
     out3[2].set_title('Visual, Novel ',fontsize=16)
     out4[2].set_title('Timing, Novel ',fontsize=16)
-    filename = run_params['figure_dir']+\
-            '/strategy/'+kernel+'_visual_familiar_dynamics.svg'
-    out1[1].savefig(filename)
-    print('Figure saved to: '+filename)
+    if savefig:
+        filename = run_params['figure_dir']+\
+                '/strategy/'+kernel+'_visual_familiar_dynamics.svg'
+        out1[1].savefig(filename)
+        print('Figure saved to: '+filename)
 
     ax = plot_perturbation(weights_beh, run_params, kernel,savefig=savefig,lims=lims)
     return ax 
@@ -210,26 +214,64 @@ def get_kernel_averages(weights_df, run_params, kernel, drop_threshold=0,
             query_str = '&'.join(['('+x[0]+'==\"'+x[1]+'\")' for x in zip(compare,group)])
         # Filter for this group, and plot
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
-        k=get_average_kernels_inner(weights_dfiltered) 
+        k,sem=get_average_kernels_inner(weights_dfiltered) 
         outputs[group]=k
+        outputs[group+'_sem']=sem
     return outputs
 
+def get_error(T,x='Slc17a7-IRES2-Cre',y='y'):
+    '''
+        Generates a dataframe where each row is a point along the trajectory
+        defined by T[x], and T[y]. Adds columns for the 4 error points
+        defined by T[x_sem] and T[y_sem]
+    '''
+    T[x]    
+    df = pd.DataFrame()
+    df['time']=T['time']
+    df['x']=T[x]
+    df['y']=T[y]
+    df['x1']=T[x]-T[x+'_sem']
+    df['x2']=T[x]+T[x+'_sem']
+    df['y1']=T[y]-T[y+'_sem']
+    df['y2']=T[y]+T[y+'_sem']
+    return df  
 
+def plot_iterative_ch(ax,df,color,show_steps=False):
+    '''
+        For every pair of points t_i, t_i+1, finds the convex hull
+        around the 8 error points (4 from t_i, 4 from t_i+1) and
+        fills the polygon defined by that convex hull
+        show_steps (bool) if True, plot the convex hull rather than fill it. 
+    '''
 
+    for index, row in df.iterrows():
+        if index ==0:
+            pass
+        points = get_points(df.loc[index-1:index])
+        hull = ch(points)
+        if show_steps:
+            for simplex in hull.simplices:
+                ax.plot(points[simplex,0],points[simplex,1],'k-')
+        else:
+            ax.fill(points[hull.vertices,0],points[hull.vertices,1],color=color)
+    
+def get_points(df):
+    '''
+        Return a 2D array of error points for two subsequent points in df
+    '''
+    x=[]
+    y=[]
+    for index, row in df.iterrows():
+        this_x= [row.x1,row.x,row.x2,row.x]
+        this_y= [row.y,row.y2,row.y,row.y1]
+        x=x+this_x
+        y=y+this_y
+    return np.array([x,y]).T
 
-def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
-    Fvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
-        run_params, kernel, session_filter=['Familiar'])
-    Ftiming = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
-        run_params, kernel, session_filter=['Familiar'])
-    Nvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
-        run_params, kernel, session_filter=['Novel 1'])
-    Ntiming = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
-        run_params, kernel, session_filter=['Novel 1'])
-    Fvisual['y'] = -Fvisual['Sst-IRES-Cre'] + Fvisual['Vip-IRES-Cre']
-    Ftiming['y'] = -Ftiming['Sst-IRES-Cre'] + Ftiming['Vip-IRES-Cre']
-    Nvisual['y'] = -Nvisual['Sst-IRES-Cre'] + Nvisual['Vip-IRES-Cre']
-    Ntiming['y'] = -Ntiming['Sst-IRES-Cre'] + Ntiming['Vip-IRES-Cre']
+def demonstrate_iterative_ch(Fvisual,kernel='omissions',show_steps=True):
+    '''
+        A demonstration that shows the iterative convex hull solution
+    '''
     time = Fvisual['time']
     offset = 0
     multiimage = kernel in ['hits','misses','omissions']
@@ -242,7 +284,72 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
         pi3 = len(time)
 
     colors = gvt.project_colors()
+    fig, ax = plt.subplots()
+    df = get_error(Fvisual)
+    df = df.loc[0:pi3]
+    plot_iterative_ch(ax,df,'lightgray',show_steps=show_steps)
+    if show_steps:
+        ax.errorbar(Fvisual['Slc17a7-IRES2-Cre'][0:pi3],Fvisual['y'][0:pi3],
+            xerr=Fvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
+            yerr=Fvisual['y_sem'][0:pi3],color='gray',alpha=.5)
+    ax.plot(Fvisual['Slc17a7-IRES2-Cre'][0:pi3], Fvisual['y'][0:pi3],
+        color=colors['visual'],label='Visual',linewidth=3)
+    
+    ax.set_ylabel('Vip - Sst',fontsize=16)
+    ax.set_xlabel('Exc',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)  
+    ax.set_title('Familiar, {}'.format(kernel),fontsize=16)
+    ax.legend() 
+    ax.axhline(0,color='k',linestyle='--',alpha=.25)
+    ax.axvline(0,color='k',linestyle='--',alpha=.25)
+
+def get_perturbation(weights_df, run_params, kernel):
+    Fvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
+        run_params, kernel, session_filter=['Familiar'])
+    Ftiming = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
+        run_params, kernel, session_filter=['Familiar'])
+    Nvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
+        run_params, kernel, session_filter=['Novel 1'])
+    Ntiming = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
+        run_params, kernel, session_filter=['Novel 1'])
+    Fvisual['y'] = -Fvisual['Sst-IRES-Cre'] + Fvisual['Vip-IRES-Cre']
+    Ftiming['y'] = -Ftiming['Sst-IRES-Cre'] + Ftiming['Vip-IRES-Cre']
+    Nvisual['y'] = -Nvisual['Sst-IRES-Cre'] + Nvisual['Vip-IRES-Cre']
+    Ntiming['y'] = -Ntiming['Sst-IRES-Cre'] + Ntiming['Vip-IRES-Cre']
+    Fvisual['y_sem'] = np.sum([Fvisual['Sst-IRES-Cre_sem'],Fvisual['Vip-IRES-Cre_sem']],axis=0)
+    Ftiming['y_sem'] = np.sum([Ftiming['Sst-IRES-Cre_sem'],Ftiming['Vip-IRES-Cre_sem']],axis=0)
+    Nvisual['y_sem'] = np.sum([Nvisual['Sst-IRES-Cre_sem'],Nvisual['Vip-IRES-Cre_sem']],axis=0)
+    Ntiming['y_sem'] = np.sum([Ntiming['Sst-IRES-Cre_sem'],Ntiming['Vip-IRES-Cre_sem']],axis=0)
+    return Fvisual, Ftiming, Nvisual, Ntiming
+
+def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None,show_steps=False):
+    Fvisual, Ftiming, Nvisual, Ntiming = get_perturbation(weights_df, run_params,kernel)
+    time = Fvisual['time']
+    offset = 0
+    multiimage = kernel in ['hits','misses','omissions']
+    if multiimage:
+        pi= np.where(time > (.75+offset))[0][0]
+        pi2 = np.where(time > (1.5+offset))[0][0]
+    if time[-1] > 2.25:
+        pi3 = np.where(time > 2.25)[0][0]
+    else:
+        pi3 = len(time)
+
+    if show_steps:
+        demonstrate_iterative_ch(Fvisual,kernel)
+
+    colors = gvt.project_colors()
     fig, ax = plt.subplots(1,2,sharey=True,sharex=True,figsize=(7,3.5))
+    
+    df = get_error(Fvisual).loc[0:pi3]
+    plot_iterative_ch(ax[0],df,'lightgray')  
+
+    df = get_error(Ftiming).loc[0:pi3]
+    plot_iterative_ch(ax[0],df,'lightgray')
+
     ax[0].plot(Fvisual['Slc17a7-IRES2-Cre'][0:pi3], Fvisual['y'][0:pi3],
         color=colors['visual'],label='Visual',linewidth=3)
     ax[0].plot(Ftiming['Slc17a7-IRES2-Cre'][0:pi3], Ftiming['y'][0:pi3],
@@ -265,6 +372,12 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
     ax[0].legend() 
     ax[0].axhline(0,color='k',linestyle='--',alpha=.25)
     ax[0].axvline(0,color='k',linestyle='--',alpha=.25)
+
+    df = get_error(Nvisual).loc[0:pi3]
+    plot_iterative_ch(ax[1],df,'lightgray')  
+
+    df = get_error(Ntiming).loc[0:pi3]
+    plot_iterative_ch(ax[1],df,'lightgray')
  
     ax[1].plot(Nvisual['Slc17a7-IRES2-Cre'][0:pi3], Nvisual['y'][0:pi3],
         color=colors['visual'],linewidth=3)
@@ -298,7 +411,28 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
 
-    return ax
+def plot_perturbation_3D(weights_df,run_params, kernel, session='Familiar'):
+    visual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
+        run_params, kernel, session_filter=[session])
+    timing = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
+        run_params, kernel, session_filter=[session])
+    ax = plt.figure().add_subplot(projection='3d')
+    ax.plot(visual['Slc17a7-IRES2-Cre'],
+        visual['Sst-IRES-Cre'], 
+        visual['Vip-IRES-Cre'],
+        color='darkorange',
+        linewidth=3)
+    ax.plot(timing['Slc17a7-IRES2-Cre'],
+        timing['Sst-IRES-Cre'], 
+        timing['Vip-IRES-Cre'],
+        color='blue',
+        linewidth=3)
+    ax.set_xlabel('Exc',fontsize=16)
+    ax.set_ylabel('Sst',fontsize=16)
+    ax.set_zlabel('Vip',fontsize=16)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.zaxis.set_tick_params(labelsize=12)
 
 
 def get_average_kernels_inner(df):
@@ -318,6 +452,6 @@ def get_average_kernels_inner(df):
         df_norm = np.empty((2,len(time_vec)))
         df_norm[:] = np.nan
     
-    return df_norm.mean(axis=0)
+    return df_norm.mean(axis=0),df_norm.std(axis=0)/np.sqrt(np.shape(df_norm)[0])
 
 

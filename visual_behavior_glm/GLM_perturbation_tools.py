@@ -23,8 +23,10 @@ def analysis(weights_beh, run_params, kernel,experience_level='Familiar',savefig
         np.max([ylim1[1],ylim2[1]])]
     out1[2].set_ylim(ylim)
     out2[2].set_ylim(ylim)
-    out1[2].set_title('Visual, {}'.format(experience_level),fontsize=16)
-    out2[2].set_title('Timing, {}'.format(experience_level),fontsize=16)
+    out1[2].set_ylabel(kernel+' kernel\n(Ca$^{2+}$ events)',fontsize=16)
+    out2[2].set_ylabel(kernel+' kernel\n(Ca$^{2+}$ events)',fontsize=16)
+    out1[2].set_title('Visual',fontsize=16)
+    out2[2].set_title('Timing',fontsize=16)
     if kernel =='omissions':
         out1[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
         out2[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
@@ -43,6 +45,16 @@ def analysis(weights_beh, run_params, kernel,experience_level='Familiar',savefig
     # Make 2D plot
     ax = plot_perturbation(weights_beh, run_params, kernel,experience_level=experience_level,
         savefig=savefig,lims=lims)
+
+    if savefig:
+        filepath = run_params['figure_dir']+\
+            '/strategy/'+kernel+'_visual_comparison_{}.svg'.format(experience_level)
+        print('Figure saved to: '+filepath)
+        out1[1].savefig(filepath) 
+        filepath = run_params['figure_dir']+\
+            '/strategy/'+kernel+'_timing_comparison_{}.svg'.format(experience_level)
+        print('Figure saved to: '+filepath)
+        out2[1].savefig(filepath) 
 
     return ax 
 
@@ -353,7 +365,7 @@ def plot_perturbation(weights_df, run_params, kernel,experience_level="Familiar"
 
     colors = gvt.project_colors()
     if ax is None:
-        fig, ax = plt.subplots(1,1,sharey=True,sharex=True,figsize=(4,3.5))
+        fig, ax = plt.subplots(1,1,sharey=True,sharex=True,figsize=(4.5,4))
     
     df = get_error(visual).loc[0:pi3]
     plot_iterative_ch(ax,df,'lightgray')  
@@ -384,14 +396,16 @@ def plot_perturbation(weights_df, run_params, kernel,experience_level="Familiar"
         ax.set_ylabel(experience_level+'\nVip - Sst',fontsize=16)
     elif not multi:
         ax.set_ylabel('Vip - Sst',fontsize=16)
-    if row1 or (not multi):
+    if row1:
         ax.set_xlabel(kernel+'\nExc',fontsize=16)
+    elif not multi:
+        ax.set_xlabel('Exc',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)  
     if not multi:
-        ax.set_title('{}, {}'.format(experience_level,kernel),fontsize=16)
+        ax.set_title('{}'.format(kernel),fontsize=16)
     #ax.legend() 
     ax.axhline(0,color='k',linestyle='--',alpha=.25)
     ax.axvline(0,color='k',linestyle='--',alpha=.25)

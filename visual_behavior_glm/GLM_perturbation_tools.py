@@ -284,7 +284,7 @@ def demonstrate_iterative_ch(Fvisual,kernel='omissions',show_steps=True):
         pi3 = len(time)
 
     colors = gvt.project_colors()
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(4,3.5))
     df = get_error(Fvisual)
     df = df.loc[0:pi3]
     plot_iterative_ch(ax,df,'lightgray',show_steps=show_steps)
@@ -306,32 +306,32 @@ def demonstrate_iterative_ch(Fvisual,kernel='omissions',show_steps=True):
     ax.axhline(0,color='k',linestyle='--',alpha=.25)
     ax.axvline(0,color='k',linestyle='--',alpha=.25)
 
-def get_perturbation(weights_df, run_params, kernel):
-    Fvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
-        run_params, kernel, session_filter=['Familiar'])
-    Ftiming = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
-        run_params, kernel, session_filter=['Familiar'])
-    Nvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
-        run_params, kernel, session_filter=['Novel 1'])
-    Ntiming = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
-        run_params, kernel, session_filter=['Novel 1'])
-    Fvisual['y'] = -Fvisual['Sst-IRES-Cre'] + Fvisual['Vip-IRES-Cre']
-    Ftiming['y'] = -Ftiming['Sst-IRES-Cre'] + Ftiming['Vip-IRES-Cre']
-    Nvisual['y'] = -Nvisual['Sst-IRES-Cre'] + Nvisual['Vip-IRES-Cre']
-    Ntiming['y'] = -Ntiming['Sst-IRES-Cre'] + Ntiming['Vip-IRES-Cre']
-    Fvisual['y_sem'] = np.sqrt(np.sum([Fvisual['Sst-IRES-Cre_sem']**2,
-        Fvisual['Vip-IRES-Cre_sem']**2],axis=0))
-    Ftiming['y_sem'] = np.sqrt(np.sum([Ftiming['Sst-IRES-Cre_sem']**2,
-        Ftiming['Vip-IRES-Cre_sem']**2],axis=0))
-    Nvisual['y_sem'] = np.sqrt(np.sum([Nvisual['Sst-IRES-Cre_sem']**2,
-        Nvisual['Vip-IRES-Cre_sem']**2],axis=0))
-    Ntiming['y_sem'] = np.sqrt(np.sum([Ntiming['Sst-IRES-Cre_sem']**2,
-        Ntiming['Vip-IRES-Cre_sem']**2],axis=0))
-    return Fvisual, Ftiming, Nvisual, Ntiming
+def get_perturbation(weights_df, run_params, kernel,experience_level="Familiar"):
+    visual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
+        run_params, kernel, session_filter=[experience_level])
+    timing = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
+        run_params, kernel, session_filter=[experience_level])
+    visual['y'] = -visual['Sst-IRES-Cre'] + visual['Vip-IRES-Cre']
+    timing['y'] = -timing['Sst-IRES-Cre'] + timing['Vip-IRES-Cre']
+    visual['y_sem'] = np.sqrt(np.sum([visual['Sst-IRES-Cre_sem']**2,
+        visual['Vip-IRES-Cre_sem']**2],axis=0))
+    timing['y_sem'] = np.sqrt(np.sum([timing['Sst-IRES-Cre_sem']**2,
+        timing['Vip-IRES-Cre_sem']**2],axis=0))
+    return visual, timing
 
-def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None,show_steps=False):
-    Fvisual, Ftiming, Nvisual, Ntiming = get_perturbation(weights_df, run_params,kernel)
-    time = Fvisual['time']
+def plot_multiple(weights_df, run_params,savefig=False):
+    fig, ax = plt.subplots(3,4,sharey=True,sharex=True,figsize=(12,9))
+    for edex, e in enumerate(['Familiar','Novel 1','Novel >1']):    
+        for kdex, k in enumerate(['omissions','hits','misses','all-images']):
+            plot_perturbation(weights_df, run_params,k,e,ax=ax[edex,kdex],
+                col1=kdex==0,row1=edex==2,multi=True) 
+    plt.tight_layout()
+    return    
+
+def plot_perturbation(weights_df, run_params, kernel,experience_level="Familiar",
+    savefig=False,lims = None,show_steps=False,ax=None,col1=False,row1=False,multi=False):
+    visual, timing = get_perturbation(weights_df, run_params,kernel,experience_level)
+    time = visual['time']
     offset = 0
     multiimage = kernel in ['hits','misses','omissions']
     if multiimage:
@@ -343,75 +343,50 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None,s
         pi3 = len(time)
 
     if show_steps:
-        demonstrate_iterative_ch(Fvisual,kernel)
+        demonstrate_iterative_ch(visual,kernel)
 
     colors = gvt.project_colors()
-    fig, ax = plt.subplots(1,2,sharey=True,sharex=True,figsize=(7,3.5))
+    if ax is None:
+        fig, ax = plt.subplots(1,1,sharey=True,sharex=True,figsize=(4,3.5))
     
-    df = get_error(Fvisual).loc[0:pi3]
-    plot_iterative_ch(ax[0],df,'lightgray')  
+    df = get_error(visual).loc[0:pi3]
+    plot_iterative_ch(ax,df,'lightgray')  
 
-    df = get_error(Ftiming).loc[0:pi3]
-    plot_iterative_ch(ax[0],df,'lightgray')
+    df = get_error(timing).loc[0:pi3]
+    plot_iterative_ch(ax,df,'lightgray')
 
-    ax[0].plot(Fvisual['Slc17a7-IRES2-Cre'][0:pi3], Fvisual['y'][0:pi3],
+    ax.plot(visual['Slc17a7-IRES2-Cre'][0:pi3], visual['y'][0:pi3],
         color=colors['visual'],label='Visual',linewidth=3)
-    ax[0].plot(Ftiming['Slc17a7-IRES2-Cre'][0:pi3], Ftiming['y'][0:pi3],
+    ax.plot(timing['Slc17a7-IRES2-Cre'][0:pi3], timing['y'][0:pi3],
         color=colors['timing'],label='Timing',linewidth=3)
-    ax[0].plot(Fvisual['Slc17a7-IRES2-Cre'][0],Fvisual['y'][0],'co')
-    ax[0].plot(Ftiming['Slc17a7-IRES2-Cre'][0],Ftiming['y'][0],'co')
+    ax.plot(visual['Slc17a7-IRES2-Cre'][0],visual['y'][0],'co')
+    ax.plot(timing['Slc17a7-IRES2-Cre'][0],timing['y'][0],'co')
     if multiimage:
-        ax[0].plot(Fvisual['Slc17a7-IRES2-Cre'][pi],Fvisual['y'][pi],'ko')
-        ax[0].plot(Ftiming['Slc17a7-IRES2-Cre'][pi],Ftiming['y'][pi],'ko')
-        ax[0].plot(Fvisual['Slc17a7-IRES2-Cre'][pi2],Fvisual['y'][pi2],'o',color='gray')
-        ax[0].plot(Ftiming['Slc17a7-IRES2-Cre'][pi2],Ftiming['y'][pi2],'o',color='gray')
+        ax.plot(visual['Slc17a7-IRES2-Cre'][pi],visual['y'][pi],'ko')
+        ax.plot(timing['Slc17a7-IRES2-Cre'][pi],timing['y'][pi],'ko')
+        ax.plot(visual['Slc17a7-IRES2-Cre'][pi2],visual['y'][pi2],'o',color='gray')
+        ax.plot(timing['Slc17a7-IRES2-Cre'][pi2],timing['y'][pi2],'o',color='gray')
 
-    ax[0].set_ylabel('Vip - Sst',fontsize=16)
-    ax[0].set_xlabel('Exc',fontsize=16)
-    ax[0].spines['right'].set_visible(False)
-    ax[0].spines['top'].set_visible(False)
-    ax[0].xaxis.set_tick_params(labelsize=12)
-    ax[0].yaxis.set_tick_params(labelsize=12)  
-    ax[0].set_title('Familiar, {}'.format(kernel),fontsize=16)
-    ax[0].legend() 
-    ax[0].axhline(0,color='k',linestyle='--',alpha=.25)
-    ax[0].axvline(0,color='k',linestyle='--',alpha=.25)
-
-    df = get_error(Nvisual).loc[0:pi3]
-    plot_iterative_ch(ax[1],df,'lightgray')  
-
-    df = get_error(Ntiming).loc[0:pi3]
-    plot_iterative_ch(ax[1],df,'lightgray')
- 
-    ax[1].plot(Nvisual['Slc17a7-IRES2-Cre'][0:pi3], Nvisual['y'][0:pi3],
-        color=colors['visual'],linewidth=3)
-    ax[1].plot(Ntiming['Slc17a7-IRES2-Cre'][0:pi3], Ntiming['y'][0:pi3],
-        color=colors['timing'],linewidth=3)   
-    ax[1].plot(Nvisual['Slc17a7-IRES2-Cre'][0],Nvisual['y'][0],'co')
-    ax[1].plot(Ntiming['Slc17a7-IRES2-Cre'][0],Ntiming['y'][0],'co')
-    if multiimage:
-        ax[1].plot(Nvisual['Slc17a7-IRES2-Cre'][pi],Nvisual['y'][pi],'ko')
-        ax[1].plot(Ntiming['Slc17a7-IRES2-Cre'][pi],Ntiming['y'][pi],'ko')
-        ax[1].plot(Nvisual['Slc17a7-IRES2-Cre'][pi2],Nvisual['y'][pi2],'o',color='gray')
-        ax[1].plot(Ntiming['Slc17a7-IRES2-Cre'][pi2],Ntiming['y'][pi2],'o',color='gray')
-    ax[1].set_ylabel('Vip - Sst',fontsize=16)
-    ax[1].set_xlabel('Exc',fontsize=16)
-    ax[1].spines['right'].set_visible(False)
-    ax[1].spines['top'].set_visible(False)
-    ax[1].xaxis.set_tick_params(labelsize=12)
-    ax[1].yaxis.set_tick_params(labelsize=12)  
-    ax[1].set_title('Novel, {}'.format(kernel),fontsize=16)
-    ax[1].axhline(0,color='k',linestyle='--',alpha=.25)
-    ax[1].axvline(0,color='k',linestyle='--',alpha=.25)
-    
-    if lims is not None:
-        ax[1].set_xlim(lims[0])
-        ax[1].set_ylim(lims[1])
+    if col1:
+        ax.set_ylabel(experience_level+'\nVip - Sst',fontsize=16)
+    elif not multi:
+        ax.set_ylabel('Vip - Sst',fontsize=16)
+    if row1 or (not multi):
+        ax.set_xlabel(kernel+'\nExc',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)  
+    if not multi:
+        ax.set_title('{}, {}'.format(experience_level,kernel),fontsize=16)
+    #ax.legend() 
+    ax.axhline(0,color='k',linestyle='--',alpha=.25)
+    ax.axvline(0,color='k',linestyle='--',alpha=.25)
     plt.tight_layout()
     
     if savefig:
         filepath = run_params['figure_dir']+\
-            '/strategy/'+kernel+'_strategy_perturbation.svg'
+            '/strategy/'+kernel+'_strategy_perturbation_{}.svg'.format(experience_level)
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
 

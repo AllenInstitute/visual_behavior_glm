@@ -251,12 +251,30 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
     colors = gvt.project_colors()
     fig, ax = plt.subplots(1,2,sharey=True,sharex=True,figsize=(7,3.5))
 
-    ax[0].errorbar(Fvisual['Slc17a7-IRES2-Cre'][0:pi3],Fvisual['y'][0:pi3],
-        xerr=Fvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
-        yerr=Fvisual['y_sem'][0:pi3],color=colors['visual'],alpha=.5)
-    ax[0].errorbar(Ftiming['Slc17a7-IRES2-Cre'][0:pi3],Ftiming['y'][0:pi3],
-        xerr=Ftiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
-        yerr=Ftiming['y_sem'][0:pi3],color=colors['timing'],alpha=.5)
+    #ax[0].errorbar(Fvisual['Slc17a7-IRES2-Cre'][0:pi3],Fvisual['y'][0:pi3],
+    #    xerr=Fvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
+    #    yerr=Fvisual['y_sem'][0:pi3],color='gray',alpha=.5)
+    ax[0].fill_between(Fvisual['Slc17a7-IRES2-Cre'][0:pi3],
+        Fvisual['y'][0:pi3]-Fvisual['y_sem'][0:pi3],
+        Fvisual['y'][0:pi3]+Fvisual['y_sem'][0:pi3],
+        color='lightgray')
+    ax[0].fill_betweenx(Fvisual['y'][0:pi3],
+        Fvisual['Slc17a7-IRES2-Cre'][0:pi3]-Fvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
+        Fvisual['Slc17a7-IRES2-Cre'][0:pi3]+Fvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
+        color='lightgray')
+    #ax[0].errorbar(Ftiming['Slc17a7-IRES2-Cre'][0:pi3],Ftiming['y'][0:pi3],
+    #    xerr=Ftiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
+    #    yerr=Ftiming['y_sem'][0:pi3],color='gray',alpha=.5)
+    ax[0].fill_between(Ftiming['Slc17a7-IRES2-Cre'][0:pi3],
+        Ftiming['y'][0:pi3]-Ftiming['y_sem'][0:pi3],
+        Ftiming['y'][0:pi3]+Ftiming['y_sem'][0:pi3],
+        color='lightgray')
+    ax[0].fill_betweenx(Ftiming['y'][0:pi3],
+        Ftiming['Slc17a7-IRES2-Cre'][0:pi3]-Ftiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
+        Ftiming['Slc17a7-IRES2-Cre'][0:pi3]+Ftiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
+        color='lightgray')
+ 
+
 
     ax[0].plot(Fvisual['Slc17a7-IRES2-Cre'][0:pi3], Fvisual['y'][0:pi3],
         color=colors['visual'],label='Visual',linewidth=3)
@@ -282,12 +300,29 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
     ax[0].axvline(0,color='k',linestyle='--',alpha=.25)
 
 
-    ax[1].errorbar(Nvisual['Slc17a7-IRES2-Cre'][1:pi3],Nvisual['y'][1:pi3],
-        xerr=Nvisual['Slc17a7-IRES2-Cre_sem'][1:pi3],
-        yerr=Nvisual['y_sem'][1:pi3],color=colors['visual'],alpha=.5)
-    ax[1].errorbar(Ntiming['Slc17a7-IRES2-Cre'][1:pi3],Ntiming['y'][1:pi3],
-        xerr=Ntiming['Slc17a7-IRES2-Cre_sem'][1:pi3],
-        yerr=Ntiming['y_sem'][1:pi3],color=colors['timing'],alpha=.5)
+    #ax[1].errorbar(Nvisual['Slc17a7-IRES2-Cre'][1:pi3],Nvisual['y'][1:pi3],
+    #    xerr=Nvisual['Slc17a7-IRES2-Cre_sem'][1:pi3],
+    #    yerr=Nvisual['y_sem'][1:pi3],color=colors['visual'],alpha=.5)
+    #ax[1].errorbar(Ntiming['Slc17a7-IRES2-Cre'][1:pi3],Ntiming['y'][1:pi3],
+    #    xerr=Ntiming['Slc17a7-IRES2-Cre_sem'][1:pi3],
+    #    yerr=Ntiming['y_sem'][1:pi3],color=colors['timing'],alpha=.5)
+    ax[1].fill_between(Nvisual['Slc17a7-IRES2-Cre'][0:pi3],
+        Nvisual['y'][0:pi3]-Nvisual['y_sem'][0:pi3],
+        Nvisual['y'][0:pi3]+Nvisual['y_sem'][0:pi3],
+        color='lightgray')
+    ax[1].fill_betweenx(Nvisual['y'][0:pi3],
+        Nvisual['Slc17a7-IRES2-Cre'][0:pi3]-Nvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
+        Nvisual['Slc17a7-IRES2-Cre'][0:pi3]+Nvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
+        color='lightgray')
+    ax[1].fill_between(Ntiming['Slc17a7-IRES2-Cre'][0:pi3],
+        Ntiming['y'][0:pi3]-Ntiming['y_sem'][0:pi3],
+        Ntiming['y'][0:pi3]+Ntiming['y_sem'][0:pi3],
+        color='lightgray')
+    ax[1].fill_betweenx(Ntiming['y'][0:pi3],
+        Ntiming['Slc17a7-IRES2-Cre'][0:pi3]-Ntiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
+        Ntiming['Slc17a7-IRES2-Cre'][0:pi3]+Ntiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
+        color='lightgray')
+
  
     ax[1].plot(Nvisual['Slc17a7-IRES2-Cre'][0:pi3], Nvisual['y'][0:pi3],
         color=colors['visual'],linewidth=3)

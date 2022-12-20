@@ -7,37 +7,43 @@ import os
 from scipy.spatial import ConvexHull as ch
 from mpl_toolkits.axes_grid1 import Divider, Size
 
-def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig=False,
+def analysis(weights_beh, run_params, kernel,experience_level='Familiar',savefig=False,
     lims=None):
+
+    # Plot 1D summaries
     out1 = gst.strategy_kernel_comparison(weights_beh.query('visual_strategy_session'),
-        run_params, kernel,session_filter=['Familiar'])
+        run_params, kernel,session_filter=[experience_level])
     out2 =gst.strategy_kernel_comparison(weights_beh.query('not visual_strategy_session'),
-        run_params, kernel,session_filter=['Familiar'])
-    out3 = gst.strategy_kernel_comparison(weights_beh.query('visual_strategy_session'),
-        run_params, kernel,session_filter=['Novel 1'])
-    out4 =gst.strategy_kernel_comparison(weights_beh.query('not visual_strategy_session'),
-        run_params, kernel,session_filter=['Novel 1'])
+        run_params, kernel,session_filter=[experience_level])
+
+    # Unify ylimits and add time markers
     ylim1 = out1[2].get_ylim()
     ylim2 = out2[2].get_ylim()
-    ylim3 = out3[2].get_ylim()
-    ylim4 = out4[2].get_ylim()
-    ylim = [np.min([ylim1[0],ylim2[0],ylim3[0],ylim4[0]]), \
-        np.max([ylim1[1],ylim2[1],ylim3[1],ylim4[1]])]
+    ylim = [np.min([ylim1[0],ylim2[0]]), \
+        np.max([ylim1[1],ylim2[1]])]
     out1[2].set_ylim(ylim)
     out2[2].set_ylim(ylim)
-    out3[2].set_ylim(ylim)
-    out4[2].set_ylim(ylim)
-    out1[2].set_title('Visual, Familiar',fontsize=16)
-    out2[2].set_title('Timing, Familiar',fontsize=16)
-    out3[2].set_title('Visual, Novel ',fontsize=16)
-    out4[2].set_title('Timing, Novel ',fontsize=16)
-    if savefig:
-        filename = run_params['figure_dir']+\
-                '/strategy/'+kernel+'_visual_familiar_dynamics.svg'
-        out1[1].savefig(filename)
-        print('Figure saved to: '+filename)
+    out1[2].set_title('Visual, {}'.format(experience_level),fontsize=16)
+    out2[2].set_title('Timing, {}'.format(experience_level),fontsize=16)
+    if kernel =='omissions':
+        out1[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
+        out2[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
+    elif kernel in ['hits','misses']:
+        out1[2].plot(0,ylim[0],'ro',zorder=10,clip_on=False)
+        out2[2].plot(0,ylim[0],'ro',zorder=10,clip_on=False)
+    else:
+        out1[2].plot(0,ylim[0],'ko',zorder=10,clip_on=False)
+        out2[2].plot(0,ylim[0],'ko',zorder=10,clip_on=False)
+    if kernel in ['omissions','hits','misses']:
+        out1[2].plot(.75,ylim[0],'ko',zorder=10,clip_on=False)
+        out1[2].plot(1.5,ylim[0],'o',color='gray',zorder=10,clip_on=False)
+        out2[2].plot(.75,ylim[0],'ko',zorder=10,clip_on=False)
+        out2[2].plot(1.5,ylim[0],'o',color='gray',zorder=10,clip_on=False)
 
-    ax = plot_perturbation(weights_beh, run_params, kernel,savefig=savefig,lims=lims)
+    # Make 2D plot
+    ax = plot_perturbation(weights_beh, run_params, kernel,experience_level=experience_level,
+        savefig=savefig,lims=lims)
+
     return ax 
 
 def get_kernel_averages(weights_df, run_params, kernel, drop_threshold=0,
@@ -359,8 +365,15 @@ def plot_perturbation(weights_df, run_params, kernel,experience_level="Familiar"
         color=colors['visual'],label='Visual',linewidth=3)
     ax.plot(timing['Slc17a7-IRES2-Cre'][0:pi3], timing['y'][0:pi3],
         color=colors['timing'],label='Timing',linewidth=3)
-    ax.plot(visual['Slc17a7-IRES2-Cre'][0],visual['y'][0],'co')
-    ax.plot(timing['Slc17a7-IRES2-Cre'][0],timing['y'][0],'co')
+    if kernel =='omissions':
+        ax.plot(visual['Slc17a7-IRES2-Cre'][0],visual['y'][0],'co')
+        ax.plot(timing['Slc17a7-IRES2-Cre'][0],timing['y'][0],'co')
+    elif kernel in ['hits','misses']:
+        ax.plot(visual['Slc17a7-IRES2-Cre'][0],visual['y'][0],'ro')
+        ax.plot(timing['Slc17a7-IRES2-Cre'][0],timing['y'][0],'ro')
+    else:
+        ax.plot(visual['Slc17a7-IRES2-Cre'][0],visual['y'][0],'ko')
+        ax.plot(timing['Slc17a7-IRES2-Cre'][0],timing['y'][0],'ko')
     if multiimage:
         ax.plot(visual['Slc17a7-IRES2-Cre'][pi],visual['y'][pi],'ko')
         ax.plot(timing['Slc17a7-IRES2-Cre'][pi],timing['y'][pi],'ko')

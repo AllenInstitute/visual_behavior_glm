@@ -82,7 +82,6 @@ gpt.analysis(weights_beh, run_params, 'omissions')
 gpt.analysis(weights_beh, run_params, 'hits')
 gpt.analysis(weights_beh, run_params, 'misses')
 gpt.analysis(weights_beh, run_params, 'all-images')
-gpt.analysis(weights_beh, run_params, 'preferred_image')
 gpt.plot_perturbation(weights_beh, run_params, 'omissions')
 gpt.plot_perturbation(weights_beh, run_params, 'omissions',show_steps=True)
 

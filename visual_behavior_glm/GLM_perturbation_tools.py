@@ -295,7 +295,7 @@ def demonstrate_iterative_ch(Fvisual,kernel='omissions',show_steps=True):
     ax.plot(Fvisual['Slc17a7-IRES2-Cre'][0:pi3], Fvisual['y'][0:pi3],
         color=colors['visual'],label='Visual',linewidth=3)
 
-def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
+def get_perturbation(weights_df, run_params, kernel):
     Fvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
         run_params, kernel, session_filter=['Familiar'])
     Ftiming = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
@@ -312,6 +312,10 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
     Ftiming['y_sem'] = np.sum([Ftiming['Sst-IRES-Cre_sem'],Ftiming['Vip-IRES-Cre_sem']],axis=0)
     Nvisual['y_sem'] = np.sum([Nvisual['Sst-IRES-Cre_sem'],Nvisual['Vip-IRES-Cre_sem']],axis=0)
     Ntiming['y_sem'] = np.sum([Ntiming['Sst-IRES-Cre_sem'],Ntiming['Vip-IRES-Cre_sem']],axis=0)
+    return Fvisual, Ftiming, Nvisual, Ntiming
+
+def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None,show_steps=False):
+    Fvisual, Ftiming, Nvisual, Ntiming = get_perturbation(weights_df, run_params,kernel)
     time = Fvisual['time']
     offset = 0
     multiimage = kernel in ['hits','misses','omissions']
@@ -323,33 +327,17 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
     else:
         pi3 = len(time)
 
+    if show_steps:
+        demonstrate_iterative_ch(Fvisual,kernel)
+
     colors = gvt.project_colors()
     fig, ax = plt.subplots(1,2,sharey=True,sharex=True,figsize=(7,3.5))
+    
+    df = get_error(Fvisual).loc[0:pi3]
+    plot_iterative_ch(ax[0],df,'lightgray')  
 
-    #ax[0].errorbar(Fvisual['Slc17a7-IRES2-Cre'][0:pi3],Fvisual['y'][0:pi3],
-    #    xerr=Fvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
-    #    yerr=Fvisual['y_sem'][0:pi3],color='gray',alpha=.5)
-    ax[0].fill_between(Fvisual['Slc17a7-IRES2-Cre'][0:pi3],
-        Fvisual['y'][0:pi3]-Fvisual['y_sem'][0:pi3],
-        Fvisual['y'][0:pi3]+Fvisual['y_sem'][0:pi3],
-        color='lightgray')
-    ax[0].fill_betweenx(Fvisual['y'][0:pi3],
-        Fvisual['Slc17a7-IRES2-Cre'][0:pi3]-Fvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
-        Fvisual['Slc17a7-IRES2-Cre'][0:pi3]+Fvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
-        color='lightgray')
-    #ax[0].errorbar(Ftiming['Slc17a7-IRES2-Cre'][0:pi3],Ftiming['y'][0:pi3],
-    #    xerr=Ftiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
-    #    yerr=Ftiming['y_sem'][0:pi3],color='gray',alpha=.5)
-    ax[0].fill_between(Ftiming['Slc17a7-IRES2-Cre'][0:pi3],
-        Ftiming['y'][0:pi3]-Ftiming['y_sem'][0:pi3],
-        Ftiming['y'][0:pi3]+Ftiming['y_sem'][0:pi3],
-        color='lightgray')
-    ax[0].fill_betweenx(Ftiming['y'][0:pi3],
-        Ftiming['Slc17a7-IRES2-Cre'][0:pi3]-Ftiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
-        Ftiming['Slc17a7-IRES2-Cre'][0:pi3]+Ftiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
-        color='lightgray')
- 
-
+    df = get_error(Ftiming).loc[0:pi3]
+    plot_iterative_ch(ax[0],df,'lightgray')
 
     ax[0].plot(Fvisual['Slc17a7-IRES2-Cre'][0:pi3], Fvisual['y'][0:pi3],
         color=colors['visual'],label='Visual',linewidth=3)
@@ -374,30 +362,11 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
     ax[0].axhline(0,color='k',linestyle='--',alpha=.25)
     ax[0].axvline(0,color='k',linestyle='--',alpha=.25)
 
+    df = get_error(Nvisual).loc[0:pi3]
+    plot_iterative_ch(ax[1],df,'lightgray')  
 
-    #ax[1].errorbar(Nvisual['Slc17a7-IRES2-Cre'][1:pi3],Nvisual['y'][1:pi3],
-    #    xerr=Nvisual['Slc17a7-IRES2-Cre_sem'][1:pi3],
-    #    yerr=Nvisual['y_sem'][1:pi3],color=colors['visual'],alpha=.5)
-    #ax[1].errorbar(Ntiming['Slc17a7-IRES2-Cre'][1:pi3],Ntiming['y'][1:pi3],
-    #    xerr=Ntiming['Slc17a7-IRES2-Cre_sem'][1:pi3],
-    #    yerr=Ntiming['y_sem'][1:pi3],color=colors['timing'],alpha=.5)
-    ax[1].fill_between(Nvisual['Slc17a7-IRES2-Cre'][0:pi3],
-        Nvisual['y'][0:pi3]-Nvisual['y_sem'][0:pi3],
-        Nvisual['y'][0:pi3]+Nvisual['y_sem'][0:pi3],
-        color='lightgray')
-    ax[1].fill_betweenx(Nvisual['y'][0:pi3],
-        Nvisual['Slc17a7-IRES2-Cre'][0:pi3]-Nvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
-        Nvisual['Slc17a7-IRES2-Cre'][0:pi3]+Nvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
-        color='lightgray')
-    ax[1].fill_between(Ntiming['Slc17a7-IRES2-Cre'][0:pi3],
-        Ntiming['y'][0:pi3]-Ntiming['y_sem'][0:pi3],
-        Ntiming['y'][0:pi3]+Ntiming['y_sem'][0:pi3],
-        color='lightgray')
-    ax[1].fill_betweenx(Ntiming['y'][0:pi3],
-        Ntiming['Slc17a7-IRES2-Cre'][0:pi3]-Ntiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
-        Ntiming['Slc17a7-IRES2-Cre'][0:pi3]+Ntiming['Slc17a7-IRES2-Cre_sem'][0:pi3],
-        color='lightgray')
-
+    df = get_error(Ntiming).loc[0:pi3]
+    plot_iterative_ch(ax[1],df,'lightgray')
  
     ax[1].plot(Nvisual['Slc17a7-IRES2-Cre'][0:pi3], Nvisual['y'][0:pi3],
         color=colors['visual'],linewidth=3)
@@ -430,9 +399,6 @@ def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
             '/strategy/'+kernel+'_strategy_perturbation.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
-
-    return ax, Fvisual, Ftiming
-    return ax
 
 def plot_perturbation_3D(weights_df,run_params, kernel, session='Familiar'):
     visual = get_kernel_averages(weights_df.query('visual_strategy_session'), 

@@ -294,6 +294,17 @@ def demonstrate_iterative_ch(Fvisual,kernel='omissions',show_steps=True):
             yerr=Fvisual['y_sem'][0:pi3],color='gray',alpha=.5)
     ax.plot(Fvisual['Slc17a7-IRES2-Cre'][0:pi3], Fvisual['y'][0:pi3],
         color=colors['visual'],label='Visual',linewidth=3)
+    
+    ax.set_ylabel('Vip - Sst',fontsize=16)
+    ax.set_xlabel('Exc',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)  
+    ax.set_title('Familiar, {}'.format(kernel),fontsize=16)
+    ax.legend() 
+    ax.axhline(0,color='k',linestyle='--',alpha=.25)
+    ax.axvline(0,color='k',linestyle='--',alpha=.25)
 
 def get_perturbation(weights_df, run_params, kernel):
     Fvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 

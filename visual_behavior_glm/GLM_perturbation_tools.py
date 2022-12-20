@@ -1,8 +1,10 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_strategy_tools as gst
 import os
+from scipy.spatial import ConvexHull as ch
 from mpl_toolkits.axes_grid1 import Divider, Size
 
 def analysis(weights_beh, run_params, kernel,session_filter=['Familiar'],savefig=False,
@@ -217,8 +219,81 @@ def get_kernel_averages(weights_df, run_params, kernel, drop_threshold=0,
         outputs[group+'_sem']=sem
     return outputs
 
+def get_error(T,x='Slc17a7-IRES2-Cre',y='y'):
+    '''
+        Generates a dataframe where each row is a point along the trajectory
+        defined by T[x], and T[y]. Adds columns for the 4 error points
+        defined by T[x_sem] and T[y_sem]
+    '''
+    T[x]    
+    df = pd.DataFrame()
+    df['time']=T['time']
+    df['x']=T[x]
+    df['y']=T[y]
+    df['x1']=T[x]-T[x+'_sem']
+    df['x2']=T[x]+T[x+'_sem']
+    df['y1']=T[y]-T[y+'_sem']
+    df['y2']=T[y]+T[y+'_sem']
+    return df  
 
+def plot_iterative_ch(ax,df,color,show_steps=False):
+    '''
+        For every pair of points t_i, t_i+1, finds the convex hull
+        around the 8 error points (4 from t_i, 4 from t_i+1) and
+        fills the polygon defined by that convex hull
+        show_steps (bool) if True, plot the convex hull rather than fill it. 
+    '''
 
+    for index, row in df.iterrows():
+        if index ==0:
+            pass
+        points = get_points(df.loc[index-1:index])
+        hull = ch(points)
+        if show_steps:
+            for simplex in hull.simplices:
+                ax.plot(points[simplex,0],points[simplex,1],'k-')
+        else:
+            ax.fill(points[hull.vertices,0],points[hull.vertices,1],color=color)
+    
+def get_points(df):
+    '''
+        Return a 2D array of error points for two subsequent points in df
+    '''
+    x=[]
+    y=[]
+    for index, row in df.iterrows():
+        this_x= [row.x1,row.x,row.x2,row.x]
+        this_y= [row.y,row.y2,row.y,row.y1]
+        x=x+this_x
+        y=y+this_y
+    return np.array([x,y]).T
+
+def demonstrate_iterative_ch(Fvisual,kernel='omissions',show_steps=True):
+    '''
+        A demonstration that shows the iterative convex hull solution
+    '''
+    time = Fvisual['time']
+    offset = 0
+    multiimage = kernel in ['hits','misses','omissions']
+    if multiimage:
+        pi= np.where(time > (.75+offset))[0][0]
+        pi2 = np.where(time > (1.5+offset))[0][0]
+    if time[-1] > 2.25:
+        pi3 = np.where(time > 2.25)[0][0]
+    else:
+        pi3 = len(time)
+
+    colors = gvt.project_colors()
+    fig, ax = plt.subplots()
+    df = get_error(Fvisual)
+    df = df.loc[0:pi3]
+    plot_iterative_ch(ax,df,'lightgray',show_steps=show_steps)
+    if show_steps:
+        ax.errorbar(Fvisual['Slc17a7-IRES2-Cre'][0:pi3],Fvisual['y'][0:pi3],
+            xerr=Fvisual['Slc17a7-IRES2-Cre_sem'][0:pi3],
+            yerr=Fvisual['y_sem'][0:pi3],color='gray',alpha=.5)
+    ax.plot(Fvisual['Slc17a7-IRES2-Cre'][0:pi3], Fvisual['y'][0:pi3],
+        color=colors['visual'],label='Visual',linewidth=3)
 
 def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None):
     Fvisual = get_kernel_averages(weights_df.query('visual_strategy_session'), 

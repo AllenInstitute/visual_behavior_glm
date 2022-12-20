@@ -319,10 +319,14 @@ def get_perturbation(weights_df, run_params, kernel):
     Ftiming['y'] = -Ftiming['Sst-IRES-Cre'] + Ftiming['Vip-IRES-Cre']
     Nvisual['y'] = -Nvisual['Sst-IRES-Cre'] + Nvisual['Vip-IRES-Cre']
     Ntiming['y'] = -Ntiming['Sst-IRES-Cre'] + Ntiming['Vip-IRES-Cre']
-    Fvisual['y_sem'] = np.sum([Fvisual['Sst-IRES-Cre_sem'],Fvisual['Vip-IRES-Cre_sem']],axis=0)
-    Ftiming['y_sem'] = np.sum([Ftiming['Sst-IRES-Cre_sem'],Ftiming['Vip-IRES-Cre_sem']],axis=0)
-    Nvisual['y_sem'] = np.sum([Nvisual['Sst-IRES-Cre_sem'],Nvisual['Vip-IRES-Cre_sem']],axis=0)
-    Ntiming['y_sem'] = np.sum([Ntiming['Sst-IRES-Cre_sem'],Ntiming['Vip-IRES-Cre_sem']],axis=0)
+    Fvisual['y_sem'] = np.sqrt(np.sum([Fvisual['Sst-IRES-Cre_sem']**2,
+        Fvisual['Vip-IRES-Cre_sem']**2],axis=0))
+    Ftiming['y_sem'] = np.sqrt(np.sum([Ftiming['Sst-IRES-Cre_sem']**2,
+        Ftiming['Vip-IRES-Cre_sem']**2],axis=0))
+    Nvisual['y_sem'] = np.sqrt(np.sum([Nvisual['Sst-IRES-Cre_sem']**2,
+        Nvisual['Vip-IRES-Cre_sem']**2],axis=0))
+    Ntiming['y_sem'] = np.sqrt(np.sum([Ntiming['Sst-IRES-Cre_sem']**2,
+        Ntiming['Vip-IRES-Cre_sem']**2],axis=0))
     return Fvisual, Ftiming, Nvisual, Ntiming
 
 def plot_perturbation(weights_df, run_params, kernel,savefig=False,lims = None,show_steps=False):

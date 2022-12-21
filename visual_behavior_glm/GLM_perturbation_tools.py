@@ -8,7 +8,7 @@ from scipy.spatial import ConvexHull as ch
 from mpl_toolkits.axes_grid1 import Divider, Size
 
 def analysis(weights_beh, run_params, kernel,experience_level='Familiar',savefig=False,
-    lims=None):
+    lims=[[-.0005,.002],[-.015,.03]]):
 
     # Plot 1D summaries
     out1 = gst.strategy_kernel_comparison(weights_beh.query('visual_strategy_session'),
@@ -409,6 +409,9 @@ def plot_perturbation(weights_df, run_params, kernel,experience_level="Familiar"
     #ax.legend() 
     ax.axhline(0,color='k',linestyle='--',alpha=.25)
     ax.axvline(0,color='k',linestyle='--',alpha=.25)
+    if lims is not None:
+        ax.set_xlim(lims[0])
+        ax.set_ylim(lims[1])
     plt.tight_layout()
     
     if savefig:

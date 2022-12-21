@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.GLM_strategy_tools as gst
+import visual_behavior_glm.PSTH as psth
 import os
 from scipy.spatial import ConvexHull as ch
 from mpl_toolkits.axes_grid1 import Divider, Size
@@ -420,20 +421,32 @@ def plot_perturbation(weights_df, run_params, kernel,experience_level="Familiar"
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
 
-def plot_perturbation_3D(weights_df,run_params, kernel, session='Familiar'):
+def plot_perturbation_3D(weights_df,run_params, kernel, session='Familiar',savefig=False):
     visual = get_kernel_averages(weights_df.query('visual_strategy_session'), 
         run_params, kernel, session_filter=[session])
     timing = get_kernel_averages(weights_df.query('not visual_strategy_session'), 
         run_params, kernel, session_filter=[session])
+    time = visual['time']
+    offset=0
+    multiimage = kernel in ['hits','misses','omissions']
+    if multiimage:
+        pi= np.where(time > (.75+offset))[0][0]
+        pi2 = np.where(time > (1.5+offset))[0][0]
+    if time[-1] > 2.25:
+        pi3 = np.where(time > 2.25)[0][0]
+    else:
+        pi3 = len(time)
+
+
     ax = plt.figure().add_subplot(projection='3d')
-    ax.plot(visual['Slc17a7-IRES2-Cre'],
-        visual['Sst-IRES-Cre'], 
-        visual['Vip-IRES-Cre'],
+    ax.plot(visual['Slc17a7-IRES2-Cre'][0:pi3],
+        visual['Sst-IRES-Cre'][0:pi3], 
+        visual['Vip-IRES-Cre'][0:pi3],
         color='darkorange',
         linewidth=3)
-    ax.plot(timing['Slc17a7-IRES2-Cre'],
-        timing['Sst-IRES-Cre'], 
-        timing['Vip-IRES-Cre'],
+    ax.plot(timing['Slc17a7-IRES2-Cre'][0:pi3],
+        timing['Sst-IRES-Cre'][0:pi3], 
+        timing['Vip-IRES-Cre'][0:pi3],
         color='blue',
         linewidth=3)
     ax.set_xlabel('Exc',fontsize=16)
@@ -442,7 +455,17 @@ def plot_perturbation_3D(weights_df,run_params, kernel, session='Familiar'):
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)
     ax.zaxis.set_tick_params(labelsize=12)
-
+    ax.view_init(elev=15,azim=-115)
+    ax.set_xlim(-.00045,.00095)
+    ax.set_ylim(-.0055,.012)
+    ax.set_zlim(-.0035,.022)
+    plt.tight_layout()
+ 
+    if savefig:
+        filepath = run_params['figure_dir']+\
+            '/strategy/'+kernel+'_strategy_perturbation_3D_{}.svg'.format(session)
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath) 
 
 def get_average_kernels_inner(df):
     '''
@@ -462,5 +485,122 @@ def get_average_kernels_inner(df):
         df_norm[:] = np.nan
     
     return df_norm.mean(axis=0),df_norm.std(axis=0)/np.sqrt(np.shape(df_norm)[0])
+
+
+def plot_PSTH_2D(dfs,labels,condition):
+    traces = get_PSTH_2D_traces(dfs,labels,condition)
+
+    fig,ax =plt.subplots()
+    plt.plot(traces['visual_Exc'],traces['visual_y'],color='darkorange',lw=3)
+    plt.plot(traces['timing_Exc'],traces['timing_y'],color='blue',lw=3)
+
+    ax.set_ylabel('Vip - Sst',fontsize=16)
+    ax.set_xlabel('Exc',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)  
+    ax.axhline(0,color='k',linestyle='--',alpha=.25)
+    ax.axvline(0,color='k',linestyle='--',alpha=.25)
+
+def plot_PSTH_2D(dfs,labels, condition, run_params, 
+        experience_level="Familiar",savefig=True):
+    traces = get_PSTH_2D_traces(dfs,labels,condition,
+        experience_level=experience_level)
+    fig,ax = plt.subplots()
+    colors = gvt.project_colors()
+    ax.plot(traces['time'],traces['visual_Exc'],
+        color=colors['slc'],lw=3)
+    ax.plot(traces['time'],traces['visual_Vip'],
+        color=colors['vip'],lw=3)
+    ax.plot(traces['time'],traces['visual_Sst'],
+        color=colors['sst'],lw=3)
+
+
+    omitted = 'omission' in condition
+    change = (not omitted) and (('change' in condition) or \
+        ('hit' in condition) or ('miss' in condition))
+    timestamps = traces['time']
+    psth.plot_flashes_on_trace(ax, timestamps, 
+        change=change, omitted=omitted)
+    ax.set_xlabel('time from {} (s)'.format(condition),fontsize=16)
+    ax.set_ylabel(condition+' response\n(Ca$^{2+}$ events)',
+        fontsize=16)
+    ax.set_ylim(bottom=0)
+    ax.set_xlim(timestamps[0],timestamps[-1])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    plt.tight_layout()
+
+def plot_PSTH_3D(dfs,labels, condition,run_params, experience_level="Familiar",savefig=True):
+    traces = get_PSTH_2D_traces(dfs,labels,condition,experience_level=experience_level)
+    
+    ax = plt.figure().add_subplot(projection='3d')
+    ax.plot(traces['visual_Exc'],
+        traces['visual_Sst'], 
+        traces['visual_Vip'],
+        color='darkorange',
+        linewidth=3)
+    ax.plot(traces['timing_Exc'],
+        traces['timing_Sst'], 
+        traces['timing_Vip'],
+        color='blue',
+        linewidth=3)
+    ax.set_xlabel('Exc',fontsize=16)
+    ax.set_ylabel('Sst',fontsize=16)
+    ax.set_zlabel('Vip',fontsize=16)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.zaxis.set_tick_params(labelsize=12)
+    ax.set_zlim(bottom=0)
+    ax.set_xlim(left=0.001)
+    ax.set_ylim(bottom=0)
+    ax.view_init(elev=15,azim=-115)
+
+    if savefig:
+        filepath = run_params['figure_dir']+\
+            '/strategy/'+condition+'_strategy_perturbation_PSTH_3D_{}.svg'.format(experience_level)
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath) 
+
+def get_PSTH_2D_traces(dfs,labels,condition,experience_level="Familiar"):
+    
+    traces={}
+    for index, label in enumerate(labels):
+        traces['visual_'+label[0:3]] = dfs[index]\
+            .query('(visual_strategy_session)&'\
+            +'(experience_level==@experience_level)&'\
+            +'(condition==@condition)')['response'].mean()
+        traces['timing_'+label[0:3]] = dfs[index]\
+            .query('(not visual_strategy_session)&'\
+            +'(experience_level==@experience_level)&'\
+            +'(condition==@condition)')['response'].mean()
+    traces['visual_y'] = traces['visual_Vip']-traces['visual_Sst']
+    traces['timing_y'] = traces['timing_Vip']-traces['timing_Sst']
+    traces['time'] = dfs[0].query('condition ==@condition').iloc[0]['time']
+    return traces
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

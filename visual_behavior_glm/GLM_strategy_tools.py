@@ -289,8 +289,12 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, drop_threshold=0,
         post_horz_offset = 2.5
         vertical_offset = .75
         fig = plt.figure(figsize=(width,height))
-        h = [Size.Fixed(pre_horz_offset),\
-            Size.Fixed(width-pre_horz_offset-post_horz_offset)]
+        if kernel == 'all_images':
+            h = [Size.Fixed(pre_horz_offset),\
+                Size.Fixed((width-pre_horz_offset-post_horz_offset)/3*.75)]     
+        else:
+            h = [Size.Fixed(pre_horz_offset),\
+                Size.Fixed(width-pre_horz_offset-post_horz_offset)]
         v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         ax = fig.add_axes(divider.get_position(),\

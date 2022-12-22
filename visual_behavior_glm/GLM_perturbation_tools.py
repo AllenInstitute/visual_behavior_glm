@@ -17,17 +17,32 @@ def analysis(weights_beh, run_params, kernel,experience_level='Familiar',savefig
     out2 =gst.strategy_kernel_comparison(weights_beh.query('not visual_strategy_session'),
         run_params, kernel,session_filter=[experience_level])
 
+    out3 = gst.strategy_kernel_comparison(weights_beh.query('visual_strategy_session'),
+        run_params, 'all-images',session_filter=[experience_level])
+    out4 =gst.strategy_kernel_comparison(weights_beh.query('not visual_strategy_session'),
+        run_params, 'all-images',session_filter=[experience_level])
+
     # Unify ylimits and add time markers
     ylim1 = out1[2].get_ylim()
     ylim2 = out2[2].get_ylim()
-    ylim = [np.min([ylim1[0],ylim2[0]]), \
-        np.max([ylim1[1],ylim2[1]])]
+    ylim3 = out3[2].get_ylim()
+    ylim4 = out4[2].get_ylim()
+    ylim = [np.min([ylim1[0],ylim2[0],ylim3[0],ylim4[0]]), \
+        np.max([ylim1[1],ylim2[1],ylim3[1],ylim4[1]])]
+
     out1[2].set_ylim(ylim)
     out2[2].set_ylim(ylim)
+    out3[2].set_ylim(ylim)
+    out4[2].set_ylim(ylim)
     out1[2].set_ylabel(kernel+' kernel\n(Ca$^{2+}$ events)',fontsize=16)
     out2[2].set_ylabel(kernel+' kernel\n(Ca$^{2+}$ events)',fontsize=16)
+    out3[2].set_ylabel('image kernel\n(Ca$^{2+}$ events)',fontsize=16)
+    out4[2].set_ylabel('image kernel\n(Ca$^{2+}$ events)',fontsize=16)
+
     out1[2].set_title('Visual',fontsize=16)
     out2[2].set_title('Timing',fontsize=16)
+    out3[2].set_title('Visual',fontsize=16)
+    out4[2].set_title('Timing',fontsize=16)
     if kernel =='omissions':
         out1[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
         out2[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
@@ -56,6 +71,14 @@ def analysis(weights_beh, run_params, kernel,experience_level='Familiar',savefig
             '/strategy/'+kernel+'_timing_comparison_{}.svg'.format(experience_level)
         print('Figure saved to: '+filepath)
         out2[1].savefig(filepath) 
+        filepath = run_params['figure_dir']+\
+            '/strategy/images_visual_comparison_{}.svg'.format(experience_level)
+        print('Figure saved to: '+filepath)
+        out3[1].savefig(filepath) 
+        filepath = run_params['figure_dir']+\
+            '/strategy/images_timing_comparison_{}.svg'.format(experience_level)
+        print('Figure saved to: '+filepath)
+        out4[1].savefig(filepath) 
 
     return ax 
 
@@ -487,21 +510,25 @@ def get_average_kernels_inner(df):
     return df_norm.mean(axis=0),df_norm.std(axis=0)/np.sqrt(np.shape(df_norm)[0])
 
 
-def plot_PSTH_2D(dfs,labels,condition):
+def plot_PSTH_2D_1(dfs,labels,condition):
     traces = get_PSTH_2D_traces(dfs,labels,condition)
 
     fig,ax =plt.subplots()
-    plt.plot(traces['visual_Exc'],traces['visual_y'],color='darkorange',lw=3)
-    plt.plot(traces['timing_Exc'],traces['timing_y'],color='blue',lw=3)
+    ts = np.where(traces['time'] >=-.750)[0]
+    plt.plot(traces['visual_Exc'][ts],traces['visual_y'][ts],color='darkorange',lw=3)
+    plt.plot(traces['timing_Exc'][ts],traces['timing_y'][ts],color='blue',lw=3)
 
     ax.set_ylabel('Vip - Sst',fontsize=16)
     ax.set_xlabel('Exc',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
-    ax.yaxis.set_tick_params(labelsize=12)  
+    ax.yaxis.set_tick_params(labelsize=12) 
+    ax.set_xlim( 0,0.008)
+    ax.set_ylim(-0.027,0.045)
     ax.axhline(0,color='k',linestyle='--',alpha=.25)
     ax.axvline(0,color='k',linestyle='--',alpha=.25)
+    plt.tight_layout()
 
 def plot_PSTH_2D(dfs,labels, condition, run_params, 
         experience_level="Familiar",savefig=True):
@@ -538,14 +565,15 @@ def plot_PSTH_3D(dfs,labels, condition,run_params, experience_level="Familiar",s
     traces = get_PSTH_2D_traces(dfs,labels,condition,experience_level=experience_level)
     
     ax = plt.figure().add_subplot(projection='3d')
-    ax.plot(traces['visual_Exc'],
-        traces['visual_Sst'], 
-        traces['visual_Vip'],
+    ts = np.where(traces['time'] >=0)[0]
+    ax.plot(traces['visual_Exc'][ts],
+        traces['visual_Sst'][ts], 
+        traces['visual_Vip'][ts],
         color='darkorange',
         linewidth=3)
-    ax.plot(traces['timing_Exc'],
-        traces['timing_Sst'], 
-        traces['timing_Vip'],
+    ax.plot(traces['timing_Exc'][ts],
+        traces['timing_Sst'][ts], 
+        traces['timing_Vip'][ts],
         color='blue',
         linewidth=3)
     ax.set_xlabel('Exc',fontsize=16)

@@ -122,7 +122,7 @@ def kernels_by_cre(weights_beh, run_params, kernel='omissions',
             image_set=image_set,equipment_filter=equipment_filter,
             depth_filter=depth_filter) 
         ax.set_title(string_mapper(cre),fontsize=16)
-        ax.set_ylabel(kernel+' weights\nCa$^{2+}$ events',fontsize=16)
+        ax.set_ylabel(kernel+' weights\n(Ca$^{2+}$ events)',fontsize=16)
        
         ylim=ax.get_ylim()
         ax.set_ylim(ylim) 

@@ -46,9 +46,12 @@ def analysis(weights_beh, run_params, kernel,experience_level='Familiar',savefig
     if kernel =='omissions':
         out1[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
         out2[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
-    elif kernel in ['hits','misses']:
+    elif kernel =='hits':
         out1[2].plot(0,ylim[0],'ro',zorder=10,clip_on=False)
         out2[2].plot(0,ylim[0],'ro',zorder=10,clip_on=False)
+    elif kernel == 'misses':
+        out1[2].plot(0,ylim[0],'rx',zorder=10,clip_on=False)
+        out2[2].plot(0,ylim[0],'rx',zorder=10,clip_on=False)
     else:
         out1[2].plot(0,ylim[0],'ko',zorder=10,clip_on=False)
         out2[2].plot(0,ylim[0],'ko',zorder=10,clip_on=False)
@@ -407,9 +410,12 @@ def plot_perturbation(weights_df, run_params, kernel,experience_level="Familiar"
     if kernel =='omissions':
         ax.plot(visual['Slc17a7-IRES2-Cre'][0],visual['y'][0],'co')
         ax.plot(timing['Slc17a7-IRES2-Cre'][0],timing['y'][0],'co')
-    elif kernel in ['hits','misses']:
+    elif kernel == 'hits':
         ax.plot(visual['Slc17a7-IRES2-Cre'][0],visual['y'][0],'ro')
         ax.plot(timing['Slc17a7-IRES2-Cre'][0],timing['y'][0],'ro')
+    elif kernel == 'misses':
+        ax.plot(visual['Slc17a7-IRES2-Cre'][0],visual['y'][0],'rx')
+        ax.plot(timing['Slc17a7-IRES2-Cre'][0],timing['y'][0],'rx')
     else:
         ax.plot(visual['Slc17a7-IRES2-Cre'][0],visual['y'][0],'ko')
         ax.plot(timing['Slc17a7-IRES2-Cre'][0],timing['y'][0],'ko')
@@ -429,6 +435,7 @@ def plot_perturbation(weights_df, run_params, kernel,experience_level="Familiar"
         ax.set_xlabel('Exc',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
+    ax.set_xticks([0,.001, .002])
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)  
     if not multi:

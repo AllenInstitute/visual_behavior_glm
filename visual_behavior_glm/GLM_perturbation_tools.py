@@ -286,6 +286,9 @@ def plot_iterative_ch(ax,df,color,show_steps=False):
         show_steps (bool) if True, plot the convex hull rather than fill it. 
     '''
 
+    if color == 'lightgray':
+        color=(.875,.875,.875)
+
     for index, row in df.iterrows():
         if index ==0:
             pass

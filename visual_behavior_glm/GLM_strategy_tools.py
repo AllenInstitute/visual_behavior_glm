@@ -89,6 +89,62 @@ def plot_kernels_by_strategy_by_session(weights_beh, run_params, ym='omissions',
         filename = ym+'_by_'+filter_sessions_on+'_'+cre_line
         save_figure(fig,run_params['version'], ym, filename)
 
+def kernels_by_cre(weights_beh, run_params, kernel='omissions',
+    compare=['strategy_labels'],equipment_filter='all',area_filter=['VISp','VISl'],
+    sessions=['Familiar'], image_set='familiar',filter_sessions_on='experience_level',
+    savefig=False, sharey=False, depth_filter=[0,1000]):
+     
+    cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    for dex, cre in enumerate(cres):
+        height = 4
+        width=8
+        pre_horz_offset = 1.5
+        post_horz_offset = 2.5
+        vertical_offset = .75
+        fig = plt.figure(figsize=(width,height))
+        if kernel == 'all_images':
+            h = [Size.Fixed(pre_horz_offset),\
+                Size.Fixed((width-pre_horz_offset-post_horz_offset)/3*.75)]     
+        else:
+            h = [Size.Fixed(pre_horz_offset),\
+                Size.Fixed(width-pre_horz_offset-post_horz_offset)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax = fig.add_axes(divider.get_position(),\
+            axes_locator=divider.new_locator(nx=1,ny=1))  
+     
+        show_legend = dex == len(cres) - 1
+        out = strategy_kernel_comparison(weights_beh, run_params, kernel, 
+            threshold=0, drop_threshold = 0, 
+            session_filter = sessions, cell_filter = cre,area_filter=area_filter, 
+            compare=compare, plot_errors=True,save_kernels=False,ax=ax,
+            show_legend=show_legend,filter_sessions_on=filter_sessions_on,
+            image_set=image_set,equipment_filter=equipment_filter,
+            depth_filter=depth_filter) 
+        ax.set_title(string_mapper(cre),fontsize=16)
+        ax.set_ylabel(kernel+' weights\n(Ca$^{2+}$ events)',fontsize=16)
+       
+        ylim=ax.get_ylim()
+        ax.set_ylim(ylim) 
+        if kernel =='omissions':
+            out[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
+        elif kernel =='hits':
+            out[2].plot(0,ylim[0],'ro',zorder=10,clip_on=False)
+        elif kernel == 'misses':
+            out[2].plot(0,ylim[0],'rx',zorder=10,clip_on=False)
+        else:
+            out[2].plot(0,ylim[0],'ko',zorder=10,clip_on=False)
+        if kernel in ['omissions','hits','misses']:
+            out[2].plot(.75,ylim[0],'ko',zorder=10,clip_on=False)
+            out[2].plot(1.5,ylim[0],'o',color='gray',zorder=10,clip_on=False)
+
+        if savefig:
+            #filename = kernel+'_by_cre_line_'+'_'.join(compare)+'_'+equipment_filter
+            filename = kernel+'_'+cre+'_by_strategy'
+            save_figure(fig,run_params['version'], kernel, filename)
+    return ax 
+
+
 
 def compare_cre_kernels(weights_beh, run_params, ym='omissions',
     compare=['strategy_labels'],equipment_filter='all',area_filter=['VISp','VISl'],
@@ -289,8 +345,12 @@ def strategy_kernel_comparison(weights_df, run_params, kernel, drop_threshold=0,
         post_horz_offset = 2.5
         vertical_offset = .75
         fig = plt.figure(figsize=(width,height))
-        h = [Size.Fixed(pre_horz_offset),\
-            Size.Fixed(width-pre_horz_offset-post_horz_offset)]
+        if kernel == 'all_images':
+            h = [Size.Fixed(pre_horz_offset),\
+                Size.Fixed((width-pre_horz_offset-post_horz_offset)/3*.75)]     
+        else:
+            h = [Size.Fixed(pre_horz_offset),\
+                Size.Fixed(width-pre_horz_offset-post_horz_offset)]
         v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         ax = fig.add_axes(divider.get_position(),\

@@ -39,10 +39,10 @@ def analysis(weights_beh, run_params, kernel,experience_level='Familiar',savefig
     out3[2].set_ylabel('image kernel\n(Ca$^{2+}$ events)',fontsize=16)
     out4[2].set_ylabel('image kernel\n(Ca$^{2+}$ events)',fontsize=16)
 
-    out1[2].set_title('Visual',fontsize=16)
-    out2[2].set_title('Timing',fontsize=16)
-    out3[2].set_title('Visual',fontsize=16)
-    out4[2].set_title('Timing',fontsize=16)
+    out1[2].set_title('Visual strategy',fontsize=16)
+    out2[2].set_title('Timing strategy',fontsize=16)
+    out3[2].set_title('Visual strategy',fontsize=16)
+    out4[2].set_title('Timing strategy',fontsize=16)
     if kernel =='omissions':
         out1[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
         out2[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)
@@ -520,11 +520,11 @@ def get_average_kernels_inner(df):
     return df_norm.mean(axis=0),df_norm.std(axis=0)/np.sqrt(np.shape(df_norm)[0])
 
 
-def plot_PSTH_2D_1(dfs,labels,condition):
+def plot_PSTH_perturbation(dfs,labels,condition,min_time=0):
     traces = get_PSTH_2D_traces(dfs,labels,condition)
 
     fig,ax =plt.subplots()
-    ts = np.where(traces['time'] >=-.750)[0]
+    ts = np.where(traces['time'] >=min_time)[0]
     plt.plot(traces['visual_Exc'][ts],traces['visual_y'][ts],color='darkorange',lw=3)
     plt.plot(traces['timing_Exc'][ts],traces['timing_y'][ts],color='blue',lw=3)
 
@@ -540,39 +540,60 @@ def plot_PSTH_2D_1(dfs,labels,condition):
     ax.axvline(0,color='k',linestyle='--',alpha=.25)
     plt.tight_layout()
 
-def plot_PSTH_2D(dfs,labels, condition, run_params, 
-        experience_level="Familiar",savefig=True):
+def plot_PSTH_2D(dfs,labels, condition, strategy, run_params, 
+        experience_level="Familiar",savefig=True,times=[-.75,2]):
     traces = get_PSTH_2D_traces(dfs,labels,condition,
         experience_level=experience_level)
-    fig,ax = plt.subplots()
+
+    stamps = np.where((traces['time']>= times[0])&(traces['time'] <=times[-1]))[0]
+    time = traces['time'][stamps]
+
+    height = 4
+    width=8
+    pre_horz_offset = 1.5
+    post_horz_offset = 2.5
+    vertical_offset = .75
+    fig = plt.figure(figsize=(width,height))
+    duration = time[-1] -time[0] 
+    h = [Size.Fixed(pre_horz_offset),\
+        Size.Fixed((width-pre_horz_offset-post_horz_offset)\
+        /3*duration)]     
+    v = [Size.Fixed(vertical_offset),
+        Size.Fixed(height-vertical_offset-.5)]
+    divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+    ax = fig.add_axes(divider.get_position(),\
+        axes_locator=divider.new_locator(nx=1,ny=1))  
+
     colors = gvt.project_colors()
-    ax.plot(traces['time'],traces['visual_Exc'],
-        color=colors['slc'],lw=3)
-    ax.plot(traces['time'],traces['visual_Vip'],
-        color=colors['vip'],lw=3)
-    ax.plot(traces['time'],traces['visual_Sst'],
-        color=colors['sst'],lw=3)
+    ax.plot(time,traces[strategy+'_Exc'][stamps],
+        color=colors['slc'],lw=4)
+    ax.plot(time,traces[strategy+'_Vip'][stamps],
+        color=colors['vip'],lw=4)
+    ax.plot(time,traces[strategy+'_Sst'][stamps],
+        color=colors['sst'],lw=4)
 
 
     omitted = 'omission' in condition
     change = (not omitted) and (('change' in condition) or \
         ('hit' in condition) or ('miss' in condition))
-    timestamps = traces['time']
-    psth.plot_flashes_on_trace(ax, timestamps, 
+    psth.plot_flashes_on_trace(ax, time, 
         change=change, omitted=omitted)
     ax.set_xlabel('time from {} (s)'.format(condition),fontsize=16)
     ax.set_ylabel(condition+' response\n(Ca$^{2+}$ events)',
         fontsize=16)
     ax.set_ylim(bottom=0)
-    ax.set_xlim(timestamps[0],timestamps[-1])
+    ax.set_xlim(time[0],time[-1])
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)
-    plt.tight_layout()
+    ax.set_title(strategy+' strategy',fontsize=16)
+    return ax
 
-def plot_PSTH_3D(dfs,labels, condition,run_params, experience_level="Familiar",savefig=True):
-    traces = get_PSTH_2D_traces(dfs,labels,condition,experience_level=experience_level)
+def plot_PSTH_3D(dfs,labels, condition,run_params, 
+    experience_level="Familiar",savefig=True):
+    traces = get_PSTH_2D_traces(dfs,labels,condition,
+        experience_level=experience_level)
     
     ax = plt.figure().add_subplot(projection='3d')
     ts = np.where(traces['time'] >=0)[0]
@@ -620,8 +641,25 @@ def get_PSTH_2D_traces(dfs,labels,condition,experience_level="Familiar"):
     traces['time'] = dfs[0].query('condition ==@condition').iloc[0]['time']
     return traces
 
+def PSTH_analysis(dfs, labels,condition, run_params, 
+    experience_level="Familiar",savefig=False):
+   
+    # add time markers
+    # line width?
+    # ylims
+    # xlims for image
+    # error bars on 2D 
+    ax1= plot_PSTH_2D(dfs,labels, condition,'visual',run_params, 
+        experience_level,savefig)
+    ax2= plot_PSTH_2D(dfs,labels, condition,'timing',run_params, 
+        experience_level,savefig)
 
+    ylim = np.max([ax1.get_ylim()[1], ax2.get_ylim()[1]])
+    ax1.set_ylim(0,ylim)
+    ax2.set_ylim(0,ylim)
 
+    plot_PSTH_perturbation(dfs,labels, condition)
+    
 
 
 

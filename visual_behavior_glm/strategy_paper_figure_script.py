@@ -106,6 +106,10 @@ psth.engagement_running_responses(vip_omission, 'omission',
     vis_boots=boot_omission_visual,
     tim_boots=boot_omission_timing, plot_list=['timing'])
 
+## Fig 6
+################################################################################
+gpt.analysis(weights_beh, run_params, 'omissions')
+gst.kernels_by_cre(weights_beh, run_params)
 
 
 

@@ -321,26 +321,25 @@ def plot_condition_engagement(full_df, condition,experience_level='Familiar',
     colors = gvt.project_colors()    
     responses = []
 
-
     condition1 = 'engaged_'+version+'_'+condition    
-    df = full_df.query('(condition ==@condition1)&(experience_level ==@experience_level)&(targeted_structure in @areas)&({} in @depths)'.format(depth))
-    r = plot_split(df.query('visual_strategy_session'),ax,color=colors['visual'],
-        error_type=error_type)
-    responses.append(r)
+    df = full_df.query('(condition ==@condition1)&(experience_level ==@experience_level)'+\
+        '&(targeted_structure in @areas)&({} in @depths)'.format(depth))
     r = plot_split(df.query('not visual_strategy_session'),ax,color=colors['timing'],
         error_type=error_type)
     responses.append(r)
-
-    condition2 = 'disengaged_v2_'+condition    
-    df = full_df.query('(condition ==@condition2)&(experience_level ==@experience_level)&(targeted_structure in @areas)&({} in @depths)'.format(depth))
-    r = plot_split(df.query('visual_strategy_session'),ax,color='bisque',
+    r = plot_split(df.query('visual_strategy_session'),ax,color=colors['visual'],
         error_type=error_type)
     responses.append(r)
+
+    condition2 = 'disengaged_'+version+'_'+condition    
+    df = full_df.query('(condition ==@condition2)&(experience_level ==@experience_level)'+\
+        '&(targeted_structure in @areas)&({} in @depths)'.format(depth))
     r = plot_split(df.query('not visual_strategy_session'),ax,color='lightblue',
         error_type=error_type)
     responses.append(r)
-
-
+    r = plot_split(df.query('visual_strategy_session'),ax,color='burlywood',
+        error_type=error_type)
+    responses.append(r)
 
     # Annotate figure
     omitted = 'omission' in condition
@@ -425,12 +424,12 @@ def plot_condition_experience(full_df, condition, experience_level, split,
 
     return np.max([ax.get_ylim()[1],np.nanmax(responses)])
 
-def plot_split(df, ax,color,error_type = 'sem'):
+def plot_split(df, ax,color,error_type = 'sem',lw=2):
     # Plot mean
     x = np.vstack(df['response'].values)
     time =df['time'].mean()
     response = np.nanmean(x,axis=0)
-    ax.plot(time,response,color=color,linewidth=2)
+    ax.plot(time,response,color=color,linewidth=lw)
  
     # plot uncertainty
     if error_type == 'sem':
@@ -1130,7 +1129,7 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
 
     evis_color = 'darkorange'
     etim_color = 'blue'
-    dvis_color = 'bisque'
+    dvis_color = 'burlywood'
     dtim_color = 'lightblue'
     evis_label = 'engaged visual strategy'
     etim_label = 'engaged timing strategy'

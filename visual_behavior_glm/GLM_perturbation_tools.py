@@ -524,8 +524,167 @@ def get_average_kernels_inner(df):
     return df_norm.mean(axis=0),df_norm.std(axis=0)/np.sqrt(np.shape(df_norm)[0])
 
 
+def plot_PSTH_perturbation_diff(dfs,labels,condition,min_time=-.75,
+    run_params=None,savefig=False,experience_level="Familiar",
+    x='Exc',y='y'):
+    traces = get_PSTH_2D_traces(dfs,labels,condition)
+    traces['diff_Exc'] = traces['visual_Exc'] - traces['timing_Exc']
+    traces['diff_Sst'] = traces['visual_Sst'] - traces['timing_Sst']
+    traces['diff_Vip'] = traces['visual_Vip'] - traces['timing_Vip']
+    traces['diff_y'] = traces['visual_y'] - traces['timing_y']
+
+    height = 4
+    width=5.25
+    pre_horz_offset = 2
+    post_horz_offset = .5
+    vertical_offset = .75
+    fig = plt.figure(figsize=(width,height))
+    h = [Size.Fixed(pre_horz_offset),\
+        Size.Fixed((width-pre_horz_offset-post_horz_offset))]     
+    v = [Size.Fixed(vertical_offset),
+        Size.Fixed(height-vertical_offset-.5)]
+    divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+    ax = fig.add_axes(divider.get_position(),\
+        axes_locator=divider.new_locator(nx=1,ny=1))  
+
+    ts = np.where(traces['time'] >=min_time)[0]
+    ax.plot(traces['diff_'+x][ts],traces['diff_'+y][ts],
+        color='k',lw=3) 
+
+    p1 = np.where(traces['time'] == 0)[0]
+    p2 = np.argmin(np.abs(traces['time'] - .75)) 
+    p3 = np.where(traces['time'] == 1.5)[0]
+    if condition == 'omission':
+        ax.plot(traces['diff_'+x][p1], traces['diff_'+y][p1],
+        'co',zorder=10)
+    elif condition == 'hit':
+        ax.plot(traces['diff_'+x][p1], traces['diff_'+y][p1],
+        'ro',zorder=10)
+    elif condition == 'miss':
+        ax.plot(traces['diff_'+x][p1], traces['diff_'+y][p1],
+        'rx',zorder=10)
+    if condition in ['omission','hit','miss']: 
+        ax.plot(traces['diff_'+x][p2], traces['diff_'+y][p2],
+        'ko',zorder=10)
+        ax.plot(traces['diff_'+x][p3], traces['diff_'+y][p3],
+        'o',color='gray',zorder=10)
+    if condition =='image':
+        ax.plot(traces['diff_'+x][p1], traces['diff_'+y][p1],
+        'ko',zorder=10)
+        ax.plot(traces['diff_'+x][p2], traces['diff_'+y][p2],
+        'ko',zorder=10)
+        ax.plot(traces['diff_'+x][p3], traces['diff_'+y][p3],
+        'ko',zorder=10)
+
+
+    if y == 'y':
+        ax.set_ylabel('Vip - Sst',fontsize=16)
+    else:
+        ax.set_ylabel(y,fontsize=16)
+    ax.set_xlabel(x,fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    #if (x=='Exc'):
+    #    if condition in ['hit','miss']:
+    #        ax.set_xlim(0,.008)
+    #    if condition in ['image','omission']:
+    #        ax.set_xlim( 0,0.004)
+    #if y=='y':
+    #    ax.set_ylim(-0.03,0.045)
+    ax.axhline(0,color='k',linestyle='--',alpha=.25)
+    ax.axvline(0,color='k',linestyle='--',alpha=.25)
+    ax.set_title(condition,fontsize=16)
+    if savefig:
+        filepath = run_params['figure_dir']+\
+            '/strategy/'+condition+'_strategy_perturbation_PSTH_2D_diff_{}_{}_{}.svg'.format(experience_level,x,y)
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath) 
+    return ax
+
+def plot_PSTH_2D_diff(dfs,labels, condition, run_params, 
+        experience_level="Familiar",savefig=True,times=[-.75,2]):
+
+    traces = get_PSTH_2D_traces(dfs,labels,condition,
+        experience_level=experience_level)
+    traces['diff_Exc'] = traces['visual_Exc'] - traces['timing_Exc']
+    traces['diff_Sst'] = traces['visual_Sst'] - traces['timing_Sst']
+    traces['diff_Vip'] = traces['visual_Vip'] - traces['timing_Vip']
+    traces['diff_y'] = traces['visual_y'] - traces['timing_y']
+    x = np.vstack([traces['diff_Exc'],traces['diff_Sst'],traces['diff_Vip']])
+    vec = [1,-1,1]
+    vec = vec/np.linalg.norm(vec)
+    #traces['diff_magnitude'] = np.linalg.norm(x,axis=0)
+    traces['diff_magnitude'] = vec @ x 
+
+    stamps = np.where((traces['time']>= times[0])&\
+        (traces['time'] <=times[-1]))[0]
+    time = traces['time'][stamps]
+
+    height = 4
+    width=8
+    pre_horz_offset = 1.5
+    post_horz_offset = 2.5
+    vertical_offset = .75
+    fig = plt.figure(figsize=(width,height))
+    duration = time[-1] -time[0] 
+    h = [Size.Fixed(pre_horz_offset),\
+        Size.Fixed((width-pre_horz_offset-post_horz_offset)\
+        /3*duration)]     
+    v = [Size.Fixed(vertical_offset),
+        Size.Fixed(height-vertical_offset-.5)]
+    divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+    ax = fig.add_axes(divider.get_position(),\
+        axes_locator=divider.new_locator(nx=1,ny=1))  
+
+    colors = gvt.project_colors()
+    ax.plot(time,traces['diff_magnitude'][stamps],
+        color='k',lw=4)
+
+    omitted = 'omission' in condition
+    change = (not omitted) and (('change' in condition) or \
+        ('hit' in condition) or ('miss' in condition))
+    psth.plot_flashes_on_trace(ax, time, 
+        change=change, omitted=omitted)
+    ax.set_xlabel('time from {} (s)'.format(condition),fontsize=16)
+    ax.set_ylabel(condition+' response\n(Ca$^{2+}$ events)',
+        fontsize=16)
+    ax.set_ylim(-.004,.0225)
+    ax.set_xlim(time[0],time[-1])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    #ax.set_title(strategy+' strategy',fontsize=16)
+
+
+    if condition =='omission':
+        ax.plot(0,0,'co',zorder=10,clip_on=False)
+    elif condition =='hit':
+        ax.plot(0,0,'ro',zorder=10,clip_on=False)
+    elif condition == 'miss':
+        ax.plot(0,0,'rx',zorder=10,clip_on=False)
+    else:
+        ax.plot(0,0,'ko',zorder=10,clip_on=False)
+    if condition in ['omission','hit','miss']:
+        ax.plot(.75,0,'ko',zorder=10,clip_on=False)
+        ax.plot(1.5,0,'o',color='gray',zorder=10,clip_on=False)
+
+    if savefig:
+        filepath = run_params['figure_dir']+\
+            '/strategy/'+condition+'_strategy_perturbation_PSTH_diff_{}_{}.svg'.format(strategy, experience_level)
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath) 
+    return ax
+
+
+
+
+
 def plot_PSTH_perturbation(dfs,labels,condition,min_time=-.75,
-    run_params=None,savefig=False,experience_level="Familiar"):
+    run_params=None,savefig=False,experience_level="Familiar",
+    x='Exc',y='y'):
     traces = get_PSTH_2D_traces(dfs,labels,condition)
 
     height = 4
@@ -543,55 +702,75 @@ def plot_PSTH_perturbation(dfs,labels,condition,min_time=-.75,
         axes_locator=divider.new_locator(nx=1,ny=1))  
 
     ts = np.where(traces['time'] >=min_time)[0]
-    ax.plot(traces['visual_Exc'][ts],traces['visual_y'][ts],
+    ax.plot(traces['visual_'+x][ts],traces['visual_'+y][ts],
         color='darkorange',lw=3)
-    ax.plot(traces['timing_Exc'][ts],traces['timing_y'][ts],
+    ax.plot(traces['timing_'+x][ts],traces['timing_'+y][ts],
         color='blue',lw=3)
 
     p1 = np.where(traces['time'] == 0)[0]
     p2 = np.argmin(np.abs(traces['time'] - .75)) 
     p3 = np.where(traces['time'] == 1.5)[0]
     if condition == 'omission':
-        ax.plot(traces['visual_Exc'][p1], traces['visual_y'][p1],
+        ax.plot(traces['visual_'+x][p1], traces['visual_'+y][p1],
         'co',zorder=10)
-        ax.plot(traces['timing_Exc'][p1], traces['timing_y'][p1],
+        ax.plot(traces['timing_'+x][p1], traces['timing_'+y][p1],
         'co',zorder=10)
     elif condition == 'hit':
-        ax.plot(traces['visual_Exc'][p1], traces['visual_y'][p1],
+        ax.plot(traces['visual_'+x][p1], traces['visual_'+y][p1],
         'ro',zorder=10)
-        ax.plot(traces['timing_Exc'][p1], traces['timing_y'][p1],
+        ax.plot(traces['timing_'+x][p1], traces['timing_'+y][p1],
         'ro',zorder=10)
     elif condition == 'miss':
-        ax.plot(traces['visual_Exc'][p1], traces['visual_y'][p1],
+        ax.plot(traces['visual_'+x][p1], traces['visual_'+y][p1],
         'rx',zorder=10)
-        ax.plot(traces['timing_Exc'][p1], traces['timing_y'][p1],
+        ax.plot(traces['timing_'+x][p1], traces['timing_'+y][p1],
         'rx',zorder=10)
     if condition in ['omission','hit','miss']: 
-        ax.plot(traces['visual_Exc'][p2], traces['visual_y'][p2],
+        ax.plot(traces['visual_'+x][p2], traces['visual_'+y][p2],
         'ko',zorder=10)
-        ax.plot(traces['timing_Exc'][p2], traces['timing_y'][p2],
+        ax.plot(traces['timing_'+x][p2], traces['timing_'+y][p2],
         'ko',zorder=10)
-        ax.plot(traces['visual_Exc'][p3], traces['visual_y'][p3],
+        ax.plot(traces['visual_'+x][p3], traces['visual_'+y][p3],
         'o',color='gray',zorder=10)
-        ax.plot(traces['timing_Exc'][p3], traces['timing_y'][p3],
+        ax.plot(traces['timing_'+x][p3], traces['timing_'+y][p3],
         'o',color='gray',zorder=10)
-    ax.set_ylabel('Vip - Sst',fontsize=16)
-    ax.set_xlabel('Exc',fontsize=16)
+    if condition =='image':
+        ax.plot(traces['visual_'+x][p1], traces['visual_'+y][p1],
+        'ko',zorder=10)
+        ax.plot(traces['timing_'+x][p1], traces['timing_'+y][p1],
+        'ko',zorder=10)   
+        ax.plot(traces['visual_'+x][p2], traces['visual_'+y][p2],
+        'ko',zorder=10)
+        ax.plot(traces['timing_'+x][p2], traces['timing_'+y][p2],
+        'ko',zorder=10)   
+        ax.plot(traces['visual_'+x][p3], traces['visual_'+y][p3],
+        'ko',zorder=10)
+        ax.plot(traces['timing_'+x][p3], traces['timing_'+y][p3],
+        'ko',zorder=10)   
+
+
+    if y == 'y':
+        ax.set_ylabel('Vip - Sst',fontsize=16)
+    else:
+        ax.set_ylabel(y,fontsize=16)
+    ax.set_xlabel(x,fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)
-    if condition in ['hit','miss']:
-        ax.set_xlim(0,.008)
-    if condition in ['image','omission']:
-        ax.set_xlim( 0,0.004)
-    ax.set_ylim(-0.03,0.045)
+    if (x=='Exc'):
+        if condition in ['hit','miss']:
+            ax.set_xlim(0,.008)
+        if condition in ['image','omission']:
+            ax.set_xlim( 0,0.004)
+    if y=='y':
+        ax.set_ylim(-0.03,0.045)
     ax.axhline(0,color='k',linestyle='--',alpha=.25)
     ax.axvline(0,color='k',linestyle='--',alpha=.25)
     ax.set_title(condition,fontsize=16)
     if savefig:
         filepath = run_params['figure_dir']+\
-            '/strategy/'+condition+'_strategy_perturbation_PSTH_2D_{}.svg'.format(experience_level)
+            '/strategy/'+condition+'_strategy_perturbation_PSTH_2D_{}_{}_{}.svg'.format(experience_level,x,y)
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
     return ax
@@ -672,7 +851,7 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
         experience_level=experience_level)
     
     ax = plt.figure().add_subplot(projection='3d')
-    ts = np.where(traces['time'] >=0)[0]
+    ts = np.where((traces['time'] >=0)&(traces['time']<=.75))[0]
     ax.plot(traces['visual_Exc'][ts],
         traces['visual_Sst'][ts], 
         traces['visual_Vip'][ts],
@@ -683,6 +862,28 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
         traces['timing_Vip'][ts],
         color='blue',
         linewidth=3)
+
+    p1 = np.where(traces['time'] == 0)[0]
+    p2 = np.argmin(np.abs(traces['time'] - .75)) 
+    p3 = np.where(traces['time'] == 1.5)[0]
+    ax.plot(traces['visual_Exc'][p1],
+        traces['visual_Sst'][p1], 
+        traces['visual_Vip'][p1],
+        'ko')
+    ax.plot(traces['timing_Exc'][p1],
+        traces['timing_Sst'][p1], 
+        traces['timing_Vip'][p1],
+        'ko')
+    ax.plot(traces['visual_Exc'][p1+1],
+        traces['visual_Sst'][p1+1], 
+        traces['visual_Vip'][p1+1],
+        'kx')
+    ax.plot(traces['timing_Exc'][p1+1],
+        traces['timing_Sst'][p1+1], 
+        traces['timing_Vip'][p1+1],
+        'kx')
+
+
     ax.set_xlabel('Exc',fontsize=16)
     ax.set_ylabel('Sst',fontsize=16)
     ax.set_zlabel('Vip',fontsize=16)

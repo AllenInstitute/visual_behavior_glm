@@ -35,6 +35,11 @@ vip_omission = psth.load_omission_df(summary_df,cre='Vip-IRES-Cre',data='events'
 psth.plot_summary_bootstrap_omission_strategy(vip_omission,'vip',first=False,
     second=False)
 
+# Post-omission EXC
+# Post-omission Sst
+sst_post_omission = psth.load_image_df(summary_df,'Sst-IRES-Cre',first=True,second=False)
+sst_post_omission = sst_post_omission.query('post_omitted_1')
+
 # Determine significance for Exc hit/miss
 bootstrap = psth.get_summary_bootstrap_strategy_hit(data='events',cell_type = 'exc',
     first=True, second=False)
@@ -43,6 +48,8 @@ bootstrap = psth.get_summary_bootstrap_strategy_hit(data='events',cell_type = 'e
 sst_change = psth.load_change_df(summary_df, cre='Sst-IRES-Cre',data='events',
    first=False, second=True)
 psth.plot_summary_bootstrap_strategy_hit(sst_change,'sst',first=False, second=True)
+
+
 
 
 ## Fig. 4E - Running VIP control Omission

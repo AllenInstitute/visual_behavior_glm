@@ -1218,7 +1218,7 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
         plt.savefig(filename) 
 
 def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False):
+    first=True,second=False,post=False):
 
     df['group'] = df['visual_strategy_session'].astype(str)
     mapper = {
@@ -1234,6 +1234,8 @@ def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,ce
         filepath += '_first'
     if second:
         filepath += '_second'
+    if post:
+        filepath += '_post'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -1241,7 +1243,7 @@ def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,ce
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,savefig=False):
+    first=True,second=False,post=False):
 
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
         +'_omission_strategy_summary_'+str(nboots)
@@ -1249,6 +1251,8 @@ def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type
         filepath += '_first'
     if second:
         filepath += '_second'
+    if post:
+        filepath += '_post'
     filepath = filepath+'.feather'
 
     if os.path.isfile(filepath):
@@ -1261,10 +1265,10 @@ def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type
         print('file not found')
 
 def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False):
+    nboots=10000,first=True, second=False,post=False):
     
     bootstrap = get_summary_bootstrap_omission_strategy(data, nboots,cell_type,
-        first,second)   
+        first,second,post)   
  
     fig,ax = plt.subplots(figsize=(3,2.75))
     visual_mean = df.query('visual_strategy_session')['response'].mean()
@@ -1310,6 +1314,8 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
             filepath += '_first'
         if second:
             filepath += '_second'
+        if post:
+            filepath += '_post'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)

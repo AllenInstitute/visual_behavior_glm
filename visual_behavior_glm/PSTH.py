@@ -1217,7 +1217,7 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
-def compute_summary_bootstrap_strategy(df,data='events',nboots=10000,cell_type='exc',
+def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,cell_type='exc',
     first=True,second=False):
 
     df['group'] = df['visual_strategy_session'].astype(str)
@@ -1240,13 +1240,17 @@ def compute_summary_bootstrap_strategy(df,data='events',nboots=10000,cell_type='
         pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print('bootstrap saved to {}'.format(filepath)) 
 
-def get_summary_bootstrap_strategy(data='events',nboots=10000,cell_type='exc',first=True,second=False):
-    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_omission_strategy_summary_'+str(nboots)
+def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type='exc',
+    first=True,second=False):
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
+        +'_omission_strategy_summary_'+str(nboots)
     if first:
         filepath += '_first'
     if second:
         filepath += '_second'
     filepath = filepath+'.feather'
+
     if os.path.isfile(filepath):
         # Load this bin
         with open(filepath,'rb') as handle:
@@ -1255,7 +1259,40 @@ def get_summary_bootstrap_strategy(data='events',nboots=10000,cell_type='exc',fi
         return this_boot
     else:
         print('file not found')
- 
+
+def plot_summary_bootstrap_omission_strategy(bootstrap,cell_type,savefig=False,
+    data='events',nboots=10000):
+    
+    fig,ax = plt.subplots(figsize=(3,2.75))
+    visual_sem = np.std(bootstrap['visual'])
+    visual_mean = np.mean(bootstrap['visual']) ## I should use the actual data for this
+    timing_sem = np.std(bootstrap['timing'])
+    timing_mean = np.mean(bootstrap['timing']) ## I should use the actual data for this
+    ax.plot(0, visual_mean,'o',color='darkorange')
+    ax.plot(1,timing_mean,'o',color='blue')
+    ax.plot([0,0],[visual_mean-visual_sem,visual_mean+visual_sem],'-',color='darkorange')
+    ax.plot([1,1],[timing_mean-timing_sem,timing_mean+timing_sem],'-',color='blue')
+
+    ax.set_ylabel(cell_type+' \n(avg. Ca$^{2+}$ events)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_xticks([0,1])
+    ax.set_xticklabels(['Vis.','Tim.'],fontsize=16)
+    ax.set_xlim(-.5,1.5)
+    ax.set_ylim(bottom=0)
+    
+    p = bootstrap_significance(bootstrap, 'visual','timing')
+    if p < 0.05:
+        ylim = ax.get_ylim()[1]
+        plt.plot([0,1],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([0,0],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([1,1],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    plt.tight_layout()   
 
 def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_type='exc',
     first=True,second=False):

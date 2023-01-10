@@ -1241,7 +1241,7 @@ def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,ce
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False):
+    first=True,second=False,savefig=False):
 
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
         +'_omission_strategy_summary_'+str(nboots)
@@ -1260,20 +1260,30 @@ def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type
     else:
         print('file not found')
 
-def plot_summary_bootstrap_omission_strategy(bootstrap,cell_type,savefig=False,
-    data='events',nboots=10000):
+def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='events',
+    nboots=10000,first=True, second=False):
     
+    bootstrap = get_summary_bootstrap_omission_strategy(data, nboots,cell_type,
+        first,second)   
+ 
     fig,ax = plt.subplots(figsize=(3,2.75))
+    visual_mean = df.query('visual_strategy_session')['response'].mean()
+    timing_mean = df.query('not visual_strategy_session')['response'].mean()
     visual_sem = np.std(bootstrap['visual'])
-    visual_mean = np.mean(bootstrap['visual']) ## I should use the actual data for this
     timing_sem = np.std(bootstrap['timing'])
-    timing_mean = np.mean(bootstrap['timing']) ## I should use the actual data for this
     ax.plot(0, visual_mean,'o',color='darkorange')
     ax.plot(1,timing_mean,'o',color='blue')
     ax.plot([0,0],[visual_mean-visual_sem,visual_mean+visual_sem],'-',color='darkorange')
     ax.plot([1,1],[timing_mean-timing_sem,timing_mean+timing_sem],'-',color='blue')
 
-    ax.set_ylabel(cell_type+' \n(avg. Ca$^{2+}$ events)',fontsize=16)
+    mapper={
+        'exc':'Excitatory',
+        'sst':'Sst Inhibitory',
+        'vip':'Vip Inhibitory'
+        }
+    nice_cell =mapper[cell_type] 
+
+    ax.set_ylabel(nice_cell+' \n(avg. Ca$^{2+}$ events)',fontsize=16)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
@@ -1293,6 +1303,16 @@ def plot_summary_bootstrap_omission_strategy(bootstrap,cell_type,savefig=False,
         ax.set_ylim(top=ylim*1.2)
 
     plt.tight_layout()   
+
+    if savefig:
+        filepath = PSTH_DIR + data +'/summary/'+cell_type+'_omission_strategy_summary_'+str(nboots)
+        if first:
+            filepath += '_first'
+        if second:
+            filepath += '_second'
+        filepath = filepath+'.svg'
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath)
 
 def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_type='exc',
     first=True,second=False):

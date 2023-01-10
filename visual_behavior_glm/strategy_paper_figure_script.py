@@ -23,10 +23,11 @@ gsm.strategy_paper_ophys_example(session, cell_id, time)
 dfs = psth.get_figure_4_psth(data='events')
 psth.plot_figure_4_averages(dfs, data='events')
 
-# Determine significance
-boot = psth.get_summary_bootstrap_strategy(cell_type='sst',first=False, second=True)
-psth.bootstrap_significance(boot,'visual','timing')
-psth.plot_summary_bootstrap_omission_strategy(boot,'sst')
+# Determine significance for SST omission
+sst_omission = psth.load_omission_df(summary_df,cre='Sst-IRES-Cre',data='events',
+    second=False, first=True)
+psth.plot_summary_bootstrap_omission_strategy(sst_omission,'sst',first=False,
+    second=True)
 
 ## Fig. 4E - Running VIP control Omission
 ################################################################################

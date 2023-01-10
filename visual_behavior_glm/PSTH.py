@@ -1298,7 +1298,7 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
     ax.set_ylim(bottom=0)
     
     p = bootstrap_significance(bootstrap, 'visual','timing')
-    if p < 0.05:
+    if (p < 0.05) or(p>.95):
         ylim = ax.get_ylim()[1]
         plt.plot([0,1],[ylim*1.1,ylim*1.1],'k-')
         plt.plot([0,0],[ylim*1.05,ylim*1.1],'k-')
@@ -1408,7 +1408,7 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
     ax.set_ylim(bottom=0)
     
     p = bootstrap_significance(bootstrap, 'visual_hit','timing_hit')
-    if p < 0.05:
+    if (p < 0.05) or (p >.95):
         ylim = ax.get_ylim()[1]
         plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
         plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
@@ -1417,7 +1417,7 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
         ax.set_ylim(top=ylim*1.2)
 
     p = bootstrap_significance(bootstrap, 'visual_hit','visual_miss')
-    if p < 0.05:
+    if (p < 0.05) or (p >.95):
         ylim = ax.get_ylim()[1]
         plt.plot([-.05,.05],[ylim*1.1,ylim*1.1],'k-')
         plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')

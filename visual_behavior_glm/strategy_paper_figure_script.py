@@ -25,9 +25,25 @@ psth.plot_figure_4_averages(dfs, data='events')
 
 # Determine significance for SST omission
 sst_omission = psth.load_omission_df(summary_df,cre='Sst-IRES-Cre',data='events',
-    second=False, first=True)
+    first=False, second=True)
 psth.plot_summary_bootstrap_omission_strategy(sst_omission,'sst',first=False,
     second=True)
+
+# Determine significance for VIP omission
+vip_omission = psth.load_omission_df(summary_df,cre='Vip-IRES-Cre',data='events',
+    second=False, first=False)
+psth.plot_summary_bootstrap_omission_strategy(vip_omission,'vip',first=False,
+    second=False)
+
+# Determine significance for Exc hit/miss
+bootstrap = psth.get_summary_bootstrap_strategy_hit(data='events',cell_type = 'exc',
+    first=True, second=False)
+
+# Determine significance for Sst hit/miss
+sst_change = psth.load_change_df(summary_df, cre='Sst-IRES-Cre',data='events',
+   first=False, second=True)
+psth.plot_summary_bootstrap_strategy_hit(sst_change,'sst',first=False, second=True)
+
 
 ## Fig. 4E - Running VIP control Omission
 ################################################################################

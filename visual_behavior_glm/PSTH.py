@@ -1354,7 +1354,86 @@ def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc
         return this_boot
     else:
         print('file not found')
+   
+def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events',
+    nboots=10000,first=True, second=False):
     
+    bootstrap = get_summary_bootstrap_strategy_hit(data, nboots,cell_type,
+        first,second)   
+ 
+    fig,ax = plt.subplots(figsize=(3,2.75))
+    visual_hit_mean = df.query('(visual_strategy_session)&(hit==1)')['response'].mean()
+    visual_miss_mean = df.query('(visual_strategy_session)&(hit==0)')['response'].mean()
+    timing_hit_mean = df.query('(not visual_strategy_session)&(hit==1)')['response'].mean()
+    timing_miss_mean = df.query('(not visual_strategy_session)&(hit==0)')['response'].mean()
+    visual_hit_sem = np.std(bootstrap['visual_hit'])
+    timing_hit_sem = np.std(bootstrap['timing_hit'])
+    visual_miss_sem = np.std(bootstrap['visual_miss'])
+    timing_miss_sem = np.std(bootstrap['timing_miss'])
+
+    plt.plot(-.05,visual_hit_mean,'o',color='darkorange',label='visual hit')
+    plt.plot(0.05,visual_miss_mean,'x',color='darkorange',label='visual miss')
+    plt.plot(.95, timing_hit_mean,'o',color='blue',label='timing hit')
+    plt.plot(1.05,timing_miss_mean,'x',color='blue',label='timing mis')
+    plt.plot([-.05,-0.05],[visual_hit_mean-visual_hit_sem,visual_hit_mean+visual_hit_sem],
+        '-',color='darkorange')
+    plt.plot([.05,0.05],[visual_miss_mean-visual_miss_sem,visual_miss_mean+visual_miss_sem],
+        '-',color='darkorange')
+    plt.plot([.95,.95],[timing_hit_mean-timing_hit_sem,timing_hit_mean+timing_hit_sem],
+        '-',color='blue')
+    plt.plot([1.05,1.05],[timing_miss_mean-timing_miss_sem,timing_miss_mean+timing_miss_sem],
+        '-',color='blue')
+
+    mapper={
+        'exc':'Excitatory',
+        'sst':'Sst Inhibitory',
+        'vip':'Vip Inhibitory'
+        }
+    nice_cell =mapper[cell_type] 
+
+    ax.set_ylabel(nice_cell+' \n(avg. Ca$^{2+}$ events)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_xticks([0,1])
+    ax.set_xticklabels(['Vis.','Tim.'],fontsize=16)
+    ax.set_xlim(-.5,1.5)
+    ax.set_ylim(bottom=0)
+    
+    p = bootstrap_significance(bootstrap, 'visual_hit','timing_hit')
+    if p < 0.05:
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'visual_hit','visual_miss')
+    if p < 0.05:
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    plt.tight_layout()   
+
+    if savefig:
+        filepath = PSTH_DIR + data +'/summary/'+cell_type+'_hit_strategy_summary_'+str(nboots)
+        if first:
+            filepath += '_first'
+        if second:
+            filepath += '_second'
+        filepath = filepath+'.svg'
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath)
+
+
+
+ 
 def bootstrap_significance(bootstrap, k1, k2):
     diff = np.array(bootstrap[k1]) - np.array(bootstrap[k2])
     p = np.sum(diff >= 0)/len(diff)

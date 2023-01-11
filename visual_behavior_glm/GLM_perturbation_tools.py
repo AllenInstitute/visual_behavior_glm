@@ -556,7 +556,7 @@ def plot_PSTH_perturbation_diff(dfs,labels,condition,min_time=-.75,
     p3 = np.where(traces['time'] == 1.5)[0]
     if condition == 'omission':
         ax.plot(traces['diff_'+x][p1], traces['diff_'+y][p1],
-        'co',zorder=10)
+        'co',zorder=10,markersize=40)
     elif condition == 'hit':
         ax.plot(traces['diff_'+x][p1], traces['diff_'+y][p1],
         'ro',zorder=10)
@@ -565,9 +565,9 @@ def plot_PSTH_perturbation_diff(dfs,labels,condition,min_time=-.75,
         'rx',zorder=10)
     if condition in ['omission','hit','miss']: 
         ax.plot(traces['diff_'+x][p2], traces['diff_'+y][p2],
-        'ko',zorder=10)
+        'ko',zorder=10,markersize=30)
         ax.plot(traces['diff_'+x][p3], traces['diff_'+y][p3],
-        'o',color='gray',zorder=10)
+        'o',color='gray',zorder=10,markersize=10)
     if condition =='image':
         ax.plot(traces['diff_'+x][p1], traces['diff_'+y][p1],
         'ko',zorder=10)
@@ -712,28 +712,28 @@ def plot_PSTH_perturbation(dfs,labels,condition,min_time=-.75,
     p3 = np.where(traces['time'] == 1.5)[0]
     if condition == 'omission':
         ax.plot(traces['visual_'+x][p1], traces['visual_'+y][p1],
-        'co',zorder=10)
+        'co',zorder=10,markersize=8)
         ax.plot(traces['timing_'+x][p1], traces['timing_'+y][p1],
-        'co',zorder=10)
+        'co',zorder=10,ms=8)
     elif condition == 'hit':
         ax.plot(traces['visual_'+x][p1], traces['visual_'+y][p1],
-        'ro',zorder=10)
+        'ro',zorder=10,ms=8)
         ax.plot(traces['timing_'+x][p1], traces['timing_'+y][p1],
-        'ro',zorder=10)
+        'ro',zorder=10,ms=8)
     elif condition == 'miss':
         ax.plot(traces['visual_'+x][p1], traces['visual_'+y][p1],
-        'rx',zorder=10)
+        'rx',zorder=10,ms=8)
         ax.plot(traces['timing_'+x][p1], traces['timing_'+y][p1],
-        'rx',zorder=10)
+        'rx',zorder=10,ms=8)
     if condition in ['omission','hit','miss']: 
         ax.plot(traces['visual_'+x][p2], traces['visual_'+y][p2],
-        'ko',zorder=10)
+        'ko',zorder=10,ms=8)
         ax.plot(traces['timing_'+x][p2], traces['timing_'+y][p2],
-        'ko',zorder=10)
+        'ko',zorder=10,ms=8)
         ax.plot(traces['visual_'+x][p3], traces['visual_'+y][p3],
-        'o',color='gray',zorder=10)
+        'o',color='gray',zorder=10,ms=8)
         ax.plot(traces['timing_'+x][p3], traces['timing_'+y][p3],
-        'o',color='gray',zorder=10)
+        'o',color='gray',zorder=10,ms=8)
     if condition =='image':
         ax.plot(traces['visual_'+x][p1], traces['visual_'+y][p1],
         'ko',zorder=10)
@@ -827,16 +827,16 @@ def plot_PSTH_2D(dfs,labels, condition, strategy, run_params,
 
 
     if condition =='omission':
-        ax.plot(0,0,'co',zorder=10,clip_on=False)
+        ax.plot(0,0,'co',zorder=10,clip_on=False,ms=8)
     elif condition =='hit':
-        ax.plot(0,0,'ro',zorder=10,clip_on=False)
+        ax.plot(0,0,'ro',zorder=10,clip_on=False,ms=8)
     elif condition == 'miss':
-        ax.plot(0,0,'rx',zorder=10,clip_on=False)
+        ax.plot(0,0,'rx',zorder=10,clip_on=False,ms=8)
     else:
-        ax.plot(0,0,'ko',zorder=10,clip_on=False)
+        ax.plot(0,0,'ko',zorder=10,clip_on=False,ms=8)
     if condition in ['omission','hit','miss']:
-        ax.plot(.75,0,'ko',zorder=10,clip_on=False)
-        ax.plot(1.5,0,'o',color='gray',zorder=10,clip_on=False)
+        ax.plot(.75,0,'ko',zorder=10,clip_on=False,ms=8)
+        ax.plot(1.5,0,'o',color='gray',zorder=10,clip_on=False,ms=8)
 
     if savefig:
         filepath = run_params['figure_dir']+\

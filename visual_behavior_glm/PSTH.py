@@ -1270,7 +1270,7 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
     bootstrap = get_summary_bootstrap_omission_strategy(data, nboots,cell_type,
         first,second,post)   
  
-    fig,ax = plt.subplots(figsize=(3,2.75))
+    fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_mean = df.query('visual_strategy_session')['response'].mean()
     timing_mean = df.query('not visual_strategy_session')['response'].mean()
     visual_sem = np.std(bootstrap['visual'])
@@ -1320,6 +1320,138 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
 
+def compute_summary_bootstrap_strategy_pre_change(df,data='events',nboots=10000,cell_type='exc',
+    first=True,second=False):
+
+    df = df.query('(pre_hit_1 ==1)or(pre_miss_1==1)').copy()
+    df['group'] = df['visual_strategy_session'].astype(str)+df['pre_hit_1'].astype(str)
+    mapper = {
+        'True1.0':'visual_hit',
+        'True0.0':'visual_miss',
+        'False1.0':'timing_hit',
+        'False0.0':'timing_miss',
+    }
+    df['group'] = [mapper[x] for x in df['group']]
+    bootstrap = hb.bootstrap(df, levels=['group','ophys_experiment_id','cell_specimen_id'],
+        nboots=nboots)
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_pre_change_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    if second:
+        filepath += '_second'
+    filepath = filepath+'.feather'
+
+    with open(filepath,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bootstrap saved to {}'.format(filepath)) 
+
+def get_summary_bootstrap_strategy_pre_change(data='events',nboots=10000,cell_type='exc',
+    first=True,second=False):
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_pre_change_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    if second:
+        filepath += '_second'
+    filepath = filepath+'.feather'
+    if os.path.isfile(filepath):
+        # Load this bin
+        with open(filepath,'rb') as handle:
+            this_boot = pickle.load(handle)
+        print('loading from file')
+        return this_boot
+    else:
+        print('file not found')
+  
+def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='events',
+    nboots=10000,first=True, second=False):
+   
+    df = df.query('(pre_hit_1 ==1)or(pre_miss_1==1)').copy()
+    bootstrap = get_summary_bootstrap_strategy_pre_change(data, nboots,cell_type,
+        first,second)   
+ 
+    fig,ax = plt.subplots(figsize=(2.5,2.75))
+    visual_hit_mean = df.query('(visual_strategy_session)&(pre_hit_1==1)')['response'].mean()
+    visual_miss_mean = df.query('(visual_strategy_session)&(pre_hit_1==0)')['response'].mean()
+    timing_hit_mean = df.query('(not visual_strategy_session)&(pre_hit_1==1)')['response'].mean()
+    timing_miss_mean = df.query('(not visual_strategy_session)&(pre_hit_1==0)')['response'].mean()
+    visual_hit_sem = np.std(bootstrap['visual_hit'])
+    timing_hit_sem = np.std(bootstrap['timing_hit'])
+    visual_miss_sem = np.std(bootstrap['visual_miss'])
+    timing_miss_sem = np.std(bootstrap['timing_miss'])
+
+    plt.plot(-.05,visual_hit_mean,'o',color='darkorange',label='visual hit')
+    plt.plot(0.05,visual_miss_mean,'x',color='darkorange',label='visual miss')
+    plt.plot(.95, timing_hit_mean,'o',color='blue',label='timing hit')
+    plt.plot(1.05,timing_miss_mean,'x',color='blue',label='timing mis')
+    plt.plot([-.05,-0.05],[visual_hit_mean-visual_hit_sem,visual_hit_mean+visual_hit_sem],
+        '-',color='darkorange')
+    plt.plot([.05,0.05],[visual_miss_mean-visual_miss_sem,visual_miss_mean+visual_miss_sem],
+        '-',color='darkorange')
+    plt.plot([.95,.95],[timing_hit_mean-timing_hit_sem,timing_hit_mean+timing_hit_sem],
+        '-',color='blue')
+    plt.plot([1.05,1.05],[timing_miss_mean-timing_miss_sem,timing_miss_mean+timing_miss_sem],
+        '-',color='blue')
+
+    mapper={
+        'exc':'Excitatory',
+        'sst':'Sst Inhibitory',
+        'vip':'Vip Inhibitory'
+        }
+    nice_cell =mapper[cell_type] 
+
+    ax.set_ylabel(nice_cell+' \n(avg. Ca$^{2+}$ events)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_xticks([0,1])
+    ax.set_xticklabels(['Vis.','Tim.'],fontsize=16)
+    ax.set_xlim(-.5,1.5)
+    ax.set_ylim(bottom=0)
+    
+    p = bootstrap_significance(bootstrap, 'visual_hit','timing_hit')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'visual_miss','timing_miss')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'visual_hit','visual_miss')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    plt.tight_layout()   
+
+    if savefig:
+        filepath = PSTH_DIR + data +'/summary/'+cell_type+'_pre_change_strategy_summary_'+str(nboots)
+        if first:
+            filepath += '_first'
+        if second:
+            filepath += '_second'
+        filepath = filepath+'.svg'
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath)
+
+
+ 
+
 def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_type='exc',
     first=True,second=False):
 
@@ -1367,7 +1499,7 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
     bootstrap = get_summary_bootstrap_strategy_hit(data, nboots,cell_type,
         first,second)   
  
-    fig,ax = plt.subplots(figsize=(3,2.75))
+    fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_hit_mean = df.query('(visual_strategy_session)&(hit==1)')['response'].mean()
     visual_miss_mean = df.query('(visual_strategy_session)&(hit==0)')['response'].mean()
     timing_hit_mean = df.query('(not visual_strategy_session)&(hit==1)')['response'].mean()
@@ -1553,6 +1685,15 @@ def plot_summary_bootstrap_strategy_engaged_miss(df,cell_type,savefig=False,data
         plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
         plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
         plt.plot(0,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'timing_engaged','timing_disengaged')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([.95,1.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([1.05,1.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(1,ylim*1.15, 'k*')
         ax.set_ylim(top=ylim*1.2)
 
     plt.tight_layout()   
@@ -2154,7 +2295,8 @@ def plot_exc_change_summary():
         .query('{}=={}'.format(depth, layer))\
         .set_index('hit')
 
-    plt.figure(figsize=(3,2.75))
+    #plt.figure(figsize=(3,2.75))
+    plt.figure(figsize=(2.5,2.75))
     plt.plot(-.05,visual.loc[1]['response'],'o',color='darkorange',label='visual hit')
     plt.plot(0.05,visual.loc[0]['response'],'x',color='darkorange',label='visual miss')
     plt.plot(.95,timing.loc[1]['response'],'o',color='blue',label='timing hit')
@@ -2170,7 +2312,7 @@ def plot_exc_change_summary():
 
     plt.plot(0,.012,'k*' )
     plt.ylim(0,.0125)
-    plt.xlim(-1,2)
+    plt.xlim(-.5,1.5)
     
     plt.ylabel('Excitatory \n(avg. Ca$^{2+}$ events)',fontsize=16)
     ax = plt.gca()

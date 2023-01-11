@@ -57,7 +57,10 @@ sst_change = psth.load_change_df(summary_df, cre='Sst-IRES-Cre',data='events',
    first=False, second=True)
 psth.plot_summary_bootstrap_strategy_hit(sst_change,'sst',first=False, second=True)
 
-
+# determine pre-change for Vip
+vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
+    first=False, second=True)
+psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False, second=True)
 
 
 ## Fig. 4E - Running VIP control Omission

@@ -1323,8 +1323,8 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
 def compute_summary_bootstrap_strategy_pre_change(df,data='events',nboots=10000,cell_type='exc',
     first=True,second=False):
 
-    df = df.query('(pre_hit ==1)or(pre_miss==1)').copy()
-    df['group'] = df['visual_strategy_session'].astype(str)+df['pre_hit'].astype(str)
+    df = df.query('(pre_hit_1 ==1)or(pre_miss_1==1)').copy()
+    df['group'] = df['visual_strategy_session'].astype(str)+df['pre_hit_1'].astype(str)
     mapper = {
         'True1.0':'visual_hit',
         'True0.0':'visual_miss',
@@ -1366,15 +1366,15 @@ def get_summary_bootstrap_strategy_pre_change(data='events',nboots=10000,cell_ty
 def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='events',
     nboots=10000,first=True, second=False):
    
-    df = df.query('(pre_hit ==1)or(pre_miss==1)').copy()
+    df = df.query('(pre_hit_1 ==1)or(pre_miss_1==1)').copy()
     bootstrap = get_summary_bootstrap_strategy_pre_change(data, nboots,cell_type,
         first,second)   
  
     fig,ax = plt.subplots(figsize=(3,2.75))
-    visual_hit_mean = df.query('(visual_strategy_session)&(pre_hit==1)')['response'].mean()
-    visual_miss_mean = df.query('(visual_strategy_session)&(pre_hit==0)')['response'].mean()
-    timing_hit_mean = df.query('(not visual_strategy_session)&(pre_hit==1)')['response'].mean()
-    timing_miss_mean = df.query('(not visual_strategy_session)&(pre_hit==0)')['response'].mean()
+    visual_hit_mean = df.query('(visual_strategy_session)&(pre_hit_1==1)')['response'].mean()
+    visual_miss_mean = df.query('(visual_strategy_session)&(pre_hit_1==0)')['response'].mean()
+    timing_hit_mean = df.query('(not visual_strategy_session)&(pre_hit_1==1)')['response'].mean()
+    timing_miss_mean = df.query('(not visual_strategy_session)&(pre_hit_1==0)')['response'].mean()
     visual_hit_sem = np.std(bootstrap['visual_hit'])
     timing_hit_sem = np.std(bootstrap['timing_hit'])
     visual_miss_sem = np.std(bootstrap['visual_miss'])

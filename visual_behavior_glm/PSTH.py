@@ -1270,7 +1270,7 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
     bootstrap = get_summary_bootstrap_omission_strategy(data, nboots,cell_type,
         first,second,post)   
  
-    fig,ax = plt.subplots(figsize=(3,2.75))
+    fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_mean = df.query('visual_strategy_session')['response'].mean()
     timing_mean = df.query('not visual_strategy_session')['response'].mean()
     visual_sem = np.std(bootstrap['visual'])
@@ -1370,7 +1370,7 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
     bootstrap = get_summary_bootstrap_strategy_pre_change(data, nboots,cell_type,
         first,second)   
  
-    fig,ax = plt.subplots(figsize=(3,2.75))
+    fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_hit_mean = df.query('(visual_strategy_session)&(pre_hit_1==1)')['response'].mean()
     visual_miss_mean = df.query('(visual_strategy_session)&(pre_hit_1==0)')['response'].mean()
     timing_hit_mean = df.query('(not visual_strategy_session)&(pre_hit_1==1)')['response'].mean()
@@ -1411,6 +1411,15 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
     ax.set_ylim(bottom=0)
     
     p = bootstrap_significance(bootstrap, 'visual_hit','timing_hit')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'visual_miss','timing_miss')
     if (p < 0.05) or (p >.95):
         ylim = ax.get_ylim()[1]
         plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
@@ -1490,7 +1499,7 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
     bootstrap = get_summary_bootstrap_strategy_hit(data, nboots,cell_type,
         first,second)   
  
-    fig,ax = plt.subplots(figsize=(3,2.75))
+    fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_hit_mean = df.query('(visual_strategy_session)&(hit==1)')['response'].mean()
     visual_miss_mean = df.query('(visual_strategy_session)&(hit==0)')['response'].mean()
     timing_hit_mean = df.query('(not visual_strategy_session)&(hit==1)')['response'].mean()
@@ -2286,7 +2295,8 @@ def plot_exc_change_summary():
         .query('{}=={}'.format(depth, layer))\
         .set_index('hit')
 
-    plt.figure(figsize=(3,2.75))
+    #plt.figure(figsize=(3,2.75))
+    plt.figure(figsize=(2.5,2.75))
     plt.plot(-.05,visual.loc[1]['response'],'o',color='darkorange',label='visual hit')
     plt.plot(0.05,visual.loc[0]['response'],'x',color='darkorange',label='visual miss')
     plt.plot(.95,timing.loc[1]['response'],'o',color='blue',label='timing hit')
@@ -2302,7 +2312,7 @@ def plot_exc_change_summary():
 
     plt.plot(0,.012,'k*' )
     plt.ylim(0,.0125)
-    plt.xlim(-1,2)
+    plt.xlim(-.5,1.5)
     
     plt.ylabel('Excitatory \n(avg. Ca$^{2+}$ events)',fontsize=16)
     ax = plt.gca()

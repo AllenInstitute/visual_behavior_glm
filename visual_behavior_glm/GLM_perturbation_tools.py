@@ -846,12 +846,16 @@ def plot_PSTH_2D(dfs,labels, condition, strategy, run_params,
     return ax
 
 def plot_PSTH_3D(dfs,labels, condition,run_params, 
-    experience_level="Familiar",savefig=True):
+    experience_level="Familiar",savefig=True,add_2D=True):
     traces = get_PSTH_2D_traces(dfs,labels,condition,
         experience_level=experience_level)
     
     ax = plt.figure().add_subplot(projection='3d')
-    ts = np.where((traces['time'] >=0)&(traces['time']<=.75))[0]
+    if condition == 'image':
+        ts = np.where((traces['time'] >=0)&(traces['time']<=.75))[0]
+    else:
+        ts = np.where(traces['time'] >=0)[0]
+
     ax.plot(traces['visual_Exc'][ts],
         traces['visual_Sst'][ts], 
         traces['visual_Vip'][ts],
@@ -863,26 +867,25 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
         color='blue',
         linewidth=3)
 
+    if add_2D:
+       ax.plot(traces['visual_Exc'][ts],traces['visual_Vip'][ts],zdir='y',color='burlywood')
+       ax.plot(traces['visual_Sst'][ts],traces['visual_Vip'][ts],zdir='x',color='burlywood') 
+       ax.plot(traces['visual_Exc'][ts],traces['visual_Sst'][ts],zdir='z',color='burlywood') 
+       ax.plot(traces['timing_Exc'][ts],traces['timing_Vip'][ts],zdir='y',color='lightsteelblue')
+       ax.plot(traces['timing_Sst'][ts],traces['timing_Vip'][ts],zdir='x',color='lightsteelblue') 
+       ax.plot(traces['timing_Exc'][ts],traces['timing_Sst'][ts],zdir='z',color='lightsteelblue') 
+
     p1 = np.where(traces['time'] == 0)[0]
     p2 = np.argmin(np.abs(traces['time'] - .75)) 
     p3 = np.where(traces['time'] == 1.5)[0]
     ax.plot(traces['visual_Exc'][p1],
         traces['visual_Sst'][p1], 
         traces['visual_Vip'][p1],
-        'ko')
+        'ko',ms=8)
     ax.plot(traces['timing_Exc'][p1],
         traces['timing_Sst'][p1], 
         traces['timing_Vip'][p1],
-        'ko')
-    ax.plot(traces['visual_Exc'][p1+1],
-        traces['visual_Sst'][p1+1], 
-        traces['visual_Vip'][p1+1],
-        'kx')
-    ax.plot(traces['timing_Exc'][p1+1],
-        traces['timing_Sst'][p1+1], 
-        traces['timing_Vip'][p1+1],
-        'kx')
-
+        'ko',ms=8)
 
     ax.set_xlabel('Exc',fontsize=16)
     ax.set_ylabel('Sst',fontsize=16)
@@ -891,9 +894,11 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
     ax.yaxis.set_tick_params(labelsize=12)
     ax.zaxis.set_tick_params(labelsize=12)
     ax.set_zlim(bottom=0)
-    ax.set_xlim(left=0.001)
+    ax.set_xlim(left=0)#left=0.001)
     ax.set_ylim(bottom=0)
-    ax.view_init(elev=15,azim=-115)
+    #ax.view_init(elev=15,azim=-115)
+    ax.view_init(elev=15,azim=35)
+
 
     if savefig:
         filepath = run_params['figure_dir']+\

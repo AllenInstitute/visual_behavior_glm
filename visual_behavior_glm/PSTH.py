@@ -1493,6 +1493,7 @@ def plot_summary_bootstrap_strategy_engaged_miss(df,cell_type,savefig=False,data
         first,second)   
  
     fig,ax = plt.subplots(figsize=(3,2.75))
+    df = df.query('miss==1').copy()
     visual_engaged_mean = df.query('(visual_strategy_session)&(engagement_v2)')['response'].mean()
     visual_disengaged_mean = df.query('(visual_strategy_session)&(not engagement_v2)')['response'].mean()
     timing_engaged_mean = df.query('(not visual_strategy_session)&(engagement_v2)')['response'].mean()

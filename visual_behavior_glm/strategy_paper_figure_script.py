@@ -116,6 +116,10 @@ psth.running_responses(exc_omission, 'omission',bootstraps=bootstraps_omission,c
 dfs = psth.get_figure_4_psth(data='events')
 psth.plot_engagement(dfs,data='events')
 
+exc_change = psth.load_change_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events')
+psth.plot_summary_bootstrap_strategy_engaged_miss(exc_change,cell_type='exc',
+    first=True, second=False,nboots=10000)
+
 ## Fig. 5B - Running VIP control image
 ################################################################################
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')

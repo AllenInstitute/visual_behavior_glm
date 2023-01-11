@@ -36,9 +36,17 @@ psth.plot_summary_bootstrap_omission_strategy(vip_omission,'vip',first=False,
     second=False)
 
 # Post-omission EXC
+exc_post_omission = psth.load_image_df(summary_df,'Slc17a7-IRES2-Cre',first=True,
+    second=False)
+exc_post_omission = exc_post_omission.query('post_omitted_1')
+psth.plot_summary_bootstrap_omission_strategy(exc_post_omission,'exc',first=True,
+    second=False,post=True)
+
 # Post-omission Sst
 sst_post_omission = psth.load_image_df(summary_df,'Sst-IRES-Cre',first=True,second=False)
 sst_post_omission = sst_post_omission.query('post_omitted_1')
+psth.plot_summary_bootstrap_omission_strategy(sst_post_omission,'sst',first=True,
+    second=False,post=True)
 
 # Determine significance for Exc hit/miss
 bootstrap = psth.get_summary_bootstrap_strategy_hit(data='events',cell_type = 'exc',

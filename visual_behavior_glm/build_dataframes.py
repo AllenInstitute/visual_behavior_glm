@@ -417,6 +417,10 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data,
     image_df['post_hit_1'] = image_df['hit'].shift(1)
     image_df['post_hit_2'] = image_df['hit'].shift(2)
 
+    # Add pre change
+    image_df['pre_miss_1'] = image_df['miss'].shift(-1)
+    image_df['pre_hit_1'] = image_df['hit'].shift(-1)
+
     # Add running speed
     if run_df is not None:
         image_df = pd.merge(image_df, run_df, on='stimulus_presentations_id')

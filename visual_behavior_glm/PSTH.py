@@ -1265,6 +1265,7 @@ def pre_change_running_responses(df, condition, cre='vip', bootstraps=None, save
         bin_width=5        
     elif condition =='image':
         bin_width=5
+    min_events=10
 
     fig, ax = plt.subplots(figsize=(3.75,2.75))
 
@@ -1286,7 +1287,7 @@ def pre_change_running_responses(df, condition, cre='vip', bootstraps=None, save
     # Remove running bins with less than 100 responses
     counts = df.groupby(['running_bins','visual_strategy_session'])\
         ['response'].count().unstack().reset_index()
-    counts['remove'] = [(row[False]<100)or(row[True]<100) for \
+    counts['remove'] = [(row[False]<min_events)or(row[True]<min_events) for \
         index, row in counts.iterrows()]
     counts['running_bin'] = counts['running_bins'].astype(int)
     if bootstraps is not None:

@@ -1084,6 +1084,101 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename)
 
+def pre_change_running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
+    data='events', strategy='visual_strategy_session'):
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5
+
+    fig, ax = plt.subplots(figsize=(3.75,2.75))
+
+    df = df.query(strategy).query('(pre_hit_1==1)or(pre_miss_1==1)').copy()
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+
+    split='pre_hit_1'
+    df['pre_hit_1'] = df['pre_hit_1'].astype(bool)
+    summary = df.groupby(['pre_hit_1','running_bins'])['response'].mean()\
+        .reset_index()
+    df1 = summary.query(split)
+    df2=  summary.query('not {}'.format(split))
+   
+    summary_sem = df.groupby([split,'running_bins'])['response'].sem()\
+        .reset_index()
+    df1_sem = summary_sem.query(split)
+    df2_sem = summary_sem.query('not {}'.format(split))
+
+    # Remove running bins with less than 100 responses
+    counts = df.groupby(['running_bins','visual_strategy_session'])\
+        ['response'].count().unstack().reset_index()
+    counts['remove'] = [(row[False]<100)or(row[True]<100) for \
+        index, row in counts.iterrows()]
+    counts['running_bin'] = counts['running_bins'].astype(int)
+    if bootstraps is not None:
+        bootstraps = pd.merge(bootstraps, counts[['running_bin','remove']],\
+            on='running_bin')
+
+    if strategy == 'visual_strategy_session':
+        hit_color = 'darkorange'
+        mis_color = 'darkorange'
+    else:
+        hit_color = 'blue'
+        mis_color = 'blue'
+    hit_label = 'pre hit'
+    mis_label = 'pre miss'
+    if bootstraps is not None:
+        vtemp = visual.set_index('running_bins')
+        ttemp = timing.set_index('running_bins')
+        bootstraps = bootstraps.set_index('running_bin')
+        for b in visual['running_bins'].unique():
+            plt.errorbar(b*bin_width, vtemp.loc[b].response,
+                yerr=bootstraps.loc[b]['visual_sem'],color=vis_color,fmt='o')   
+        for b in timing['running_bins'].unique():
+            plt.errorbar(b*bin_width, ttemp.loc[b].response,
+                yerr=bootstraps.loc[b]['timing_sem'],color=tim_color,fmt='o')     
+        plt.plot(visual.running_bins*bin_width, visual.response,'o',
+            color=vis_color,label=vis_label)
+        plt.plot(timing.running_bins*bin_width, timing.response,'o',
+            color=tim_color,label=tim_label)
+    else:
+        plt.errorbar(df1.running_bins*bin_width, df1.response,
+            yerr=df1_sem.response,color=hit_color,fmt='o',label=hit_label)
+        plt.errorbar(df2.running_bins*bin_width, df2.response,
+            yerr=df2_sem.response,color=mis_color,fmt='x',label=mis_label)
+    ax.set_ylabel(cre.capitalize()+' '+condition+'\n(avg. Ca$^{2+}$ events)',fontsize=16)
+    ax.set_xlabel('running speed (cm/s)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12) 
+
+    ax.set_ylim(0,.04)
+
+    if (bootstraps is not None) and ('bh_significant' in bootstraps.columns):
+        y =  ax.get_ylim()[1]*1.05
+        bootstraps = bootstraps.reset_index()
+        for index, row in bootstraps.iterrows():
+            if row.bh_significant:
+                if row.remove:
+                    print('Not significant b/c of low count: {}'.format(row.running_bin))
+                else:
+                    ax.plot(row.running_bin*bin_width, y, 'k*')  
+        ax.set_ylim(top=y*1.075)
+
+    ax.set_xlim(-1,61)
+    plt.legend()
+
+    plt.tight_layout() 
+
+    # Save fig
+    if savefig:
+        filename = PSTH_DIR + data+'/running/'+\
+            'pre_change_running_{}_familiar_{}.svg'.format(cre,strategy)
+        print('Figure saved to {}'.format(filename))
+        plt.savefig(filename)
+
+
+
 def engagement_running_responses(df, condition, cre='vip', vis_boots=None, 
     tim_boots=None, savefig=False, data='events', split='visual_strategy_session',
     plot_list=['visual','timing']):

@@ -810,6 +810,172 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
     return bootstraps
 
 
+def compute_pre_change_running_bootstrap_bin(df, condition, cell_type, strategy,
+    bin_num, nboots=10000, data='events'):
+
+    filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_pre_change_{}_{}'.format(strategy,bin_num))  
+    if os.path.isfile(filename):
+        print('Already computed {}'.format(bin_num))
+        return 
+
+    # Figure out bins
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5   
+
+    # Filter to strategy
+    if strategy == 'visual':
+        df = df.query('visual_strategy_session')\
+            .query('(pre_hit_1==1)or(pre_miss_1==1)').copy()
+    elif strategy == 'timing':
+        df = df.query('not visual_strategy_session')\
+            .query('(pre_hit_1==1)or(pre_miss_1==1)').copy()
+    else:
+        raise Exception('bad strategy')
+
+    df['pre_hit_1'] = df['pre_hit_1'].astype(bool)
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+    bins = np.sort(df['running_bins'].unique())  
+
+    # Check if any data 
+    if bin_num not in bins:
+        print('No data for this running bin')
+        return 
+   
+    # Compute bootstrap for this bin 
+    temp = df.query('running_bins == @bin_num')[['pre_hit_1',
+        'ophys_experiment_id','cell_specimen_id','response']]
+    means = hb.bootstrap(temp, levels=['pre_hit_1',
+        'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
+    if (True in means) & (False in means):
+        diff = np.array(means[True]) - np.array(means[False])
+        pboot = np.sum(diff<0)/len(diff)
+        pre_hit = np.std(means[True])
+        pre_miss = np.std(means[False])
+        pre_hit_mean = np.mean(means[True])
+        pre_miss_mean = np.mean(means[False])
+    else:
+        pboot = 0.5
+        if (True in means):
+            pre_hit = np.std(means[True])
+            pre_hit_mean = np.mean(means[True])
+        else:
+            pre_hit = 0 
+            pre_hit_mean=np.nan
+        if (False in means):
+            pre_miss = np.std(means[False])
+            pre_miss_mean = np.mean(means[False])
+        else:
+            pre_miss = 0 
+            pre_miss_mean= np.nan
+    bootstrap = {
+        'running_bin':bin_num,
+        'p_boot':pboot,
+        'pre_hit_sem':pre_hit,
+        'pre_miss_sem':pre_miss,
+        'pre_hit_mean':pre_hit_mean,
+        'pre_miss_mean':pre_miss_mean,
+        'n_boots':nboots,
+        }
+
+    # Save to file
+    filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_pre_change_{}_{}'.format(strategy,bin_num))
+    with open(filename,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bin saved to {}'.format(filename)) 
+
+
+
+def compute_pre_change_running_bootstrap(df,condition,cell_type,strategy,
+    nboots=10000,data='events',compute=True,split='pre_hit_1'):
+    
+    # set up running bins
+    if condition =='omission':
+        bin_width=5        
+    elif condition =='image':
+        bin_width=5#2  
+
+    # Set up data
+    if strategy == 'visual':
+        df = df.query('visual_strategy_session')\
+            .query('(pre_hit_1==1)or(pre_miss_1==1)').copy()
+    elif strategy == 'timing':
+        df = df.query('not visual_strategy_session')\
+            .query('(pre_hit_1==1)or(pre_miss_1==1)').copy()
+    else:
+        raise Exception('bad strategy')
+   
+    df['pre_hit_1'] = df['pre_hit_1'].astype(bool) 
+    df['running_bins'] = np.floor(df['running_speed']/bin_width)
+
+    bootstraps = []
+    bins = np.sort(df['running_bins'].unique())
+    missing=False
+    for b in bins:
+        # First check if this running bin has already been computed
+        filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+            ['visual_strategy_session'],'running_pre_change_{}_{}'.format(strategy,int(b))) 
+        if os.path.isfile(filename):
+            # Load this bin
+            with open(filename,'rb') as handle:
+                this_boot = pickle.load(handle)
+            print('loading this boot from file: {}'.format(b))
+            bootstraps.append(this_boot) 
+        elif compute:
+            print('Need to compute this bin: {}'.format(b))
+            temp = df.query('running_bins == @b')[['pre_hit_1',
+                'ophys_experiment_id','cell_specimen_id','response']]
+            means = hb.bootstrap(temp, levels=['pre_hit_1',
+                'ophys_experiment_id','cell_specimen_id'],nboots=nboots)
+            if (True in means) & (False in means): 
+                diff = np.array(means[True]) - np.array(means[False])
+                pboot = np.sum(diff<0)/len(diff)
+                pre_hit = np.std(means[True])
+                pre_miss = np.std(means[False])
+            else:
+                pboot = 0.5
+                if (True in means):
+                    pre_hit = np.std(means[True])
+                else:
+                    pre_hit = 0 
+                if (False in means):
+                    pre_miss = np.std(means[False])
+                else:
+                    pre_miss = 0 
+            bootstraps.append({
+                'running_bin':b,
+                'p_boot':pboot,
+                'pre_hit_sem':pre_hit,
+                'pre_miss_sem':pre_miss,
+                'n_boots':nboots,
+                })
+        else:
+            missing=True 
+            print('Missing bin: {}, and compute=False'.format(b))
+    
+    # Convert to dataframe, do multiple comparisons corrections
+    bootstraps = pd.DataFrame(bootstraps)
+    bootstraps['p_boot'] = [0.5 if ((row.pre_hit_sem ==0)or(row.pre_miss_sem==0)) \
+                                else row.p_boot for index, row in bootstraps.iterrows()]
+    bootstraps['p_boot'] = [1-x if x > .5 else x for x in bootstraps['p_boot']] 
+    bootstraps['ind_significant'] = bootstraps['p_boot'] <= 0.05 
+    bootstraps['location'] = bootstraps['running_bin']
+    bootstraps = add_hochberg_correction(bootstraps)
+    bootstraps = bootstraps.drop(columns=['location'])
+
+    # Save file
+    if not missing:
+        filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+            ['visual_strategy_session'],'running_pre_change_{}'.format(strategy))
+        print('saving bootstraps to: '+filepath)
+        bootstraps.to_feather(filepath)
+    return bootstraps
+
+
+
 def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
     bin_num, nboots=10000, data='events'):
 
@@ -986,6 +1152,15 @@ def get_engagement_running_bootstraps(cell_type, condition,data,nboots,strategy)
     else:
         print('file not found, compute the running bootstraps first')
 
+def get_pre_change_running_bootstraps(cell_type, condition,data,nboots,strategy):
+    filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
+        ['visual_strategy_session'],'running_pre_change_{}'.format(strategy)) 
+    if os.path.isfile(filepath):
+        bootstraps = pd.read_feather(filepath)
+        return bootstraps
+    else:
+        print('file not found, compute the running bootstraps first')
+
 def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
     data='events', split='visual_strategy_session'):
     if condition =='omission':
@@ -1127,19 +1302,21 @@ def pre_change_running_responses(df, condition, cre='vip', bootstraps=None, save
     hit_label = 'pre hit'
     mis_label = 'pre miss'
     if bootstraps is not None:
-        vtemp = visual.set_index('running_bins')
-        ttemp = timing.set_index('running_bins')
+        temp1 = df1.set_index('running_bins')
+        temp2 = df2.set_index('running_bins')
         bootstraps = bootstraps.set_index('running_bin')
-        for b in visual['running_bins'].unique():
-            plt.errorbar(b*bin_width, vtemp.loc[b].response,
-                yerr=bootstraps.loc[b]['visual_sem'],color=vis_color,fmt='o')   
-        for b in timing['running_bins'].unique():
-            plt.errorbar(b*bin_width, ttemp.loc[b].response,
-                yerr=bootstraps.loc[b]['timing_sem'],color=tim_color,fmt='o')     
-        plt.plot(visual.running_bins*bin_width, visual.response,'o',
-            color=vis_color,label=vis_label)
-        plt.plot(timing.running_bins*bin_width, timing.response,'o',
-            color=tim_color,label=tim_label)
+        bins = set(bootstraps.index.values).intersection(set(temp1.index.values))
+        for b in bins:
+            plt.errorbar(b*bin_width, temp1.loc[b].response,
+                yerr=bootstraps.loc[b]['pre_hit_sem'],color=hit_color,fmt='o')   
+        bins = set(bootstraps.index.values).intersection(set(temp2.index.values))
+        for b in bins:
+            plt.errorbar(b*bin_width, temp2.loc[b].response,
+                yerr=bootstraps.loc[b]['pre_miss_sem'],color=mis_color,fmt='x')     
+        plt.plot(df1.running_bins*bin_width, df1.response,'o',
+            color=hit_color,label=hit_label)
+        plt.plot(df2.running_bins*bin_width, df2.response,'x',
+            color=mis_color,label=mis_label)
     else:
         plt.errorbar(df1.running_bins*bin_width, df1.response,
             yerr=df1_sem.response,color=hit_color,fmt='o',label=hit_label)

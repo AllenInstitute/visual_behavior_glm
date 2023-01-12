@@ -154,6 +154,9 @@ psth.engagement_running_responses(vip_omission, 'omission',
 ################################################################################
 gpt.analysis(weights_beh, run_params, 'omissions')
 gst.kernels_by_cre(weights_beh, run_params)
+gpt.PSTH_analysis(dfs, labels, 'image',run_params)
+gpt.PSTH_analysis(dfs, labels, 'omission',run_params)
+gpt.PSTH_analysis(dfs, labels, 'omission',run_params)
 gpt.PSTH_analysis(dfs, labels, 'omission',run_params)
 
 

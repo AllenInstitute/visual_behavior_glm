@@ -571,10 +571,10 @@ def plot_PSTH_perturbation_diff(dfs,labels,condition,min_time=-.75,
     if condition =='image':
         ax.plot(traces['diff_'+x][p1], traces['diff_'+y][p1],
         'ko',zorder=10)
-        ax.plot(traces['diff_'+x][p2], traces['diff_'+y][p2],
-        'ko',zorder=10)
-        ax.plot(traces['diff_'+x][p3], traces['diff_'+y][p3],
-        'ko',zorder=10)
+        #ax.plot(traces['diff_'+x][p2], traces['diff_'+y][p2],
+        #'ko',zorder=10)
+        #ax.plot(traces['diff_'+x][p3], traces['diff_'+y][p3],
+        #'ko',zorder=10)
 
 
     if y == 'y':
@@ -688,8 +688,10 @@ def plot_PSTH_perturbation(dfs,labels,condition,min_time=-.75,
     traces = get_PSTH_2D_traces(dfs,labels,condition)
 
     height = 4
-    width=5.25
-    width=7
+    if x=='Sst':
+        width=5.25
+    else:
+        width=7
     pre_horz_offset = 2
     post_horz_offset = .5
     vertical_offset = .75
@@ -743,14 +745,14 @@ def plot_PSTH_perturbation(dfs,labels,condition,min_time=-.75,
         'ko',zorder=10)
         ax.plot(traces['timing_'+x][p1], traces['timing_'+y][p1],
         'ko',zorder=10)   
-        ax.plot(traces['visual_'+x][p2], traces['visual_'+y][p2],
-        'ko',zorder=10)
-        ax.plot(traces['timing_'+x][p2], traces['timing_'+y][p2],
-        'ko',zorder=10)   
-        ax.plot(traces['visual_'+x][p3], traces['visual_'+y][p3],
-        'ko',zorder=10)
-        ax.plot(traces['timing_'+x][p3], traces['timing_'+y][p3],
-        'ko',zorder=10)   
+        #ax.plot(traces['visual_'+x][p2], traces['visual_'+y][p2],
+        #'ko',zorder=10)
+        #ax.plot(traces['timing_'+x][p2], traces['timing_'+y][p2],
+        #'ko',zorder=10)   
+        #ax.plot(traces['visual_'+x][p3], traces['visual_'+y][p3],
+        #'ko',zorder=10)
+        #ax.plot(traces['timing_'+x][p3], traces['timing_'+y][p3],
+        #'ko',zorder=10)   
 
 
     if y == 'y':

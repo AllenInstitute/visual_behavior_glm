@@ -3,6 +3,10 @@ import visual_behavior_glm.PSTH as psth
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_schematic_plots as gsm
+import matplotlib.pyplot as plt
+plt.ion()
+from importlib import reload
+from alex_utils import *
 
 BEHAVIOR_VERSION = 21
 summary_df  = po.get_ophys_summary_table(BEHAVIOR_VERSION)

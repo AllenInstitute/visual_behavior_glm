@@ -1726,7 +1726,7 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
  
 
 def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False):
+    first=True,second=False,image=False):
 
     df['group'] = df['visual_strategy_session'].astype(str)+df['hit'].astype(str)
     mapper = {
@@ -1744,18 +1744,24 @@ def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_ty
         filepath += '_first'
     if second:
         filepath += '_second'
+    if image:
+        filepath += '_image_period'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
         pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print('bootstrap saved to {}'.format(filepath)) 
 
-def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc',first=True,second=False):
+def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc',
+    first=True,second=False,image=False):
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_hit_strategy_summary_'+str(nboots)
     if first:
         filepath += '_first'
     if second:
         filepath += '_second'
+    if image:
+        filepath += '_image_period'
+
     filepath = filepath+'.feather'
     if os.path.isfile(filepath):
         # Load this bin
@@ -2392,10 +2398,10 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
     
     return ax
 
-def load_change_df(summary_df,cre,data='events',first=False,second=False):
+def load_change_df(summary_df,cre,data='events',first=False,second=False,image=False):
 
     # Load everything
-    df = bd.load_population_df(data,'image_df',cre,first=first,second=second)
+    df = bd.load_population_df(data,'image_df',cre,first=first,second=second,image=image)
 
     # filter to changes
     df.drop(df[~df['is_change']].index,inplace=True)

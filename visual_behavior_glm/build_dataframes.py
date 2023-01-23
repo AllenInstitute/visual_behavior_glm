@@ -99,6 +99,7 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
             dfs.append(this_df)
         except:
             failed_to_load += 1
+            print(value)
             pass 
         if batch:
             if np.mod(idx,batch_size) == batch_size-1:

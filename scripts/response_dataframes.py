@@ -17,13 +17,16 @@ if __name__ == '__main__':
     data = 'events'
 
     #print('second half') 
-    bd.build_response_df_experiment(session,data,first=True,second=False)
+    #bd.build_response_df_experiment(session,data,first=True,second=False)
 
     #print('first half') 
-    bd.build_response_df_experiment(session,data,first=False,second=True)
+    #bd.build_response_df_experiment(session,data,first=False,second=True)
+    
+    print('image period')
+    bd.build_response_df_experiment(session,data,first=False,second=False, image=True)
 
-    print('full interval') 
-    bd.build_response_df_experiment(session,data,first=False,second=False)
+    #print('full interval') 
+    #bd.build_response_df_experiment(session,data,first=False,second=False)
 
     #bd.build_behavior_df_experiment(session)
     print('grand finished')

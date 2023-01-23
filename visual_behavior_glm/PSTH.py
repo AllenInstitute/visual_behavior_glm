@@ -1593,6 +1593,140 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
 
+def compute_summary_bootstrap_strategy_omission_lick(df,data='events',nboots=10000,cell_type='exc',
+    first=False,second=True):
+
+    df = df.query('(pre_omission_no_lick)or(pre_omission_lick)').copy()
+    df['group'] = df['visual_strategy_session'].astype(str)+df['pre_omission_lick'].astype(str)
+    mapper = {
+        'TrueTrue':'visual_lick',
+        'TrueFalse':'visual_no_lick',
+        'FalseTrue':'timing_lick',
+        'FalseFalse':'timing_no_lick',
+    }
+    df['group'] = [mapper[x] for x in df['group']]
+    bootstrap = hb.bootstrap(df, levels=['group','ophys_experiment_id','cell_specimen_id'],
+        nboots=nboots)
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_omission_lick_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    if second:
+        filepath += '_second'
+    filepath = filepath+'.feather'
+
+    with open(filepath,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bootstrap saved to {}'.format(filepath)) 
+
+
+def get_summary_bootstrap_strategy_omission_lick(data='events',nboots=10000,cell_type='exc',
+    first=True,second=False):
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_omission_lick_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    if second:
+        filepath += '_second'
+    filepath = filepath+'.feather'
+    if os.path.isfile(filepath):
+        # Load this bin
+        with open(filepath,'rb') as handle:
+            this_boot = pickle.load(handle)
+        print('loading from file')
+        return this_boot
+    else:
+        print('file not found')
+
+def plot_summary_bootstrap_strategy_omission_lick(df,cell_type,savefig=False,data='events',
+    nboots=10000,first=True, second=False):
+   
+    df = df.query('pre_omission_lick or pre_omission_no_lick').copy()
+    bootstrap = get_summary_bootstrap_strategy_omission_lick(data, nboots,cell_type,
+        first,second)   
+ 
+    fig,ax = plt.subplots(figsize=(2.5,2.75))
+    visual_lick_mean = df.query('(visual_strategy_session)&(pre_omission_lick)')['response'].mean()
+    visual_no_lick_mean = df.query('(visual_strategy_session)&(pre_omission_no_lick)')['response'].mean()
+    timing_lick_mean = df.query('(not visual_strategy_session)&(pre_omission_lick)')['response'].mean()
+    timing_no_lick_mean = df.query('(not visual_strategy_session)&(pre_omission_no_lick)')['response'].mean()
+    visual_lick_sem = np.std(bootstrap['visual_lick'])
+    timing_lick_sem = np.std(bootstrap['timing_lick'])
+    visual_no_lick_sem = np.std(bootstrap['visual_no_lick'])
+    timing_no_lick_sem = np.std(bootstrap['timing_no_lick'])
+
+    plt.plot(-.05,visual_lick_mean,'o',color='darkorange',label='visual lick')
+    plt.plot(0.05,visual_no_lick_mean,'x',color='darkorange',label='visual no_lick')
+    plt.plot(.95, timing_lick_mean,'o',color='blue',label='timing lick')
+    plt.plot(1.05,timing_no_lick_mean,'x',color='blue',label='timing mis')
+    plt.plot([-.05,-0.05],[visual_lick_mean-visual_lick_sem,visual_lick_mean+visual_lick_sem],
+        '-',color='darkorange')
+    plt.plot([.05,0.05],[visual_no_lick_mean-visual_no_lick_sem,visual_no_lick_mean+visual_no_lick_sem],
+        '-',color='darkorange')
+    plt.plot([.95,.95],[timing_lick_mean-timing_lick_sem,timing_lick_mean+timing_lick_sem],
+        '-',color='blue')
+    plt.plot([1.05,1.05],[timing_no_lick_mean-timing_no_lick_sem,timing_no_lick_mean+timing_no_lick_sem],
+        '-',color='blue')
+
+    mapper={
+        'exc':'Excitatory',
+        'sst':'Sst Inhibitory',
+        'vip':'Vip Inhibitory'
+        }
+    nice_cell =mapper[cell_type] 
+
+    ax.set_ylabel(nice_cell+' \n(avg. Ca$^{2+}$ events)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_xticks([0,1])
+    ax.set_xticklabels(['Vis.','Tim.'],fontsize=16)
+    ax.set_xlim(-.5,1.5)
+    ax.set_ylim(bottom=0)
+    
+    p = bootstrap_significance(bootstrap, 'visual_lick','timing_lick')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'visual_no_lick','timing_no_lick')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([.05,1.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([1.05,1.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'visual_lick','visual_no_lick')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    plt.tight_layout()   
+
+    if savefig:
+        filepath = PSTH_DIR + data +'/summary/'+cell_type+'_omission_lick_strategy_summary_'+str(nboots)
+        if first:
+            filepath += '_first'
+        if second:
+            filepath += '_second'
+        filepath = filepath+'.svg'
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath)
+
+
+
+
+
 def compute_summary_bootstrap_strategy_pre_change(df,data='events',nboots=10000,cell_type='exc',
     first=True,second=False):
 

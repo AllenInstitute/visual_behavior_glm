@@ -1918,10 +1918,10 @@ def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc
         print('file not found')
    
 def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False):
+    nboots=10000,first=True, second=False,image=False):
     
     bootstrap = get_summary_bootstrap_strategy_hit(data, nboots,cell_type,
-        first,second)   
+        first,second,image)   
  
     fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_hit_mean = df.query('(visual_strategy_session)&(hit==1)')['response'].mean()
@@ -1989,6 +1989,8 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
             filepath += '_first'
         if second:
             filepath += '_second'
+        if image:
+            filepath += '_image_period'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)

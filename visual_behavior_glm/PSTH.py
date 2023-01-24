@@ -1711,6 +1711,17 @@ def plot_summary_bootstrap_strategy_omission_lick(df,cell_type,savefig=False,dat
         plt.plot(0,ylim*1.15, 'k*')
         ax.set_ylim(top=ylim*1.2)
 
+    p = bootstrap_significance(bootstrap, 'timing_lick','timing_no_lick')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([.95,1.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([1.05,1.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(1,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+
+
     plt.tight_layout()   
 
     if savefig:

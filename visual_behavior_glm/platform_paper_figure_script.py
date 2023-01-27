@@ -124,7 +124,7 @@ stats_S3A = gvt.plot_population_averages(results_pivoted, run_params,
 
 # Panel B - Cells with explained variance > 0.5%
 stats_S3B = gvt.plot_population_averages(results_pivoted, run_params,
-        include_zero_cells=False)
+        matched_with_variance_explained=True, matched_ve_threshold=0.05)
 
 
 ## S4 - area

@@ -3593,6 +3593,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
     # plotting variables
     cell_types = results_pivoted.cell_type.unique()
     experience_levels = np.sort(results_pivoted.experience_level.unique())
+    experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
 
     summary = {}
@@ -3642,7 +3643,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
             ax[index].set_xticks([0,1,2])
-            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xticklabels(experience_level_labels, rotation=90)
             ax[index].set_xlim(-.5,2.5)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
@@ -3662,7 +3663,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                     ax[index].text(2,y1h,'*')
                 ax[index].set_ylim(0,y1h*1.05)
         ax[0].set_ylabel('Coding Score',fontsize=20)
-        plt.suptitle(cell_type+', '+' '.join(area),fontsize=20)
+        plt.suptitle(cell_type+', '+' & '.join(area),fontsize=20)
         fig.tight_layout() 
         filename = run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg'
         if savefig:
@@ -3703,7 +3704,11 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
         results_pivoted[dropout] = results_pivoted[dropout].abs()
-    
+
+    ## Rename experience level
+    #results_pivoted['experience_level'][results_pivoted['experience_level'] == "Novel >1"] = "Novel +"   
+    #results_pivoted['experience_level'][results_pivoted['experience_level'] == "Novel 1"] = "Novel"   
+ 
     # Add additional columns about experience levels
     experiments_table = loading.get_platform_paper_experiment_table(include_4x2_data=run_params['include_4x2_data'])
     experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
@@ -3712,6 +3717,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     # plotting variables
     cell_types = results_pivoted.cell_type.unique()
     experience_levels = np.sort(results_pivoted.experience_level.unique())
+    experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
     if run_params['include_4x2_data']:
         areas = ['VISp','VISl','VISam','VISal']
@@ -3771,7 +3777,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
             ax[index].set_xticks([0,1,2])
-            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xticklabels(experience_level_labels, rotation=90)
             ax[index].set_xlim(-.5,2.5)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
@@ -3901,6 +3907,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     #cell_types = results_pivoted.cell_type.unique()
     cell_types = ['Vip Inhibitory','Sst Inhibitory','Excitatory']
     experience_levels = np.sort(results_pivoted.experience_level.unique())
+    experience_level_labels=['Familiar','Novel','Novel +']
     colors = project_colors()
 
     if plot_by_cell_type:
@@ -3925,7 +3932,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             ax[index].set_title(feature,fontsize=20)
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
-            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xticklabels(experience_level_labels, rotation=90)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
         ax[0].set_ylabel('Coding Score',fontsize=20)
@@ -4021,7 +4028,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                 ax[index].set_ylabel('')
                 ax[index].set_xlabel('')
                 ax[index].set_xticks([0,1,2])
-                ax[index].set_xticklabels(experience_levels, rotation=90)
+                ax[index].set_xticklabels(experience_level_labels, rotation=90)
                 ax[index].set_xlim(-.5,2.5)
                 ax[index].tick_params(axis='x',labelsize=16)
                 ax[index].tick_params(axis='y',labelsize=16)
@@ -4082,7 +4089,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[3].set_title('Combined',fontsize=20)
         ax[3].set_ylabel('')
         ax[3].set_xlabel('')
-        ax[3].set_xticklabels(experience_levels, rotation=90)
+        ax[3].set_xticklabels(experience_level_labels, rotation=90)
         ax[3].tick_params(axis='x',labelsize=16)
         ax[3].tick_params(axis='y',labelsize=16)
         ax[3].spines['top'].set_visible(False)
@@ -4196,7 +4203,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             ax[cindex].set_ylabel('')
             ax[cindex].set_xlabel('')
             ax[cindex].set_xticks([0,1,2])
-            ax[cindex].set_xticklabels(experience_levels, rotation=90)
+            ax[cindex].set_xticklabels(experience_level_labels, rotation=90)
             ax[cindex].set_xlim(-.5,2.5)
             ax[cindex].tick_params(axis='x',labelsize=16)
             ax[cindex].tick_params(axis='y',labelsize=16)

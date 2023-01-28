@@ -2121,6 +2121,14 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
    
     outputs={}
     # Iterate over groups of cells
+    mapper = {
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory',
+        'Familiar':'Familiar',
+        'Novel 1':'Novel',
+        'Novel >1':'Novel +'
+        }
     for dex,group in enumerate(groups):
 
         # Build color, linestyle, and query string for this group
@@ -2135,24 +2143,28 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     
         # Filter for this group, and plot
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
-        k=plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, plot_errors=plot_errors) 
+        k=plot_kernel_comparison_inner(ax,weights_dfiltered,mapper[group], color,linestyle, time_vec, plot_errors=plot_errors) 
         outputs[group]=k
 
     # Clean Plot, and add details
     if set_title is not None:
         plt.title(set_title, fontsize=fs1)
     else:
-        session_title = '_'.join(session_filter)
+        mapper = {
+            'Slc17a7-IRES2-Cre':'Excitatory',
+            'Sst-IRES-Cre':'Sst Inhibitory',
+            'Vip-IRES-Cre':'Vip Inhibitory',
+            'Familiar':'Familiar',
+            'Novel 1':'Novel',
+            'Novel >1':'Novel +'
+            }
+
         if len(session_filter) > 1:
             session_title=cell_filter
-            mapper = {
-                'Slc17a7-IRES2-Cre':'Excitatory',
-                'Sst-IRES-Cre':'Sst Inhibitory',
-                'Vip-IRES-Cre':'Vip Inhibitory'
-                }
             session_title=mapper[session_title]
-
-    
+        else:
+            session_title = mapper[session_filter[0]]
+ 
         #plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
         plt.title(kernel+' kernels, '+session_title,fontsize=fs1)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
@@ -2172,6 +2184,8 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     plt.tick_params(axis='both',labelsize=fs2)
     if show_legend:
         ax.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare).replace('_',' '),handlelength=4)
+
+
  
     ## Final Clean up and Save
     #plt.tight_layout()
@@ -2836,8 +2850,13 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
     else:
         title = kernel +' kernels, VE cells'
     if len(session_filter) ==1:
+        mapper={
+            'Familiar':'Familiar',
+            'Novel 1':'Novel',
+            'Novel >1':'Novel +'
+            }
         extra=extra+'_'+session_filter[0].replace(' ','_').replace('>','p')
-        title = title + ', '+session_filter[0]
+        title = title + ', '+mapper[session_filter[0]]
     ax.set_title(title,fontsize=20)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_'+extra+'.svg')
     if savefig:
@@ -2951,8 +2970,13 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
         VE = True
 
     if len(session_filter) ==1:
+        mapper={
+            'Familiar':'Familiar',
+            'Novel 1':'Novel',
+            'Novel >1':'Novel +'
+            }
         extra=extra+'_'+session_filter[0].replace(' ','_').replace('>','p')
-        title = title + ', '+session_filter[0]
+        title = title + ', '+mapper[session_filter[0]]
     if dropout:
         #title =title +  '\n coding cells'
         ax2.set_ylabel('Coding Cells',fontsize=16)
@@ -4620,6 +4644,7 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,ker
 
     # plotting variables
     experience_levels = np.sort(results_pivoted.experience_level.unique())
+    experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
 
     if kernel_excitation:
@@ -4648,7 +4673,7 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,ker
         ax[index].set_ylabel('')
         ax[index].set_xlabel('')
         ax[index].set_xticks([0,1,2])
-        ax[index].set_xticklabels(experience_levels, rotation=90)
+        ax[index].set_xticklabels(experience_level_labels, rotation=90)
         ax[index].tick_params(axis='x',labelsize=16)
         ax[index].tick_params(axis='y',labelsize=16)
         ax[index].spines['top'].set_visible(False)

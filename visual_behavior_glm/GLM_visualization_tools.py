@@ -2121,6 +2121,14 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
    
     outputs={}
     # Iterate over groups of cells
+    mapper = {
+        'Slc17a7-IRES2-Cre':'Excitatory',
+        'Sst-IRES-Cre':'Sst Inhibitory',
+        'Vip-IRES-Cre':'Vip Inhibitory',
+        'Familiar':'Familiar',
+        'Novel 1':'Novel',
+        'Novel >1':'Novel +'
+        }
     for dex,group in enumerate(groups):
 
         # Build color, linestyle, and query string for this group
@@ -2135,24 +2143,28 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     
         # Filter for this group, and plot
         weights_dfiltered = weights.query(query_str)[kernel+'_weights']
-        k=plot_kernel_comparison_inner(ax,weights_dfiltered,group, color,linestyle, time_vec, plot_errors=plot_errors) 
+        k=plot_kernel_comparison_inner(ax,weights_dfiltered,mapper[group], color,linestyle, time_vec, plot_errors=plot_errors) 
         outputs[group]=k
 
     # Clean Plot, and add details
     if set_title is not None:
         plt.title(set_title, fontsize=fs1)
     else:
-        session_title = '_'.join(session_filter)
+        mapper = {
+            'Slc17a7-IRES2-Cre':'Excitatory',
+            'Sst-IRES-Cre':'Sst Inhibitory',
+            'Vip-IRES-Cre':'Vip Inhibitory',
+            'Familiar':'Familiar',
+            'Novel 1':'Novel',
+            'Novel >1':'Novel +'
+            }
+
         if len(session_filter) > 1:
             session_title=cell_filter
-            mapper = {
-                'Slc17a7-IRES2-Cre':'Excitatory',
-                'Sst-IRES-Cre':'Sst Inhibitory',
-                'Vip-IRES-Cre':'Vip Inhibitory'
-                }
             session_title=mapper[session_title]
-
-    
+        else:
+            session_title = mapper[session_filter[0]]
+ 
         #plt.title(run_params['version']+'\n'+kernel+' '+cell_filter+' '+session_title)
         plt.title(kernel+' kernels, '+session_title,fontsize=fs1)
     ax.axhline(0, color='k',linestyle='--',alpha=0.25)
@@ -2172,6 +2184,8 @@ def plot_kernel_comparison(weights_df, run_params, kernel, save_results=True, dr
     plt.tick_params(axis='both',labelsize=fs2)
     if show_legend:
         ax.legend(loc='upper left',bbox_to_anchor=(1.05,1),title=' & '.join(compare).replace('_',' '),handlelength=4)
+
+
  
     ## Final Clean up and Save
     #plt.tight_layout()
@@ -2836,8 +2850,13 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
     else:
         title = kernel +' kernels, VE cells'
     if len(session_filter) ==1:
+        mapper={
+            'Familiar':'Familiar',
+            'Novel 1':'Novel',
+            'Novel >1':'Novel +'
+            }
         extra=extra+'_'+session_filter[0].replace(' ','_').replace('>','p')
-        title = title + ', '+session_filter[0]
+        title = title + ', '+mapper[session_filter[0]]
     ax.set_title(title,fontsize=20)
     filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_'+extra+'.svg')
     if savefig:
@@ -2951,8 +2970,13 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
         VE = True
 
     if len(session_filter) ==1:
+        mapper={
+            'Familiar':'Familiar',
+            'Novel 1':'Novel',
+            'Novel >1':'Novel +'
+            }
         extra=extra+'_'+session_filter[0].replace(' ','_').replace('>','p')
-        title = title + ', '+session_filter[0]
+        title = title + ', '+mapper[session_filter[0]]
     if dropout:
         #title =title +  '\n coding cells'
         ax2.set_ylabel('Coding Cells',fontsize=16)
@@ -3593,6 +3617,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
     # plotting variables
     cell_types = results_pivoted.cell_type.unique()
     experience_levels = np.sort(results_pivoted.experience_level.unique())
+    experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
 
     summary = {}
@@ -3642,7 +3667,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
             ax[index].set_xticks([0,1,2])
-            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xticklabels(experience_level_labels, rotation=90)
             ax[index].set_xlim(-.5,2.5)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
@@ -3662,7 +3687,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                     ax[index].text(2,y1h,'*')
                 ax[index].set_ylim(0,y1h*1.05)
         ax[0].set_ylabel('Coding Score',fontsize=20)
-        plt.suptitle(cell_type+', '+' '.join(area),fontsize=20)
+        plt.suptitle(cell_type+', '+' & '.join(area),fontsize=20)
         fig.tight_layout() 
         filename = run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg'
         if savefig:
@@ -3703,7 +3728,11 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     # Convert dropouts to positive values
     for dropout in dropouts_to_show:
         results_pivoted[dropout] = results_pivoted[dropout].abs()
-    
+
+    ## Rename experience level
+    #results_pivoted['experience_level'][results_pivoted['experience_level'] == "Novel >1"] = "Novel +"   
+    #results_pivoted['experience_level'][results_pivoted['experience_level'] == "Novel 1"] = "Novel"   
+ 
     # Add additional columns about experience levels
     experiments_table = loading.get_platform_paper_experiment_table(include_4x2_data=run_params['include_4x2_data'])
     experiment_table_columns = experiments_table.reset_index()[['ophys_experiment_id','last_familiar_active','second_novel_active','cell_type','binned_depth']]
@@ -3712,6 +3741,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     # plotting variables
     cell_types = results_pivoted.cell_type.unique()
     experience_levels = np.sort(results_pivoted.experience_level.unique())
+    experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
     if run_params['include_4x2_data']:
         areas = ['VISp','VISl','VISam','VISal']
@@ -3771,7 +3801,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
             ax[index].set_xticks([0,1,2])
-            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xticklabels(experience_level_labels, rotation=90)
             ax[index].set_xlim(-.5,2.5)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
@@ -3901,6 +3931,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     #cell_types = results_pivoted.cell_type.unique()
     cell_types = ['Vip Inhibitory','Sst Inhibitory','Excitatory']
     experience_levels = np.sort(results_pivoted.experience_level.unique())
+    experience_level_labels=['Familiar','Novel','Novel +']
     colors = project_colors()
 
     if plot_by_cell_type:
@@ -3925,7 +3956,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             ax[index].set_title(feature,fontsize=20)
             ax[index].set_ylabel('')
             ax[index].set_xlabel('')
-            ax[index].set_xticklabels(experience_levels, rotation=90)
+            ax[index].set_xticklabels(experience_level_labels, rotation=90)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
         ax[0].set_ylabel('Coding Score',fontsize=20)
@@ -4021,7 +4052,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                 ax[index].set_ylabel('')
                 ax[index].set_xlabel('')
                 ax[index].set_xticks([0,1,2])
-                ax[index].set_xticklabels(experience_levels, rotation=90)
+                ax[index].set_xticklabels(experience_level_labels, rotation=90)
                 ax[index].set_xlim(-.5,2.5)
                 ax[index].tick_params(axis='x',labelsize=16)
                 ax[index].tick_params(axis='y',labelsize=16)
@@ -4082,7 +4113,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         ax[3].set_title('Combined',fontsize=20)
         ax[3].set_ylabel('')
         ax[3].set_xlabel('')
-        ax[3].set_xticklabels(experience_levels, rotation=90)
+        ax[3].set_xticklabels(experience_level_labels, rotation=90)
         ax[3].tick_params(axis='x',labelsize=16)
         ax[3].tick_params(axis='y',labelsize=16)
         ax[3].spines['top'].set_visible(False)
@@ -4196,7 +4227,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             ax[cindex].set_ylabel('')
             ax[cindex].set_xlabel('')
             ax[cindex].set_xticks([0,1,2])
-            ax[cindex].set_xticklabels(experience_levels, rotation=90)
+            ax[cindex].set_xticklabels(experience_level_labels, rotation=90)
             ax[cindex].set_xlim(-.5,2.5)
             ax[cindex].tick_params(axis='x',labelsize=16)
             ax[cindex].tick_params(axis='y',labelsize=16)
@@ -4613,6 +4644,7 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,ker
 
     # plotting variables
     experience_levels = np.sort(results_pivoted.experience_level.unique())
+    experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
 
     if kernel_excitation:
@@ -4641,7 +4673,7 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,ker
         ax[index].set_ylabel('')
         ax[index].set_xlabel('')
         ax[index].set_xticks([0,1,2])
-        ax[index].set_xticklabels(experience_levels, rotation=90)
+        ax[index].set_xticklabels(experience_level_labels, rotation=90)
         ax[index].tick_params(axis='x',labelsize=16)
         ax[index].tick_params(axis='y',labelsize=16)
         ax[index].spines['top'].set_visible(False)

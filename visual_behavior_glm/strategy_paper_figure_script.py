@@ -53,8 +53,12 @@ psth.plot_summary_bootstrap_omission_strategy(sst_post_omission,'sst',first=True
     second=False,post=True)
 
 # Determine significance for Exc hit/miss
-bootstrap = psth.get_summary_bootstrap_strategy_hit(data='events',cell_type = 'exc',
-    first=True, second=False)
+exc_change = psth.load_change_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events',
+    first=False, second=False, image=True)
+psth.plot_summary_bootstrap_strategy_hit(exc_change, 'exc', first=False, second=False,
+    image=True)
+#bootstrap = psth.get_summary_bootstrap_strategy_hit(data='events',cell_type = 'exc',
+#    first=True, second=False)
 
 # Determine significance for Sst hit/miss
 sst_change = psth.load_change_df(summary_df, cre='Sst-IRES-Cre',data='events',
@@ -83,7 +87,7 @@ psth.running_responses(vip_image, 'image',bootstraps=bootstraps_image)
 
 ## Fig. 4G - EXC Hit/Miss
 ################################################################################
-psth.plot_exc_change_summary()
+psth.plot_exc_change_summary() # outdated
 
 ## Hierarchy Supplement
 ################################################################################

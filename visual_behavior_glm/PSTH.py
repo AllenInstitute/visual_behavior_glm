@@ -1837,14 +1837,14 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
         plt.plot(0.5,ylim*1.15, 'k*')
         ax.set_ylim(top=ylim*1.2)
 
-    #p = bootstrap_significance(bootstrap, 'visual_miss','timing_miss')
-    #if (p < 0.05) or (p >.95):
-    #    ylim = ax.get_ylim()[1]
-    #    plt.plot([.05,1.05],[ylim*1.1,ylim*1.1],'k-')
-    #    plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
-    #    plt.plot([1.05,1.05],[ylim*1.05,ylim*1.1],'k-')
-    #    plt.plot(0.5,ylim*1.15, 'k*')
-    #    ax.set_ylim(top=ylim*1.2)
+    p = bootstrap_significance(bootstrap, 'visual_miss','timing_miss')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([.05,1.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([1.05,1.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
 
     p = bootstrap_significance(bootstrap, 'visual_hit','visual_miss')
     if (p < 0.05) or (p >.95):

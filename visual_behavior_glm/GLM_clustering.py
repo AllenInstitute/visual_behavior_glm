@@ -197,7 +197,8 @@ def plot_proportion_differences(df,areas=None):
 
     if areas is None:
         # Get areas
-        areas = np.sort(df['location'].unique())    
+        areas = np.sort(df['location'].unique())
+        areas = areas[::-1]
     else:
         assert set(areas) == set(df['location'].unique()), "areas passed in don't match location column" 
 
@@ -233,12 +234,12 @@ def plot_proportion_differences_cre(df,areas, fig,ax, cre):
 
     # plot fractions
     vmax = table.abs().max().max()
-    cbar = ax.imshow(table,cmap='PRGn',vmin=-vmax,vmax=vmax)
+    cbar = ax.imshow(table[areas],cmap='PRGn',vmin=-vmax,vmax=vmax)
     fig.colorbar(cbar, ax=ax,label='fraction of cells per location \nrelative to evenly distributed across clusters')
     ax.set_xticks(range(0,len(areas)))
     ax.set_xticklabels(areas,rotation=90)
     ax.set_ylabel('Cluster #',fontsize=16)  
-    ax.set_title(mapper(cre),fontsize=16) 
+    ax.set_title(mapper(cre),fontsize=16)
 
 def plot_cluster_proportions(df,areas=None):
     if areas is None:
@@ -247,7 +248,7 @@ def plot_cluster_proportions(df,areas=None):
     else:
         assert set(areas) == set(df['location'].unique()), "areas passed in don't match location column" 
 
-    fig, ax = plt.subplots(1,3,figsize=(14,8))
+    fig, ax = plt.subplots(1,3,figsize=(10,8))
     fig.subplots_adjust(left=0.1, bottom=0.25, right=0.9, top=0.9, wspace=1)
     plot_cluster_proportion_cre(df,areas, fig, ax[2], 'Slc17a7-IRES2-Cre')
     plot_cluster_proportion_cre(df,areas, fig, ax[1], 'Sst-IRES-Cre')
@@ -267,7 +268,6 @@ def compute_cluster_proportion_cre(df, cre,areas):
         table[a] = table[a] - table['mean'] 
 
     # plot proportions
-    table = table[areas]
     return table
 
 def plot_cluster_proportion_cre(df,areas,fig,ax, cre,test='chi_squared_'):
@@ -278,24 +278,28 @@ def plot_cluster_proportion_cre(df,areas,fig,ax, cre,test='chi_squared_'):
 
     vmax = table.abs().max().max()
     vmax = .15
-    cbar = ax.imshow(table,cmap='PRGn',vmin=-vmax, vmax=vmax)
-    fig.colorbar(cbar, ax=ax,label='proportion of cells per location \n relative to cluster average')
+    # cmap = 'PRGn'
+    cbar = ax.imshow(table,cmap='BrBG',vmin=-vmax, vmax=vmax)
+    fig = fig.colorbar(cbar, ax=ax,  location='bottom', orientation='horizontal',
+                 label='proportion of cells per location \n relative to cluster average')
+    fig.ax.tick_params(labelsize=16)
     ax.set_xticks(range(0,len(areas)))
-    ax.set_xticklabels(areas,rotation=90)
-    ax.set_ylabel('Cluster #',fontsize=16)  
+    ax.set_xticklabels(areas,rotation=90, size=16)
+    ax.set_ylabel('Cluster ID',fontsize=20)
     ax.set_title(mapper(cre),fontsize=16)
     ax.set_yticks(np.arange(len(table)))
-    ax.set_yticklabels(np.arange(1,len(table)+1))
-    
+    ax.set_yticklabels(np.arange(1,len(table)+1), size=16)
+
     # add statistics
     table2 = stats(df, cre,areas,test=test)
     for index in table2.index.values:
         if table2.loc[index]['bh_significant']:
-            ax.plot(-1,index-1,'r*')
+            ax.plot(-1,index-1,'r*', markersize = 10)
     ax.set_xlim(-1.5,len(areas)-.5)
     ax.set_xticks(range(-1,len(areas)))
     ax.set_xticklabels(np.concatenate([['p<0.05'],areas]),rotation=90)
     ax.axvline(-0.5,color='k',linewidth=.5)
+    plt.tight_layout()
 
 def plot_cluster_percentages(df,areas=None):
     if areas is None:

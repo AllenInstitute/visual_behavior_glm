@@ -1168,7 +1168,7 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
     elif condition =='image':
         bin_width=5
 
-    fig, ax = plt.subplots(figsize=(3.75,2.75))
+    fig, ax = plt.subplots(figsize=(4.5,2.75)) #3.75
 
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
 

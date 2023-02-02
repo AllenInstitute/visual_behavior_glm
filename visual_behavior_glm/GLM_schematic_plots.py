@@ -21,7 +21,7 @@ def strategy_paper_ophys_example(session, cell_id, time):
     dff = np.array(session.dff_traces.loc[cell_id].dff)[good_times]
 
     # Plot cell activity
-    fig, ax = plt.subplots(figsize=(2.5,2.625))#3.65,2.625))
+    fig, ax = plt.subplots(figsize=(2.85,2.8))#3.65,2.625))
     ax.plot(timestamps, dff,'gray',linewidth=2,label=r'$\Delta f/f$')
     markerline, stemlines, baseline = ax.stem(\
             np.concatenate([[time[0]],timestamps[events!=0],[time[1]]]), 

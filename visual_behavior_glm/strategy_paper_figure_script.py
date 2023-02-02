@@ -19,7 +19,7 @@ cell_id = 1086505751
 GLM_VERSION = '24_events_all_L2_optimize_by_session'
 run_params = glm_params.load_run_json(GLM_VERSION)
 session = gft.load_data(oeid, run_params)
-time=[1220.5, 1226.25]
+time=[1221.25, 1225.75]
 gsm.strategy_paper_ophys_example(session, cell_id, time)
 
 ## Fig. 4D - Population average response

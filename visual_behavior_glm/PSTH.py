@@ -1168,7 +1168,7 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
     elif condition =='image':
         bin_width=5
 
-    fig, ax = plt.subplots(figsize=(3.75,2.75))
+    fig, ax = plt.subplots(figsize=(4.5,2.75)) #3.75
 
     df['running_bins'] = np.floor(df['running_speed']/bin_width)
 
@@ -1798,17 +1798,22 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
     visual_miss_sem = np.std(bootstrap['visual_miss'])
     timing_miss_sem = np.std(bootstrap['timing_miss'])
 
-    plt.plot(-.05,visual_hit_mean,'o',color='darkorange',label='visual hit')
-    plt.plot(0.05,visual_miss_mean,'x',color='darkorange',label='visual miss')
-    plt.plot(.95, timing_hit_mean,'o',color='blue',label='timing hit')
-    plt.plot(1.05,timing_miss_mean,'x',color='blue',label='timing mis')
-    plt.plot([-.05,-0.05],[visual_hit_mean-visual_hit_sem,visual_hit_mean+visual_hit_sem],
+    dx = .15
+    x1 = -dx
+    x2 = dx
+    x3 = 1-dx
+    x4 = 1+dx
+    plt.plot(x1,visual_hit_mean,'o',color='darkorange',label='visual hit')
+    plt.plot(x2,visual_miss_mean,'x',color='darkorange',label='visual miss')
+    plt.plot(x3, timing_hit_mean,'o',color='blue',label='timing hit')
+    plt.plot(x4,timing_miss_mean,'x',color='blue',label='timing mis')
+    plt.plot([x1,x1],[visual_hit_mean-visual_hit_sem,visual_hit_mean+visual_hit_sem],
         '-',color='darkorange')
-    plt.plot([.05,0.05],[visual_miss_mean-visual_miss_sem,visual_miss_mean+visual_miss_sem],
+    plt.plot([x2,x2],[visual_miss_mean-visual_miss_sem,visual_miss_mean+visual_miss_sem],
         '-',color='darkorange')
-    plt.plot([.95,.95],[timing_hit_mean-timing_hit_sem,timing_hit_mean+timing_hit_sem],
+    plt.plot([x3,x3],[timing_hit_mean-timing_hit_sem,timing_hit_mean+timing_hit_sem],
         '-',color='blue')
-    plt.plot([1.05,1.05],[timing_miss_mean-timing_miss_sem,timing_miss_mean+timing_miss_sem],
+    plt.plot([x4,x4],[timing_miss_mean-timing_miss_sem,timing_miss_mean+timing_miss_sem],
         '-',color='blue')
 
     mapper={
@@ -1829,29 +1834,28 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
     ax.set_ylim(bottom=0)
     
     p = bootstrap_significance(bootstrap, 'visual_hit','timing_hit')
-    if (p < 0.05) or (p >.95):
-        ylim = ax.get_ylim()[1]
-        plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
-        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
-        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
-        plt.plot(0.5,ylim*1.15, 'k*')
-        ax.set_ylim(top=ylim*1.2)
 
-    #p = bootstrap_significance(bootstrap, 'visual_miss','timing_miss')
-    #if (p < 0.05) or (p >.95):
-    #    ylim = ax.get_ylim()[1]
-    #    plt.plot([.05,1.05],[ylim*1.1,ylim*1.1],'k-')
-    #    plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
-    #    plt.plot([1.05,1.05],[ylim*1.05,ylim*1.1],'k-')
-    #    plt.plot(0.5,ylim*1.15, 'k*')
-    #    ax.set_ylim(top=ylim*1.2)
+    ylim = ax.get_ylim()[1]
+    plt.plot([x1,x3],[ylim*1.1,ylim*1.1],'k-')
+    plt.plot([x1,x1],[ylim*1.05,ylim*1.1],'k-')
+    plt.plot([x3,x3],[ylim*1.05,ylim*1.1],'k-')
+    if (p < 0.05) or (p >.95):
+        plt.plot(np.mean([x1,x3]),ylim*1.15, 'k*')
+
+    p = bootstrap_significance(bootstrap, 'visual_miss','timing_miss')
+    if (p < 0.05) or (p >.95):
+        plt.plot(np.mean([x2,x4]),ylim*1.25, 'k*')
+    plt.plot([x2,x4],[ylim*1.2,ylim*1.2],'k-')
+    plt.plot([x2,x2],[ylim*1.15,ylim*1.2],'k-')
+    plt.plot([x4,x4],[ylim*1.15,ylim*1.2],'k-')
+    ax.set_ylim(top=ylim*1.2)
 
     p = bootstrap_significance(bootstrap, 'visual_hit','visual_miss')
     if (p < 0.05) or (p >.95):
         ylim = ax.get_ylim()[1]
-        plt.plot([-.05,.05],[ylim*1.1,ylim*1.1],'k-')
-        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
-        plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([x1,x2],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([x1,x1],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([x2,x2],[ylim*1.05,ylim*1.1],'k-')
         plt.plot(0,ylim*1.15, 'k*')
         ax.set_ylim(top=ylim*1.2)
 
@@ -1933,17 +1937,22 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
     visual_miss_sem = np.std(bootstrap['visual_miss'])
     timing_miss_sem = np.std(bootstrap['timing_miss'])
 
-    plt.plot(-.05,visual_hit_mean,'o',color='darkorange',label='visual hit')
-    plt.plot(0.05,visual_miss_mean,'x',color='darkorange',label='visual miss')
-    plt.plot(.95, timing_hit_mean,'o',color='blue',label='timing hit')
-    plt.plot(1.05,timing_miss_mean,'x',color='blue',label='timing mis')
-    plt.plot([-.05,-0.05],[visual_hit_mean-visual_hit_sem,visual_hit_mean+visual_hit_sem],
+    dx = .15
+    x1 = -dx
+    x2 = dx
+    x3 = 1-dx
+    x4 = 1+dx
+    plt.plot(x1,visual_hit_mean,'o',color='darkorange',label='visual hit')
+    plt.plot(x2,visual_miss_mean,'x',color='darkorange',label='visual miss')
+    plt.plot(x3, timing_hit_mean,'o',color='blue',label='timing hit')
+    plt.plot(x4,timing_miss_mean,'x',color='blue',label='timing mis')
+    plt.plot([x1,x1],[visual_hit_mean-visual_hit_sem,visual_hit_mean+visual_hit_sem],
         '-',color='darkorange')
-    plt.plot([.05,0.05],[visual_miss_mean-visual_miss_sem,visual_miss_mean+visual_miss_sem],
+    plt.plot([x2,x2],[visual_miss_mean-visual_miss_sem,visual_miss_mean+visual_miss_sem],
         '-',color='darkorange')
-    plt.plot([.95,.95],[timing_hit_mean-timing_hit_sem,timing_hit_mean+timing_hit_sem],
+    plt.plot([x3,x3],[timing_hit_mean-timing_hit_sem,timing_hit_mean+timing_hit_sem],
         '-',color='blue')
-    plt.plot([1.05,1.05],[timing_miss_mean-timing_miss_sem,timing_miss_mean+timing_miss_sem],
+    plt.plot([x4,x4],[timing_miss_mean-timing_miss_sem,timing_miss_mean+timing_miss_sem],
         '-',color='blue')
 
     mapper={
@@ -1966,18 +1975,18 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
     p = bootstrap_significance(bootstrap, 'visual_hit','timing_hit')
     if (p < 0.05) or (p >.95):
         ylim = ax.get_ylim()[1]
-        plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
-        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
-        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
-        plt.plot(0.5,ylim*1.15, 'k*')
-        ax.set_ylim(top=ylim*1.2)
+        plt.plot([x1,x3],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([x1,x1],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([x3,x3],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(np.mean([x1,x3]),ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.15)
 
     p = bootstrap_significance(bootstrap, 'visual_hit','visual_miss')
     if (p < 0.05) or (p >.95):
         ylim = ax.get_ylim()[1]
-        plt.plot([-.05,.05],[ylim*1.1,ylim*1.1],'k-')
-        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
-        plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([x1,x2],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([x1,x1],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([x2,x2],[ylim*1.05,ylim*1.1],'k-')
         plt.plot(0,ylim*1.15, 'k*')
         ax.set_ylim(top=ylim*1.2)
 

@@ -170,7 +170,7 @@ gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params)
 gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params)
 gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params)
 
-
+gpt.plot_PSTH_3D(dfs,labels,'image',run_params)
 
 
 

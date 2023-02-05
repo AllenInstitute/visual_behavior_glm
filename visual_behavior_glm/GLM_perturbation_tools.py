@@ -905,13 +905,13 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
 
     if add_2D:
         ax.plot(traces['visual_Exc'][ts],traces['visual_Vip'][ts],
-            zdir='y',color='burlywood',zorder=5)
+            zdir='y',color='burlywood',zorder=5,zs=.03)
         ax.plot(traces['visual_Sst'][ts],traces['visual_Vip'][ts],
             zdir='x',color='burlywood',zorder=5) 
         ax.plot(traces['visual_Exc'][ts],traces['visual_Sst'][ts],
             zdir='z',color='burlywood',zorder=5) 
         ax.plot(traces['timing_Exc'][ts],traces['timing_Vip'][ts],
-            zdir='y',color='lightsteelblue',zorder=5)
+            zdir='y',color='lightsteelblue',zorder=5,zs=.03)
         ax.plot(traces['timing_Sst'][ts],traces['timing_Vip'][ts],
             zdir='x',color='lightsteelblue',zorder=5) 
         ax.plot(traces['timing_Exc'][ts],traces['timing_Sst'][ts],
@@ -939,7 +939,7 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
     ax.set_xlim(left=0)#left=0.001)
     ax.set_ylim(bottom=0)
     #ax.view_init(elev=15,azim=-115)
-    ax.view_init(elev=15,azim=35)
+    ax.view_init(elev=15,azim=-55)
     if condition == 'omission':
         ax.view_init(elev=15,azim=50)
 

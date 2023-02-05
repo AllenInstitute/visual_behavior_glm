@@ -682,9 +682,9 @@ def plot_PSTH_2D_diff(dfs,labels, condition, run_params,
 
 
 
-def plot_PSTH_perturbation(dfs,labels,condition,min_time=-.75,
+def plot_PSTH_perturbation(dfs,labels,condition,
     run_params=None,savefig=False,experience_level="Familiar",
-    x='Exc',y='y'):
+    x='Exc',y='Vip',min_time=-.75):
     traces = get_PSTH_2D_traces(dfs,labels,condition)
 
     height = 4
@@ -728,9 +728,9 @@ def plot_PSTH_perturbation(dfs,labels,condition,min_time=-.75,
         'ro',zorder=11,ms=8)
     elif condition == 'miss':
         ax.plot(traces['visual_'+x][p1], traces['visual_'+y][p1],
-        'rx',zorder=11,ms=8)
+        'ro',zorder=11,ms=8)
         ax.plot(traces['timing_'+x][p1], traces['timing_'+y][p1],
-        'rx',zorder=11,ms=8)
+        'ro',zorder=11,ms=8)
     if condition in ['omission','hit','miss']: 
         ax.plot(traces['visual_'+x][p2], traces['visual_'+y][p2],
         'ko',zorder=10,ms=8)
@@ -767,26 +767,26 @@ def plot_PSTH_perturbation(dfs,labels,condition,min_time=-.75,
     
     if (x=='Exc') & (y=='y'):
         if condition in ['miss']:
-            ax.set_xlim(0,.009)
+            ax.set_xlim(0,.01)
             ax.set_ylim(-.035,0.05)
         if condition in ['hit']:
-            ax.set_xlim( 0,0.009)
+            ax.set_xlim( 0,0.01)
             ax.set_ylim(-.035,0.05)
         if condition in ['omission']:
             ax.set_xlim( 0,0.0045)
-            ax.set_xlim( 0,0.009)
+            ax.set_xlim( 0,0.01)
             ax.set_ylim(-.035,0.05)
         if condition in ['image']:
             ax.set_xlim( 0,0.0045)
-            ax.set_xlim( 0,0.009)
+            ax.set_xlim( 0,0.01)
             ax.set_ylim(-.035,0.05)
 
     else:
         if (x=='Exc'):
             if condition in ['hit','miss']:
-                ax.set_xlim(0,.009)
+                ax.set_xlim(0,.01)
             if condition in ['image','omission']:
-                ax.set_xlim( 0,0.009)
+                ax.set_xlim( 0,0.01)
                 #ax.set_xlim( 0,0.0045)
         if x=='Sst':
             ax.set_xlim(0,.045)
@@ -863,7 +863,7 @@ def plot_PSTH_2D(dfs,labels, condition, strategy, run_params,
     elif condition =='hit':
         ax.plot(0,0,'ro',zorder=10,clip_on=False,ms=8)
     elif condition == 'miss':
-        ax.plot(0,0,'rx',zorder=10,clip_on=False,ms=8)
+        ax.plot(0,0,'ro',zorder=10,clip_on=False,ms=8)
     else:
         ax.plot(0,0,'ko',zorder=10,clip_on=False,ms=8)
     if condition in ['omission','hit','miss']:
@@ -966,9 +966,10 @@ def get_PSTH_2D_traces(dfs,labels,condition,experience_level="Familiar"):
     traces['time'] = dfs[0].query('condition ==@condition').iloc[0]['time']
     return traces
 
-def PSTH_analysis(dfs, labels,condition, run_params, 
+def PSTH_analysis(dfs, condition, run_params, 
     experience_level="Familiar",savefig=False):
-   
+  
+    labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
     # error bars on 2D 
     ax1= plot_PSTH_2D(dfs,labels, condition,'visual',run_params, 
         experience_level,savefig)

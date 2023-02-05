@@ -3,6 +3,7 @@ import visual_behavior_glm.PSTH as psth
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_schematic_plots as gsm
+import visual_behavior_glm.GLM_perturbation_tools as gpt
 import matplotlib.pyplot as plt
 plt.ion()
 from importlib import reload
@@ -57,8 +58,6 @@ exc_change = psth.load_change_df(summary_df, cre='Slc17a7-IRES2-Cre',data='event
     first=False, second=False, image=True)
 psth.plot_summary_bootstrap_strategy_hit(exc_change, 'exc', first=False, second=False,
     image=True)
-#bootstrap = psth.get_summary_bootstrap_strategy_hit(data='events',cell_type = 'exc',
-#    first=True, second=False)
 
 # Determine significance for Sst hit/miss
 sst_change = psth.load_change_df(summary_df, cre='Sst-IRES-Cre',data='events',
@@ -85,9 +84,6 @@ vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')
 bootstraps_image = psth.get_running_bootstraps('vip','image','events',10000)
 psth.running_responses(vip_image, 'image',bootstraps=bootstraps_image)
 
-## Fig. 4G - EXC Hit/Miss
-################################################################################
-psth.plot_exc_change_summary() # outdated
 
 ## Hierarchy Supplement
 ################################################################################
@@ -122,7 +118,7 @@ exc_omission = psth.load_omission_df(summary_df, cre='Slc17a7-IRES2-Cre',data='e
 bootstraps_omission = psth.get_running_bootstraps('exc','omission','events',10000)
 psth.running_responses(exc_omission, 'omission',bootstraps=bootstraps_omission,cre='exc')
 
-## Fig. 5A Engagement PSTHs
+## Fig. 6 Engagement PSTHs
 ################################################################################
 dfs = psth.get_figure_4_psth(data='events')
 psth.plot_engagement(dfs,data='events')
@@ -131,7 +127,7 @@ exc_change = psth.load_change_df(summary_df, cre='Slc17a7-IRES2-Cre',data='event
 psth.plot_summary_bootstrap_strategy_engaged_miss(exc_change,cell_type='exc',
     first=True, second=False,nboots=10000)
 
-## Fig. 5B - Running VIP control image
+## Fig. S6 - Running VIP control image
 ################################################################################
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')
 boot_image_visual = psth.compute_engagement_running_bootstrap(vip_image,'image',
@@ -144,7 +140,7 @@ psth.engagement_running_responses(vip_image, 'image',vis_boots=boot_image_visual
     tim_boots=boot_image_timing, plot_list=['timing'])
 
 
-## Fig. 5C - Running VIP control Omission
+## Fig. S6 - Running VIP control Omission
 ################################################################################
 vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
 boot_omission_visual = psth.compute_engagement_running_bootstrap(vip_omission,
@@ -158,13 +154,37 @@ psth.engagement_running_responses(vip_omission, 'omission',
     vis_boots=boot_omission_visual,
     tim_boots=boot_omission_timing, plot_list=['timing'])
 
-## Fig 6
+## Fig 5
+################################################################################
+GLM_VERSION = '24_events_all_L2_optimize_by_session'
+run_params = glm_params.load_run_json(GLM_VERSION)
+labels = ['Excitatory','Sst Inhibitory','Vip Inhibitory']
+
+gpt.PSTH_analysis(dfs,  'image',run_params)
+gpt.PSTH_analysis(dfs,  'omission',run_params)
+gpt.PSTH_analysis(dfs,  'hit',run_params)
+gpt.PSTH_analysis(dfs,  'miss',run_params)
+
+gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params)
+gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params)
+gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params)
+gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params)
+
+
+
+
+
+
+
+## Fig S5 - GLM Supplement
 ################################################################################
 gpt.analysis(weights_beh, run_params, 'omissions')
 gst.kernels_by_cre(weights_beh, run_params)
-gpt.PSTH_analysis(dfs, labels, 'image',run_params)
-gpt.PSTH_analysis(dfs, labels, 'omission',run_params)
-gpt.PSTH_analysis(dfs, labels, 'omission',run_params)
-gpt.PSTH_analysis(dfs, labels, 'omission',run_params)
+
+
+
+
+
+
 
 

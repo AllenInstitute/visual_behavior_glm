@@ -118,6 +118,30 @@ exc_omission = psth.load_omission_df(summary_df, cre='Slc17a7-IRES2-Cre',data='e
 bootstraps_omission = psth.get_running_bootstraps('exc','omission','events',10000)
 psth.running_responses(exc_omission, 'omission',bootstraps=bootstraps_omission,cre='exc')
 
+## Fig 5
+################################################################################
+GLM_VERSION = '24_events_all_L2_optimize_by_session'
+run_params = glm_params.load_run_json(GLM_VERSION)
+labels = ['Excitatory','Sst Inhibitory','Vip Inhibitory']
+
+gpt.PSTH_analysis(dfs,  'image',run_params)
+gpt.PSTH_analysis(dfs,  'omission',run_params)
+gpt.PSTH_analysis(dfs,  'hit',run_params)
+gpt.PSTH_analysis(dfs,  'miss',run_params)
+
+gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params)
+gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params)
+gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params)
+gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params)
+
+gpt.plot_PSTH_3D(dfs,labels,'image',run_params)
+
+## Fig S5 - GLM Supplement
+################################################################################
+gpt.analysis(weights_beh, run_params, 'omissions')
+gst.kernels_by_cre(weights_beh, run_params)
+
+
 ## Fig. 6 Engagement PSTHs
 ################################################################################
 dfs = psth.get_figure_4_psth(data='events')
@@ -154,34 +178,10 @@ psth.engagement_running_responses(vip_omission, 'omission',
     vis_boots=boot_omission_visual,
     tim_boots=boot_omission_timing, plot_list=['timing'])
 
-## Fig 5
+## Novelty Supplement 
 ################################################################################
-GLM_VERSION = '24_events_all_L2_optimize_by_session'
-run_params = glm_params.load_run_json(GLM_VERSION)
-labels = ['Excitatory','Sst Inhibitory','Vip Inhibitory']
-
-gpt.PSTH_analysis(dfs,  'image',run_params)
-gpt.PSTH_analysis(dfs,  'omission',run_params)
-gpt.PSTH_analysis(dfs,  'hit',run_params)
-gpt.PSTH_analysis(dfs,  'miss',run_params)
-
-gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params)
-gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params)
-gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params)
-gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params)
-
-gpt.plot_PSTH_3D(dfs,labels,'image',run_params)
-
-
-
-
-
-## Fig S5 - GLM Supplement
-################################################################################
-gpt.analysis(weights_beh, run_params, 'omissions')
-gst.kernels_by_cre(weights_beh, run_params)
-
-
+dfs_novel = psth.get_figure_4_psth(data='events',experience_level='Novel 1')
+psth.plot_figure_4_averages(dfs_novel, data='events',experience_level='Novel 1')
 
 
 

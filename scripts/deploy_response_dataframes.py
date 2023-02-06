@@ -27,8 +27,11 @@ if __name__ == "__main__":
     print('stdout files will be at {}'.format(stdout_location))
 
     summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION)
-    print('limiting to familiar')
-    summary_df = summary_df.query('experience_level == "Familiar"')
+    #print('limiting to familiar')
+    #summary_df = summary_df.query('experience_level == "Familiar"')
+    print('limiting to Novel')
+    summary_df = summary_df.query('experience_level in ["Novel 1","Novel >1"]')
+
     oeids = np.concatenate(summary_df['ophys_experiment_id'].values) 
 
     job_count = 0

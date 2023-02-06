@@ -20,7 +20,7 @@ def add_area_depth(df,experiment_table):
     return df
 
 def load_population_df(data,df_type,cre,summary_df=None,first=False,second=False,
-    image=False):
+    image=False,experience_level='Familiar'):
     if first:
         extra = '_first_half'
     elif second:
@@ -29,6 +29,12 @@ def load_population_df(data,df_type,cre,summary_df=None,first=False,second=False
         extra = '_image_period'
     else:
         extra =  ''
+
+    if experience_level == 'Novel 1':
+        extra +='_novel'
+    elif experience_level == "Novel >1":
+        extra +='_novelp'
+
     path ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
         +df_type+'s/'+data+'/summary_'+cre+extra+'.feather'
     df = pd.read_feather(path)
@@ -43,7 +49,7 @@ def load_population_df(data,df_type,cre,summary_df=None,first=False,second=False
 
 def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
     data='filtered_events',savefile=True,first=False,second=False,image=False,
-    familiar_only=True):
+    experience_level='Familiar'):
 
     batch_size=50
     batch=False
@@ -55,8 +61,7 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
 
     # get list of experiments
     summary_df = summary_df.query('cre_line == @cre')
-    if familiar_only:
-        summary_df = summary_df.query('experience_level == "Familiar"')
+    summary_df = summary_df.query('experience_level == @experience_level')
     oeids = np.concatenate(summary_df['ophys_experiment_id'].values) 
 
     # make list of columns to drop for space
@@ -105,7 +110,7 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
             if np.mod(idx,batch_size) == batch_size-1:
                 temp = pd.concat(dfs, ignore_index=True, sort=False)
                 path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-                    +df_type+'s/'+data+'/temp_'+str(batch_num)+'_'+cre+'.feather'
+                    +df_type+'s/'+data+'/temp_'+experience_level+str(batch_num)+'_'+cre+'.feather'
                 temp.to_feather(path)
                 batch_num+=1
                 dfs = []
@@ -115,14 +120,14 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
     if batch:
         temp = pd.concat(dfs, ignore_index=True, sort=False)
         path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-            +df_type+'s/'+data+'/temp_'+str(batch_num)+'_'+cre+'.feather'
+            +df_type+'s/'+data+'/temp_'+experience_level+str(batch_num)+'_'+cre+'.feather'
         temp.to_feather(path)
 
         n = list(range(0,batch_num+1))
         dfs = []
         for i in n:
             path='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-                +df_type+'s/'+data+'/temp_'+str(i)+'_'+cre+'.feather'
+                +df_type+'s/'+data+'/temp_'+experience_level+str(i)+'_'+cre+'.feather'
             temp = pd.read_feather(path)
             dfs.append(temp)
  
@@ -142,6 +147,11 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
             extra = '_image_period' 
         else:
             extra = ''
+        if experience_level == 'Novel 1':
+            extra +='_novel'
+        elif experience_level == "Novel >1":
+            extra +='_novelp'
+
         path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
             +df_type+'s/'+data+'/summary_'+cre+extra+'.feather'
         try:

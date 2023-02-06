@@ -218,13 +218,15 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 
     return ax
 
-def get_figure_4_psth(data='filtered_events'):
+def get_figure_4_psth(data='events',experience_level='Familiar'):
  
     # Load each cell type
-    vip_full_filtered = bd.load_population_df(data,'full_df','Vip-IRES-Cre')
-    sst_full_filtered = bd.load_population_df(data,'full_df','Sst-IRES-Cre')
+    vip_full_filtered = bd.load_population_df(data,'full_df',\
+    'Vip-IRES-Cre',experience_level=experience_level)
+    sst_full_filtered = bd.load_population_df(data,'full_df',\
+    'Sst-IRES-Cre',experience_level=experience_level)
     exc_full_filtered = bd.load_population_df(data,'full_df',\
-        'Slc17a7-IRES2-Cre')
+        'Slc17a7-IRES2-Cre',experience_level=experience_level)
 
     # Add area, depth
     experiment_table = glm_params.get_experiment_table()
@@ -245,7 +247,7 @@ def get_figure_4_psth(data='filtered_events'):
     return dfs_filtered
 
 def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
-    areas=['VISp','VISl'],depths=['upper','lower']):
+    areas=['VISp','VISl'],depths=['upper','lower'],experience_level='Familiar'):
 
     fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
@@ -253,13 +255,13 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
     for index, full_df in enumerate(dfs): 
         max_y = [0,0,0]
         ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
-        max_y[0] = plot_condition_experience(full_df, 'omission', 'Familiar',
+        max_y[0] = plot_condition_experience(full_df, 'omission', experience_level,
             'visual_strategy_session', ax=ax[index, 0], ylabel=ylabel,
             error_type=error_type,areas=areas,depths=depths)
-        max_y[1] = plot_condition_experience(full_df, 'hit', 'Familiar',
+        max_y[1] = plot_condition_experience(full_df, 'hit', experience_level,
             'visual_strategy_session', ax=ax[index, 1],ylabel='',
             error_type=error_type,areas=areas,depths=depths)
-        max_y[2] = plot_condition_experience(full_df, 'miss', 'Familiar',
+        max_y[2] = plot_condition_experience(full_df, 'miss', experience_level,
             'visual_strategy_session', ax=ax[index, 2],ylabel='',
             error_type=error_type,areas=areas,depths=depths)
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
@@ -272,7 +274,7 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
     plt.tight_layout()
     if savefig:
         filename = PSTH_DIR + data + '/population_averages/'+\
-            'figure_4_comparisons_psth.svg' 
+            'figure_4_comparisons_psth_'+experience_level+'.svg' 
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 

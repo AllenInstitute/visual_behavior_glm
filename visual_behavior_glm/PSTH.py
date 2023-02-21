@@ -1539,6 +1539,13 @@ def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type
     else:
         print('file not found')
 
+def print_bootstrap_summary(means,bootstrap, p,keys=['visual','timing']):
+    sems={}
+    for key in keys:
+        sems[key] = np.std(bootstrap[key])
+        print('{}: {:.6f} +/- {:.6f}'.format(key,means[key],sems[key]))
+    print('p: {}'.format(p))
+
 def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='events',
     nboots=10000,first=True, second=False,post=False):
     
@@ -1548,6 +1555,9 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
     fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_mean = df.query('visual_strategy_session')['response'].mean()
     timing_mean = df.query('not visual_strategy_session')['response'].mean()
+    means={}
+    means['visual'] = visual_mean
+    means['timing'] = timing_mean
     visual_sem = np.std(bootstrap['visual'])
     timing_sem = np.std(bootstrap['timing'])
     ax.plot(0, visual_mean,'o',color='darkorange')
@@ -1594,9 +1604,10 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
+    print_bootstrap_summary(means,bootstrap,p)
 
-def compute_summary_bootstrap_strategy_omission_lick(df,data='events',nboots=10000,cell_type='exc',
-    first=False,second=True):
+def compute_summary_bootstrap_strategy_omission_lick(df,data='events',nboots=10000,
+    cell_type='exc',first=False,second=True):
 
     df = df.query('(pre_omission_no_lick)or(pre_omission_lick)').copy()
     df['group'] = df['visual_strategy_session'].astype(str)+df['pre_omission_lick'].astype(str)
@@ -1799,7 +1810,11 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
     timing_hit_sem = np.std(bootstrap['timing_hit'])
     visual_miss_sem = np.std(bootstrap['visual_miss'])
     timing_miss_sem = np.std(bootstrap['timing_miss'])
-
+    means = {}
+    means['visual_hit'] = visual_hit_mean
+    means['visual_miss'] = visual_miss_mean
+    means['timing_hit'] = timing_hit_mean
+    means['timing_miss'] = timing_miss_mean
     dx = .15
     x1 = -dx
     x2 = dx
@@ -1862,6 +1877,15 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
         ax.set_ylim(top=ylim*1.2)
 
     plt.tight_layout()   
+
+    phh = bootstrap_significance(bootstrap, 'visual_hit','timing_hit')
+    pmm = bootstrap_significance(bootstrap, 'visual_miss','timing_miss')
+    pvhm = bootstrap_significance(bootstrap, 'visual_hit','visual_miss')
+    pthm = bootstrap_significance(bootstrap, 'timing_hit','timing_miss')
+    print_bootstrap_summary(means, bootstrap, phh,keys=['visual_hit','timing_hit'])
+    print_bootstrap_summary(means, bootstrap, pmm,keys=['visual_miss','timing_miss'])
+    print_bootstrap_summary(means, bootstrap, pvhm,keys=['visual_hit','visual_miss'])
+    print_bootstrap_summary(means, bootstrap, pthm,keys=['timing_hit','timing_miss'])
 
     if savefig:
         filepath = PSTH_DIR + data +'/summary/'+cell_type+'_pre_change_strategy_summary_'+str(nboots)
@@ -1938,6 +1962,11 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
     timing_hit_sem = np.std(bootstrap['timing_hit'])
     visual_miss_sem = np.std(bootstrap['visual_miss'])
     timing_miss_sem = np.std(bootstrap['timing_miss'])
+    means = {}
+    means['visual_hit'] = visual_hit_mean
+    means['visual_miss'] = visual_miss_mean
+    means['timing_hit'] = timing_hit_mean
+    means['timing_miss'] = timing_miss_mean 
 
     dx = .15
     x1 = -dx
@@ -1993,6 +2022,14 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
         ax.set_ylim(top=ylim*1.2)
 
     plt.tight_layout()   
+    phh = bootstrap_significance(bootstrap, 'visual_hit','timing_hit')
+    pmm = bootstrap_significance(bootstrap, 'visual_miss','timing_miss')
+    pvhm = bootstrap_significance(bootstrap, 'visual_hit','visual_miss')
+    pthm = bootstrap_significance(bootstrap, 'timing_hit','timing_miss')
+    print_bootstrap_summary(means, bootstrap, phh,keys=['visual_hit','timing_hit'])
+    print_bootstrap_summary(means, bootstrap, pmm,keys=['visual_miss','timing_miss'])
+    print_bootstrap_summary(means, bootstrap, pvhm,keys=['visual_hit','visual_miss'])
+    print_bootstrap_summary(means, bootstrap, pthm,keys=['timing_hit','timing_miss'])
 
     if savefig:
         filepath = PSTH_DIR + data +'/summary/'+cell_type+'_hit_strategy_summary_'+str(nboots)

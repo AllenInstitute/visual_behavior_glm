@@ -45,19 +45,6 @@ vip_omission = psth.load_omission_df(summary_df,cre='Vip-IRES-Cre',data='events'
 psth.plot_summary_bootstrap_omission_strategy(vip_omission,'vip',first=False,
     second=False)
 
-# Post-omission EXC
-exc_post_omission = psth.load_image_df(summary_df,'Slc17a7-IRES2-Cre',first=True,
-    second=False)
-exc_post_omission = exc_post_omission.query('post_omitted_1')
-psth.plot_summary_bootstrap_omission_strategy(exc_post_omission,'exc',first=True,
-    second=False,post=True)
-
-# Post-omission Sst
-sst_post_omission = psth.load_image_df(summary_df,'Sst-IRES-Cre',first=True,second=False)
-sst_post_omission = sst_post_omission.query('post_omitted_1')
-psth.plot_summary_bootstrap_omission_strategy(sst_post_omission,'sst',first=True,
-    second=False,post=True)
-
 # Determine significance for Exc hit/miss
 exc_change = psth.load_change_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events',
     first=False, second=False, image=True)
@@ -74,14 +61,6 @@ vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
     first=False, second=True)
 psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False, second=True)
 
-
-## Fig. 4E - Running VIP control Omission
-################################################################################
-
-vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
-bootstraps_omission = psth.get_running_bootstraps('vip','omission','events',10000)
-psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps_omission)
-
 ## Fig. 4F - Running VIP control Omission
 ################################################################################
 
@@ -89,20 +68,12 @@ vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')
 bootstraps_image = psth.get_running_bootstraps('vip','image','events',10000)
 psth.running_responses(vip_image, 'image',bootstraps=bootstraps_image)
 
-
-## Hierarchy Supplement
+## Fig. 4G - Running VIP control Omission
 ################################################################################
 
-psth.get_and_plot('vip','omission','events','binned_depth',
-    nboots, splits=['visual_strategy_session'])
-psth.get_and_plot('sst','omission','events','binned_depth',
-    nboots, splits=['visual_strategy_session'],second=True)
-psth.get_and_plot('sst','change','events','binned_depth',
-    nboots, splits=['visual_strategy_session'],extra='hit',second=True)
-psth.get_and_plot('exc','change','events','binned_depth',
-    nboots, splits=['hit'],extra='visual',first=True)
-psth.get_and_plot('exc','change','events','binned_depth',
-    nboots, splits=['hit'],extra='timing',first=True)
+vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
+bootstraps_omission = psth.get_running_bootstraps('vip','omission','events',10000)
+psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps_omission)
 
 ## Running Supplement
 ################################################################################

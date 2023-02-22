@@ -125,21 +125,42 @@ psth.running_responses(exc_omission, 'omission',bootstraps=bootstraps_omission,c
 
 ## Fig 5
 ################################################################################
+
+# Just need for filepaths
 GLM_VERSION = '24_events_all_L2_optimize_by_session'
 run_params = glm_params.load_run_json(GLM_VERSION)
 labels = ['Excitatory','Sst Inhibitory','Vip Inhibitory']
 
+# Plot PSTH over time
 gpt.PSTH_analysis(dfs,  'image',run_params)
 gpt.PSTH_analysis(dfs,  'omission',run_params)
 gpt.PSTH_analysis(dfs,  'hit',run_params)
 gpt.PSTH_analysis(dfs,  'miss',run_params)
 
+# Plot state space plots
 gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params)
 gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params)
 gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params)
 gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params)
 
+# Plot 3D state space plots
 gpt.plot_PSTH_3D(dfs,labels,'image',run_params)
+
+# Supplemental figures
+gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params,x='Sst')
+gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params,x='Sst')
+gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params,x='Sst')
+gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params,x='Sst')
+
+gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params,y='Sst')
+gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params,y='Sst')
+gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params,y='Sst')
+gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params,y='Sst')
+
+gpt.plot_PSTH_3D(dfs,labels,'image',run_params,supp_fig=True)
+gpt.plot_PSTH_3D(dfs,labels,'omission',run_params,supp_fig=True)
+gpt.plot_PSTH_3D(dfs,labels,'hit',run_params,supp_fig=True)
+gpt.plot_PSTH_3D(dfs,labels,'miss',run_params,supp_fig=True)
 
 ## Fig S5 - GLM Supplement
 ################################################################################

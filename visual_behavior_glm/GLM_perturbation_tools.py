@@ -789,9 +789,9 @@ def plot_PSTH_perturbation(dfs,labels,condition,
                 ax.set_xlim( 0,0.01)
                 #ax.set_xlim( 0,0.0045)
         if x=='Sst':
-            ax.set_xlim(0,.045)
+            ax.set_xlim(0,.05)
         if y=='Sst':
-            ax.set_ylim(0,.045)
+            ax.set_ylim(0,.05)
         if y=='Vip':
             ax.set_ylim(0, .05)
         if y=='y':
@@ -878,7 +878,7 @@ def plot_PSTH_2D(dfs,labels, condition, strategy, run_params,
     return ax
 
 def plot_PSTH_3D(dfs,labels, condition,run_params, 
-    experience_level="Familiar",savefig=True,add_2D=True):
+    experience_level="Familiar",savefig=True,add_2D=True,supp_fig=False):
     traces = get_PSTH_2D_traces(dfs,labels,condition,
         experience_level=experience_level)
     
@@ -904,14 +904,17 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
         zorder=10)
 
     if add_2D:
+        zs = .03
+        if condition in ['omission','hit','miss']:
+            zs = 0 
         ax.plot(traces['visual_Exc'][ts],traces['visual_Vip'][ts],
-            zdir='y',color='burlywood',zorder=5,zs=.03)
+            zdir='y',color='burlywood',zorder=5,zs=zs)
         ax.plot(traces['visual_Sst'][ts],traces['visual_Vip'][ts],
             zdir='x',color='burlywood',zorder=5) 
         ax.plot(traces['visual_Exc'][ts],traces['visual_Sst'][ts],
             zdir='z',color='burlywood',zorder=5) 
         ax.plot(traces['timing_Exc'][ts],traces['timing_Vip'][ts],
-            zdir='y',color='lightsteelblue',zorder=5,zs=.03)
+            zdir='y',color='lightsteelblue',zorder=5,zs=zs)
         ax.plot(traces['timing_Sst'][ts],traces['timing_Vip'][ts],
             zdir='x',color='lightsteelblue',zorder=5) 
         ax.plot(traces['timing_Exc'][ts],traces['timing_Sst'][ts],
@@ -935,13 +938,16 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)
     ax.zaxis.set_tick_params(labelsize=12)
-    ax.set_zlim(bottom=0)
-    ax.set_xlim(left=0)#left=0.001)
-    ax.set_ylim(bottom=0)
-    #ax.view_init(elev=15,azim=-115)
-    ax.view_init(elev=15,azim=-55)
-    if condition == 'omission':
-        ax.view_init(elev=15,azim=50)
+    if supp_fig:
+        ax.set_zlim(0,0.05)
+        ax.set_xlim(0,0.01)
+        ax.set_ylim(0,0.05)   
+        ax.view_init(elev=15,azim=80)
+    else:
+        ax.set_zlim(bottom=0)
+        ax.set_xlim(left=0)#left=0.001)
+        ax.set_ylim(bottom=0)
+        ax.view_init(elev=15,azim=-55)
 
     if savefig:
         filepath = run_params['figure_dir']+\

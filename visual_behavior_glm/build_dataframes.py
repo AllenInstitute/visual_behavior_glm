@@ -11,6 +11,10 @@ import psy_output_tools as po
 BEHAVIOR_VERSION = 21
 
 def add_area_depth(df,experiment_table):
+    '''
+        Adds targeted_structure, and layer columns from experiment table 
+        index on oeid
+    '''
     df = pd.merge(df, 
         experiment_table.reset_index()[[\
             'ophys_experiment_id',
@@ -21,6 +25,11 @@ def add_area_depth(df,experiment_table):
 
 def load_population_df(data,df_type,cre,summary_df=None,first=False,second=False,
     image=False,experience_level='Familiar'):
+    '''
+        Loads a summary dataframe
+        data should be 'events', 'filtered_events', or 'dff'
+        df_type should be 'full_df', or 'image_df'
+    '''
     if first:
         extra = '_first_half'
     elif second:
@@ -35,10 +44,12 @@ def load_population_df(data,df_type,cre,summary_df=None,first=False,second=False
     elif experience_level == "Novel >1":
         extra +='_novelp'
 
+    # load summary file
     path ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
         +df_type+'s/'+data+'/summary_'+cre+extra+'.feather'
     df = pd.read_feather(path)
 
+    # Add columsn from summary_df
     if (df_type =='image_df') and (summary_df is not None):
         cols = ['behavior_session_id','visual_strategy_session',
             'experience_level']
@@ -50,6 +61,10 @@ def load_population_df(data,df_type,cre,summary_df=None,first=False,second=False
 def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
     data='filtered_events',savefile=True,first=False,second=False,image=False,
     experience_level='Familiar'):
+    '''
+        Generates the summary data files by aggregating over ophys experiment
+    '''
+
 
     batch_size=50
     batch=False

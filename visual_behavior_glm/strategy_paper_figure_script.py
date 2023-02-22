@@ -28,6 +28,11 @@ gsm.strategy_paper_ophys_example(session, cell_id, time)
 dfs = psth.get_figure_4_psth(data='events')
 psth.plot_figure_4_averages(dfs, data='events')
 
+# Determine significant for Vip image
+vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
+    first=False, second=False)
+psth.plot_summary_bootstrap_image_strategy(vip_image, 'vip',first=False, second=False)
+
 # Determine significance for SST omission
 sst_omission = psth.load_omission_df(summary_df,cre='Sst-IRES-Cre',data='events',
     first=False, second=True)

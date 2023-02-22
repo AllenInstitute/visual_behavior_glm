@@ -1492,6 +1492,114 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
+def compute_summary_bootstrap_image_strategy(df,data='events',nboots=10000,cell_type='exc',
+    first=True,second=False,post=False):
+
+    df['group'] = df['visual_strategy_session'].astype(str)
+    mapper = {
+        'True':'visual',
+        'False':'timing',
+    }
+    df['group'] = [mapper[x] for x in df['group']]
+    bootstrap = hb.bootstrap(df, levels=['group','ophys_experiment_id','cell_specimen_id'],
+        nboots=nboots)
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_image_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    if second:
+        filepath += '_second'
+    if post:
+        filepath += '_post'
+    filepath = filepath+'.feather'
+
+    with open(filepath,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bootstrap saved to {}'.format(filepath)) 
+
+def get_summary_bootstrap_image_strategy(data='events',nboots=10000,cell_type='exc',
+    first=True,second=False,post=False):
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
+        +'_image_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    if second:
+        filepath += '_second'
+    if post:
+        filepath += '_post'
+    filepath = filepath+'.feather'
+
+    if os.path.isfile(filepath):
+        # Load this bin
+        with open(filepath,'rb') as handle:
+            this_boot = pickle.load(handle)
+        print('loading from file')
+        return this_boot
+    else:
+        print('file not found')
+
+def plot_summary_bootstrap_image_strategy(df,cell_type,savefig=False,data='events',
+    nboots=10000,first=True, second=False,post=False):
+    
+    bootstrap = get_summary_bootstrap_image_strategy(data, nboots,cell_type,
+        first,second,post)   
+ 
+    fig,ax = plt.subplots(figsize=(2.5,2.75))
+    visual_mean = df.query('visual_strategy_session')['response'].mean()
+    timing_mean = df.query('not visual_strategy_session')['response'].mean()
+    means={}
+    means['visual'] = visual_mean
+    means['timing'] = timing_mean
+    visual_sem = np.std(bootstrap['visual'])
+    timing_sem = np.std(bootstrap['timing'])
+    ax.plot(0, visual_mean,'o',color='darkorange')
+    ax.plot(1,timing_mean,'o',color='blue')
+    ax.plot([0,0],[visual_mean-visual_sem,visual_mean+visual_sem],'-',color='darkorange')
+    ax.plot([1,1],[timing_mean-timing_sem,timing_mean+timing_sem],'-',color='blue')
+
+    mapper={
+        'exc':'Excitatory',
+        'sst':'Sst Inhibitory',
+        'vip':'Vip Inhibitory'
+        }
+    nice_cell =mapper[cell_type] 
+
+    ax.set_ylabel(nice_cell+' \n(avg. Ca$^{2+}$ events)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_xticks([0,1])
+    ax.set_xticklabels(['Vis.','Tim.'],fontsize=16)
+    ax.set_xlim(-.5,1.5)
+    ax.set_ylim(bottom=0)
+    
+    p = bootstrap_significance(bootstrap, 'visual','timing')
+    if (p < 0.05) or(p>.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([0,1],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([0,0],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([1,1],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    plt.tight_layout()   
+
+    if savefig:
+        filepath = PSTH_DIR + data +'/summary/'+cell_type+'_image_strategy_summary_'+str(nboots)
+        if first:
+            filepath += '_first'
+        if second:
+            filepath += '_second'
+        if post:
+            filepath += '_post'
+        filepath = filepath+'.svg'
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath)
+    print_bootstrap_summary(means,bootstrap,p)
+
+
 def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,cell_type='exc',
     first=True,second=False,post=False):
 

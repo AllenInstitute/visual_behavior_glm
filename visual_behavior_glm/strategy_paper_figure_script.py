@@ -2,8 +2,10 @@ import psy_output_tools as po
 import visual_behavior_glm.PSTH as psth
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_fit_tools as gft
+import visual_behavior_glm.GLM_fit_dev as gfd
 import visual_behavior_glm.GLM_schematic_plots as gsm
 import visual_behavior_glm.GLM_perturbation_tools as gpt
+import visual_behavior_glm.GLM_strategy_tools as gst
 import matplotlib.pyplot as plt
 plt.ion()
 from importlib import reload
@@ -135,6 +137,9 @@ gpt.plot_PSTH_3D(dfs,labels,'miss',run_params,supp_fig=True)
 
 ## Fig S5 - GLM Supplement
 ################################################################################
+GLM_VERSION = '24_events_all_L2_optimize_by_session'
+run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(GLM_VERSION)
+weights_beh = gst.add_behavior_session_metrics(weights_df, summary_df)
 gpt.analysis(weights_beh, run_params, 'omissions')
 gst.kernels_by_cre(weights_beh, run_params)
 

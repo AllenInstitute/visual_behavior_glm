@@ -153,6 +153,14 @@ gst.kernels_by_cre(weights_beh, run_params, 'omissions')
 gst.kernels_by_cre(weights_beh, run_params, 'hits')
 gst.kernels_by_cre(weights_beh, run_params, 'misses')
 
+# Plot state space plots
+gpt.plot_perturbation(weights_beh, run_params. 'all-images')
+gpt.plot_perturbation(weights_beh, run_params, 'omissions')
+gpt.plot_perturbation(weights_beh, run_params, 'hits')
+gpt.plot_perturbation(weights_beh, run_params, 'misses')
+
+
+
 ## Fig. 6 Engagement PSTHs
 ################################################################################
 dfs = psth.get_figure_4_psth(data='events')

@@ -148,8 +148,10 @@ gpt.analysis(weights_beh, run_params, 'hits')
 gpt.analysis(weights_beh, run_params, 'misses')
 
 # Plot kernels over time, compare strategies
-gst.kernels_by_cre(weights_beh, run_params)
-
+gst.kernels_by_cre(weights_beh, run_params, 'all-images')
+gst.kernels_by_cre(weights_beh, run_params, 'omissions')
+gst.kernels_by_cre(weights_beh, run_params, 'hits')
+gst.kernels_by_cre(weights_beh, run_params, 'misses')
 
 ## Fig. 6 Engagement PSTHs
 ################################################################################

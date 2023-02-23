@@ -102,12 +102,17 @@ def kernels_by_cre(weights_beh, run_params, kernel='omissions',
         post_horz_offset = 2.5
         vertical_offset = .75
         fig = plt.figure(figsize=(width,height))
-        if kernel == 'all_images':
-            h = [Size.Fixed(pre_horz_offset),\
-                Size.Fixed((width-pre_horz_offset-post_horz_offset)/3*.75)]     
-        else:
-            h = [Size.Fixed(pre_horz_offset),\
-                Size.Fixed(width-pre_horz_offset-post_horz_offset)]
+        
+        duration = run_params['kernels'][kernel]['length']
+        h = [Size.Fixed(pre_horz_offset),\
+            Size.Fixed((width-pre_horz_offset-post_horz_offset)/3*duration)]
+
+        #if kernel == 'all-images':
+        #    h = [Size.Fixed(pre_horz_offset),\
+        #        Size.Fixed((width-pre_horz_offset-post_horz_offset)/3*.75)]     
+        #else:
+        #    h = [Size.Fixed(pre_horz_offset),\
+        #        Size.Fixed(width-pre_horz_offset-post_horz_offset)]
         v = [Size.Fixed(vertical_offset),Size.Fixed(height-vertical_offset-.5)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         ax = fig.add_axes(divider.get_position(),\

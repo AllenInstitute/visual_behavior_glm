@@ -303,24 +303,6 @@ def get_points(df,ellipse=True):
         y=y+this_y
     return np.array([x,y]).T
 
-def get_ellipse_points(df):
-    plt.figure()
-    for index, row in df.iterrows():
-        plt.plot(row.x,row.y,'ro')
-        plt.plot([row.x1,row.x2],[row.y,row.y],'r-')
-        plt.plot([row.x,row.x],[row.y1,row.y2],'r-')
-        r1 = (row.x2-row.x1)/2
-        r2 = (row.y2-row.y1)/2
-        n=20
-        xpoints = [
-            r1*np.cos(theta)+row.x
-            for theta in (np.pi*2 * i/n for i in range(n))
-            ]
-        ypoints = [
-            r2*np.sin(theta)+row.y
-            for theta in (np.pi*2 * i/n for i in range(n))
-            ]
-        plt.plot(xpoints, ypoints, 'b-')
 def demonstrate_iterative_ch(Fvisual,kernel='omissions',show_steps=True,
     x='Slc17a7-IRES2-Cre',y='y'):
     '''
@@ -393,6 +375,15 @@ def plot_multiple(weights_df, run_params,savefig=False):
 def plot_perturbation(weights_df, run_params, kernel,experience_level="Familiar",
     savefig=False,lims = None,show_steps=False,ax=None,col1=False,row1=False,multi=False,
     x = 'Slc17a7-IRES2-Cre',y='Vip-IRES-Cre'):
+
+    limit_list = {
+        'Slc17a7-IRES2-Cre':[-.0005,0.002],
+        'Sst-IRES-Cre':[-0.006,0.0125],
+        'Vip-IRES-Cre':[-0.005,0.025],
+        'y':[0,0.01],
+        }
+    lims=[limit_list[x], limit_list[y]]
+
     visual, timing = get_perturbation(weights_df, run_params,kernel,experience_level)
     time = visual['time']
     offset = 0
@@ -471,7 +462,7 @@ def plot_perturbation(weights_df, run_params, kernel,experience_level="Familiar"
     
     if savefig:
         filepath = run_params['figure_dir']+\
-            '/strategy/'+kernel+'_strategy_perturbation_{}.svg'.format(experience_level)
+            '/strategy/'+kernel+'_strategy_perturbation_{}_{}_{}.svg'.format(experience_level,x,y)
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
 

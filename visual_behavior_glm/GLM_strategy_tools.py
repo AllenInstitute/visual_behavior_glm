@@ -95,6 +95,11 @@ def kernels_by_cre(weights_beh, run_params, kernel='omissions',
     savefig=False, sharey=False, depth_filter=[0,1000]):
      
     cres = ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    limit_list = {
+        'Slc17a7-IRES2-Cre':[-.0005,0.002],
+        'Sst-IRES-Cre':[-.006,0.0125],
+        'Vip-IRES-Cre':[-0.005,0.025],
+        }
     for dex, cre in enumerate(cres):
         height = 4
         width=8
@@ -129,7 +134,8 @@ def kernels_by_cre(weights_beh, run_params, kernel='omissions',
         ax.set_title(string_mapper(cre),fontsize=16)
         ax.set_ylabel(kernel+' weights\n(Ca$^{2+}$ events)',fontsize=16)
        
-        ylim=ax.get_ylim()
+        #ylim=ax.get_ylim()
+        ylim = limit_list[cre]
         ax.set_ylim(ylim) 
         if kernel =='omissions':
             out[2].plot(0,ylim[0],'co',zorder=10,clip_on=False)

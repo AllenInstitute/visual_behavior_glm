@@ -202,8 +202,22 @@ psth.engagement_running_responses(vip_omission, 'omission',
 dfs_novel = psth.get_figure_4_psth(data='events',experience_level='Novel 1')
 psth.plot_figure_4_averages(dfs_novel, data='events',experience_level='Novel 1')
 
+## Cell Selection Supplement
+################################################################################
 
+# Plot what the labels look like
+import psy_visualization as pv
+pv.scatter_df(summary_df, 'visual_only_dropout_index','timing_only_dropout_index',
+    categories='strategy_labels_with_none',flip1=True, flip2=True)
+pv.scatter_df(summary_df, 'visual_only_dropout_index','timing_only_dropout_index',
+    categories='strategy_labels_with_mixed',flip1=True, flip2=True)
 
-
+# Plot the neural activity
+dfs = psth.get_figure_4_psth(data='events')
+dfs = psth.add_cell_selection_labels(dfs, summary_df)
+psth.plot_figure_4_averages_cell_selection(dfs, data='events',
+    strategy='strategy_labels_with_none')
+psth.plot_figure_4_averages_cell_selection(dfs, data='events',
+    strategy='strategy_labels_with_mixed')
 
 

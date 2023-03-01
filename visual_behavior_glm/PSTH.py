@@ -246,8 +246,10 @@ def get_figure_4_psth(data='events',experience_level='Familiar'):
 
     return dfs_filtered
 
+
 def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
-    areas=['VISp','VISl'],depths=['upper','lower'],experience_level='Familiar'):
+    areas=['VISp','VISl'],depths=['upper','lower'],experience_level='Familiar',
+    strategy = 'visual_strategy_session'):
 
     fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
@@ -256,13 +258,13 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
         max_y = [0,0,0]
         ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
         max_y[0] = plot_condition_experience(full_df, 'omission', experience_level,
-            'visual_strategy_session', ax=ax[index, 0], ylabel=ylabel,
+            strategy, ax=ax[index, 0], ylabel=ylabel,
             error_type=error_type,areas=areas,depths=depths)
         max_y[1] = plot_condition_experience(full_df, 'hit', experience_level,
-            'visual_strategy_session', ax=ax[index, 1],ylabel='',
+            strategy, ax=ax[index, 1],ylabel='',
             error_type=error_type,areas=areas,depths=depths)
         max_y[2] = plot_condition_experience(full_df, 'miss', experience_level,
-            'visual_strategy_session', ax=ax[index, 2],ylabel='',
+            strategy, ax=ax[index, 2],ylabel='',
             error_type=error_type,areas=areas,depths=depths)
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
     for x in [0,1,2]:
@@ -277,6 +279,54 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
             'figure_4_comparisons_psth_'+experience_level+'.svg' 
         print('Figure saved to: '+filename)
         plt.savefig(filename)
+
+def add_cell_selection_labels(dfs, summary_df):
+    for i in [0,1,2]:
+        dfs[i] = pd.merge(dfs[i], summary_df[['behavior_session_id',
+            'strategy_labels','strategy_labels_with_mixed','strategy_labels_with_none']],
+            on='behavior_session_id')
+    return dfs
+
+def plot_figure_4_averages_cell_selection(dfs,data='filtered_events',savefig=False,\
+    areas=['VISp','VISl'],depths=['upper','lower'],experience_level='Familiar',
+    strategy = 'strategy_labels_with_none'):
+    
+    if 'strategy_labels' not in dfs[0]:
+        print('call this function first:')
+        print('dfs = add_cell_selection_labels(dfs, summary_df)')
+        return
+
+    fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
+    labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
+    error_type='sem'
+    for index, full_df in enumerate(dfs): 
+        full_df = full_df.query('{} in ["visual","timing"]'.format(strategy))
+        max_y = [0,0,0]
+        ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
+        max_y[0] = plot_condition_experience(full_df, 'omission', experience_level,
+            strategy, ax=ax[index, 0], ylabel=ylabel,
+            error_type=error_type,areas=areas,depths=depths)
+        max_y[1] = plot_condition_experience(full_df, 'hit', experience_level,
+            strategy, ax=ax[index, 1],ylabel='',
+            error_type=error_type,areas=areas,depths=depths)
+        max_y[2] = plot_condition_experience(full_df, 'miss', experience_level,
+            strategy, ax=ax[index, 2],ylabel='',
+            error_type=error_type,areas=areas,depths=depths)
+        ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+    for x in [0,1,2]:
+            ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
+            ax[x,1].set_xlabel('time from hit (s)',fontsize=16)
+            ax[x,2].set_xlabel('time from miss (s)',fontsize=16)
+
+    # Clean up
+    plt.tight_layout()
+    if savefig:
+        filename = PSTH_DIR + data + '/population_averages/'+\
+            'figure_4_comparisons_psth_cell_selection_'+experience_level+'.svg' 
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+
+
 
 def plot_engagement(dfs, data='filtered_events',savefig=False,\
     areas=['VISp','VISl'],depths=['upper','lower'],error_type='sem',\
@@ -396,6 +446,13 @@ def plot_condition_experience(full_df, condition, experience_level, split,
                 color = colors['timing']
                 if split_by_engaged and ('disengaged' in condition):
                     color='gray'
+            elif 'strategy_labels' in split:
+                if val == 'visual':
+                    color = colors['visual']
+                elif val == 'timing':
+                    color = colors['timing']
+                else:
+                    color = 'k'
             else:
                 color = 'k'
         r = plot_split(df.query('{}==@val'.format(split)),ax,color=color,

@@ -534,7 +534,7 @@ def get_average_kernels_inner(df):
 
 def plot_PSTH_perturbation(dfs,labels,condition,
     run_params=None,savefig=False,experience_level="Familiar",
-    x='Exc',y='Vip',min_time=-.75):
+    x='Exc',y='Vip',min_time=-.75,plot_error=False):
     traces = get_PSTH_2D_traces(dfs,labels,condition)
 
     height = 4
@@ -562,6 +562,13 @@ def plot_PSTH_perturbation(dfs,labels,condition,
         color='darkorange',lw=3)
     ax.plot(traces['timing_'+x][ts],traces['timing_'+y][ts],
         color='blue',lw=3)
+    if plot_error:
+        vis_color = [255/255,226/255,191/255]
+        tim_color = [191/255,191/255,255/255]
+        df = get_error(traces, x='visual_'+x,y='visual_'+y)
+        plot_iterative_ch(ax,df,vis_color) 
+        df = get_error(traces, x='timing_'+x,y='timing_'+y)
+        plot_iterative_ch(ax,df,tim_color) 
 
     p1 = np.where(traces['time'] == 0)[0]
     p2 = np.argmin(np.abs(traces['time'] - .75)) 
@@ -651,8 +658,14 @@ def plot_PSTH_perturbation(dfs,labels,condition,
     ax.axvline(0,color='k',linestyle='--',alpha=.25)
     ax.set_title(condition,fontsize=16)
     if savefig:
-        filepath = run_params['figure_dir']+\
-            '/strategy/'+condition+'_strategy_perturbation_PSTH_2D_{}_{}_{}.svg'.format(experience_level,x,y)
+        if plot_error:
+             filepath = run_params['figure_dir']+'/strategy/'+condition+\
+                '_strategy_perturbation_PSTH_2D_{}_{}_{}_with_error.svg'.\
+                format(experience_level,x,y)   
+        else:
+            filepath = run_params['figure_dir']+'/strategy/'+condition+\
+                '_strategy_perturbation_PSTH_2D_{}_{}_{}.svg'.\
+                format(experience_level,x,y)
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
     return ax
@@ -809,6 +822,14 @@ def get_PSTH_2D_traces(dfs,labels,condition,experience_level="Familiar"):
     
     traces={}
     for index, label in enumerate(labels):
+        visual = dfs[index]\
+            .query('(visual_strategy_session)&'\
+            +'(experience_level==@experience_level)&'\
+            +'(condition==@condition)')['response']
+        timing = dfs[index]\
+            .query('(not visual_strategy_session)&'\
+            +'(experience_level==@experience_level)&'\
+            +'(condition==@condition)')['response']
         traces['visual_'+label[0:3]] = dfs[index]\
             .query('(visual_strategy_session)&'\
             +'(experience_level==@experience_level)&'\
@@ -817,6 +838,10 @@ def get_PSTH_2D_traces(dfs,labels,condition,experience_level="Familiar"):
             .query('(not visual_strategy_session)&'\
             +'(experience_level==@experience_level)&'\
             +'(condition==@condition)')['response'].mean()
+        traces['visual_'+label[0:3]+'_sem'] = \
+            np.std(np.vstack(visual),axis=0)/np.sqrt(len(visual))
+        traces['timing_'+label[0:3]+'_sem'] = \
+            np.std(np.vstack(timing),axis=0)/np.sqrt(len(timing))
     traces['visual_y'] = traces['visual_Vip']-traces['visual_Sst']
     traces['timing_y'] = traces['timing_Vip']-traces['timing_Sst']
     traces['time'] = dfs[0].query('condition ==@condition').iloc[0]['time']

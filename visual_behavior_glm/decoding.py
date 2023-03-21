@@ -29,6 +29,11 @@ def decode_experiment(oeid, data='events',window=[0,.75]):
     results_df.to_pickle(filename)
     print('Finished')
 
+def load_experiment_results(oeid):
+    filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/decoding/experiments/' 
+    filename += str(oeid)+'.pkl'
+    return pd.read_pickle(filename)
+
 def get_cells(session, data='events',window=[0,.75]):
     '''
         Iterate over all cells in this experiment and make a list
@@ -104,7 +109,6 @@ def plot_results_df(results_df):
 
 def iterate_n_cells(cells):
     n_cells = [1,2,5,10,20,40,80,160,320]
-    n_cells = [1,80]
  
     results = {} 
     for n in n_cells:

@@ -63,6 +63,18 @@ def get_matrix(cell):
     x = cell[cols].to_numpy()
     return x
 
+def iterate_n_cells(cells):
+    n_cells = [1,2,5,10,20,40,80,160,320]
+   
+    results = {} 
+    for n in n_cells:
+        if len(cells) < n:
+            break
+        print('Decoding with n={} cells'.format(n))
+        results[n] = decode_cells(cells, n)
+
+    results_df = pd.concat(results)
+    return results_df
 
 def decode_cells(cells, n_cells):
     '''
@@ -72,16 +84,18 @@ def decode_cells(cells, n_cells):
     
     # How many times we need to sample in order to get 99% chance each cell 
     # is used at least once
-    n_samples = int(math.ceil(math.log(0.01)/math.log(1-n_cells/len(cells))))
+    n_samples = int(np.ceil(np.log(0.01)/np.log(1-n_cells/len(cells))))
     
     # Iterate over samples and save output
     output = []
-    for n in tqdm(n_samples):
+    for n in tqdm(range(0,n_samples)):
         temp = decode_cells_sample(cells, n_cells)
         output.append(temp)
 
     # Return the output of the samples
-    return output
+    output_df = pd.DataFrame(output)
+    output_df['n_cells'] = n_cells
+    return output_df
 
 
 def decode_cells_sample(cells, n_cells):
@@ -98,7 +112,6 @@ def decode_cells_sample(cells, n_cells):
     X = []
     for cell in sample_cells:
         X.append(get_matrix(cell))
-        y.append(cell['is_change'].values)   
     X = np.concatenate(X,axis=1)
     
     # y is the same for every cell, since its a behavioral output
@@ -107,10 +120,14 @@ def decode_cells_sample(cells, n_cells):
     # run CV model
     clf = RandomForestClassifier(class_weight='balanced')
     clf.fit(X,y)
-    prediction = clf.predict(X)    
-
+    model = {}
+    model['score'] = clf.score(X,y)
+    model['prediction'] = clf.predict(X)   
+    model['behavior_correlation'] = np.corrcoef(y,model['prediction'])[1,0] 
+    model['decoder'] = clf
+    
     # return decoder
-    return prediction 
+    return model 
     
 
 

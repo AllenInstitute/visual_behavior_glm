@@ -6,16 +6,28 @@ from sklearn.ensemble import RandomForestClassifier
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-def dev():
-    oeid = 956903412 
+def decode_experiment(oeid, data='events',window=[0,.75]):
 
+    # Load SDK object
+    print('Loading data')
     run_params = {'include_invalid_rois':False}
-    session = gft.load_data(oeid, run_params)
+    session = gft.load_data(oeid, run_params)   
 
-    cell_specimen_ids = session.cell_specimen_table.index.values   
-    cell = d.get_cell_table(session, cell_specimen_ids[0])
-    
-    decode(cell)
+    # get list of cell dataframes
+    print('Generating cell dataframes')
+    cells = get_cells(session,data=data,window=window)
+
+    # Perform decoding iterating over the number of cells
+    print('Decoding')
+    results_df = iterate_n_cells(cells)
+
+    # Save results
+    print('Save results')
+    filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/decoding/experiments/' 
+    filename += str(oeid)+'.pkl'
+    print('Saving to: '+filename)
+    results_df.to_pickle(filename)
+    print('Finished')
 
 def get_cells(session, data='events',window=[0,.75]):
     '''
@@ -63,9 +75,37 @@ def get_matrix(cell):
     x = cell[cols].to_numpy()
     return x
 
+def plot_results_df(results_df):
+    
+    plt.figure()
+    g = results_df.groupby('n_cells')
+    summary = g.mean()
+    summary['size'] = g.size()
+    summary['sem_score'] = g['score'].sem()
+    summary['sem_behavior_correlation'] = g['behavior_correlation'].sem()
+    plt.errorbar(summary.index.values, summary['score'],yerr=summary['sem_score'],
+        color='k')
+    plt.errorbar(summary.index.values, summary['behavior_correlation'],
+        yerr=summary['sem_behavior_correlation'],color='b')
+    plt.plot(summary.index.values, summary.score,'ko-',label='Training Score')
+    plt.plot(summary.index.values, summary.behavior_correlation,'bo-',
+        label='Training Beh. Corr')
+    plt.xlim(0,np.max(summary.index.values))
+    plt.ylim(0,1)
+    plt.ylabel('Model Performance',fontsize=16)
+    plt.xlabel('number of cells',fontsize=16)
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    plt.legend(loc='lower right')
+    plt.tight_layout()
+
 def iterate_n_cells(cells):
     n_cells = [1,2,5,10,20,40,80,160,320]
-   
+    n_cells = [1,80]
+ 
     results = {} 
     for n in n_cells:
         if len(cells) < n:
@@ -84,12 +124,18 @@ def decode_cells(cells, n_cells):
     
     # How many times we need to sample in order to get 99% chance each cell 
     # is used at least once
-    n_samples = int(np.ceil(np.log(0.01)/np.log(1-n_cells/len(cells))))
+    if n_cells == 1:
+        n_samples = len(cells)
+    else:
+        n_samples = int(np.ceil(np.log(0.01)/np.log(1-n_cells/len(cells))))
     
     # Iterate over samples and save output
     output = []
     for n in tqdm(range(0,n_samples)):
-        temp = decode_cells_sample(cells, n_cells)
+        if n_cells == 1:
+            temp = decode_cells_sample(cells, n_cells, index=n)
+        else:
+            temp = decode_cells_sample(cells, n_cells)
         output.append(temp)
 
     # Return the output of the samples
@@ -97,16 +143,18 @@ def decode_cells(cells, n_cells):
     output_df['n_cells'] = n_cells
     return output_df
 
-
-def decode_cells_sample(cells, n_cells):
+def decode_cells_sample(cells, n_cells,index=None):
     '''
         Sample from the list of cells, and perform decoding once
         returns the output of the decoding
     '''
  
     # Sample n_cells from list of cells
-    cells_in_sample = np.random.choice(len(cells),n_cells, replace=False)
-    sample_cells = [cells[i] for i in cells_in_sample] 
+    if n_cells == 1:
+        sample_cells = [cells[index]]
+    else:
+        cells_in_sample = np.random.choice(len(cells),n_cells, replace=False)
+        sample_cells = [cells[i] for i in cells_in_sample] 
     
     # Construct X 
     X = []

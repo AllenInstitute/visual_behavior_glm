@@ -4,6 +4,7 @@ import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.build_dataframes as bd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_predict
 from sklearn.model_selection import cross_validate
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -54,7 +55,7 @@ def get_cells(session, data='events',window=[0,.75]):
     return cells    
          
 
-def get_cell_table(session, cell_specimen_id, data='events',window=[0,.75]):
+def get_cell_table(session, cell_specimen_id, data='events',window=[0,.75],balance=True):
     '''
         Generates a dataframe for one cell where rows are image presentations
         and the response at each timepoint is a column
@@ -70,6 +71,11 @@ def get_cell_table(session, cell_specimen_id, data='events',window=[0,.75]):
     # Annotate stimulus information
     cell = pd.merge(cell, session.stimulus_presentations, 
         left_index=True, right_index=True)
+
+    # Balance classes by using just changes and the image before
+    cell['pre_change'] = cell['is_change'].shift(-1,fill_value=True)
+    if balance:
+        cell = cell.query('is_change or pre_change')
 
     return cell
 
@@ -88,13 +94,13 @@ def plot_results_df(results_df):
     g = results_df.groupby('n_cells')
     summary = g.mean()
     summary['size'] = g.size()
-    summary['sem_score'] = g['score'].sem()
+    summary['sem_score'] = g['test_score'].sem()
     summary['sem_behavior_correlation'] = g['behavior_correlation'].sem()
-    plt.errorbar(summary.index.values, summary['score'],yerr=summary['sem_score'],
+    plt.errorbar(summary.index.values, summary['test_score'],yerr=summary['sem_score'],
         color='k')
     plt.errorbar(summary.index.values, summary['behavior_correlation'],
         yerr=summary['sem_behavior_correlation'],color='b')
-    plt.plot(summary.index.values, summary.score,'ko-',label='Training Score')
+    plt.plot(summary.index.values, summary.test_score,'ko-',label='test score')
     plt.plot(summary.index.values, summary.behavior_correlation,'bo-',
         label='Training Beh. Corr')
     plt.xlim(0,np.max(summary.index.values))
@@ -111,7 +117,7 @@ def plot_results_df(results_df):
 
 def iterate_n_cells(cells):
     n_cells = [1,2,5,10,20,40,80,160,320]
-    n_cells = [20,40]
+    n_cells = [10,20,40]
  
     results = {} 
     for n in n_cells:
@@ -172,24 +178,14 @@ def decode_cells_sample(cells, n_cells,index=None):
     # y is the same for every cell, since its a behavioral output
     y = sample_cells[0]['is_change'].values
 
-    # Training set fit
-    rfc = RandomForestClassifier(class_weight='balanced')
-    rfc.fit(X,y)
-    model = {}
-    model['score'] = rfc.score(X,y)
-    model['prediction'] = rfc.predict(X)   
-    model['behavior_correlation'] = np.corrcoef(y,model['prediction'])[1,0] 
-    model['decoder'] = rfc 
-
     # run CV model
+    model = {}
     rfc = RandomForestClassifier(class_weight='balanced')
-    model['cv_models'] = cross_validate(rfc, X,y,cv=5,
-        return_train_score=True, return_estimator=True)
-    model['test_score'] = np.mean(model['cv_models']['test_score'])
-    model['train_score'] = np.mean(model['cv_models']['train_score'])
+    model['cv_prediction'] = cross_val_predict(rfc, X,y,cv=5)
+    model['behavior_correlation'] = np.corrcoef(y,model['cv_prediction'])[1,0] 
+    model['test_score'] = np.mean(y == model['cv_prediction'])
 
     # return decoder
     return model 
+ 
     
-
-

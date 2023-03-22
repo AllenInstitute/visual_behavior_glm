@@ -37,6 +37,31 @@ def load_experiment_results(oeid):
     filename += str(oeid)+'.pkl'
     return pd.read_pickle(filename)
 
+def load_all(experiment_table,summary_df):
+    
+    # Iterate through experiments and load decoding results
+    dfs = []
+    failed = 0
+    for oeid in experiment_table.index.values:
+        try:
+            df = load_experiment_results(oeid)
+        except:
+            failed +=1
+        else:
+            df['ophys_experiment_id'] = oeid
+            dfs.append(df)
+    print('Failed to load: {}'.format(failed))
+    
+    # Merge and add experiment meta data
+    df = pd.concat(dfs)
+    df = pd.merge(df,experiment_table.reset_index()[['ophys_experiment_id',\
+        'ophys_session_id','behavior_session_id','targeted_structure',\
+        'imaging_depth','equipment_name']],on='ophys_experiment_id')
+    df = pd.merge(df, summary_df[['ophys_session_id','visual_strategy_session']],\
+        on='ophys_session_id')
+
+    return df 
+
 def get_cells(session, data='events',window=[0,.75]):
     '''
         Iterate over all cells in this experiment and make a list

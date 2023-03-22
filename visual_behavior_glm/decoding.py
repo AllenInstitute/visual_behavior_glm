@@ -55,7 +55,9 @@ def load_all(experiment_table,summary_df):
     # Iterate through experiments and load decoding results
     dfs = []
     failed = 0
-    for oeid in experiment_table.index.values:
+    oeids = np.concatenate(summary_df['ophys_experiment_id'].values)
+
+    for oeid in oeids:
         try:
             df = load_experiment_results(oeid)
         except:
@@ -154,7 +156,7 @@ def plot_results_df(results_df):
     plt.tight_layout()
 
 def iterate_n_cells(cells):
-    n_cells = [1,2,5,10,20,40,80,160,320]
+    n_cells = [1,2,5,10,20,40,80]
  
     results = {} 
     for n in n_cells:
@@ -237,7 +239,7 @@ def decode_cells_sample(cells, n_cells,index=None):
     model = {}
     rfc = RandomForestClassifier(class_weight='balanced')
     model['cv_prediction'] = cross_val_predict(rfc, X,y,cv=5)
-    model['behavior_correlation'] = compute_behavior_correlation(sample_cells[0],model) 
+    model['behavior_correlation'] = compute_behavior_correlation(sample_cells[0].copy(),model) 
     model['test_score'] = np.mean(y == model['cv_prediction'])
 
     # return results
@@ -245,7 +247,7 @@ def decode_cells_sample(cells, n_cells,index=None):
  
 def compute_behavior_correlation(cell, model):
     cell['prediction'] = model['cv_prediction']   
-    cell = cell.query('is_change')
+    cell = cell.query('is_change').copy()
     cell['hit'] = cell['hit'].astype(bool)
     return cell[['prediction','hit']].corr()['hit']['prediction']
 

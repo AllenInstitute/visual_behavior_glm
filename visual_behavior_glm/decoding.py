@@ -3,6 +3,8 @@ import pandas as pd
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.build_dataframes as bd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_validate
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -109,6 +111,7 @@ def plot_results_df(results_df):
 
 def iterate_n_cells(cells):
     n_cells = [1,2,5,10,20,40,80,160,320]
+    n_cells = [20,40]
  
     results = {} 
     for n in n_cells:
@@ -169,15 +172,22 @@ def decode_cells_sample(cells, n_cells,index=None):
     # y is the same for every cell, since its a behavioral output
     y = sample_cells[0]['is_change'].values
 
-    # run CV model
-    clf = RandomForestClassifier(class_weight='balanced')
-    clf.fit(X,y)
+    # Training set fit
+    rfc = RandomForestClassifier(class_weight='balanced')
+    rfc.fit(X,y)
     model = {}
-    model['score'] = clf.score(X,y)
-    model['prediction'] = clf.predict(X)   
+    model['score'] = rfc.score(X,y)
+    model['prediction'] = rfc.predict(X)   
     model['behavior_correlation'] = np.corrcoef(y,model['prediction'])[1,0] 
-    model['decoder'] = clf
-    
+    model['decoder'] = rfc 
+
+    # run CV model
+    rfc = RandomForestClassifier(class_weight='balanced')
+    model['cv_models'] = cross_validate(rfc, X,y,cv=5,
+        return_train_score=True, return_estimator=True)
+    model['test_score'] = np.mean(model['cv_models']['test_score'])
+    model['train_score'] = np.mean(model['cv_models']['train_score'])
+
     # return decoder
     return model 
     

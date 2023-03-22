@@ -73,7 +73,7 @@ def get_cell_table(session, cell_specimen_id, data='events',window=[0,.75],balan
         left_index=True, right_index=True)
 
     # Balance classes by using just changes and the image before
-    cell['pre_change'] = cell['is_change'].shift(-1,fill_value=True)
+    cell['pre_change'] = cell['is_change'].shift(-1,fill_value=False)
     if balance:
         cell = cell.query('is_change or pre_change')
 
@@ -102,10 +102,10 @@ def plot_results_df(results_df):
         yerr=summary['sem_behavior_correlation'],color='b')
     plt.plot(summary.index.values, summary.test_score,'ko-',label='test score')
     plt.plot(summary.index.values, summary.behavior_correlation,'bo-',
-        label='Training Beh. Corr')
+        label='beh. corr')
     plt.xlim(0,np.max(summary.index.values))
     plt.ylim(0,1)
-    plt.ylabel('Model Performance',fontsize=16)
+    plt.ylabel('model performance',fontsize=16)
     plt.xlabel('number of cells',fontsize=16)
     ax = plt.gca()
     ax.spines['top'].set_visible(False)
@@ -117,7 +117,6 @@ def plot_results_df(results_df):
 
 def iterate_n_cells(cells):
     n_cells = [1,2,5,10,20,40,80,160,320]
-    n_cells = [10,20,40]
  
     results = {} 
     for n in n_cells:
@@ -185,7 +184,7 @@ def decode_cells_sample(cells, n_cells,index=None):
     model['behavior_correlation'] = np.corrcoef(y,model['cv_prediction'])[1,0] 
     model['test_score'] = np.mean(y == model['cv_prediction'])
 
-    # return decoder
+    # return results
     return model 
  
     

@@ -157,6 +157,7 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
     # Split by strategy
     visual = results_df.query('visual_strategy_session')
     timing = results_df.query('not visual_strategy_session')
+    max_x = results_df['n_cells'].max()
 
     # Plot decoder performance
     plt.figure()
@@ -181,7 +182,7 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
     plt.plot(summary.index.values, summary.test_score,'bo-',label='timing sessions')
 
     # Clean up decoder performance plot
-    plt.xlim(0,np.max(summary.index.values))
+    plt.xlim(0,max_x)
     plt.ylim(0.5,1)
     plt.ylabel('decoder performance',fontsize=16)
     plt.xlabel('number of cells',fontsize=16)
@@ -222,7 +223,7 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
     plt.plot(summary.index.values, summary.behavior_correlation,'bo-',label='timing sessions')
 
     # clean up correlation figure
-    plt.xlim(0,np.max(summary.index.values))
+    plt.xlim(0,max_x)
     plt.ylim(0,0.5)
     plt.ylabel('decoder correlation with behavior',fontsize=16)
     plt.xlabel('number of cells',fontsize=16)
@@ -239,6 +240,49 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
         filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/decoding/figures/' 
         filename += 'decoder_correlation.png'
         plt.savefig(filename)
+
+    # Plot hit vs miss decoder performance
+    plt.figure()
+
+    # visual hit vs miss decoder performance
+    v = visual.groupby('n_cells')
+    summary = v.mean()
+    summary['size'] = v.size()
+    summary['sem_score'] = v['test_score_hit_vs_miss'].sem()
+    plt.errorbar(summary.index.values, summary['test_score_hit_vs_miss'],yerr=summary['sem_score'],
+        color='darkorange')
+    plt.plot(summary.index.values, summary.test_score_hit_vs_miss,'o-',color='darkorange',
+        label='visual sessions')
+
+    #timing hit vs miss decoder performance
+    t = timing.groupby('n_cells')
+    summary = t.mean()
+    summary['size'] = t.size()
+    summary['sem_score'] = t['test_score_hit_vs_miss'].sem()
+    plt.errorbar(summary.index.values, summary['test_score_hit_vs_miss'],yerr=summary['sem_score'],
+        color='blue')
+    plt.plot(summary.index.values, summary.test_score_hit_vs_miss,'bo-',label='timing sessions')
+
+    # Clean up hit vs miss decoder performance plot
+    plt.xlim(0,max_x)
+    plt.ylim(0.5,1)
+    plt.ylabel('hit vs miss decoder performance',fontsize=16)
+    plt.xlabel('number of cells',fontsize=16)
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+
+    # save hit vs miss decoder performance figure
+    if savefig:
+        filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/decoding/figures/' 
+        filename += 'hit_vs_miss_decoder_performance.png'
+        plt.savefig(filename)
+
+
 
 def plot_results_df(results_df,visual=True):
     

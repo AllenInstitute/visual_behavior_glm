@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from visual_behavior.data_access import reformat 
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.build_dataframes as bd
 from sklearn.ensemble import RandomForestClassifier
@@ -15,6 +16,18 @@ def decode_experiment(oeid, data='events',window=[0,.75]):
     print('Loading data')
     run_params = {'include_invalid_rois':False}
     session = gft.load_data(oeid, run_params)   
+    reformat.add_licks_each_flash(session.stimulus_presentations, session.licks) 
+    reformat.add_rewards_each_flash(session.stimulus_presentations, session.rewards)
+    session.stimulus_presentations['licked'] = [True if len(licks) > 0 else False \
+        for licks in session.stimulus_presentations.licks.values]
+    session.stimulus_presentations['hit'] =  \
+        session.stimulus_presentations['licked'] & \
+        session.stimulus_presentations['is_change']
+    session.stimulus_presentations['miss'] = \
+        ~session.stimulus_presentations['licked'] & \
+        session.stimulus_presentations['is_change']
+    session.stimulus_presentations.at[~session.stimulus_presentations['is_change'],'hit'] = np.nan
+    session.stimulus_presentations.at[~session.stimulus_presentations['is_change'],'miss'] = np.nan
 
     # get list of cell dataframes
     print('Generating cell dataframes')
@@ -57,8 +70,8 @@ def load_all(experiment_table,summary_df):
     df = pd.merge(df,experiment_table.reset_index()[['ophys_experiment_id',\
         'ophys_session_id','behavior_session_id','targeted_structure',\
         'imaging_depth','equipment_name']],on='ophys_experiment_id')
-    df = pd.merge(df, summary_df[['ophys_session_id','visual_strategy_session']],\
-        on='ophys_session_id')
+    df = pd.merge(df, summary_df[['ophys_session_id','visual_strategy_session','experience_level'\
+        ,'cre_line']],on='ophys_session_id')
 
     return df 
 
@@ -153,6 +166,24 @@ def iterate_n_cells(cells):
     results_df = pd.concat(results)
     return results_df
 
+def check_sampling():
+    n_total = np.arange(30,500,10)
+    def n_samples(n,k):
+        return int(np.ceil(np.log(0.01)/np.log(1-k/n)))
+    samples10 = [n_samples(x,10) for x in n_total]
+    samples20 = [n_samples(x,20) for x in n_total]
+    plt.figure()
+    plt.plot(n_total, samples20,'ko-',label='20')
+    plt.plot(n_total, samples10,'ro-',label='10')
+    plt.ylabel('samples/experiment')
+    plt.xlabel('cells in experiment')
+    plt.figure()
+    plt.plot(n_total, np.array(samples20)/np.array(n_total),'ko-',label='20')
+    plt.plot(n_total, np.array(samples10)/np.array(n_total),'ro-',label='10')
+    plt.xlabel('cells in experiment')
+    plt.ylabel('samples/cell')
+    plt.ylim(0,.6)
+
 def decode_cells(cells, n_cells):
     '''
         Cells is a list of dataframes, one for each cell
@@ -206,10 +237,28 @@ def decode_cells_sample(cells, n_cells,index=None):
     model = {}
     rfc = RandomForestClassifier(class_weight='balanced')
     model['cv_prediction'] = cross_val_predict(rfc, X,y,cv=5)
-    model['behavior_correlation'] = np.corrcoef(y,model['cv_prediction'])[1,0] 
+    model['behavior_correlation'] = compute_behavior_correlation(sample_cells[0],model) 
     model['test_score'] = np.mean(y == model['cv_prediction'])
 
     # return results
     return model 
  
-    
+def compute_behavior_correlation(cell, model):
+    cell['prediction'] = model['cv_prediction']   
+    cell = cell.query('is_change')
+    cell['hit'] = cell['hit'].astype(bool)
+    return cell[['prediction','hit']].corr()['hit']['prediction']
+
+
+
+
+
+
+
+
+
+
+
+
+
+     

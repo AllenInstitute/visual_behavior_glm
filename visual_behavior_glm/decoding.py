@@ -160,7 +160,8 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
     max_x = results_df['n_cells'].max()
 
     # Plot decoder performance
-    plt.figure()
+    plt.figure(201)
+    plt.clf()
 
     # visual decoder performance
     v = visual.groupby('n_cells')
@@ -201,8 +202,9 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
         plt.savefig(filename)
 
     # Plot behavior correlation figure
-    plt.figure()
-    
+    plt.figure(202)
+    plt.clf()   
+ 
     # visual correlation
     v = visual.groupby('n_cells')
     summary = v.mean()
@@ -242,7 +244,8 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
         plt.savefig(filename)
 
     # Plot hit vs miss decoder performance
-    plt.figure()
+    plt.figure(203)
+    plt.clf()
 
     # visual hit vs miss decoder performance
     v = visual.groupby('n_cells')
@@ -415,7 +418,7 @@ def decode_cells_sample(cells, n_cells,index=None):
     X = np.concatenate(X,axis=1)
     y = sample_cells[0].query('is_change')['hit'].astype(bool).values
 
-    rfc = RandomForestClassifier(class_weight='balanced')   
+    rfc = RandomForestClassifier(class_weight='balanced')
     model['cv_prediction_hit_vs_miss'] = cross_val_predict(rfc,X,y,cv=5)
     model['test_score_hit_vs_miss'] = np.mean(y == model['cv_prediction_hit_vs_miss'])   
 

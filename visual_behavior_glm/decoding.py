@@ -10,7 +10,7 @@ from sklearn.model_selection import cross_validate
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-def decode_experiment(oeid, data='events',window=[0,.75]):
+def decode_experiment(oeid, data='events',window=[0,.4]):
 
     # Load SDK object
     print('Loading data')

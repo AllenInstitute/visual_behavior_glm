@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from visual_behavior.data_access import reformat 
 import visual_behavior_glm.GLM_fit_tools as gft
+import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior_glm.build_dataframes as bd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
@@ -10,7 +11,7 @@ from sklearn.model_selection import cross_validate
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-def decode_experiment(oeid, data='events',window=[0,.4]):
+def decode_experiment(oeid, data='events',window=[.4,.75]):
 
     # Load SDK object
     print('Loading data')
@@ -26,8 +27,10 @@ def decode_experiment(oeid, data='events',window=[0,.4]):
     session.stimulus_presentations['miss'] = \
         ~session.stimulus_presentations['licked'] & \
         session.stimulus_presentations['is_change']
-    session.stimulus_presentations.at[~session.stimulus_presentations['is_change'],'hit'] = np.nan
-    session.stimulus_presentations.at[~session.stimulus_presentations['is_change'],'miss'] = np.nan
+    session.stimulus_presentations.at[\
+        ~session.stimulus_presentations['is_change'],'hit'] = np.nan
+    session.stimulus_presentations.at[\
+        ~session.stimulus_presentations['is_change'],'miss'] = np.nan
 
     # get list of cell dataframes
     print('Generating cell dataframes')
@@ -39,18 +42,24 @@ def decode_experiment(oeid, data='events',window=[0,.4]):
 
     # Save results
     print('Save results')
-    filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/decoding/experiments/' 
+    filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
+        '/behavior/decoding/experiments/' 
     filename += str(oeid)+'.pkl'
     print('Saving to: '+filename)
     results_df.to_pickle(filename)
     print('Finished')
 
-def load_experiment_results(oeid):
-    filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/decoding/experiments/' 
+def load_experiment_results(oeid,version=None):
+    if version is not None:
+        filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
+            '/behavior/decoding/experiments_fit_{}/'.format(version)
+    else:
+        filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
+            '/behavior/decoding/experiments/' 
     filename += str(oeid)+'.pkl'
     return pd.read_pickle(filename)
 
-def load_all(experiment_table,summary_df):
+def load_all(experiment_table,summary_df,version=None):
     
     # Iterate through experiments and load decoding results
     dfs = []
@@ -59,7 +68,7 @@ def load_all(experiment_table,summary_df):
 
     for oeid in oeids:
         try:
-            df = load_experiment_results(oeid)
+            df = load_experiment_results(oeid,version)
         except:
             failed +=1
         else:
@@ -75,10 +84,10 @@ def load_all(experiment_table,summary_df):
         'ophys_session_id','behavior_session_id','targeted_structure',\
         'imaging_depth','equipment_name']],on='ophys_experiment_id')
     print('merging summary_df')
-    df = pd.merge(df, summary_df[['ophys_session_id','visual_strategy_session','experience_level'\
-        ,'cre_line']],on='ophys_session_id')
+    df = pd.merge(df, summary_df[['ophys_session_id','visual_strategy_session',\
+        'experience_level','cre_line']],on='ophys_session_id')
 
-    return df,dfs
+    return df
 
 def get_cells(session, data='events',window=[0,.75]):
     '''
@@ -98,7 +107,8 @@ def get_cells(session, data='events',window=[0,.75]):
     return cells    
          
 
-def get_cell_table(session, cell_specimen_id, data='events',window=[0,.75],balance=True):
+def get_cell_table(session, cell_specimen_id, data='events',
+    window=[0,.75],balance=True):
     '''
         Generates a dataframe for one cell where rows are image presentations
         and the response at each timepoint is a column
@@ -124,12 +134,158 @@ def get_cell_table(session, cell_specimen_id, data='events',window=[0,.75],balan
 
 def get_matrix(cell):
     '''
-        Grabs the responses of the cell at each time point across each image presentation
-        and returns a numpy matrix 
+        Grabs the responses of the cell at each time point across each 
+        image presentation and returns a numpy matrix 
     '''
     cols = np.sort([x for x in cell.columns.values if not isinstance(x,str)])
     x = cell[cols].to_numpy()
     return x
+
+def plot_by_strategy_performance(visual, timing,savefig,cell_type):
+    # Plot decoder performance
+    plt.figure()
+    plt.clf()
+
+    # visual decoder performance
+    v = visual.groupby('n_cells')
+    summary = v.mean()
+    summary['size'] = v.size()
+    summary['sem_score'] = v['test_score'].sem()
+    plt.errorbar(summary.index.values, summary['test_score'],
+        yerr=summary['sem_score'],color='darkorange')
+    plt.plot(summary.index.values, summary.test_score,'o-',color='darkorange',
+        label='visual sessions')
+
+    #timing decoder performance
+    t = timing.groupby('n_cells')
+    summary = t.mean()
+    summary['size'] = t.size()
+    summary['sem_score'] = t['test_score'].sem()
+    plt.errorbar(summary.index.values, summary['test_score'],
+        yerr=summary['sem_score'],color='blue')
+    plt.plot(summary.index.values, summary.test_score,'bo-',
+        label='timing sessions')
+
+    # Clean up decoder performance plot
+    plt.xlim(0,80)
+    plt.ylim(0.5,1)
+    plt.ylabel('decoder performance',fontsize=16)
+    plt.xlabel('number of cells',fontsize=16)
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+
+    # save decoder performance figure
+    if savefig:
+        filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
+            '/behavior/decoding/figures/' 
+        filename += cell_type+'_decoder_performance.png'
+        plt.savefig(filename)
+
+def plot_by_strategy_correlation(visual, timing, savefig, cell_type):
+    # Plot behavior correlation figure
+    plt.figure()
+    plt.clf()   
+ 
+    # visual correlation
+    v = visual.groupby('n_cells')
+    summary = v.mean()
+    summary['size'] = v.size()
+    summary['sem_behavior_correlation'] = v['behavior_correlation'].sem()
+    plt.errorbar(summary.index.values, summary['behavior_correlation'],
+        yerr=summary['sem_behavior_correlation'],color='darkorange')
+    plt.plot(summary.index.values, summary.behavior_correlation,'o-',
+        color='darkorange', label='visual sessions')
+
+    # timing correlation
+    t = timing.groupby('n_cells')
+    summary = t.mean()
+    summary['size'] = t.size()
+    summary['sem_behavior_correlation'] = t['behavior_correlation'].sem()
+    plt.errorbar(summary.index.values, summary['behavior_correlation'],
+        yerr=summary['sem_behavior_correlation'], color='blue')
+    plt.plot(summary.index.values, summary.behavior_correlation,'bo-',
+        label='timing sessions')
+
+    # clean up correlation figure
+    plt.xlim(0,80)
+    plt.ylim(0,0.5)
+    plt.ylabel('decoder correlation with behavior',fontsize=16)
+    plt.xlabel('number of cells',fontsize=16)
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+
+    # save behavior correlation figure
+    if savefig:
+        filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
+            '/behavior/decoding/figures/' 
+        filename += cell_type+'_decoder_correlation.png'
+        plt.savefig(filename)
+
+def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,ax=None):
+    # Plot behavior correlation figure
+    if ax is None:
+        fig, ax = plt.subplots()
+    colors = gvt.project_colors()
+    color = colors[cell_type] 
+ 
+    # visual correlation
+    v = visual.groupby('n_cells')
+    vsummary = v.mean()
+    vsummary['size'] = v.size()
+    vsummary['sem_'+metric] = v[metric].sem()
+
+    t = timing.groupby('n_cells')
+    tsummary = t.mean()
+    tsummary['size'] = t.size()
+    tsummary['sem_'+metric] = t[metric].sem()
+
+    n = np.min([len(vsummary), len(tsummary)])
+    
+    ax.errorbar(tsummary.iloc[0:n][metric],
+        vsummary.iloc[0:n][metric],
+        xerr=tsummary.iloc[0:n]['sem_'+metric],
+        yerr=vsummary.iloc[0:n]['sem_'+metric],
+        color=color,fmt='o',markersize=1,alpha=.5)
+
+
+    for index in range(0,n):
+        ax.scatter(tsummary.iloc[index][metric],
+            vsummary.iloc[index][metric],
+            s=tsummary.index.values[index],color=color,label=tsummary.index.values[index])
+
+
+    if metric == 'behavior_correlation':
+        ax.plot([0, .2],[0, .2], 'k--',alpha=.25)
+        ax.set_ylabel('visual sessions \ndecoder correlation with behavior',fontsize=16)
+        ax.set_xlabel('timing sessions \ndecoder correlation with behavior',fontsize=16)
+        ax.set_xlim(0,.165)
+        ax.set_ylim(0,.165)
+    elif metric == 'test_score':
+        ax.plot([0.5, 1],[0.5, 1], 'k--',alpha=.25)
+        ax.set_ylabel('visual sessions \ndecoder (change v. repeat) performance',
+            fontsize=16)
+        ax.set_xlabel('timing sessions \ndecoder (change v. repeat) performance',
+            fontsize=16)
+        ax.set_xlim(0.5,.75)
+        ax.set_ylim(0.5,.75)       
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+
+    ax.legend(loc='lower right',title='# of cells')
+    plt.tight_layout()
+
 
 def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
     areas=['VISp','VISl'],equipment=['MESO.1','CAM2P.3','CAM2P.4','CAM2P.5'],
@@ -149,7 +305,8 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
     results_df = results_df.query('targeted_structure in @areas')
     results_df = results_df.query('equipment_name in @equipment') 
 
-    # Average over samples from the same experiment, so each experiment is weighted the same
+    # Average over samples from the same experiment, so each experiment 
+    # is weighted the same
     if aggregate_first:   
         x = results_df.groupby(['n_cells','ophys_experiment_id']).mean()
         results_df = x.reset_index() 
@@ -157,94 +314,52 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
     # Split by strategy
     visual = results_df.query('visual_strategy_session')
     timing = results_df.query('not visual_strategy_session')
-    max_x = results_df['n_cells'].max()
 
-    # Plot decoder performance
-    plt.figure(201)
-    plt.clf()
 
-    # visual decoder performance
-    v = visual.groupby('n_cells')
-    summary = v.mean()
-    summary['size'] = v.size()
-    summary['sem_score'] = v['test_score'].sem()
-    plt.errorbar(summary.index.values, summary['test_score'],yerr=summary['sem_score'],
-        color='darkorange')
-    plt.plot(summary.index.values, summary.test_score,'o-',color='darkorange',
-        label='visual sessions')
+    plot_by_strategy_performance(visual, timing,savefig,cell_type)
+    plot_by_strategy_correlation(visual, timing, savefig, cell_type)
+    plot_by_strategy_hit_vs_miss(visual, timing, savefig, cell_type)
+    plot_by_strategy_scatter(visual, timing,'behavior_correlation', savefig, cell_type)
+    plot_by_strategy_scatter(visual, timing,'test_score',savefig,cell_type)
 
-    #timing decoder performance
-    t = timing.groupby('n_cells')
-    summary = t.mean()
-    summary['size'] = t.size()
-    summary['sem_score'] = t['test_score'].sem()
-    plt.errorbar(summary.index.values, summary['test_score'],yerr=summary['sem_score'],
-        color='blue')
-    plt.plot(summary.index.values, summary.test_score,'bo-',label='timing sessions')
+def plot_by_cre(results_df, aggregate_first=True,areas=['VISp','VISl'],
+    equipment=['MESO.1','CAM2P.3','CAM2P.4','CAM2P.5'],savefig=False):
 
-    # Clean up decoder performance plot
-    plt.xlim(0,max_x)
-    plt.ylim(0.5,1)
-    plt.ylabel('decoder performance',fontsize=16)
-    plt.xlabel('number of cells',fontsize=16)
-    ax = plt.gca()
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.xaxis.set_tick_params(labelsize=12)
-    ax.yaxis.set_tick_params(labelsize=12)
-    plt.legend(loc='upper right')
-    plt.tight_layout()
+    # filter out experiments
+    results_df = results_df.query('experience_level == "Familiar"')
+    results_df = results_df.query('targeted_structure in @areas')
+    results_df = results_df.query('equipment_name in @equipment') 
 
-    # save decoder performance figure
-    if savefig:
-        filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/decoding/figures/' 
-        filename += 'decoder_performance.png'
-        plt.savefig(filename)
 
-    # Plot behavior correlation figure
-    plt.figure(202)
-    plt.clf()   
- 
-    # visual correlation
-    v = visual.groupby('n_cells')
-    summary = v.mean()
-    summary['size'] = v.size()
-    summary['sem_behavior_correlation'] = v['behavior_correlation'].sem()
-    plt.errorbar(summary.index.values, summary['behavior_correlation'],yerr=summary['sem_behavior_correlation'],
-        color='darkorange')
-    plt.plot(summary.index.values, summary.behavior_correlation,'o-',color='darkorange',
-        label='visual sessions')
 
-    # timing correlation
-    t = timing.groupby('n_cells')
-    summary = t.mean()
-    summary['size'] = t.size()
-    summary['sem_behavior_correlation'] = t['behavior_correlation'].sem()
-    plt.errorbar(summary.index.values, summary['behavior_correlation'],yerr=summary['sem_behavior_correlation'],
-        color='blue')
-    plt.plot(summary.index.values, summary.behavior_correlation,'bo-',label='timing sessions')
+    # Split by strategy
+    cres = ['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre']
+    mapper = {
+        'Slc17a7-IRES2-Cre':'exc',
+        'Sst-IRES-Cre':'sst',
+        'Vip-IRES-Cre':'vip'
+        }
+    fig1, ax1 = plt.subplots()
+    fig2, ax2 = plt.subplots()
+    for cre in cres:
+        cre_df = results_df.query('cre_line == @cre')
+        # Average over samples from the same experiment, so each experiment 
+        # is weighted the same
+        if aggregate_first:   
+            x = cre_df.groupby(['n_cells','ophys_experiment_id']).mean()
+            cre_df = x.reset_index() 
 
-    # clean up correlation figure
-    plt.xlim(0,max_x)
-    plt.ylim(0,0.5)
-    plt.ylabel('decoder correlation with behavior',fontsize=16)
-    plt.xlabel('number of cells',fontsize=16)
-    ax = plt.gca()
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.xaxis.set_tick_params(labelsize=12)
-    ax.yaxis.set_tick_params(labelsize=12)
-    plt.legend(loc='upper right')
-    plt.tight_layout()
+        visual = cre_df.query('(visual_strategy_session)')
+        timing = cre_df.query('(not visual_strategy_session)')
+        plot_by_strategy_scatter(visual,timing,'behavior_correlation',
+            savefig,mapper[cre],ax1)
+        plot_by_strategy_scatter(visual,timing,'test_score',
+            savefig,mapper[cre],ax2)
 
-    # save behavior correlation figure
-    if savefig:
-        filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/decoding/figures/' 
-        filename += 'decoder_correlation.png'
-        plt.savefig(filename)
+def plot_by_strategy_hit_vs_miss(visual, timing, savefig, cell_type):
 
     # Plot hit vs miss decoder performance
-    plt.figure(203)
+    plt.figure()
     plt.clf()
 
     # visual hit vs miss decoder performance
@@ -252,22 +367,23 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
     summary = v.mean()
     summary['size'] = v.size()
     summary['sem_score'] = v['test_score_hit_vs_miss'].sem()
-    plt.errorbar(summary.index.values, summary['test_score_hit_vs_miss'],yerr=summary['sem_score'],
-        color='darkorange')
-    plt.plot(summary.index.values, summary.test_score_hit_vs_miss,'o-',color='darkorange',
-        label='visual sessions')
+    plt.errorbar(summary.index.values, summary['test_score_hit_vs_miss'],
+        yerr=summary['sem_score'],color='darkorange')
+    plt.plot(summary.index.values, summary.test_score_hit_vs_miss,'o-',
+        color='darkorange',label='visual sessions')
 
     #timing hit vs miss decoder performance
     t = timing.groupby('n_cells')
     summary = t.mean()
     summary['size'] = t.size()
     summary['sem_score'] = t['test_score_hit_vs_miss'].sem()
-    plt.errorbar(summary.index.values, summary['test_score_hit_vs_miss'],yerr=summary['sem_score'],
-        color='blue')
-    plt.plot(summary.index.values, summary.test_score_hit_vs_miss,'bo-',label='timing sessions')
+    plt.errorbar(summary.index.values, summary['test_score_hit_vs_miss'],
+        yerr=summary['sem_score'],color='blue')
+    plt.plot(summary.index.values, summary.test_score_hit_vs_miss,'bo-',
+        label='timing sessions')
 
     # Clean up hit vs miss decoder performance plot
-    plt.xlim(0,max_x)
+    plt.xlim(0,80)
     plt.ylim(0.5,1)
     plt.ylabel('hit vs miss decoder performance',fontsize=16)
     plt.xlabel('number of cells',fontsize=16)
@@ -281,8 +397,9 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
 
     # save hit vs miss decoder performance figure
     if savefig:
-        filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet/behavior/decoding/figures/' 
-        filename += 'hit_vs_miss_decoder_performance.png'
+        filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
+            '/behavior/decoding/figures/' 
+        filename += cell_type+'_hit_vs_miss_decoder_performance.png'
         plt.savefig(filename)
 
 
@@ -302,8 +419,8 @@ def plot_results_df(results_df,visual=True):
     summary['size'] = g.size()
     summary['sem_score'] = g['test_score'].sem()
     summary['sem_behavior_correlation'] = g['behavior_correlation'].sem()
-    plt.errorbar(summary.index.values, summary['test_score'],yerr=summary['sem_score'],
-        color='k')
+    plt.errorbar(summary.index.values, summary['test_score'],
+        yerr=summary['sem_score'],color='k')
     plt.errorbar(summary.index.values, summary['behavior_correlation'],
         yerr=summary['sem_behavior_correlation'],color='b')
     plt.plot(summary.index.values, summary.test_score,'ko-',label='test score')
@@ -336,7 +453,8 @@ def iterate_n_cells(cells):
 
 def check_sampling():
     '''
-        Demonstrate the number of samples as a function of sub-sample size and total cell population
+        Demonstrate the number of samples as a function of sub-sample size
+        and total cell population
     '''
     n_total = np.arange(30,500,10)
     def n_samples(n,k):
@@ -408,7 +526,8 @@ def decode_cells_sample(cells, n_cells,index=None):
     model = {}
     rfc = RandomForestClassifier(class_weight='balanced')
     model['cv_prediction'] = cross_val_predict(rfc, X,y,cv=5)
-    model['behavior_correlation'] = compute_behavior_correlation(sample_cells[0].copy(),model) 
+    model['behavior_correlation'] = compute_behavior_correlation(\
+        sample_cells[0].copy(),model) 
     model['test_score'] = np.mean(y == model['cv_prediction'])
     
     # run CV decoder: hit vs miss

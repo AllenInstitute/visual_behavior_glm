@@ -11,7 +11,8 @@ from sklearn.model_selection import cross_validate
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-def decode_experiment(oeid, data='events',window=[.4,.75]):
+
+def decode_experiment(oeid, data='events',window=[0,.75]):
 
     # Load SDK object
     print('Loading data')
@@ -49,6 +50,7 @@ def decode_experiment(oeid, data='events',window=[.4,.75]):
     results_df.to_pickle(filename)
     print('Finished')
 
+
 def load_experiment_results(oeid,version=None):
     if version is not None:
         filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
@@ -58,6 +60,7 @@ def load_experiment_results(oeid,version=None):
             '/behavior/decoding/experiments/' 
     filename += str(oeid)+'.pkl'
     return pd.read_pickle(filename)
+
 
 def load_all(experiment_table,summary_df,version=None):
     
@@ -88,6 +91,7 @@ def load_all(experiment_table,summary_df,version=None):
         'experience_level','cre_line']],on='ophys_session_id')
 
     return df
+
 
 def get_cells(session, data='events',window=[0,.75]):
     '''
@@ -132,6 +136,7 @@ def get_cell_table(session, cell_specimen_id, data='events',
 
     return cell
 
+
 def get_matrix(cell):
     '''
         Grabs the responses of the cell at each time point across each 
@@ -140,6 +145,7 @@ def get_matrix(cell):
     cols = np.sort([x for x in cell.columns.values if not isinstance(x,str)])
     x = cell[cols].to_numpy()
     return x
+
 
 def plot_by_strategy_performance(visual, timing,savefig,cell_type):
     # Plot decoder performance
@@ -186,6 +192,7 @@ def plot_by_strategy_performance(visual, timing,savefig,cell_type):
         filename += cell_type+'_decoder_performance.png'
         plt.savefig(filename)
 
+
 def plot_by_strategy_correlation(visual, timing, savefig, cell_type):
     # Plot behavior correlation figure
     plt.figure()
@@ -230,6 +237,7 @@ def plot_by_strategy_correlation(visual, timing, savefig, cell_type):
             '/behavior/decoding/figures/' 
         filename += cell_type+'_decoder_correlation.png'
         plt.savefig(filename)
+
 
 def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,ax=None):
     # Plot behavior correlation figure
@@ -287,75 +295,6 @@ def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,ax=None)
     plt.tight_layout()
 
 
-def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
-    areas=['VISp','VISl'],equipment=['MESO.1','CAM2P.3','CAM2P.4','CAM2P.5'],
-    savefig=False):
-   
-    # parse cell type 
-    mapper = {
-        'exc':'Slc17a7-IRES2-Cre',
-        'sst':'Sst-IRES-Cre',
-        'vip':'Vip-IRES-Cre'
-        }
-    cre = mapper[cell_type]
-    
-    # filter out experiments
-    results_df = results_df.query('experience_level == "Familiar"')
-    results_df = results_df.query('cre_line == @cre')  
-    results_df = results_df.query('targeted_structure in @areas')
-    results_df = results_df.query('equipment_name in @equipment') 
-
-    # Average over samples from the same experiment, so each experiment 
-    # is weighted the same
-    if aggregate_first:   
-        x = results_df.groupby(['n_cells','ophys_experiment_id']).mean()
-        results_df = x.reset_index() 
-
-    # Split by strategy
-    visual = results_df.query('visual_strategy_session')
-    timing = results_df.query('not visual_strategy_session')
-
-
-    plot_by_strategy_performance(visual, timing,savefig,cell_type)
-    plot_by_strategy_correlation(visual, timing, savefig, cell_type)
-    plot_by_strategy_hit_vs_miss(visual, timing, savefig, cell_type)
-    plot_by_strategy_scatter(visual, timing,'behavior_correlation', savefig, cell_type)
-    plot_by_strategy_scatter(visual, timing,'test_score',savefig,cell_type)
-
-def plot_by_cre(results_df, aggregate_first=True,areas=['VISp','VISl'],
-    equipment=['MESO.1','CAM2P.3','CAM2P.4','CAM2P.5'],savefig=False):
-
-    # filter out experiments
-    results_df = results_df.query('experience_level == "Familiar"')
-    results_df = results_df.query('targeted_structure in @areas')
-    results_df = results_df.query('equipment_name in @equipment') 
-
-
-
-    # Split by strategy
-    cres = ['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre']
-    mapper = {
-        'Slc17a7-IRES2-Cre':'exc',
-        'Sst-IRES-Cre':'sst',
-        'Vip-IRES-Cre':'vip'
-        }
-    fig1, ax1 = plt.subplots()
-    fig2, ax2 = plt.subplots()
-    for cre in cres:
-        cre_df = results_df.query('cre_line == @cre')
-        # Average over samples from the same experiment, so each experiment 
-        # is weighted the same
-        if aggregate_first:   
-            x = cre_df.groupby(['n_cells','ophys_experiment_id']).mean()
-            cre_df = x.reset_index() 
-
-        visual = cre_df.query('(visual_strategy_session)')
-        timing = cre_df.query('(not visual_strategy_session)')
-        plot_by_strategy_scatter(visual,timing,'behavior_correlation',
-            savefig,mapper[cre],ax1)
-        plot_by_strategy_scatter(visual,timing,'test_score',
-            savefig,mapper[cre],ax2)
-
 def plot_by_strategy_hit_vs_miss(visual, timing, savefig, cell_type):
 
     # Plot hit vs miss decoder performance
@@ -403,40 +342,76 @@ def plot_by_strategy_hit_vs_miss(visual, timing, savefig, cell_type):
         plt.savefig(filename)
 
 
-
-def plot_results_df(results_df,visual=True):
+def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
+    areas=['VISp','VISl'],equipment=['MESO.1','CAM2P.3','CAM2P.4','CAM2P.5'],
+    savefig=False):
+   
+    # parse cell type 
+    mapper = {
+        'exc':'Slc17a7-IRES2-Cre',
+        'sst':'Sst-IRES-Cre',
+        'vip':'Vip-IRES-Cre'
+        }
+    cre = mapper[cell_type]
     
+    # filter out experiments
     results_df = results_df.query('experience_level == "Familiar"')
-    results_df = results_df.query('cre_line == "Slc17a7-IRES2-Cre"')
-    if visual:
-        results_df = results_df.query('visual_strategy_session')
-    else:
-        results_df = results_df.query('not visual_strategy_session')           
+    results_df = results_df.query('cre_line == @cre')  
+    results_df = results_df.query('targeted_structure in @areas')
+    results_df = results_df.query('equipment_name in @equipment') 
 
-    plt.figure()
-    g = results_df.groupby('n_cells')
-    summary = g.mean()
-    summary['size'] = g.size()
-    summary['sem_score'] = g['test_score'].sem()
-    summary['sem_behavior_correlation'] = g['behavior_correlation'].sem()
-    plt.errorbar(summary.index.values, summary['test_score'],
-        yerr=summary['sem_score'],color='k')
-    plt.errorbar(summary.index.values, summary['behavior_correlation'],
-        yerr=summary['sem_behavior_correlation'],color='b')
-    plt.plot(summary.index.values, summary.test_score,'ko-',label='test score')
-    plt.plot(summary.index.values, summary.behavior_correlation,'bo-',
-        label='beh. corr')
-    plt.xlim(0,np.max(summary.index.values))
-    plt.ylim(0,1)
-    plt.ylabel('model performance',fontsize=16)
-    plt.xlabel('number of cells',fontsize=16)
-    ax = plt.gca()
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.xaxis.set_tick_params(labelsize=12)
-    ax.yaxis.set_tick_params(labelsize=12)
-    plt.legend(loc='upper right')
-    plt.tight_layout()
+    # Average over samples from the same experiment, so each experiment 
+    # is weighted the same
+    if aggregate_first:   
+        x = results_df.groupby(['n_cells','ophys_experiment_id']).mean()
+        results_df = x.reset_index() 
+
+    # Split by strategy
+    visual = results_df.query('visual_strategy_session')
+    timing = results_df.query('not visual_strategy_session')
+
+
+    plot_by_strategy_performance(visual, timing,savefig,cell_type)
+    plot_by_strategy_correlation(visual, timing, savefig, cell_type)
+    plot_by_strategy_hit_vs_miss(visual, timing, savefig, cell_type)
+    plot_by_strategy_scatter(visual, timing,'behavior_correlation', savefig, cell_type)
+    plot_by_strategy_scatter(visual, timing,'test_score',savefig,cell_type)
+
+
+def plot_by_cre(results_df, aggregate_first=True,areas=['VISp','VISl'],
+    equipment=['MESO.1','CAM2P.3','CAM2P.4','CAM2P.5'],savefig=False):
+
+    # filter out experiments
+    results_df = results_df.query('experience_level == "Familiar"')
+    results_df = results_df.query('targeted_structure in @areas')
+    results_df = results_df.query('equipment_name in @equipment') 
+
+
+
+    # Split by strategy
+    cres = ['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre']
+    mapper = {
+        'Slc17a7-IRES2-Cre':'exc',
+        'Sst-IRES-Cre':'sst',
+        'Vip-IRES-Cre':'vip'
+        }
+    fig1, ax1 = plt.subplots()
+    fig2, ax2 = plt.subplots()
+    for cre in cres:
+        cre_df = results_df.query('cre_line == @cre')
+        # Average over samples from the same experiment, so each experiment 
+        # is weighted the same
+        if aggregate_first:   
+            x = cre_df.groupby(['n_cells','ophys_experiment_id']).mean()
+            cre_df = x.reset_index() 
+
+        visual = cre_df.query('(visual_strategy_session)')
+        timing = cre_df.query('(not visual_strategy_session)')
+        plot_by_strategy_scatter(visual,timing,'behavior_correlation',
+            savefig,mapper[cre],ax1)
+        plot_by_strategy_scatter(visual,timing,'test_score',
+            savefig,mapper[cre],ax2)
+
 
 def iterate_n_cells(cells):
     n_cells = [1,2,5,10,20,40,80]
@@ -451,27 +426,6 @@ def iterate_n_cells(cells):
     results_df = pd.concat(results)
     return results_df
 
-def check_sampling():
-    '''
-        Demonstrate the number of samples as a function of sub-sample size
-        and total cell population
-    '''
-    n_total = np.arange(30,500,10)
-    def n_samples(n,k):
-        return int(np.ceil(np.log(0.01)/np.log(1-k/n)))
-    samples10 = [n_samples(x,10) for x in n_total]
-    samples20 = [n_samples(x,20) for x in n_total]
-    plt.figure()
-    plt.plot(n_total, samples20,'ko-',label='20')
-    plt.plot(n_total, samples10,'ro-',label='10')
-    plt.ylabel('samples/experiment')
-    plt.xlabel('cells in experiment')
-    plt.figure()
-    plt.plot(n_total, np.array(samples20)/np.array(n_total),'ko-',label='20')
-    plt.plot(n_total, np.array(samples10)/np.array(n_total),'ro-',label='10')
-    plt.xlabel('cells in experiment')
-    plt.ylabel('samples/cell')
-    plt.ylim(0,.6)
 
 def decode_cells(cells, n_cells):
     '''
@@ -499,6 +453,7 @@ def decode_cells(cells, n_cells):
     output_df = pd.DataFrame(output)
     output_df['n_cells'] = n_cells
     return output_df
+
 
 def decode_cells_sample(cells, n_cells,index=None):
     '''
@@ -544,6 +499,7 @@ def decode_cells_sample(cells, n_cells,index=None):
     # return results
     return model 
  
+
 def compute_behavior_correlation(cell, model):
     cell['prediction'] = model['cv_prediction']   
     cell = cell.query('is_change').copy()

@@ -220,4 +220,12 @@ psth.plot_figure_4_averages_cell_selection(dfs, data='events',
 psth.plot_figure_4_averages_cell_selection(dfs, data='events',
     strategy='strategy_labels_with_mixed')
 
+## Decoding Supplement
+################################################################################
+
+summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION) 
+experiment_table = glm_params.get_experiment_table() 
+df3 = d.load_all(experiment_table, summary_df,version=3)
+d.plot_by_cre(df3)
+
 

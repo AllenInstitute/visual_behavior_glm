@@ -239,10 +239,13 @@ def plot_by_strategy_correlation(visual, timing, savefig, cell_type):
         plt.savefig(filename)
 
 
-def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,ax=None):
+def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,
+    version=None,ax=None):
+
     # Plot behavior correlation figure
     if ax is None:
         fig, ax = plt.subplots()
+        ax.set_aspect('equal')
     colors = gvt.project_colors()
     color = colors[cell_type] 
  
@@ -269,30 +272,58 @@ def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,ax=None)
     for index in range(0,n):
         ax.scatter(tsummary.iloc[index][metric],
             vsummary.iloc[index][metric],
-            s=tsummary.index.values[index],color=color,label=tsummary.index.values[index])
+            s=tsummary.index.values[index]*1.5,color=color,
+            label=tsummary.index.values[index],alpha=1)
 
 
     if metric == 'behavior_correlation':
         ax.plot([0, .2],[0, .2], 'k--',alpha=.25)
-        ax.set_ylabel('visual sessions \ndecoder correlation with behavior',fontsize=16)
-        ax.set_xlabel('timing sessions \ndecoder correlation with behavior',fontsize=16)
+        ax.set_ylabel('visual sessions',
+            fontsize=16)
+        ax.set_xlabel('timing sessions',
+            fontsize=16)
         ax.set_xlim(0,.165)
         ax.set_ylim(0,.165)
+        ax.set_title('change decoder correlation with behavior',fontsize=16)
     elif metric == 'test_score':
         ax.plot([0.5, 1],[0.5, 1], 'k--',alpha=.25)
-        ax.set_ylabel('visual sessions \ndecoder (change v. repeat) performance',
+        ax.set_ylabel('visual sessions',
             fontsize=16)
-        ax.set_xlabel('timing sessions \ndecoder (change v. repeat) performance',
+        ax.set_xlabel('timing sessions',
             fontsize=16)
         ax.set_xlim(0.5,.75)
-        ax.set_ylim(0.5,.75)       
+        ax.set_ylim(0.5,.75)     
+        ax.set_title('change decoder performance',fontsize=16) 
+    elif metric == 'test_score_hit_vs_miss':
+        ax.plot([0.5, 1],[0.5, 1], 'k--',alpha=.25)
+        ax.set_ylabel('visual sessions',
+            fontsize=16)
+        ax.set_xlabel('timing sessions',
+            fontsize=16)
+        ax.set_xlim(0.5,.75)
+        ax.set_ylim(0.5,.75)      
+        ax.set_title('hit decoder performance',fontsize=16) 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.xaxis.set_tick_params(labelsize=12)
     ax.yaxis.set_tick_params(labelsize=12)
 
-    ax.legend(loc='lower right',title='# of cells')
+
+
+    ax.set_aspect('equal')
+    ax.legend(loc='upper left',bbox_to_anchor=(1.04,1),title='# of cells')
     plt.tight_layout()
+
+    if savefig:
+        if version is None:
+            filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
+                '/behavior/decoding/figures/' 
+        else:
+            filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
+                '/behavior/decoding/figures_fit_{}/'.format(version)
+        filename += 'scatter_by_cre_'+metric+'.svg'
+        print(filename)
+        plt.savefig(filename)
 
 
 def plot_by_strategy_hit_vs_miss(visual, timing, savefig, cell_type):
@@ -374,19 +405,21 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
     plot_by_strategy_performance(visual, timing,savefig,cell_type)
     plot_by_strategy_correlation(visual, timing, savefig, cell_type)
     plot_by_strategy_hit_vs_miss(visual, timing, savefig, cell_type)
-    plot_by_strategy_scatter(visual, timing,'behavior_correlation', savefig, cell_type)
-    plot_by_strategy_scatter(visual, timing,'test_score',savefig,cell_type)
+    plot_by_strategy_scatter(visual, timing,'behavior_correlation', 
+        savefig, cell_type,version)
+    plot_by_strategy_scatter(visual, timing,'test_score',savefig,
+        cell_type,version)
 
 
 def plot_by_cre(results_df, aggregate_first=True,areas=['VISp','VISl'],
-    equipment=['MESO.1','CAM2P.3','CAM2P.4','CAM2P.5'],savefig=False):
+    equipment=['MESO.1','CAM2P.3','CAM2P.4','CAM2P.5'],ncells=2,
+    savefig=False,version=None):
 
     # filter out experiments
     results_df = results_df.query('experience_level == "Familiar"')
     results_df = results_df.query('targeted_structure in @areas')
     results_df = results_df.query('equipment_name in @equipment') 
-
-
+    results_df = results_df.query('n_cells > @ncells')
 
     # Split by strategy
     cres = ['Slc17a7-IRES2-Cre','Sst-IRES-Cre','Vip-IRES-Cre']
@@ -397,7 +430,8 @@ def plot_by_cre(results_df, aggregate_first=True,areas=['VISp','VISl'],
         }
     fig1, ax1 = plt.subplots()
     fig2, ax2 = plt.subplots()
-    for cre in cres:
+    fig3, ax3 = plt.subplots()
+    for index,cre in enumerate(cres):
         cre_df = results_df.query('cre_line == @cre')
         # Average over samples from the same experiment, so each experiment 
         # is weighted the same
@@ -407,11 +441,23 @@ def plot_by_cre(results_df, aggregate_first=True,areas=['VISp','VISl'],
 
         visual = cre_df.query('(visual_strategy_session)')
         timing = cre_df.query('(not visual_strategy_session)')
-        plot_by_strategy_scatter(visual,timing,'behavior_correlation',
-            savefig,mapper[cre],ax1)
-        plot_by_strategy_scatter(visual,timing,'test_score',
-            savefig,mapper[cre],ax2)
-
+        if index == 2:
+            plt.figure(fig1.number)
+            plot_by_strategy_scatter(visual,timing,'behavior_correlation',
+                savefig,mapper[cre],version,ax1)
+            plt.figure(fig2.number)
+            plot_by_strategy_scatter(visual,timing,'test_score',
+                savefig,mapper[cre],version,ax2)
+            plt.figure(fig3.number)
+            plot_by_strategy_scatter(visual,timing,'test_score_hit_vs_miss',
+                savefig,mapper[cre],version,ax3)
+        else:
+            plot_by_strategy_scatter(visual,timing,'behavior_correlation',
+                False,mapper[cre],version,ax1)
+            plot_by_strategy_scatter(visual,timing,'test_score',
+                False,mapper[cre],version,ax2)
+            plot_by_strategy_scatter(visual,timing,'test_score_hit_vs_miss',
+                False,mapper[cre],version,ax3)
 
 def iterate_n_cells(cells):
     n_cells = [1,2,5,10,20,40,80]

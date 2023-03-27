@@ -553,6 +553,44 @@ def compute_behavior_correlation(cell, model):
     return cell[['prediction','hit']].corr()['hit']['prediction']
 
 
+def plot_behavior_ratio(df,ncells=2,savefig=False,version=None):
+
+    df = df.query('cre_line == "Slc17a7-IRES2-Cre"')
+    df = df.query('experience_level == "Familiar"')
+    df = df.query('n_cells > @ncells')
+
+    x = df.groupby(['n_cells','ophys_experiment_id']).mean().reset_index()
+    summary = x.groupby(['n_cells','visual_strategy_session'])['behavior_correlation'].mean()
+    summary = summary.unstack()
+    summary['ratio'] = summary[True]/summary[False]
+
+    plt.figure(figsize=(5,4))
+    plt.plot(summary.index.values, summary.ratio.values, 'ko-')
+    plt.xlabel('# of cells',fontsize=16)
+    plt.ylabel('correlation with behavior \n (ratio of visual/timing)',fontsize=16)
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_ylim(0,4)
+    ax.set_xlim(0,85)
+    plt.tight_layout()
+
+    # save decoder performance figure
+    if savefig:
+        filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
+            '/behavior/decoding/figures_fit_{}/'.format(version) 
+        filename += 'exc_decoder_correlation_ratio.png'
+        print(filename)
+        plt.savefig(filename)
+
+
+
+
+
+
+
 
 
 

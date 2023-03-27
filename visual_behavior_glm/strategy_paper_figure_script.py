@@ -3,6 +3,7 @@ import visual_behavior_glm.PSTH as psth
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_fit_dev as gfd
+import visual_behavior_glm.decoding as d
 import visual_behavior_glm.GLM_schematic_plots as gsm
 import visual_behavior_glm.GLM_perturbation_tools as gpt
 import visual_behavior_glm.GLM_strategy_tools as gst

@@ -284,6 +284,9 @@ def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,
             fontsize=16)
         ax.set_xlim(0,.165)
         ax.set_ylim(0,.165)
+        ticks = np.arange(0,.18,.02)
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
         ax.set_title('change decoder correlation with behavior',fontsize=16)
     elif metric == 'test_score':
         ax.plot([0.5, 1],[0.5, 1], 'k--',alpha=.25)

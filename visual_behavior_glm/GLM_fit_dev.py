@@ -416,4 +416,30 @@ def dev_ignore():
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[4])
     scatter_by_cell(results_beh, cre_line ='Vip-IRES-Cre',sessions=[6])
 
+def compute_relapse(summary_df):
+    
+    ''' 
+        summary_df = po.get_ophys_summary_table()
+        summary_df = compute_relapse(summary_df)
+        results_pivoted = pd.merge(results_pivoted, summary_df[['behavior_session_id','familiar_relapse']],on='behavior_session_id')
+        results_pivoted.at[results_pivoted['familiar_relapse'],'experience_level'] = 'familiar_relapse'
+    '''
+    mice = summary_df['mouse_id'].unique()
+   
+    m_dfs = [] 
+    for mouse in mice:
+        m_df = summary_df.query('mouse_id == @mouse').copy()
+        
+        novel = ['Novel 1','Novel >1']
+        m_df['familiar_relapse'] = [x in novel for x in m_df['experience_level']] 
+        m_df['familiar_relapse'] = (m_df['familiar_relapse'].cumsum() > 0) & \
+            (m_df['experience_level'] == 'Familiar')
+    
+        m_df = m_df[['behavior_session_id','familiar_relapse']]
+        m_dfs.append(m_df)
+
+    m_df = pd.concat(m_dfs)
+    summary_df = pd.merge(summary_df, m_df, on='behavior_session_id',validate='1:1')
+    return summary_df
+
 

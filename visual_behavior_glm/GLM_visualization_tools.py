@@ -3932,8 +3932,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     #cell_types = results_pivoted.cell_type.unique()
     cell_types = ['Vip Inhibitory','Sst Inhibitory','Excitatory']
     experience_levels = np.sort(results_pivoted.experience_level.unique())
-    experience_level_labels=['Familiar','Novel','Novel +']
+    experience_level_labels=['Familiar','Novel','Novel +','FR']
     colors = project_colors()
+    colors['familiar_relapse'] = 'k'
 
     if plot_by_cell_type:
         # make combined across cre line plot
@@ -4054,7 +4055,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                 ax[index].set_xlabel('')
                 ax[index].set_xticks([0,1,2])
                 ax[index].set_xticklabels(experience_level_labels, rotation=90)
-                ax[index].set_xlim(-.5,2.5)
+                ax[index].set_xlim(-.5,3.5)
                 ax[index].tick_params(axis='x',labelsize=16)
                 ax[index].tick_params(axis='y',labelsize=16)
                 ax[index].set_ylim(bottom=0)
@@ -4134,11 +4135,12 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                 stats_feature = feature.replace('_within','_across')
             else:
                 stats_feature = feature
-            if matched_with_variance_explained:
-                anova, tukey = test_significant_dropout_averages(matched_cells_with_ve_data,stats_feature)
-            else:
-                anova, tukey = test_significant_dropout_averages(all_data,stats_feature)
-            stats[cell_type]=(anova, tukey)
+            if add_stats:
+                if matched_with_variance_explained:
+                    anova, tukey = test_significant_dropout_averages(matched_cells_with_ve_data,stats_feature)
+                else:
+                    anova, tukey = test_significant_dropout_averages(all_data,stats_feature)
+                stats[cell_type]=(anova, tukey)
             summary_data[feature+' data'][cell_type+' all data'] = all_data.groupby(['experience_level'])[feature].describe()
             summary_data[feature+' data'][cell_type+' matched data'] = matched_data.groupby(['experience_level'])[feature].describe()
             # Plot all cells in active sessions
@@ -4227,9 +4229,9 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             ax[cindex].set_title(cell_type,fontsize=20)
             ax[cindex].set_ylabel('')
             ax[cindex].set_xlabel('')
-            ax[cindex].set_xticks([0,1,2])
+            ax[cindex].set_xticks(np.arange(0,len(experience_level_labels),1))
             ax[cindex].set_xticklabels(experience_level_labels, rotation=90)
-            ax[cindex].set_xlim(-.5,2.5)
+            ax[cindex].set_xlim(-.5,3.5)
             ax[cindex].tick_params(axis='x',labelsize=16)
             ax[cindex].tick_params(axis='y',labelsize=16)
             #ax[cindex].set_ylim(bottom=0)

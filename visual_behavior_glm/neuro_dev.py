@@ -243,7 +243,7 @@ cell_table['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' for x in cell_tabl
 summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION)
 cell_table = pd.merge(cell_table, summary_df[['behavior_session_id','strategy_labels']],
     on='behavior_session_id')
-counts = cell_table.groupby(['cre_line','equipment','area_binned_depth','strategy_labels'])['cell_specimen_id'].count().unstack().fillna(value=0)
+counts = cell_table.groupby(['cre_line','equipment','area_binned_depth','strategy_labels'])['cell_specimen_id'].nunique().unstack().fillna(value=0)
 
 # Based on the cell counts, there are 4 cell_type/area/depth combinations to check
 # Check PSTHs at specific depths

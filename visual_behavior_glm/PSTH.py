@@ -3007,8 +3007,8 @@ def plot_figure_4_by_equipment(sci_df,mes_df,cell_type,cell_counts,data='filtere
     strategy ='visual_strategy_session',depth='layer'):
 
 
-    fig, ax = plt.subplots(2,3,figsize=(10,5.2),sharey='row',squeeze=False) 
-    labels = ['Sci. '+cell_type, 'Meso. '+cell_type]
+    fig, ax = plt.subplots(3,3,figsize=(10,7.5),sharey='row',squeeze=False) 
+    labels = ['Sci. '+cell_type, 'Meso. '+cell_type, 'Meso. '+cell_type+'\nexcluding the area']
     error_type='sem'
     mapper = {
         'Excitatory':0,
@@ -3034,7 +3034,25 @@ def plot_figure_4_by_equipment(sci_df,mes_df,cell_type,cell_counts,data='filtere
             strategy, ax=ax[index, 2],ylabel='',
             error_type=error_type,areas=areas,depths=depths,depth=depth)
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
-    for x in [0,1]:
+
+    exclusion_df = mes_df[cell_index]
+    exclusion_df = exclusion_df.\
+        query('~((targeted_structure == @areas[0])&(binned_depth ==@depths[0]))')
+    max_y = [0,0,0]
+    index=2
+    ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
+    max_y[0] = plot_condition_experience(exclusion_df, 'omission', experience_level,
+        strategy, ax=ax[index, 0], ylabel=ylabel,
+        error_type=error_type)
+    max_y[1] = plot_condition_experience(exclusion_df, 'hit', experience_level,
+        strategy, ax=ax[index, 1],ylabel='',
+        error_type=error_type)
+    max_y[2] = plot_condition_experience(exclusion_df, 'miss', experience_level,
+        strategy, ax=ax[index, 2],ylabel='',
+        error_type=error_type)
+    ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+
+    for x in [0,1,2]:
             ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
             ax[x,1].set_xlabel('time from hit (s)',fontsize=16)
             ax[x,2].set_xlabel('time from miss (s)',fontsize=16)
@@ -3057,7 +3075,7 @@ def plot_figure_4_by_equipment(sci_df,mes_df,cell_type,cell_counts,data='filtere
     plt.tight_layout()
     if savefig:
         filename = PSTH_DIR + data + '/population_averages/'+\
-            'figure_4_comparisons_psth_'+experience_level+'.svg' 
+            'equipment_psth_'+cell_type+'_{}_{}.png'.format(depths[0],areas[0])
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 

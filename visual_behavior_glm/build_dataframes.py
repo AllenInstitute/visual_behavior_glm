@@ -24,7 +24,7 @@ def add_area_depth(df,experiment_table):
     return df
 
 def load_population_df(data,df_type,cre,summary_df=None,first=False,second=False,
-    image=False,experience_level='Familiar'):
+    image=False,experience_level='Familiar',double=False):
     '''
         Loads a summary dataframe
         data should be 'events', 'filtered_events', or 'dff'
@@ -36,6 +36,8 @@ def load_population_df(data,df_type,cre,summary_df=None,first=False,second=False
         extra = '_second_half'
     elif image:
         extra = '_image_period'
+    elif double:
+        extra = '_double'
     else:
         extra =  ''
 

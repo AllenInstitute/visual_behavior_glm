@@ -267,6 +267,13 @@ df = sst_omission.query('targeted_structure == "VISp"').query('binned_depth == 2
 df = df[['count','mean','std']]
 df['sem'] = df['std']/np.sqrt(df['count'])
 
+## Double omission
+################################################################################
+bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','events',
+    double=True,experience_level='Familiar')
+vip_double = bd.load_population_df('events','full_df','Vip-IRES-Cre',
+    double=True,experience_level='Familiar')
+
 
 
 

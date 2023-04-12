@@ -14,7 +14,6 @@ parser.add_argument(
 if __name__ == '__main__':
     args = parser.parse_args()
     session = bd.load_data(args.ophys_experiment_id)
-    session = bd.add_double_omissions(session)
     data = 'events'
 
     #print('first half') 

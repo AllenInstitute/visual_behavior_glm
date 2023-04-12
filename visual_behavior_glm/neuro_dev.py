@@ -226,24 +226,12 @@ ax = psth.plot_QQ_engagement(vip_full_filtered, 'Vip','omission','Familiar',\
 # Get data split by equipment
 sci_dfs, mes_dfs = psth.check_equipment()
 
+# Figure out how many cells we have across strategy/area/depth/equipment
+counts = psth.get_equipment_counts()
+
 # Check PSTHs across all area/layers
 psth.plot_figure_4_averages(sci_dfs,data='events')
 psth.plot_figure_4_averages(mes_dfs,data='events')
-
-# Figure out how many cells we have across strategy/area/depth/equipment
-cell_table = gat.loading.get_cell_table(platform_paper_only=True,
-    add_extra_columns=False,
-    include_4x2_data=False)
-cell_table = cell_table.query('experience_level == "Familiar"').copy()
-experiment_table = glm_params.get_experiment_table()
-cell_table = pd.merge(cell_table, 
-    experiment_table.reset_index()[['ophys_experiment_id','area_binned_depth']],
-    on='ophys_experiment_id')
-cell_table['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' for x in cell_table['equipment_name']]
-summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION)
-cell_table = pd.merge(cell_table, summary_df[['behavior_session_id','strategy_labels']],
-    on='behavior_session_id')
-counts = cell_table.groupby(['cre_line','equipment','area_binned_depth','strategy_labels'])['cell_specimen_id'].nunique().unstack().fillna(value=0)
 
 # Based on the cell counts, there are 4 cell_type/area/depth combinations to check
 # Check PSTHs at specific depths
@@ -256,6 +244,7 @@ psth.plot_figure_4_by_equipment(sci_dfs, mes_dfs, 'Sst',counts,
 psth.plot_figure_4_by_equipment(sci_dfs, mes_dfs, 'Vip',counts,
     data='events', areas=['VISp'],depths=[175],depth='binned_depth')
 
+# Look at response magnitudes
 vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
 vip_omission = pd.merge(vip_omission, 
     experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],

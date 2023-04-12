@@ -3069,7 +3069,9 @@ def plot_figure_4_by_equipment(sci_df,mes_df,cell_type,cell_counts,data='filtere
     sci_tim = cell_counts.loc[cre, 'SCI',area_depth]['timing']
     mes_vis = cell_counts.loc[cre, 'MESO',area_depth]['visual']
     mes_tim = cell_counts.loc[cre, 'MESO',area_depth]['timing']
-    title = '{}, {}, {} cortical depth\nScientifica cells: {: >8.0f} visual, {: >8.0f} timing\n Mesoscope cells: {: >8.0f} visual, {: >8.0f} timing'.\
+    title = ('{}, {}, {} cortical depth\n'+\
+        'Scientifica cells: {: >8.0f} visual, {: >8.0f} timing\n'+\
+        'Mesoscope cells: {: >8.0f} visual, {: >8.0f} timing').\
         format(cell_type,areas[0],depths[0],sci_vis, sci_tim, mes_vis, mes_tim)
     plt.suptitle(title)
     plt.tight_layout()
@@ -3078,5 +3080,23 @@ def plot_figure_4_by_equipment(sci_df,mes_df,cell_type,cell_counts,data='filtere
             'equipment_psth_'+cell_type+'_{}_{}.png'.format(depths[0],areas[0])
         print('Figure saved to: '+filename)
         plt.savefig(filename)
+
+def get_equipment_counts(BEHAVIOR_VERSION=21):
+    cell_table = loading.get_cell_table(platform_paper_only=True,
+        add_extra_columns=False,
+        include_4x2_data=False)
+    cell_table = cell_table.query('experience_level == "Familiar"').copy()
+    experiment_table = glm_params.get_experiment_table()
+    cell_table = pd.merge(cell_table, 
+        experiment_table.reset_index()[['ophys_experiment_id','area_binned_depth']],
+        on='ophys_experiment_id')
+    cell_table['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
+        for x in cell_table['equipment_name']]
+    summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION)
+    cell_table = pd.merge(cell_table, summary_df[['behavior_session_id','strategy_labels']],
+        on='behavior_session_id')
+    counts = cell_table.groupby(['cre_line','equipment','area_binned_depth',\
+        'strategy_labels'])['cell_specimen_id'].nunique().unstack().fillna(value=0)
+    return counts
 
 

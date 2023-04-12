@@ -461,10 +461,11 @@ def plot_condition_experience(full_df, condition, experience_level, split,
 
     # Annotate figure
     omitted = 'omission' in condition
+    double = condition == 'double_omission'
     change = (not omitted) and (('change' in condition) or \
         ('hit' in condition) or ('miss' in condition))
     timestamps = df.iloc[0]['time']
-    plot_flashes_on_trace(ax, timestamps, change=change, omitted=omitted)
+    plot_flashes_on_trace(ax, timestamps, change=change, omitted=omitted,double=double)
 
     # Clean up axis 
     if xlabel:
@@ -503,7 +504,7 @@ def plot_split(df, ax,color,error_type = 'sem',lw=2):
 
     return np.nanmax(upper)
 
-def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False):
+def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False,double=False):
     """
     plot stimulus flash durations on the given axis according to the provided timestamps
     """
@@ -515,7 +516,7 @@ def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False):
     end_time = timestamps[-1]
     interval = (blank_duration + stim_duration)
     # after time 0
-    if omitted:
+    if omitted or double:
         array = np.arange((change_time + interval), end_time, interval)  
         ax.axvline(x=change_time, ymin=0, ymax=1, linestyle='--', 
             color=sns.color_palette()[9], linewidth=1.5)
@@ -532,7 +533,12 @@ def plot_flashes_on_trace(ax, timestamps, change=None, omitted=False):
             ax.axvspan(amin, amax, color='k',alpha=.1, zorder=1)
 
     # before time 0
-    array = np.arange(change_time, start_time - interval, -interval)
+    if double:
+        ax.axvline(x=change_time-interval, ymin=0, ymax=1, linestyle='--', 
+            color=sns.color_palette()[9], linewidth=1.5)   
+        array = np.arange(change_time-interval, start_time - interval, -interval)
+    else:
+        array = np.arange(change_time, start_time - interval, -interval)
     array = array[1:]
     for i, vals in enumerate(array):
         amin = array[i]
@@ -3099,4 +3105,63 @@ def get_equipment_counts(BEHAVIOR_VERSION=21):
         'strategy_labels'])['cell_specimen_id'].nunique().unstack().fillna(value=0)
     return counts
 
+def plot_double_omissions(dfs,double_dfs, data='events',savefig=False,\
+    areas=['VISp','VISl'],depths=['upper','lower'],experience_level='Familiar',
+    strategy = 'visual_strategy_session',depth='layer'):
 
+    fig, ax = plt.subplots(3,2,figsize=(8,7.5),sharey='row',squeeze=False) 
+    labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
+    error_type='sem'
+    for index, full_df in enumerate(dfs): 
+        max_y = [0,0,0]
+        ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
+        max_y[0] = plot_condition_experience(full_df, 'omission', experience_level,
+            strategy, ax=ax[index, 0], ylabel=ylabel,
+            error_type=error_type,areas=areas,depths=depths,depth=depth)
+        try:
+            max_y[1] = plot_condition_experience(double_dfs[index], 'double_omission', 
+                experience_level,
+                strategy, ax=ax[index, 1],ylabel='',
+                error_type=error_type,areas=areas,depths=depths,depth=depth)
+        except:
+            print('no cells?')
+        ax[index,0].set_ylim(top = 1.05*np.nanmax(max_y))
+    for x in [0,1,2]:
+            ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
+            ax[x,1].set_xlabel('time from double omission (s)',fontsize=16)
+
+    # Clean up
+    plt.tight_layout()
+    if savefig:
+        filename = PSTH_DIR + data + '/population_averages/'+\
+            'double_omissions_'+experience_level+'.svg' 
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+
+def get_double_omission_psth(data='events',experience_level='Familiar'):
+ 
+    # Load each cell type
+    vip_full_filtered = bd.load_population_df(data,'full_df',\
+    'Vip-IRES-Cre',experience_level=experience_level,double=True)
+    sst_full_filtered = bd.load_population_df(data,'full_df',\
+    'Sst-IRES-Cre',experience_level=experience_level,double=True)
+    exc_full_filtered = bd.load_population_df(data,'full_df',\
+        'Slc17a7-IRES2-Cre',experience_level=experience_level,double=True)
+
+    # Add area, depth
+    experiment_table = glm_params.get_experiment_table()
+    vip_full_filtered = bd.add_area_depth(vip_full_filtered, experiment_table)
+    sst_full_filtered = bd.add_area_depth(sst_full_filtered, experiment_table)
+    exc_full_filtered = bd.add_area_depth(exc_full_filtered, experiment_table)
+    vip_full_filtered = pd.merge(vip_full_filtered, experiment_table.reset_index()\
+        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+    sst_full_filtered = pd.merge(sst_full_filtered, experiment_table.reset_index()\
+        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+    exc_full_filtered = pd.merge(exc_full_filtered, experiment_table.reset_index()\
+        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+
+    # merge cell types
+    dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]
+    labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
+
+    return dfs_filtered

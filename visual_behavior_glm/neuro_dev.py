@@ -220,6 +220,53 @@ ax = psth.plot_QQ_strategy(vip_full_filtered, 'Vip','omission','Familiar',\
 ax = psth.plot_QQ_engagement(vip_full_filtered, 'Vip','omission','Familiar',\
 	data='filtered_events')
 
+## Mesoscope check
+################################################################################
+
+# Get data split by equipment
+sci_dfs, mes_dfs = psth.check_equipment()
+
+# Figure out how many cells we have across strategy/area/depth/equipment
+counts = psth.get_equipment_counts()
+
+# Check PSTHs across all area/layers
+psth.plot_figure_4_averages(sci_dfs,data='events')
+psth.plot_figure_4_averages(mes_dfs,data='events')
+
+# Based on the cell counts, there are 4 cell_type/area/depth combinations to check
+# Check PSTHs at specific depths
+psth.plot_figure_4_by_equipment(sci_dfs, mes_dfs, 'Excitatory',counts,
+    data='events', areas=['VISp'],depths=[375],depth='binned_depth')
+psth.plot_figure_4_by_equipment(sci_dfs, mes_dfs, 'Excitatory',counts,
+    data='events', areas=['VISp'],depths=[175],depth='binned_depth')
+psth.plot_figure_4_by_equipment(sci_dfs, mes_dfs, 'Sst',counts,
+    data='events', areas=['VISp'],depths=[275],depth='binned_depth')
+psth.plot_figure_4_by_equipment(sci_dfs, mes_dfs, 'Vip',counts,
+    data='events', areas=['VISp'],depths=[175],depth='binned_depth')
+
+# Look at response magnitudes
+vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
+vip_omission = pd.merge(vip_omission, 
+    experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
+    on='ophys_experiment_id')
+vip_omission['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
+    for x in vip_omission['equipment_name']]
+vip_omission.query('targeted_structure == "VISp"').query('binned_depth == 175').\
+    groupby(['equipment','visual_strategy_session'])['response'].describe()
+
+
+sst_omission = psth.load_omission_df(summary_df,cre='Sst-IRES-Cre',data='events',
+    first=False, second=True)
+sst_omission = pd.merge(sst_omission, 
+    experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
+    on='ophys_experiment_id')
+sst_omission['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
+    for x in sst_omission['equipment_name']]
+df = sst_omission.query('targeted_structure == "VISp"').query('binned_depth == 275').\
+    groupby(['equipment','visual_strategy_session'])['response'].describe()
+df = df[['count','mean','std']]
+df['sem'] = df['std']/np.sqrt(df['count'])
+
 
 
 

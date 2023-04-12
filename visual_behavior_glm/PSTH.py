@@ -249,7 +249,7 @@ def get_figure_4_psth(data='events',experience_level='Familiar'):
 
 def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
     areas=['VISp','VISl'],depths=['upper','lower'],experience_level='Familiar',
-    strategy = 'visual_strategy_session'):
+    strategy = 'visual_strategy_session',depth='layer'):
 
     fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
@@ -259,13 +259,13 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
         ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
         max_y[0] = plot_condition_experience(full_df, 'omission', experience_level,
             strategy, ax=ax[index, 0], ylabel=ylabel,
-            error_type=error_type,areas=areas,depths=depths)
+            error_type=error_type,areas=areas,depths=depths,depth=depth)
         max_y[1] = plot_condition_experience(full_df, 'hit', experience_level,
             strategy, ax=ax[index, 1],ylabel='',
-            error_type=error_type,areas=areas,depths=depths)
+            error_type=error_type,areas=areas,depths=depths,depth=depth)
         max_y[2] = plot_condition_experience(full_df, 'miss', experience_level,
             strategy, ax=ax[index, 2],ylabel='',
-            error_type=error_type,areas=areas,depths=depths)
+            error_type=error_type,areas=areas,depths=depths,depth=depth)
         ax[index,0].set_ylim(top = 1.05*np.max(max_y))
     for x in [0,1,2]:
             ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
@@ -2980,5 +2980,123 @@ def find_preferred(df):
     df['is_preferred'] = df['preferred_image'] == df['image_index']
     return df
 
-   
+
+def check_equipment():
+    '''
+        Returns PSTH datasets split by imaging equipment type
+        Familiar sessions only    
+    '''
+    dfs = get_figure_4_psth(data='events')
+    experiment_table = glm_params.get_experiment_table().reset_index()
+    for index, df in enumerate(dfs):
+        dfs[index] = pd.merge(dfs[index], 
+            experiment_table[['ophys_experiment_id','equipment_name']],
+            on='ophys_experiment_id')
+
+    sci_dfs = []
+    mes_dfs = []
+    sci_equip = ['CAM2P.3','CAM2P.4','CAM2P.5']
+    for index, df in enumerate(dfs):
+        sci_dfs.append(df.query('equipment_name in @sci_equip').copy())
+        mes_dfs.append(df.query('equipment_name == "MESO.1"').copy())
+
+    return sci_dfs, mes_dfs
+
+def plot_figure_4_by_equipment(sci_df,mes_df,cell_type,cell_counts,data='filtered_events',
+    savefig=False,areas=['VISp','VISl'],depths=['upper','lower'],experience_level='Familiar',
+    strategy ='visual_strategy_session',depth='layer'):
+
+
+    fig, ax = plt.subplots(3,3,figsize=(10,7.5),sharey='row',squeeze=False) 
+    labels = ['Sci. '+cell_type, 'Meso. '+cell_type, 'Meso. '+cell_type+'\nexcluding the area']
+    error_type='sem'
+    mapper = {
+        'Excitatory':0,
+        'excitatory':0,
+        'exc':0,
+        'Sst':1,
+        'sst':1,
+        'Vip':2,
+        'vip':2
+        }
+    cell_index=mapper[cell_type]
+    dfs = [sci_df[cell_index], mes_df[cell_index]]
+    for index, full_df in enumerate(dfs): 
+        max_y = [0,0,0]
+        ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
+        max_y[0] = plot_condition_experience(full_df, 'omission', experience_level,
+            strategy, ax=ax[index, 0], ylabel=ylabel,
+            error_type=error_type,areas=areas,depths=depths,depth=depth)
+        max_y[1] = plot_condition_experience(full_df, 'hit', experience_level,
+            strategy, ax=ax[index, 1],ylabel='',
+            error_type=error_type,areas=areas,depths=depths,depth=depth)
+        max_y[2] = plot_condition_experience(full_df, 'miss', experience_level,
+            strategy, ax=ax[index, 2],ylabel='',
+            error_type=error_type,areas=areas,depths=depths,depth=depth)
+        ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+
+    exclusion_df = mes_df[cell_index]
+    exclusion_df = exclusion_df.\
+        query('~((targeted_structure == @areas[0])&(binned_depth ==@depths[0]))')
+    max_y = [0,0,0]
+    index=2
+    ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
+    max_y[0] = plot_condition_experience(exclusion_df, 'omission', experience_level,
+        strategy, ax=ax[index, 0], ylabel=ylabel,
+        error_type=error_type)
+    max_y[1] = plot_condition_experience(exclusion_df, 'hit', experience_level,
+        strategy, ax=ax[index, 1],ylabel='',
+        error_type=error_type)
+    max_y[2] = plot_condition_experience(exclusion_df, 'miss', experience_level,
+        strategy, ax=ax[index, 2],ylabel='',
+        error_type=error_type)
+    ax[index,0].set_ylim(top = 1.05*np.max(max_y))
+
+    for x in [0,1,2]:
+            ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
+            ax[x,1].set_xlabel('time from hit (s)',fontsize=16)
+            ax[x,2].set_xlabel('time from miss (s)',fontsize=16)
+
+    # Clean up
+    area_depth = areas[0]+'_'+str(depths[0])
+    mapper={
+        'Excitatory':'Slc17a7-IRES2-Cre',
+        'Vip':'Vip-IRES-Cre',
+        'Sst':'Sst-IRES-Cre'
+        }
+    cre = mapper[cell_type]
+    sci_vis = cell_counts.loc[cre, 'SCI',area_depth]['visual']
+    sci_tim = cell_counts.loc[cre, 'SCI',area_depth]['timing']
+    mes_vis = cell_counts.loc[cre, 'MESO',area_depth]['visual']
+    mes_tim = cell_counts.loc[cre, 'MESO',area_depth]['timing']
+    title = ('{}, {}, {} cortical depth\n'+\
+        'Scientifica cells: {: >8.0f} visual, {: >8.0f} timing\n'+\
+        'Mesoscope cells: {: >8.0f} visual, {: >8.0f} timing').\
+        format(cell_type,areas[0],depths[0],sci_vis, sci_tim, mes_vis, mes_tim)
+    plt.suptitle(title)
+    plt.tight_layout()
+    if savefig:
+        filename = PSTH_DIR + data + '/population_averages/'+\
+            'equipment_psth_'+cell_type+'_{}_{}.png'.format(depths[0],areas[0])
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+
+def get_equipment_counts(BEHAVIOR_VERSION=21):
+    cell_table = loading.get_cell_table(platform_paper_only=True,
+        add_extra_columns=False,
+        include_4x2_data=False)
+    cell_table = cell_table.query('experience_level == "Familiar"').copy()
+    experiment_table = glm_params.get_experiment_table()
+    cell_table = pd.merge(cell_table, 
+        experiment_table.reset_index()[['ophys_experiment_id','area_binned_depth']],
+        on='ophys_experiment_id')
+    cell_table['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
+        for x in cell_table['equipment_name']]
+    summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION)
+    cell_table = pd.merge(cell_table, summary_df[['behavior_session_id','strategy_labels']],
+        on='behavior_session_id')
+    counts = cell_table.groupby(['cre_line','equipment','area_binned_depth',\
+        'strategy_labels'])['cell_specimen_id'].nunique().unstack().fillna(value=0)
+    return counts
+
 

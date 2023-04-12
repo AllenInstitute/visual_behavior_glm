@@ -60,7 +60,7 @@ def load_population_df(data,df_type,cre,summary_df=None,first=False,second=False
 
 def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
     data='filtered_events',savefile=True,first=False,second=False,image=False,
-    experience_level='Familiar'):
+    experience_level='Familiar',double=False):
     '''
         Generates the summary data files by aggregating over ophys experiment
     '''
@@ -112,7 +112,7 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
     failed_to_load = 0
     for idx,value in tqdm(enumerate(oeids),total = num_rows):
         try:
-            path=get_path('',value, 'experiment',df_type,data,first,second,image)
+            path=get_path('',value, 'experiment',df_type,data,first,second,image,double)
             this_df = pd.read_hdf(path)
             if df_type == 'image_df':
                 this_df = this_df.drop(columns=cols_to_drop)
@@ -159,7 +159,9 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
         elif second:
             extra = '_second_half'  
         elif image:
-            extra = '_image_period' 
+            extra = '_image_period'
+        elif double:
+            extra = '_double' 
         else:
             extra = ''
         if experience_level == 'Novel 1':
@@ -184,7 +186,7 @@ def load_data(oeid,include_invalid_rois=False):
     return session
 
 
-def load_behavior_summary(session):
+def load_behavior_summary(session,double=False):
     '''
         Loads the behavior_session_df summary file and adds to the SDK object
     '''
@@ -192,6 +194,8 @@ def load_behavior_summary(session):
     bsid = session.metadata['behavior_session_id']
     session_df = ps.load_session_strategy_df(bsid, BEHAVIOR_VERSION)
     session.behavior_df = session_df 
+    if double:
+        session.behavior_df = add_double_omissions(session.behavior_df) 
     temporary_engagement_updates(session)
 
 
@@ -330,8 +334,41 @@ def build_response_df_experiment(session,data,first=False,second=False,image=Fal
 
     print('Finished!')
 
+def build_response_df_experiment_double(session,data):
+    '''
+        For each cell in this experiment
+    '''
+    
+    # get session level behavior metrics
+    load_behavior_summary(session,double=True)
 
-def get_path(cell_id, oeid, filetype,df_type,data,first=False,second=False,image=False):
+    # Get summary table
+    summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION) 
+
+    # loop over cells 
+    cell_specimen_ids = session.cell_specimen_table.index.values
+
+    print('Iterating over cells for this experiment to build full dataframes')
+    full_dfs = []
+    for index, cell_id in tqdm(enumerate(cell_specimen_ids),
+        total=len(cell_specimen_ids),desc='Iterating Cells'):
+        try:
+            this_full = build_full_df_cell(session, cell_id,summary_df,data,double=True)
+            full_dfs.append(this_full)
+        except Exception as e:
+            print('error with '+str(cell_id))
+            print(e)
+
+    print('saving combined full df')
+    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','full_df',
+        data,first=False,second=False,image=False,double=True)
+    full_df = pd.concat(full_dfs)
+    full_df.to_hdf(path, key='df')
+
+    print('Finished!')
+    
+
+def get_path(cell_id, oeid, filetype,df_type,data,first=False,second=False,image=False,double=False):
     root = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
     if first:
         extra = '_1'
@@ -339,6 +376,8 @@ def get_path(cell_id, oeid, filetype,df_type,data,first=False,second=False,image
         extra = '_2'
     elif image:
         extra = '_image'
+    elif double:
+        extra = '_double'
     else:
         extra = ''
     filepath = root+df_type+'s/'+data+'/'+filetype+'s/'+str(oeid)+'_'+str(cell_id)+\
@@ -489,18 +528,18 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data,
     return image_df
 
 
-def build_full_df_cell(session, cell_specimen_id,summary_df,data):
+def build_full_df_cell(session, cell_specimen_id,summary_df,data,double=False):
 
     # Get neural activity
     cell_df = get_cell_df(session,cell_specimen_id,data)
     
     # Get the max response to each image presentation   
-    full_df = get_full_df(cell_df, session, cell_specimen_id,summary_df,data) 
+    full_df = get_full_df(cell_df, session, cell_specimen_id,summary_df,data,double=double) 
     return full_df
 
     
 def get_full_df(cell_df, session,cell_specimen_id,summary_df,data,
-    first=False,second=False,image=False):
+    first=False,second=False,image=False,double=False):
     
     # Interpolate, then align to all images with long window
     full_df = get_cell_etr(cell_df, session, time = [-2,2])
@@ -514,7 +553,7 @@ def get_full_df(cell_df, session,cell_specimen_id,summary_df,data,
     full_df['cre_line'] = session.metadata['cre_line']
 
     averages = pd.DataFrame()
-    conditions = get_conditions()
+    conditions = get_conditions(double=double)
     for c in conditions:
         averages = get_full_average(session, averages, full_df,conditions[c])
 
@@ -532,7 +571,7 @@ def get_full_df(cell_df, session,cell_specimen_id,summary_df,data,
     # Save
     ophys_experiment_id = session.metadata['ophys_experiment_id']
     path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','full_df',data,\
-        first=first,second=second,image=image)
+        first=first,second=second,image=image,double=double)
     averages.to_hdf(path,key='df')
 
     return averages
@@ -589,7 +628,7 @@ def get_full_average(session, averages, full_df, condition):
     # return
     return averages
 
-def get_conditions():
+def get_conditions(double=False):
     conditions = {
         'image':['image','(not omitted) & (not is_change)'],
         'change':['change','is_change'],
@@ -622,4 +661,14 @@ def get_conditions():
         'disengaged_v1_licked':['disengaged_v1_licked','(not engagement_v1) & lick_bout_start'],
         'disengaged_v2_licked':['disengaged_v2_licked','(not engagement_v2) & lick_bout_start'],       
     }
+    if double:
+        conditions = {'double_omission':['double_omission','double_omitted']}
+        return conditions
     return conditions
+
+def add_double_omissions(df):
+    df['double_omitted'] = df['omitted']&\
+        df['omitted'].shift(1,fill_value=False)        
+
+    return df 
+

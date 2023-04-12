@@ -255,8 +255,17 @@ vip_omission.query('targeted_structure == "VISp"').query('binned_depth == 175').
     groupby(['equipment','visual_strategy_session'])['response'].describe()
 
 
-
-
+sst_omission = psth.load_omission_df(summary_df,cre='Sst-IRES-Cre',data='events',
+    first=False, second=True)
+sst_omission = pd.merge(sst_omission, 
+    experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
+    on='ophys_experiment_id')
+sst_omission['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
+    for x in sst_omission['equipment_name']]
+df = sst_omission.query('targeted_structure == "VISp"').query('binned_depth == 275').\
+    groupby(['equipment','visual_strategy_session'])['response'].describe()
+df = df[['count','mean','std']]
+df['sem'] = df['std']/np.sqrt(df['count'])
 
 
 

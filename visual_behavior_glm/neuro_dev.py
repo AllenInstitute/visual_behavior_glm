@@ -271,12 +271,9 @@ df['sem'] = df['std']/np.sqrt(df['count'])
 ################################################################################
 bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','events',
     double=True,experience_level='Familiar')
-vip_double = bd.load_population_df('events','full_df','Vip-IRES-Cre',
-    double=True,experience_level='Familiar')
 
-dfs = psth.get_figure_4_psth(data='events')
-double_dfs = psth.get_double_omission_psth(data='events')
-
+dfs = psth.get_figure_4_psth(data='events',experience_level='Familiar')
+double_dfs = psth.get_double_omission_psth(data='events',experience_level='Familiar')
 psth.plot_double_omissions(dfs, double_dfs, data='events',experience_level='Familiar')
 
 

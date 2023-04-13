@@ -234,11 +234,11 @@ def get_figure_4_psth(data='events',experience_level='Familiar'):
     sst_full_filtered = bd.add_area_depth(sst_full_filtered, experiment_table)
     exc_full_filtered = bd.add_area_depth(exc_full_filtered, experiment_table)
     vip_full_filtered = pd.merge(vip_full_filtered, experiment_table.reset_index()\
-        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+        [['ophys_experiment_id','binned_depth','equipment_name']],on='ophys_experiment_id')
     sst_full_filtered = pd.merge(sst_full_filtered, experiment_table.reset_index()\
-        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+        [['ophys_experiment_id','binned_depth','equipment_name']],on='ophys_experiment_id')
     exc_full_filtered = pd.merge(exc_full_filtered, experiment_table.reset_index()\
-        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+        [['ophys_experiment_id','binned_depth','equipment_name']],on='ophys_experiment_id')
 
     # merge cell types
     dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]
@@ -3107,14 +3107,25 @@ def get_equipment_counts(BEHAVIOR_VERSION=21):
 
 def plot_double_omissions(dfs,double_dfs, data='events',savefig=False,\
     areas=['VISp','VISl'],depths=['upper','lower'],experience_level='Familiar',
-    strategy = 'visual_strategy_session',depth='layer'):
+    strategy = 'all',depth='layer'):
 
-    fig, ax = plt.subplots(3,2,figsize=(8,7.5),sharey='row',squeeze=False) 
-    labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
+
+    fig, ax = plt.subplots(2,2,figsize=(8,5.5),sharey='row',squeeze=False) 
+    labels=['Excitatory','Vip Inhibitory']
     error_type='sem'
+    dfs = [dfs[0].query('~(equipment_name == "MESO.1")'),
+        dfs[2].query('~(equipment_name == "MESO.1")')]
+    double_dfs = [double_dfs[0],double_dfs[2]]
+    dfs[0]['all'] = True
+    dfs[1]['all'] = True
+    double_dfs[0]['all'] = True
+    double_dfs[1]['all'] = True
     for index, full_df in enumerate(dfs): 
         max_y = [0,0,0]
-        ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
+        if data=='events':
+            ylabel=labels[index] +'\n(Ca$^{2+}$ events)'
+        else:
+            ylabel=labels[index] +'\n(df/f)'
         max_y[0] = plot_condition_experience(full_df, 'omission', experience_level,
             strategy, ax=ax[index, 0], ylabel=ylabel,
             error_type=error_type,areas=areas,depths=depths,depth=depth)
@@ -3125,8 +3136,11 @@ def plot_double_omissions(dfs,double_dfs, data='events',savefig=False,\
                 error_type=error_type,areas=areas,depths=depths,depth=depth)
         except:
             print('no cells?')
-        ax[index,0].set_ylim(top = 1.05*np.nanmax(max_y))
-    for x in [0,1,2]:
+        if data=='events':
+            ax[index,0].set_ylim(top=1.05*np.nanmax(max_y))       
+        else:
+            ax[index,0].set_ylim(-0.02,1.05*np.nanmax(max_y))
+    for x in [0,1]:
             ax[x,0].set_xlabel('time from omission (s)',fontsize=16)
             ax[x,1].set_xlabel('time from double omission (s)',fontsize=16)
 
@@ -3154,11 +3168,11 @@ def get_double_omission_psth(data='events',experience_level='Familiar'):
     sst_full_filtered = bd.add_area_depth(sst_full_filtered, experiment_table)
     exc_full_filtered = bd.add_area_depth(exc_full_filtered, experiment_table)
     vip_full_filtered = pd.merge(vip_full_filtered, experiment_table.reset_index()\
-        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+        [['ophys_experiment_id','binned_depth','equipment_name']],on='ophys_experiment_id')
     sst_full_filtered = pd.merge(sst_full_filtered, experiment_table.reset_index()\
-        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+        [['ophys_experiment_id','binned_depth','equipment_name']],on='ophys_experiment_id')
     exc_full_filtered = pd.merge(exc_full_filtered, experiment_table.reset_index()\
-        [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+        [['ophys_experiment_id','binned_depth','equipment_name']],on='ophys_experiment_id')
 
     # merge cell types
     dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]

@@ -3,7 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import psy_output_tools as po
 import visual_behavior_glm.PSTH as psth
-import visual_behavior_glm.image_regression as ir
 import visual_behavior_glm.build_dataframes as bd
 import visual_behavior_glm.hierarchical_bootstrap as hb
 import visual_behavior_glm.GLM_fit_dev as gfd
@@ -245,14 +244,42 @@ psth.plot_figure_4_by_equipment(sci_dfs, mes_dfs, 'Vip',counts,
     data='events', areas=['VISp'],depths=[175],depth='binned_depth')
 
 # Look at response magnitudes
+vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
+    first=False, second=False)
+vip_image = pd.merge(vip_image, 
+    experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
+    on='ophys_experiment_id')
+vip_image['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
+    for x in vip_image['equipment_name']]
+df = vip_image.query('targeted_structure == "VISp"').query('binned_depth == 175').\
+    groupby(['equipment','visual_strategy_session'])['response'].describe()
+df = df[['count','mean','std']]
+df['sem'] = df['std']/np.sqrt(df['count'])
+
 vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
 vip_omission = pd.merge(vip_omission, 
     experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
     on='ophys_experiment_id')
 vip_omission['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
     for x in vip_omission['equipment_name']]
-vip_omission.query('targeted_structure == "VISp"').query('binned_depth == 175').\
+df = vip_omission.query('targeted_structure == "VISp"').query('binned_depth == 175').\
     groupby(['equipment','visual_strategy_session'])['response'].describe()
+df = df[['count','mean','std']]
+df['sem'] = df['std']/np.sqrt(df['count'])
+
+vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
+    first=False, second=True)
+vip_change = vip_image.query('(pre_hit_1 ==1)or(pre_miss_1==1)').copy()
+vip_change = pd.merge(vip_change, 
+    experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
+    on='ophys_experiment_id')
+vip_change['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
+    for x in vip_change['equipment_name']]
+df = vip_change.query('targeted_structure == "VISp"').query('binned_depth == 175').\
+    groupby(['equipment','visual_strategy_session','pre_hit_1'])['response'].describe()
+df = df[['count','mean','std']]
+df['sem'] = df['std']/np.sqrt(df['count'])
+
 
 
 sst_omission = psth.load_omission_df(summary_df,cre='Sst-IRES-Cre',data='events',
@@ -264,6 +291,44 @@ sst_omission['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
     for x in sst_omission['equipment_name']]
 df = sst_omission.query('targeted_structure == "VISp"').query('binned_depth == 275').\
     groupby(['equipment','visual_strategy_session'])['response'].describe()
+df = df[['count','mean','std']]
+df['sem'] = df['std']/np.sqrt(df['count'])
+
+sst_change = psth.load_change_df(summary_df, cre='Sst-IRES-Cre',data='events',
+   first=False, second=True)
+sst_change = pd.merge(sst_change, 
+    experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
+    on='ophys_experiment_id')
+sst_change['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
+    for x in sst_change['equipment_name']]
+df = sst_change.query('targeted_structure == "VISp"').query('binned_depth == 275').\
+    groupby(['equipment','visual_strategy_session','hit'])['response'].describe()
+df = df[['count','mean','std']]
+df['sem'] = df['std']/np.sqrt(df['count'])
+
+
+exc_change = psth.load_change_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events',
+    first=False, second=False, image=True)
+exc_change = psth.load_change_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events',
+    first=True, second=False, image=False)
+exc_change = pd.merge(exc_change, 
+    experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
+    on='ophys_experiment_id')
+exc_change['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
+    for x in exc_change['equipment_name']]
+df = exc_change.query('targeted_structure == "VISp"').query('binned_depth == 175').\
+    groupby(['equipment','visual_strategy_session','hit'])['response'].describe()
+df = df[['count','mean','std']]
+df['sem'] = df['std']/np.sqrt(df['count'])
+
+df = exc_change.query('targeted_structure == "VISp"').query('binned_depth == 375').\
+    groupby(['equipment','visual_strategy_session','hit'])['response'].describe()
+df = df[['count','mean','std']]
+df['sem'] = df['std']/np.sqrt(df['count'])
+
+depths = [175,375]
+df = exc_change.query('targeted_structure == "VISp"').query('binned_depth in @depths').\
+    groupby(['equipment','visual_strategy_session','hit'])['response'].describe()
 df = df[['count','mean','std']]
 df['sem'] = df['std']/np.sqrt(df['count'])
 

@@ -3,7 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import psy_output_tools as po
 import visual_behavior_glm.PSTH as psth
-import visual_behavior_glm.image_regression as ir
 import visual_behavior_glm.build_dataframes as bd
 import visual_behavior_glm.hierarchical_bootstrap as hb
 import visual_behavior_glm.GLM_fit_dev as gfd
@@ -244,29 +243,24 @@ psth.plot_figure_4_by_equipment(sci_dfs, mes_dfs, 'Sst',counts,
 psth.plot_figure_4_by_equipment(sci_dfs, mes_dfs, 'Vip',counts,
     data='events', areas=['VISp'],depths=[175],depth='binned_depth')
 
-# Look at response magnitudes
-vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
-vip_omission = pd.merge(vip_omission, 
-    experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
-    on='ophys_experiment_id')
-vip_omission['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
-    for x in vip_omission['equipment_name']]
-vip_omission.query('targeted_structure == "VISp"').query('binned_depth == 175').\
-    groupby(['equipment','visual_strategy_session'])['response'].describe()
+# Look at response magnitudes summaries
+BEHAVIOR_VERSION = 21
+summary_df  = po.get_ophys_summary_table(BEHAVIOR_VERSION)
+experiment_table = glm_params.get_experiment_table()
 
-
-sst_omission = psth.load_omission_df(summary_df,cre='Sst-IRES-Cre',data='events',
-    first=False, second=True)
-sst_omission = pd.merge(sst_omission, 
-    experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
-    on='ophys_experiment_id')
-sst_omission['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
-    for x in sst_omission['equipment_name']]
-df = sst_omission.query('targeted_structure == "VISp"').query('binned_depth == 275').\
-    groupby(['equipment','visual_strategy_session'])['response'].describe()
-df = df[['count','mean','std']]
-df['sem'] = df['std']/np.sqrt(df['count'])
-
-
+psth.plot_equipment_comparison(summary_df, experiment_table,
+    'Vip','omission',depths=['175'],second=False, first=False)
+psth.plot_equipment_comparison(summary_df, experiment_table, 
+    'Sst','omission',depths=['275'],second=True)
+psth.plot_equipment_comparison(summary_df, experiment_table,
+    'Sst','change', depths=['275'],second=True)
+psth.plot_equipment_comparison(summary_df, experiment_table,
+    'Excitatory','change', depths=['175','375'],image=True)
+psth.plot_equipment_comparison(summary_df, experiment_table,
+    'Excitatory','change', depths=['175'],image=True)
+psth.plot_equipment_comparison(summary_df, experiment_table,
+    'Excitatory','change', depths=['375'],image=True)
+psth.plot_equipment_comparison(summary_df, experiment_table,
+    'Vip','pre_change',depths=['175'],second=True)
 
 

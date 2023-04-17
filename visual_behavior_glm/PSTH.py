@@ -218,7 +218,7 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 
     return ax
 
-def get_figure_4_psth(data='events',experience_level='Familiar'):
+def get_figure_4_psth(data='events',experience_level='Familiar',mesoscope_only=False):
  
     # Load each cell type
     vip_full_filtered = bd.load_population_df(data,'full_df',\
@@ -239,6 +239,21 @@ def get_figure_4_psth(data='events',experience_level='Familiar'):
         [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
     exc_full_filtered = pd.merge(exc_full_filtered, experiment_table.reset_index()\
         [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
+
+    if mesoscope_only:
+        experiment_table = glm_params.get_experiment_table().reset_index()
+        vip_full_filtered = pd.merge(vip_full_filtered,
+            experiment_table[['ophys_experiment_id','equipment_name']],
+            on='ophys_experiment_id')
+        vip_full_filtered = vip_full_filtered.query('equipment_name == "MESO.1"').copy()
+        sst_full_filtered = pd.merge(sst_full_filtered,
+            experiment_table[['ophys_experiment_id','equipment_name']],
+            on='ophys_experiment_id')
+        sst_full_filtered = sst_full_filtered.query('equipment_name == "MESO.1"').copy()
+        exc_full_filtered = pd.merge(exc_full_filtered,
+            experiment_table[['ophys_experiment_id','equipment_name']],
+            on='ophys_experiment_id')
+        exc_full_filtered = exc_full_filtered.query('equipment_name == "MESO.1"').copy()
 
     # merge cell types
     dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]

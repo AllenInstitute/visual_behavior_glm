@@ -3099,4 +3099,101 @@ def get_equipment_counts(BEHAVIOR_VERSION=21):
         'strategy_labels'])['cell_specimen_id'].nunique().unstack().fillna(value=0)
     return counts
 
+def plot_equipment_comparison(summary_df, experiment_table, cell_type, comparison_type,
+    depths = [],first=False, second=False, image=False, data='events',savefig=False):
+
+    mapper={
+        'Excitatory':'Slc17a7-IRES2-Cre',
+        'Vip':'Vip-IRES-Cre',
+        'Sst':'Sst-IRES-Cre'
+        }
+    cre = mapper[cell_type]
+    
+    if comparison_type == 'omission':
+        all_df= load_omission_df(summary_df,cre=cre,data=data,
+            first=first, second=second)
+    elif comparison_type == 'change':
+        all_df= load_change_df(summary_df,cre=cre,data=data,
+            first=first, second=second, image=image)
+    elif comparison_type == 'pre_change':
+        all_df = load_image_df(summary_df, cre=cre,data=data,
+            first=first, second=second)
+        all_df = all_df.query('(pre_hit_1==1)or(pre_miss_1==1)').copy()
+    
+    all_df = pd.merge(all_df, 
+        experiment_table.reset_index()[['ophys_experiment_id','equipment_name']],
+        on='ophys_experiment_id')
+
+    all_df['equipment'] = ['MESO' if x == "MESO.1" else 'SCI' \
+        for x in all_df['equipment_name']]
+   
+    if comparison_type =='omission': 
+        df = all_df.query('targeted_structure == "VISp"').query('binned_depth in @depths').\
+            groupby(['equipment','visual_strategy_session'])['response'].describe()
+    elif comparison_type == 'change':
+        df = all_df.query('targeted_structure == "VISp"').query('binned_depth in @depths').\
+            groupby(['equipment','visual_strategy_session','hit'])['response'].describe()
+    elif comparison_type == 'pre_change':
+        df = all_df.query('targeted_structure == "VISp"').query('binned_depth in @depths').\
+            groupby(['equipment','visual_strategy_session','pre_hit_1'])['response'].describe()
+    df = df[['count','mean','std']]
+    df['sem'] = df['std']/np.sqrt(df['count'])
+    print(df)
+
+    plot_equipment_comparison_inner(df, cell_type, comparison_type, depths,data,savefig=savefig)
+
+def plot_equipment_comparison_inner(df,cell_type,comparison_type,depths,data,savefig=False):
+
+    # Plot mean+CI for each group
+    fig, ax = plt.subplots(1,2,figsize=(5,2.75))
+    colors = ['darkorange','blue']
+    if comparison_type == 'omission':
+        for index, val in enumerate(['MESO','SCI']):
+            for jndex, jval in enumerate([True, False]):
+                mean = df.loc[val, jval]['mean'] 
+                sem = df.loc[val,jval]['sem']*1.96   
+                ax[index].plot(jndex+1,mean,'o',color=colors[jndex])
+                ax[index].plot([jndex+1,jndex+1],[mean-sem,mean+sem],'-',color=colors[jndex])
+    elif comparison_type in ['change','pre_change']:
+        markers=['x','o']
+        for index, val in enumerate(['MESO','SCI']):
+            for jndex, jval in enumerate([True, False]):
+                for kndex, kval, in enumerate([0,1]):
+                    mean = df.loc[val, jval,kval]['mean'] 
+                    sem = df.loc[val,jval,kval]['sem']*1.96   
+                    if kndex == 0:
+                        dx = .15
+                    else:
+                        dx = -.15
+                    ax[index].plot(jndex+1+dx,mean,markers[kndex],color=colors[jndex])
+                    ax[index].plot([jndex+1+dx,jndex+1+dx],[mean-sem,mean+sem],'-',
+                        color=colors[jndex])
+        
+
+    # Clean up plot
+    equipment = ['Mesoscope','Scientifica']
+    for index in [0,1]:
+        ax[index].set_ylabel(equipment[index]+' \n(avg. Ca$^{2+}$ events)',fontsize=16)
+        ax[index].spines['right'].set_visible(False)
+        ax[index].spines['top'].set_visible(False)
+        ax[index].xaxis.set_tick_params(labelsize=12)
+        ax[index].yaxis.set_tick_params(labelsize=12)
+        ax[index].set_xticks([1,2])
+        ax[index].set_xticklabels(['Vis.','Tim.'],fontsize=16)
+        ax[index].set_xlim(.5,2.5)
+        ax[index].set_ylim(bottom=0)
+
+    title = '{}, {}, {}, {}'.format(cell_type, 'VISp',', '.join(depths),comparison_type)
+    plt.suptitle(title,fontsize=16)
+    plt.tight_layout()
+    
+    # Save
+    if savefig:
+        filename = PSTH_DIR + data + '/summary/'+\
+            'equipment_psth_'+cell_type+'_{}_{}.png'.format(comparison_type,'_'.join(depths))
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+
+
+
 

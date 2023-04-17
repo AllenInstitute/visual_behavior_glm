@@ -62,11 +62,13 @@ def load_experiment_results(oeid,version=None):
     return pd.read_pickle(filename)
 
 
-def load_all(experiment_table,summary_df,version=None):
+def load_all(experiment_table,summary_df,version=None,mesoscope_only=False):
     
     # Iterate through experiments and load decoding results
     dfs = []
     failed = 0
+    if mesoscope_only:
+        summary_df = summary_df.query('equipment_name == "MESO.1"').copy()
     oeids = np.concatenate(summary_df['ophys_experiment_id'].values)
 
     for oeid in oeids:

@@ -2093,7 +2093,7 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
  
 
 def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,image=False):
+    first=True,second=False,image=False,meso=False):
 
     df['group'] = df['visual_strategy_session'].astype(str)+df['hit'].astype(str)
     mapper = {
@@ -2113,6 +2113,8 @@ def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_ty
         filepath += '_second'
     if image:
         filepath += '_image_period'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -2120,7 +2122,7 @@ def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_ty
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,image=False):
+    first=True,second=False,image=False,meso=False):
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_hit_strategy_summary_'+str(nboots)
     if first:
         filepath += '_first'
@@ -2128,6 +2130,8 @@ def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc
         filepath += '_second'
     if image:
         filepath += '_image_period'
+    if meso:
+        filepath += '_meso'
 
     filepath = filepath+'.feather'
     if os.path.isfile(filepath):
@@ -2140,10 +2144,10 @@ def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc
         print('file not found')
    
 def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False,image=False):
+    nboots=10000,first=True, second=False,image=False,meso=False):
     
     bootstrap = get_summary_bootstrap_strategy_hit(data, nboots,cell_type,
-        first,second,image)   
+        first,second,image,meso)   
  
     fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_hit_mean = df.query('(visual_strategy_session)&(hit==1)')['response'].mean()
@@ -2231,6 +2235,8 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
             filepath += '_second'
         if image:
             filepath += '_image_period'
+        if meso:
+            filepath += '_meso'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
@@ -2785,7 +2791,7 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
     
     return ax
 
-def load_change_df(summary_df,cre,data='events',first=False,second=False,image=False):
+def load_change_df(summary_df,cre,data='events',first=False,second=False,image=False,meso=False):
 
     # Load everything
     df = bd.load_population_df(data,'image_df',cre,first=first,second=second,image=image)
@@ -2797,12 +2803,16 @@ def load_change_df(summary_df,cre,data='events',first=False,second=False,image=F
     experiment_table = glm_params.get_experiment_table()
     df = bd.add_area_depth(df,experiment_table)
     df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
-    'binned_depth']],on='ophys_experiment_id')
+    'binned_depth','equipment_name']],on='ophys_experiment_id')
     df = pd.merge(df, summary_df[['behavior_session_id',
         'visual_strategy_session','experience_level']])
 
     # limit to familiar
     df = df.query('experience_level == "Familiar"')
+    
+    # limit to meso
+    if meso:
+        df = df.query('equipment_name == "MESO.1"').copy()
 
     return df
 

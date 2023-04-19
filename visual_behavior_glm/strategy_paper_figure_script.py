@@ -64,7 +64,7 @@ vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
     first=False, second=True)
 psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False, second=True)
 
-## Fig. 4F - Running VIP control Omission
+## Fig. 4F - Running VIP control image
 ################################################################################
 
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')

@@ -263,4 +263,11 @@ psth.plot_equipment_comparison(summary_df, experiment_table,
 psth.plot_equipment_comparison(summary_df, experiment_table,
     'Vip','pre_change',depths=['175'],second=True)
 
+# compute bootstraps
+vip_image_meso = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
+    first=False, second=False, meso=True)
+psth.compute_summary_bootstrap_image_strategy(vip_image_meso,cell_type='vip',
+    first=False, second=False, post=False, meso=True)
+psth.plot_summary_bootstrap_image_strategy(vip_image_meso, 'vip',
+    first=False, second=False,meso=True)
 

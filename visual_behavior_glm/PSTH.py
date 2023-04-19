@@ -1565,7 +1565,7 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
         plt.savefig(filename) 
 
 def compute_summary_bootstrap_image_strategy(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,post=False):
+    first=True,second=False,post=False,meso=False):
 
     df['group'] = df['visual_strategy_session'].astype(str)
     mapper = {
@@ -1583,6 +1583,8 @@ def compute_summary_bootstrap_image_strategy(df,data='events',nboots=10000,cell_
         filepath += '_second'
     if post:
         filepath += '_post'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -1590,7 +1592,7 @@ def compute_summary_bootstrap_image_strategy(df,data='events',nboots=10000,cell_
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_image_strategy(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,post=False):
+    first=True,second=False,post=False,meso=False):
 
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
         +'_image_strategy_summary_'+str(nboots)
@@ -1600,6 +1602,8 @@ def get_summary_bootstrap_image_strategy(data='events',nboots=10000,cell_type='e
         filepath += '_second'
     if post:
         filepath += '_post'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
 
     if os.path.isfile(filepath):
@@ -1612,10 +1616,10 @@ def get_summary_bootstrap_image_strategy(data='events',nboots=10000,cell_type='e
         print('file not found')
 
 def plot_summary_bootstrap_image_strategy(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False,post=False):
+    nboots=10000,first=True, second=False,post=False,meso=False):
     
     bootstrap = get_summary_bootstrap_image_strategy(data, nboots,cell_type,
-        first,second,post)   
+        first,second,post,meso)   
  
     fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_mean = df.query('visual_strategy_session')['response'].mean()
@@ -1666,6 +1670,8 @@ def plot_summary_bootstrap_image_strategy(df,cell_type,savefig=False,data='event
             filepath += '_second'
         if post:
             filepath += '_post'
+        if meso:
+            filepath += '_meso'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
@@ -1673,7 +1679,7 @@ def plot_summary_bootstrap_image_strategy(df,cell_type,savefig=False,data='event
 
 
 def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,post=False):
+    first=True,second=False,post=False,meso=False):
 
     df['group'] = df['visual_strategy_session'].astype(str)
     mapper = {
@@ -1691,6 +1697,8 @@ def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,ce
         filepath += '_second'
     if post:
         filepath += '_post'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -1698,7 +1706,7 @@ def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,ce
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,post=False):
+    first=True,second=False,post=False,meso=False):
 
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
         +'_omission_strategy_summary_'+str(nboots)
@@ -1708,6 +1716,8 @@ def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type
         filepath += '_second'
     if post:
         filepath += '_post'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
 
     if os.path.isfile(filepath):
@@ -1727,10 +1737,10 @@ def print_bootstrap_summary(means,bootstrap, p,keys=['visual','timing']):
     print('p: {}'.format(p))
 
 def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False,post=False):
+    nboots=10000,first=True, second=False,post=False,meso=False):
     
     bootstrap = get_summary_bootstrap_omission_strategy(data, nboots,cell_type,
-        first,second,post)   
+        first,second,post,meso)   
  
     fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_mean = df.query('visual_strategy_session')['response'].mean()
@@ -1781,6 +1791,8 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
             filepath += '_second'
         if post:
             filepath += '_post'
+        if meso:
+            filepath += '_meso'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
@@ -2794,7 +2806,7 @@ def load_change_df(summary_df,cre,data='events',first=False,second=False,image=F
 
     return df
 
-def load_image_df(summary_df, cre,data='events',first=False,second=False):
+def load_image_df(summary_df, cre,data='events',first=False,second=False,meso=False):
     '''
         This function is optimized for memory conservation
     '''
@@ -2815,7 +2827,11 @@ def load_image_df(summary_df, cre,data='events',first=False,second=False):
     experiment_table = glm_params.get_experiment_table()
     df = bd.add_area_depth(df, experiment_table)
     df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
-        'binned_depth']],on='ophys_experiment_id')
+        'binned_depth','equipment_name']],on='ophys_experiment_id')
+
+    # Limit to Mesoscope
+    if meso:
+        df = df.query('equipment_name == "MESO.1"').copy()
 
     return df
 
@@ -2839,7 +2855,7 @@ def load_image_and_change_df(summary_df, cre,data='events',first=False,second=Fa
         'binned_depth']],on='ophys_experiment_id')
     return df
 
-def load_omission_df(summary_df, cre, data='events',first=False,second=False):
+def load_omission_df(summary_df, cre, data='events',first=False,second=False,meso=False):
     # load everything
     df = bd.load_population_df(data,'image_df',cre,first=first,second=second)
     
@@ -2856,7 +2872,11 @@ def load_omission_df(summary_df, cre, data='events',first=False,second=False):
     experiment_table = glm_params.get_experiment_table()
     df = bd.add_area_depth(df, experiment_table)
     df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
-        'binned_depth']],on='ophys_experiment_id')
+        'binned_depth','equipment_name']],on='ophys_experiment_id')
+
+    # Limit to Mesoscope
+    if meso:
+        df = df.query('equipment_name == "MESO.1"').copy()
     return df
 
 def load_vip_omission_df(summary_df,bootstrap=False,data='events'):

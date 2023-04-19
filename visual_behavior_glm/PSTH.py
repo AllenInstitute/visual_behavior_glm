@@ -1944,7 +1944,7 @@ def plot_summary_bootstrap_strategy_omission_lick(df,cell_type,savefig=False,dat
 
 
 def compute_summary_bootstrap_strategy_pre_change(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False):
+    first=True,second=False,meso=False):
 
     df = df.query('(pre_hit_1 ==1)or(pre_miss_1==1)').copy()
     df['group'] = df['visual_strategy_session'].astype(str)+df['pre_hit_1'].astype(str)
@@ -1963,6 +1963,8 @@ def compute_summary_bootstrap_strategy_pre_change(df,data='events',nboots=10000,
         filepath += '_first'
     if second:
         filepath += '_second'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -1970,12 +1972,14 @@ def compute_summary_bootstrap_strategy_pre_change(df,data='events',nboots=10000,
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_strategy_pre_change(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False):
+    first=True,second=False,meso=False):
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_pre_change_strategy_summary_'+str(nboots)
     if first:
         filepath += '_first'
     if second:
         filepath += '_second'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
     if os.path.isfile(filepath):
         # Load this bin
@@ -1987,7 +1991,7 @@ def get_summary_bootstrap_strategy_pre_change(data='events',nboots=10000,cell_ty
         print('file not found')
   
 def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False):
+    nboots=10000,first=True, second=False,meso=False):
    
     df = df.query('(pre_hit_1 ==1)or(pre_miss_1==1)').copy()
     bootstrap = get_summary_bootstrap_strategy_pre_change(data, nboots,cell_type,
@@ -2085,6 +2089,8 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
             filepath += '_first'
         if second:
             filepath += '_second'
+        if meso:
+            filepath += '_meso'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)

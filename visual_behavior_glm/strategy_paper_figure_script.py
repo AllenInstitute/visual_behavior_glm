@@ -34,7 +34,8 @@ psth.plot_figure_4_averages(dfs, data='events',meso=True)
 # Determine significant for Vip image
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
     first=False, second=True,meso=True)
-psth.plot_summary_bootstrap_image_strategy(vip_image, 'vip',first=False, second=True,meso=True)
+psth.plot_summary_bootstrap_image_strategy(vip_image, 'vip',
+    first=False, second=True,meso=True)
 
 # Determine significance for SST omission
 sst_omission = psth.load_omission_df(summary_df,cre='Sst-IRES-Cre',data='events',
@@ -57,26 +58,33 @@ psth.plot_summary_bootstrap_strategy_hit(exc_change, 'exc', first=False, second=
 # Determine significance for Sst hit/miss
 sst_change = psth.load_change_df(summary_df, cre='Sst-IRES-Cre',data='events',
    first=False, second=True,meso=True)
-psth.plot_summary_bootstrap_strategy_hit(sst_change,'sst',first=False, second=True,meso=True)
+psth.plot_summary_bootstrap_strategy_hit(sst_change,'sst',first=False, second=True,
+    meso=True)
 
 # determine pre-change for Vip
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
     first=False, second=True,meso=True)
-psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False, second=True,meso=True)
+psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False, 
+    second=True,meso=True)
 
 ## Fig. 4F - Running VIP control image
 ################################################################################
 
-vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')
-bootstraps_image = psth.get_running_bootstraps('vip','image','events',10000)
-psth.running_responses(vip_image, 'image',bootstraps=bootstraps_image)
+vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
+    meso=True,second=True)
+bootstraps_image = psth.get_running_bootstraps('vip','image','events',10000,second=True,
+    meso=True)
+psth.running_responses(vip_image, 'image',bootstraps=bootstraps_image,meso=True)
 
 ## Fig. 4G - Running VIP control Omission
 ################################################################################
 
-vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
-bootstraps_omission = psth.get_running_bootstraps('vip','omission','events',10000)
-psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps_omission)
+vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events',
+    meso=True)
+bootstraps_omission = psth.get_running_bootstraps('vip','omission','events',10000,
+    meso=True)
+psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps_omission,
+    meso=True)
 
 ## Running Supplement
 ################################################################################

@@ -1341,8 +1341,12 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
 
     # Save fig
     if savefig:
-        filename = PSTH_DIR + data+'/running/'+\
-            'running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
+        if meso:
+            filename = PSTH_DIR + data+'/running/'+\
+                'running_{}_familiar_meso_{}_{}.svg'.format(cre,condition,split)   
+        else:
+            filename = PSTH_DIR + data+'/running/'+\
+                'running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename)
 

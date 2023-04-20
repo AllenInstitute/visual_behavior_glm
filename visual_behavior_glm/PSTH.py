@@ -756,10 +756,12 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
     return ax
 
 def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=10000,
-    data='events',meso=False):
+    data='events',meso=False,first=False, second=False):
 
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_{}'.format(bin_num),meso=meso)  
+        ['visual_strategy_session'],'running_{}'.format(bin_num),
+        meso=meso,first=first,second=second)  
+
     if os.path.isfile(filename):
         print('Already computed {}'.format(bin_num))
         return 
@@ -807,13 +809,14 @@ def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=1000
 
     # Save to file
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_{}'.format(bin_num),meso=meso)
+        ['visual_strategy_session'],'running_{}'.format(bin_num),meso=meso,
+        first=first,second=second)
     with open(filename,'wb') as handle:
         pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print('bin saved to {}'.format(filename)) 
 
 def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
-    compute=True,split='visual_strategy_session',meso=False):
+    compute=True,split='visual_strategy_session',meso=False,first=False,second=False):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -826,7 +829,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
     for b in bins:
         # First check if this running bin has already been computed
         filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            [split],'running_{}'.format(int(b)),meso=meso)
+            [split],'running_{}'.format(int(b)),meso=meso,first=first,second=second)
         if os.path.isfile(filename):
             # Load this bin
             with open(filename,'rb') as handle:
@@ -878,7 +881,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
     # Save file
     if not missing:
         filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            ['visual_strategy_session'],'running',meso=meso)
+            ['visual_strategy_session'],'running',meso=meso,first=first,second=second)
         print('saving bootstraps to: '+filepath)
         bootstraps.to_feather(filepath)
     return bootstraps
@@ -1208,9 +1211,9 @@ def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,
     return bootstraps
 
 
-def get_running_bootstraps(cell_type, condition,data,nboots,meso=False):
+def get_running_bootstraps(cell_type, condition,data,nboots,meso=False,first=False,second=False):
     filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running',meso=meso) 
+        ['visual_strategy_session'],'running',meso=meso,first=first,second=second) 
     if os.path.isfile(filepath):
         bootstraps = pd.read_feather(filepath)
         return bootstraps
@@ -2395,17 +2398,17 @@ def bootstrap_significance(bootstrap, k1, k2):
     return p
 
 
-def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, bin_num,meso=False):
+def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, bin_num,meso=False,first=False, second=False):
     mapper = {
         'exc':'Slc17a7-IRES2-Cre',
         'sst':'Sst-IRES-Cre',
         'vip':'Vip-IRES-Cre'
         }
     if response == 'image':
-        df = load_image_df(summary_df, mapper[cell_type], data,meso=meso)
+        df = load_image_df(summary_df, mapper[cell_type], data,meso=meso,first=first, second=second)
     elif response == 'omission':
-        df = load_omission_df(summary_df, mapper[cell_type], data,meso=meso)
-    compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots,meso=meso)
+        df = load_omission_df(summary_df, mapper[cell_type], data,meso=meso,first=first,second=second)
+    compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots,meso=meso,first=first,second=second)
 
 def load_df_and_compute_engagement_running(summary_df, cell_type, response, data, nboots, bin_num):
     mapper = {

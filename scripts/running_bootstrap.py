@@ -60,7 +60,9 @@ if __name__ == '__main__':
         args.data,
         args.nboots,
         args.bin_num,
-        meso=True
+        meso=True,
+        first=False,
+        second=True
         )
     print('finished') 
 

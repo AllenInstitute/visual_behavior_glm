@@ -28,41 +28,41 @@ gsm.strategy_paper_ophys_example(session, cell_id, time)
 
 ## Fig. 4D - Population average response
 ################################################################################
-dfs = psth.get_figure_4_psth(data='events')
-psth.plot_figure_4_averages(dfs, data='events')
+dfs = psth.get_figure_4_psth(data='events',mesoscope_only=True)
+psth.plot_figure_4_averages(dfs, data='events',meso=True)
 
 # Determine significant for Vip image
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
-    first=False, second=False)
-psth.plot_summary_bootstrap_image_strategy(vip_image, 'vip',first=False, second=False)
+    first=False, second=True,meso=True)
+psth.plot_summary_bootstrap_image_strategy(vip_image, 'vip',first=False, second=True,meso=True)
 
 # Determine significance for SST omission
 sst_omission = psth.load_omission_df(summary_df,cre='Sst-IRES-Cre',data='events',
-    first=False, second=True)
+    first=False, second=True,meso=True)
 psth.plot_summary_bootstrap_omission_strategy(sst_omission,'sst',first=False,
-    second=True)
+    second=True,meso=True)
 
 # Determine significance for VIP omission
 vip_omission = psth.load_omission_df(summary_df,cre='Vip-IRES-Cre',data='events',
-    second=False, first=False)
+    second=False, first=False,meso=True)
 psth.plot_summary_bootstrap_omission_strategy(vip_omission,'vip',first=False,
-    second=False)
+    second=False,meso=True)
 
 # Determine significance for Exc hit/miss
 exc_change = psth.load_change_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events',
-    first=False, second=False, image=True)
+    first=False, second=False, image=True,meso=True)
 psth.plot_summary_bootstrap_strategy_hit(exc_change, 'exc', first=False, second=False,
-    image=True)
+    image=True,meso=True)
 
 # Determine significance for Sst hit/miss
 sst_change = psth.load_change_df(summary_df, cre='Sst-IRES-Cre',data='events',
-   first=False, second=True)
-psth.plot_summary_bootstrap_strategy_hit(sst_change,'sst',first=False, second=True)
+   first=False, second=True,meso=True)
+psth.plot_summary_bootstrap_strategy_hit(sst_change,'sst',first=False, second=True,meso=True)
 
 # determine pre-change for Vip
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
-    first=False, second=True)
-psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False, second=True)
+    first=False, second=True,meso=True)
+psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False, second=True,meso=True)
 
 ## Fig. 4F - Running VIP control image
 ################################################################################

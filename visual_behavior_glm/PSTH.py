@@ -264,7 +264,7 @@ def get_figure_4_psth(data='events',experience_level='Familiar',mesoscope_only=F
 
 def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
     areas=['VISp','VISl'],depths=['upper','lower'],experience_level='Familiar',
-    strategy = 'visual_strategy_session',depth='layer'):
+    strategy = 'visual_strategy_session',depth='layer',meso=False):
 
     fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
@@ -290,8 +290,12 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
     # Clean up
     plt.tight_layout()
     if savefig:
-        filename = PSTH_DIR + data + '/population_averages/'+\
-            'figure_4_comparisons_psth_'+experience_level+'.svg' 
+        if meso:
+            filename = PSTH_DIR + data + '/population_averages/'+\
+                'figure_4_comparisons_psth_meso_'+experience_level+'.svg'        
+        else:
+            filename = PSTH_DIR + data + '/population_averages/'+\
+                'figure_4_comparisons_psth_'+experience_level+'.svg' 
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 

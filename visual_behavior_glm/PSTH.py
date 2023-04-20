@@ -1285,11 +1285,17 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
         ttemp = timing.set_index('running_bins')
         bootstraps = bootstraps.set_index('running_bin')
         for b in visual['running_bins'].unique():
-            plt.errorbar(b*bin_width, vtemp.loc[b].response,
-                yerr=bootstraps.loc[b]['visual_sem'],color=vis_color,fmt='o')   
+            if b in bootstraps.index.values:
+                plt.errorbar(b*bin_width, vtemp.loc[b].response,
+                    yerr=bootstraps.loc[b]['visual_sem'],color=vis_color,fmt='o')   
+            else:
+                print('missing value')
         for b in timing['running_bins'].unique():
-            plt.errorbar(b*bin_width, ttemp.loc[b].response,
-                yerr=bootstraps.loc[b]['timing_sem'],color=tim_color,fmt='o')     
+            if b in bootstraps.index.values:
+                plt.errorbar(b*bin_width, ttemp.loc[b].response,
+                    yerr=bootstraps.loc[b]['timing_sem'],color=tim_color,fmt='o')    
+            else:
+                print('missing value')
         plt.plot(visual.running_bins*bin_width, visual.response,'o',
             color=vis_color,label=vis_label)
         plt.plot(timing.running_bins*bin_width, timing.response,'o',
@@ -1307,9 +1313,9 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
     ax.yaxis.set_tick_params(labelsize=12) 
 
     if (cre == 'vip') and (condition =='omission'):
-        ax.set_ylim(0,.06) 
+        ax.set_ylim(0,.07) 
     elif (cre == 'vip') and (condition =='image'):
-        ax.set_ylim(0,.015)
+        ax.set_ylim(0,.02)
     else:
         ax.set_ylim(bottom=0)
 

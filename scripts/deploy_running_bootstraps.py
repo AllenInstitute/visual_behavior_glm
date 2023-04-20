@@ -79,15 +79,15 @@ if __name__ == "__main__":
             print('starting cluster job. job count = {}'.format(job_count))
             print('   ' + args_string)
             job_title = 'bootstraps'
-            walltime = '10:00:00'
-            mem = '100gb'
+            walltime = '5:00:00'
+            mem = '50gb'
             job_id = Slurm.JOB_ARRAY_ID
             job_array_id = Slurm.JOB_ARRAY_MASTER_ID
             output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+"_bootstrap.out"
             
             # instantiate a SLURM object
             slurm = Slurm(
-                cpus_per_task=4,
+                cpus_per_task=1,
                 job_name=job_title,
                 time=walltime,
                 mem=mem,

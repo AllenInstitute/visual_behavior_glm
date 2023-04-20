@@ -53,12 +53,16 @@ if __name__ == '__main__':
     print('bin_num   {}'.format(args.bin_num))
     print('')
     summary_df = po.get_ophys_summary_table(21)
-    psth.load_df_and_compute_engagement_running(
+    psth.load_df_and_compute_running(
         summary_df,
         args.cell_type,
         args.response,
         args.data,
         args.nboots,
-        args.bin_num
+        args.bin_num,
+        meso=True
         )
     print('finished') 
+
+
+

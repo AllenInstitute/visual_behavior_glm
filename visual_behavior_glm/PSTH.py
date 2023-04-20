@@ -756,10 +756,10 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
     return ax
 
 def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=10000,
-    data='events'):
+    data='events',meso=False):
 
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_{}'.format(bin_num))  
+        ['visual_strategy_session'],'running_{}'.format(bin_num),meso=meso)  
     if os.path.isfile(filename):
         print('Already computed {}'.format(bin_num))
         return 
@@ -807,13 +807,13 @@ def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=1000
 
     # Save to file
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_{}'.format(bin_num))
+        ['visual_strategy_session'],'running_{}'.format(bin_num),meso=meso)
     with open(filename,'wb') as handle:
         pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print('bin saved to {}'.format(filename)) 
 
 def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
-    compute=True,split='visual_strategy_session'):
+    compute=True,split='visual_strategy_session',meso=False):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -826,7 +826,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
     for b in bins:
         # First check if this running bin has already been computed
         filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            [split],'running_{}'.format(int(b)))
+            [split],'running_{}'.format(int(b)),meso=meso)
         if os.path.isfile(filename):
             # Load this bin
             with open(filename,'rb') as handle:
@@ -878,7 +878,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
     # Save file
     if not missing:
         filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            ['visual_strategy_session'],'running')
+            ['visual_strategy_session'],'running',meso=meso)
         print('saving bootstraps to: '+filepath)
         bootstraps.to_feather(filepath)
     return bootstraps
@@ -1208,9 +1208,9 @@ def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,
     return bootstraps
 
 
-def get_running_bootstraps(cell_type, condition,data,nboots):
+def get_running_bootstraps(cell_type, condition,data,nboots,meso=False):
     filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running') 
+        ['visual_strategy_session'],'running',meso=meso) 
     if os.path.isfile(filepath):
         bootstraps = pd.read_feather(filepath)
         return bootstraps
@@ -1236,7 +1236,7 @@ def get_pre_change_running_bootstraps(cell_type, condition,data,nboots,strategy)
         print('file not found, compute the running bootstraps first')
 
 def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
-    data='events', split='visual_strategy_session'):
+    data='events', split='visual_strategy_session',meso=False):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -2395,17 +2395,17 @@ def bootstrap_significance(bootstrap, k1, k2):
     return p
 
 
-def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, bin_num):
+def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, bin_num,meso=False):
     mapper = {
         'exc':'Slc17a7-IRES2-Cre',
         'sst':'Sst-IRES-Cre',
         'vip':'Vip-IRES-Cre'
         }
     if response == 'image':
-        df = load_image_df(summary_df, mapper[cell_type], data)
+        df = load_image_df(summary_df, mapper[cell_type], data,meso=meso)
     elif response == 'omission':
-        df = load_omission_df(summary_df, mapper[cell_type], data)
-    compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots)
+        df = load_omission_df(summary_df, mapper[cell_type], data,meso=meso)
+    compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots,meso=meso)
 
 def load_df_and_compute_engagement_running(summary_df, cell_type, response, data, nboots, bin_num):
     mapper = {
@@ -2575,7 +2575,7 @@ def add_hochberg_correction(table):
     return table
 
 def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, extra,
-    first=False,second=False):
+    first=False,second=False,meso=False):
     filepath = PSTH_DIR + data +'/bootstraps/' +\
         '_'.join([cell_type,response,depth,str(nboots)]+splits)
     if extra != '':
@@ -2584,6 +2584,8 @@ def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, ext
         filepath += '_first'
     if second:
         filepath += '_second'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
     return filepath
 

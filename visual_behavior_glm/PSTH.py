@@ -1324,7 +1324,7 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
                     ax.plot(row.running_bin*bin_width, y, 'k*')  
         ax.set_ylim(top=y*1.075)
 
-    ax.set_xlim(-1,61)
+    ax.set_xlim(-1,51)
     plt.legend()
 
     plt.tight_layout() 

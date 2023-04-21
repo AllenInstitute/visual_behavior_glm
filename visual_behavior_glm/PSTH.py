@@ -349,7 +349,7 @@ def plot_figure_4_averages_cell_selection(dfs,data='filtered_events',savefig=Fal
 
 def plot_engagement(dfs, data='filtered_events',savefig=False,\
     areas=['VISp','VISl'],depths=['upper','lower'],error_type='sem',\
-    version='v2'):
+    version='v2',meso=False):
 
     fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
@@ -373,8 +373,12 @@ def plot_engagement(dfs, data='filtered_events',savefig=False,\
 
     plt.tight_layout()
     if savefig:
-        filename = PSTH_DIR + data + '/population_averages/'+\
-            'engagement_comparisons_psth.svg' 
+        if meso:
+            filename = PSTH_DIR + data + '/population_averages/'+\
+                'engagement_comparisons_psth.svg' 
+        else:
+            filename = PSTH_DIR + data + '/population_averages/'+\
+                'engagement_comparisons_meso_psth.svg' 
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 

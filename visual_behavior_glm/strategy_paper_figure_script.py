@@ -15,6 +15,7 @@ from alex_utils import *
 BEHAVIOR_VERSION = 21
 summary_df  = po.get_ophys_summary_table(BEHAVIOR_VERSION)
 
+
 ## Fig. 4C - Example ophys schematic
 ################################################################################
 experiment_table = glm_params.get_experiment_table()
@@ -25,6 +26,7 @@ run_params = glm_params.load_run_json(GLM_VERSION)
 session = gft.load_data(oeid, run_params)
 time=[1221.25, 1225.75]
 gsm.strategy_paper_ophys_example(session, cell_id, time)
+
 
 ## Fig. 4D - Population average response
 ################################################################################
@@ -67,6 +69,7 @@ vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
 psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False, 
     second=True,meso=True)
 
+
 ## Fig. 4F - Running VIP control image
 ################################################################################
 
@@ -75,6 +78,7 @@ vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
 bootstraps_image = psth.get_running_bootstraps('vip','image','events',10000,
     second=True, meso=True)
 psth.running_responses(vip_image, 'image',bootstraps=bootstraps_image,meso=True)
+
 
 ## Fig. 4G - Running VIP control Omission
 ################################################################################
@@ -85,6 +89,7 @@ bootstraps_omission = psth.get_running_bootstraps('vip','omission','events',1000
     meso=True)
 psth.running_responses(vip_omission, 'omission',bootstraps=bootstraps_omission,
     meso=True)
+
 
 ## Fig 5
 ################################################################################
@@ -139,12 +144,13 @@ d.plot_by_cre(df3,meso=True)
 
 ## Fig. 6 Engagement PSTHs
 ################################################################################
-dfs = psth.get_figure_4_psth(data='events')
-psth.plot_engagement(dfs,data='events')
+dfs = psth.get_figure_4_psth(data='events',mesoscope_only=True)
+psth.plot_engagement(dfs,data='events',meso=True)
 
 exc_change = psth.load_change_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events')
 psth.plot_summary_bootstrap_strategy_engaged_miss(exc_change,cell_type='exc',
     first=True, second=False,nboots=10000)
+
 
 ## Fig. S6 - Running VIP control image
 ################################################################################
@@ -173,9 +179,12 @@ psth.engagement_running_responses(vip_omission, 'omission',
     vis_boots=boot_omission_visual,
     tim_boots=boot_omission_timing, plot_list=['timing'])
 
+
 ## Novelty Supplement 
 ################################################################################
-dfs_novel = psth.get_figure_4_psth(data='events',experience_level='Novel 1')
-psth.plot_figure_4_averages(dfs_novel, data='events',experience_level='Novel 1')
+dfs_novel = psth.get_figure_4_psth(data='events',
+    experience_level='Novel 1',mesoscope_only=True)
+psth.plot_figure_4_averages(dfs_novel, data='events',
+    experience_level='Novel 1',meso=True)
 
 

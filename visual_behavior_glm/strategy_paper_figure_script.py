@@ -122,24 +122,24 @@ gpt.PSTH_analysis(dfs,  'hit',run_params,meso=True)
 gpt.PSTH_analysis(dfs,  'miss',run_params,meso=True)
 
 # Plot state space plots
-gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params)
-gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params)
-gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params)
-gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params)
+gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params,meso=True)
+gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params,meso=True)
+gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params,meso=True)
+gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params,meso=True)
 
 # Plot 3D state space plots
 gpt.plot_PSTH_3D(dfs,labels,'image',run_params)
 
 # Supplemental figures
-gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params,x='Sst')
-gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params,x='Sst')
-gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params,x='Sst')
-gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params,x='Sst')
+gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params,x='Sst',meso=True)
+gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params,x='Sst',meso=True)
+gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params,x='Sst',meso=True)
+gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params,x='Sst',meso=True)
 
-gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params,y='Sst')
-gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params,y='Sst')
-gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params,y='Sst')
-gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params,y='Sst')
+gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params,y='Sst',meso=True)
+gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params,y='Sst',meso=True)
+gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params,y='Sst',meso=True)
+gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params,y='Sst',meso=True)
 
 gpt.plot_PSTH_3D(dfs,labels,'image',run_params,supp_fig=True)
 gpt.plot_PSTH_3D(dfs,labels,'omission',run_params,supp_fig=True)

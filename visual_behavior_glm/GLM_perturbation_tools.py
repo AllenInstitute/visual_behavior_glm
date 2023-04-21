@@ -532,9 +532,10 @@ def get_average_kernels_inner(df):
     return df_norm.mean(axis=0),df_norm.std(axis=0)/np.sqrt(np.shape(df_norm)[0])
 
 
-def plot_PSTH_perturbation(dfs,labels,condition,
-    run_params=None,savefig=False,experience_level="Familiar",
-    x='Exc',y='Vip',min_time=-.75,plot_error=False):
+def plot_PSTH_perturbation(dfs,labels,condition,run_params=None,savefig=False,
+    experience_level="Familiar",x='Exc',y='Vip',min_time=-.75,plot_error=False,
+    meso=False):
+
     traces = get_PSTH_2D_traces(dfs,labels,condition)
 
     height = 4
@@ -641,16 +642,16 @@ def plot_PSTH_perturbation(dfs,labels,condition,
     else:
         if (x=='Exc'):
             if condition in ['hit','miss']:
-                ax.set_xlim(0,.01)
+                ax.set_xlim(0,.0135)
             if condition in ['image','omission']:
-                ax.set_xlim( 0,0.01)
+                ax.set_xlim( 0,0.0135)
                 #ax.set_xlim( 0,0.0045)
         if x=='Sst':
-            ax.set_xlim(0,.05)
+            ax.set_xlim(0,.062)
         if y=='Sst':
-            ax.set_ylim(0,.05)
+            ax.set_ylim(0,.062)
         if y=='Vip':
-            ax.set_ylim(0, .05)
+            ax.set_ylim(0, .054)
         if y=='y':
             ax.set_ylim(-0.03,0.05)
 
@@ -658,14 +659,18 @@ def plot_PSTH_perturbation(dfs,labels,condition,
     ax.axvline(0,color='k',linestyle='--',alpha=.25)
     ax.set_title(condition,fontsize=16)
     if savefig:
+        if meso:
+            extra = '_meso'
+        else:
+            extra = ''
         if plot_error:
              filepath = run_params['figure_dir']+'/strategy/'+condition+\
-                '_strategy_perturbation_PSTH_2D_{}_{}_{}_with_error.svg'.\
-                format(experience_level,x,y)   
+                '_strategy_perturbation{}_PSTH_2D_{}_{}_{}_with_error.svg'.\
+                format(extra,experience_level,x,y)   
         else:
             filepath = run_params['figure_dir']+'/strategy/'+condition+\
-                '_strategy_perturbation_PSTH_2D_{}_{}_{}.svg'.\
-                format(experience_level,x,y)
+                '_strategy_perturbation{}_PSTH_2D_{}_{}_{}.svg'.\
+                format(meso,experience_level,x,y)
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
     return ax

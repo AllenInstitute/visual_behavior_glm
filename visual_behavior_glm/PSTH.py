@@ -2356,22 +2356,22 @@ def plot_summary_bootstrap_strategy_engaged_miss(df,cell_type,savefig=False,data
     visual_disengaged_sem = np.std(bootstrap['visual_disengaged'])
     timing_disengaged_sem = np.std(bootstrap['timing_disengaged'])
 
-    plt.plot(-.05,visual_engaged_mean,'o',color='darkorange',label='visual engaged')
-    plt.plot(0.05,visual_disengaged_mean,'x',color='darkorange',label='visual disengaged')
-    plt.plot(.95, timing_engaged_mean,'o',color='blue',label='timing engaged')
-    plt.plot(1.05,timing_disengaged_mean,'x',color='blue',label='timing mis')
+    plt.plot(-.05,visual_engaged_mean,'x',color='darkorange',label='visual engaged')
+    plt.plot(0.05,visual_disengaged_mean,'x',color='burlywood',label='visual disengaged')
+    plt.plot(.95, timing_engaged_mean,'x',color='blue',label='timing engaged')
+    plt.plot(1.05,timing_disengaged_mean,'x',color='lightblue',label='timing disengaged')
     plt.plot([-.05,-0.05],[visual_engaged_mean-visual_engaged_sem,
         visual_engaged_mean+visual_engaged_sem],
         '-',color='darkorange')
     plt.plot([.05,0.05],[visual_disengaged_mean-visual_disengaged_sem,
         visual_disengaged_mean+visual_disengaged_sem],
-        '-',color='darkorange')
+        '-',color='burlywood')
     plt.plot([.95,.95],[timing_engaged_mean-timing_engaged_sem,
         timing_engaged_mean+timing_engaged_sem],
         '-',color='blue')
     plt.plot([1.05,1.05],[timing_disengaged_mean-timing_disengaged_sem,
         timing_disengaged_mean+timing_disengaged_sem],
-        '-',color='blue')
+        '-',color='lightblue')
 
     mapper={
         'exc':'Excitatory',

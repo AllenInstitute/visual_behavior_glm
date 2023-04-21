@@ -271,3 +271,71 @@ psth.compute_summary_bootstrap_image_strategy(vip_image_meso,cell_type='vip',
 psth.plot_summary_bootstrap_image_strategy(vip_image_meso, 'vip',
     first=False, second=False,meso=True)
 
+
+## Running Supplement
+################################################################################
+
+sst_image = psth.load_image_df(summary_df, cre='Sst-IRES-Cre',data='events')
+bootstraps_image = psth.get_running_bootstraps('sst','image','events',10000)
+psth.running_responses(sst_image, 'image',bootstraps=bootstraps_image,cre='sst')
+
+sst_omission = psth.load_omission_df(summary_df, cre='Sst-IRES-Cre',data='events')
+bootstraps_omission = psth.get_running_bootstraps('sst','omission','events',10000)
+psth.running_responses(sst_omission, 'omission',bootstraps=bootstraps_omission,cre='sst')
+
+exc_image = psth.load_image_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events')
+bootstraps_image = psth.get_running_bootstraps('exc','image','events',10000)
+psth.running_responses(exc_image, 'image',bootstraps=bootstraps_image,cre='exc')
+
+exc_omission = psth.load_omission_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events')
+bootstraps_omission = psth.get_running_bootstraps('exc','omission','events',10000)
+psth.running_responses(exc_omission, 'omission',bootstraps=bootstraps_omission,cre='exc')
+
+
+
+## Fig S5 - GLM Supplement
+################################################################################
+GLM_VERSION = '24_events_all_L2_optimize_by_session'
+run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(GLM_VERSION)
+weights_beh = gst.add_behavior_session_metrics(weights_df, summary_df)
+
+# Plot kernels over time, compare cell types
+gpt.analysis(weights_beh, run_params, 'all-images')
+gpt.analysis(weights_beh, run_params, 'omissions')
+gpt.analysis(weights_beh, run_params, 'hits')
+gpt.analysis(weights_beh, run_params, 'misses')
+
+# Plot kernels over time, compare strategies
+gst.kernels_by_cre(weights_beh, run_params, 'all-images')
+gst.kernels_by_cre(weights_beh, run_params, 'omissions')
+gst.kernels_by_cre(weights_beh, run_params, 'hits')
+gst.kernels_by_cre(weights_beh, run_params, 'misses')
+
+# Plot state space plots
+gpt.plot_perturbation(weights_beh, run_params, 'all-images')
+gpt.plot_perturbation(weights_beh, run_params, 'omissions')
+gpt.plot_perturbation(weights_beh, run_params, 'hits')
+gpt.plot_perturbation(weights_beh, run_params, 'misses')
+
+
+
+## Cell Selection Supplement
+################################################################################
+
+# Plot what the labels look like
+import psy_visualization as pv
+pv.scatter_df(summary_df, 'visual_only_dropout_index','timing_only_dropout_index',
+    categories='strategy_labels_with_none',flip1=True, flip2=True)
+pv.scatter_df(summary_df, 'visual_only_dropout_index','timing_only_dropout_index',
+    categories='strategy_labels_with_mixed',flip1=True, flip2=True)
+
+# Plot the neural activity
+dfs = psth.get_figure_4_psth(data='events')
+dfs = psth.add_cell_selection_labels(dfs, summary_df)
+psth.plot_figure_4_averages_cell_selection(dfs, data='events',
+    strategy='strategy_labels_with_none')
+psth.plot_figure_4_averages_cell_selection(dfs, data='events',
+    strategy='strategy_labels_with_mixed')
+
+
+

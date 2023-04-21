@@ -242,7 +242,7 @@ def plot_by_strategy_correlation(visual, timing, savefig, cell_type):
 
 
 def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,
-    version=None,ax=None):
+    version=None,ax=None,meso=False):
 
     # Plot behavior correlation figure
     if ax is None:
@@ -284,9 +284,14 @@ def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,
             fontsize=16)
         ax.set_xlabel('timing sessions',
             fontsize=16)
-        ax.set_xlim(0,.165)
-        ax.set_ylim(0,.165)
-        ticks = np.arange(0,.18,.02)
+        if meso:
+            ax.set_xlim(0,.2)
+            ax.set_ylim(0,.2)
+            ticks = np.arange(0,.22,.04)
+        else:
+            ax.set_xlim(0,.165)
+            ax.set_ylim(0,.165)
+            ticks = np.arange(0,.18,.02)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
         ax.set_title('change decoder correlation with behavior',fontsize=16)
@@ -305,8 +310,12 @@ def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,
             fontsize=16)
         ax.set_xlabel('timing sessions',
             fontsize=16)
-        ax.set_xlim(0.5,.75)
-        ax.set_ylim(0.5,.75)      
+        if meso:
+            ax.set_xlim(0.5,.8)
+            ax.set_ylim(0.5,.8)             
+        else:
+            ax.set_xlim(0.5,.75)
+            ax.set_ylim(0.5,.75)      
         ax.set_title('hit decoder performance',fontsize=16) 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -326,7 +335,10 @@ def plot_by_strategy_scatter(visual, timing, metric, savefig, cell_type,
         else:
             filename='/allen/programs/braintv/workgroups/nc-ophys/alex.piet'+\
                 '/behavior/decoding/figures_fit_{}/'.format(version)
-        filename += 'scatter_by_cre_'+metric+'.svg'
+        if meso:
+            filename += 'scatter_by_cre_meso_'+metric+'.svg'  
+        else:
+            filename += 'scatter_by_cre_'+metric+'.svg'
         print(filename)
         plt.savefig(filename)
 
@@ -418,7 +430,7 @@ def plot_by_strategy(results_df,aggregate_first=True,cell_type='exc',
 
 def plot_by_cre(results_df, aggregate_first=True,areas=['VISp','VISl'],
     equipment=['MESO.1','CAM2P.3','CAM2P.4','CAM2P.5'],ncells=2,
-    savefig=False,version=None):
+    savefig=False,version=None,meso=False):
 
     # filter out experiments
     results_df = results_df.query('experience_level == "Familiar"')
@@ -449,20 +461,20 @@ def plot_by_cre(results_df, aggregate_first=True,areas=['VISp','VISl'],
         if index == 2:
             plt.figure(fig1.number)
             plot_by_strategy_scatter(visual,timing,'behavior_correlation',
-                savefig,mapper[cre],version,ax1)
+                savefig,mapper[cre],version,ax1,meso=meso)
             plt.figure(fig2.number)
             plot_by_strategy_scatter(visual,timing,'test_score',
-                savefig,mapper[cre],version,ax2)
+                savefig,mapper[cre],version,ax2,meso=meso)
             plt.figure(fig3.number)
             plot_by_strategy_scatter(visual,timing,'test_score_hit_vs_miss',
-                savefig,mapper[cre],version,ax3)
+                savefig,mapper[cre],version,ax3,meso=meso)
         else:
             plot_by_strategy_scatter(visual,timing,'behavior_correlation',
-                False,mapper[cre],version,ax1)
+                False,mapper[cre],version,ax1,meso=meso)
             plot_by_strategy_scatter(visual,timing,'test_score',
-                False,mapper[cre],version,ax2)
+                False,mapper[cre],version,ax2,meso=meso)
             plot_by_strategy_scatter(visual,timing,'test_score_hit_vs_miss',
-                False,mapper[cre],version,ax3)
+                False,mapper[cre],version,ax3,meso=meso)
 
 def iterate_n_cells(cells):
     n_cells = [1,2,5,10,20,40,80]

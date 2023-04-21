@@ -2318,13 +2318,17 @@ def compute_summary_bootstrap_strategy_engaged_miss(df,data='events',nboots=1000
 
 
 def get_summary_bootstrap_strategy_engaged_miss(data='events',nboots=10000,
-    cell_type='exc',first=True,second=False):
+    cell_type='exc',first=True,second=False,image=False,meso=False):
 
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_engaged_miss_strategy_summary_'+str(nboots)
     if first:
         filepath += '_first'
     if second:
         filepath += '_second'
+    if meso:
+        filepath += '_meso'
+    if image:
+        filepath += '_image'
     filepath = filepath+'.feather'
     if os.path.isfile(filepath):
         # Load this bin
@@ -2336,10 +2340,10 @@ def get_summary_bootstrap_strategy_engaged_miss(data='events',nboots=10000,
         print('file not found')
    
 def plot_summary_bootstrap_strategy_engaged_miss(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False):
+    nboots=10000,first=True, second=False,image=False,meso=False):
     
     bootstrap = get_summary_bootstrap_strategy_engaged_miss(data, nboots,cell_type,
-        first,second)   
+        first,second,image=image,meso=meso)   
  
     fig,ax = plt.subplots(figsize=(3,2.75))
     df = df.query('miss==1').copy()
@@ -2421,6 +2425,10 @@ def plot_summary_bootstrap_strategy_engaged_miss(df,cell_type,savefig=False,data
             filepath += '_first'
         if second:
             filepath += '_second'
+        if image:
+            filepath += '_image'
+        if meso:
+            filepath += '_meso'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)

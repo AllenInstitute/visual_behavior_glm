@@ -72,8 +72,8 @@ psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False,
 
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
     meso=True,second=True)
-bootstraps_image = psth.get_running_bootstraps('vip','image','events',10000,second=True,
-    meso=True)
+bootstraps_image = psth.get_running_bootstraps('vip','image','events',10000,
+    second=True, meso=True)
 psth.running_responses(vip_image, 'image',bootstraps=bootstraps_image,meso=True)
 
 ## Fig. 4G - Running VIP control Omission
@@ -113,11 +113,13 @@ GLM_VERSION = '24_events_all_L2_optimize_by_session'
 run_params = glm_params.load_run_json(GLM_VERSION)
 labels = ['Excitatory','Sst Inhibitory','Vip Inhibitory']
 
+dfs = psth.get_figure_4_psth(data='events',mesoscope_only=True)
+
 # Plot PSTH over time
-gpt.PSTH_analysis(dfs,  'image',run_params)
-gpt.PSTH_analysis(dfs,  'omission',run_params)
-gpt.PSTH_analysis(dfs,  'hit',run_params)
-gpt.PSTH_analysis(dfs,  'miss',run_params)
+gpt.PSTH_analysis(dfs,  'image',run_params,meso=True)
+gpt.PSTH_analysis(dfs,  'omission',run_params,meso=True)
+gpt.PSTH_analysis(dfs,  'hit',run_params,meso=True)
+gpt.PSTH_analysis(dfs,  'miss',run_params,meso=True)
 
 # Plot state space plots
 gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params)

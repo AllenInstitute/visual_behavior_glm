@@ -171,9 +171,9 @@ psth.engagement_running_responses(vip_image, 'image',vis_boots=boot_image_visual
 vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events',
     meso=True)
 boot_omission_visual = psth.compute_engagement_running_bootstrap(vip_omission,
-    'omission','vip','visual',nboots=10000,meso=True)
+    'omission','vip','visual',nboots=10000,meso=True,compute=False)
 boot_omission_timing = psth.compute_engagement_running_bootstrap(vip_omission,
-    'omission','vip','timing',nboots=10000,meso=True)
+    'omission','vip','timing',nboots=10000,meso=True,compute=False)
 psth.engagement_running_responses(vip_omission, 'omission',
     vis_boots=boot_omission_visual,
     tim_boots=boot_omission_timing, 

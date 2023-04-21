@@ -21,7 +21,7 @@ def already_fit(row):
         'running_engaged_{}_{}'.format('visual',row.bin_num),
         meso=True,
         first=False,
-        second=True)
+        second=False)
     filename2 = psth.get_hierarchy_filename(
         row.cell_type,
         row.response,
@@ -32,7 +32,7 @@ def already_fit(row):
         'running_engaged_{}_{}'.format('timing',row.bin_num),
         meso=True,
         first=False,
-        second=True)
+        second=False)
     return os.path.exists(filename1) & os.path.exists(filename2)
     #filename = psth.get_hierarchy_filename(
     #    row.cell_type,
@@ -52,10 +52,10 @@ def get_bootstrap_jobs():
     base_jobs = [
         #{'cell_type':'exc','response':'image','data':'events','nboots':nboots}, 
         #{'cell_type':'sst','response':'image','data':'events','nboots':nboots},
-        {'cell_type':'vip','response':'image','data':'events','nboots':nboots}, 
+        #{'cell_type':'vip','response':'image','data':'events','nboots':nboots}, 
         #{'cell_type':'exc','response':'omission','data':'events','nboots':nboots},
         #{'cell_type':'sst','response':'omission','data':'events','nboots':nboots},
-        #{'cell_type':'vip','response':'omission','data':'events','nboots':nboots}
+        {'cell_type':'vip','response':'omission','data':'events','nboots':nboots}
         ]
     jobs = []
     for b in range(-5,21):

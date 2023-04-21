@@ -62,7 +62,7 @@ if __name__ == '__main__':
         args.bin_num,
         meso=True,
         first=False,
-        second=True
+        second=False
         )
     print('finished') 
 

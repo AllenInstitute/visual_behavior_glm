@@ -11,24 +11,18 @@ parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='
 
 
 def already_fit(row):
-    #filename1 = psth.get_hierarchy_filename(
-    #    row.cell_type,
-    #    row.response,
-    #    row['data'],
-    #    'all',
-    #    row.nboots,
-    #    ['visual_strategy_session'],
-    #    'running_engaged_{}_{}'.format('visual',row.bin_num))
-    #filename2 = psth.get_hierarchy_filename(
-    #    row.cell_type,
-    #    row.response,
-    #    row['data'],
-    #    'all',
-    #    row.nboots,
-    #    ['visual_strategy_session'],
-    #    'running_engaged_{}_{}'.format('timing',row.bin_num))
-    #return os.path.exists(filename1) & os.path.exists(filename2)
-    filename = psth.get_hierarchy_filename(
+    filename1 = psth.get_hierarchy_filename(
+        row.cell_type,
+        row.response,
+        row['data'],
+        'all',
+        row.nboots,
+        ['visual_strategy_session'],
+        'running_engaged_{}_{}'.format('visual',row.bin_num),
+        meso=True,
+        first=False,
+        second=True)
+    filename2 = psth.get_hierarchy_filename(
         row.cell_type,
         row.response,
         row['data'],
@@ -39,7 +33,19 @@ def already_fit(row):
         meso=True,
         first=False,
         second=True)
-    return os.path.exists(filename)
+    return os.path.exists(filename1) & os.path.exists(filename2)
+    #filename = psth.get_hierarchy_filename(
+    #    row.cell_type,
+    #    row.response,
+    #    row['data'],
+    #    'all',
+    #    row.nboots,
+    #    ['visual_strategy_session'],
+    #    'running_engaged_{}_{}'.format('timing',row.bin_num),
+    #    meso=True,
+    #    first=False,
+    #    second=True)
+    #return os.path.exists(filename)
 
 def get_bootstrap_jobs():
     nboots=10000
@@ -49,7 +55,7 @@ def get_bootstrap_jobs():
         {'cell_type':'vip','response':'image','data':'events','nboots':nboots}, 
         #{'cell_type':'exc','response':'omission','data':'events','nboots':nboots},
         #{'cell_type':'sst','response':'omission','data':'events','nboots':nboots},
-        {'cell_type':'vip','response':'omission','data':'events','nboots':nboots}
+        #{'cell_type':'vip','response':'omission','data':'events','nboots':nboots}
         ]
     jobs = []
     for b in range(-5,21):

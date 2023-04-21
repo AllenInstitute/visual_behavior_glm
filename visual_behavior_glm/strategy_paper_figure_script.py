@@ -157,28 +157,31 @@ psth.plot_summary_bootstrap_strategy_engaged_miss(exc_change,cell_type='exc',
 vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
     second=True,meso=True)
 boot_image_visual = psth.compute_engagement_running_bootstrap(vip_image,'image',
-    'vip','visual',nboots=10000)
+    'vip','visual',nboots=10000,meso=True,second=True)
 boot_image_timing = psth.compute_engagement_running_bootstrap(vip_image,'image',
-    'vip','timing',nboots=10000)
+    'vip','timing',nboots=10000,meso=True,second=True)
 psth.engagement_running_responses(vip_image, 'image',vis_boots=boot_image_visual,
-    tim_boots=boot_image_timing, plot_list=['visual'])
+    tim_boots=boot_image_timing, plot_list=['visual'],meso=True,second=True)
 psth.engagement_running_responses(vip_image, 'image',vis_boots=boot_image_visual,
-    tim_boots=boot_image_timing, plot_list=['timing'])
+    tim_boots=boot_image_timing, plot_list=['timing'],meso=True,second=True)
 
 
 ## Fig. S6 - Running VIP control Omission
 ################################################################################
-vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events')
+vip_omission = psth.load_omission_df(summary_df, cre='Vip-IRES-Cre',data='events',
+    meso=True)
 boot_omission_visual = psth.compute_engagement_running_bootstrap(vip_omission,
-    'omission','vip','visual',nboots=10000)
+    'omission','vip','visual',nboots=10000,meso=True)
 boot_omission_timing = psth.compute_engagement_running_bootstrap(vip_omission,
-    'omission','vip','timing',nboots=10000)
+    'omission','vip','timing',nboots=10000,meso=True)
 psth.engagement_running_responses(vip_omission, 'omission',
     vis_boots=boot_omission_visual,
-    tim_boots=boot_omission_timing, plot_list=['visual'])
+    tim_boots=boot_omission_timing, 
+    plot_list=['visual'],meso=True)
 psth.engagement_running_responses(vip_omission, 'omission',
     vis_boots=boot_omission_visual,
-    tim_boots=boot_omission_timing, plot_list=['timing'])
+    tim_boots=boot_omission_timing, 
+    plot_list=['timing'],meso=True)
 
 
 ## Novelty Supplement 

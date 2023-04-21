@@ -1062,10 +1062,11 @@ def compute_pre_change_running_bootstrap(df,condition,cell_type,strategy,
 
 
 def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
-    bin_num, nboots=10000, data='events',meso=False,first=first,second=second):
+    bin_num, nboots=10000, data='events',meso=False,first=False,second=False):
 
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num),meso=meso)  
+        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num),
+        meso=meso,first=first,second=second)  
     if os.path.isfile(filename):
         print('Already computed {}'.format(bin_num))
         return 
@@ -2433,30 +2434,41 @@ def bootstrap_significance(bootstrap, k1, k2):
     return p
 
 
-def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, bin_num,meso=False,first=False, second=False):
-    mapper = {
-        'exc':'Slc17a7-IRES2-Cre',
-        'sst':'Sst-IRES-Cre',
-        'vip':'Vip-IRES-Cre'
-        }
-    if response == 'image':
-        df = load_image_df(summary_df, mapper[cell_type], data,meso=meso,first=first, second=second)
-    elif response == 'omission':
-        df = load_omission_df(summary_df, mapper[cell_type], data,meso=meso,first=first,second=second)
-    compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots,meso=meso,first=first,second=second)
+def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, 
+    bin_num,meso=False,first=False, second=False):
 
-def load_df_and_compute_engagement_running(summary_df, cell_type, response, data, nboots, bin_num):
     mapper = {
         'exc':'Slc17a7-IRES2-Cre',
         'sst':'Sst-IRES-Cre',
         'vip':'Vip-IRES-Cre'
         }
     if response == 'image':
-        df = load_image_df(summary_df, mapper[cell_type], data)
+        df = load_image_df(summary_df, mapper[cell_type], data,
+            meso=meso,first=first, second=second)
     elif response == 'omission':
-        df = load_omission_df(summary_df, mapper[cell_type], data)
-    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'visual',bin_num, nboots=nboots)
-    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'timing',bin_num, nboots=nboots)
+        df = load_omission_df(summary_df, mapper[cell_type], data,
+            meso=meso,first=first,second=second)
+    compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots,
+            meso=meso,first=first,second=second)
+
+def load_df_and_compute_engagement_running(summary_df, cell_type, response, data, 
+    nboots, bin_num,meso=False,first=False,second=False):
+
+    mapper = {
+        'exc':'Slc17a7-IRES2-Cre',
+        'sst':'Sst-IRES-Cre',
+        'vip':'Vip-IRES-Cre'
+        }
+    if response == 'image':
+        df = load_image_df(summary_df, mapper[cell_type], data,
+            meso=meso,first=first,second=second)
+    elif response == 'omission':
+        df = load_omission_df(summary_df, mapper[cell_type], data,
+            meso=meso,first=first,second=second)
+    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'visual',bin_num, 
+        nboots=nboots,meso=meso,first=first,second=second)
+    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'timing',bin_num, 
+        nboots=nboots,meso=meso,first=first,second=second)
 
 
 

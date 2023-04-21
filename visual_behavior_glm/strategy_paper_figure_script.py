@@ -154,7 +154,8 @@ psth.plot_summary_bootstrap_strategy_engaged_miss(exc_change,cell_type='exc',
 
 ## Fig. S6 - Running VIP control image
 ################################################################################
-vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events')
+vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
+    second=True,meso=True)
 boot_image_visual = psth.compute_engagement_running_bootstrap(vip_image,'image',
     'vip','visual',nboots=10000)
 boot_image_timing = psth.compute_engagement_running_bootstrap(vip_image,'image',

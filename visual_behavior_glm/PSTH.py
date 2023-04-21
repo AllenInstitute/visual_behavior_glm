@@ -1062,10 +1062,10 @@ def compute_pre_change_running_bootstrap(df,condition,cell_type,strategy,
 
 
 def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
-    bin_num, nboots=10000, data='events'):
+    bin_num, nboots=10000, data='events',meso=False,first=first,second=second):
 
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num))  
+        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num),meso=meso)  
     if os.path.isfile(filename):
         print('Already computed {}'.format(bin_num))
         return 
@@ -1130,7 +1130,8 @@ def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
 
     # Save to file
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num))
+        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num),
+        meso=meso,first=first,second=second)
     with open(filename,'wb') as handle:
         pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print('bin saved to {}'.format(filename)) 
@@ -1138,7 +1139,8 @@ def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
 
 
 def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,
-    nboots=10000,data='events',compute=True,split='engagement_v2'):
+    nboots=10000,data='events',compute=True,split='engagement_v2',
+    meso=False,first=False,second=False):
     
     # set up running bins
     if condition =='omission':
@@ -1161,7 +1163,8 @@ def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,
     for b in bins:
         # First check if this running bin has already been computed
         filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,int(b))) 
+            ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,int(b)),
+            meso=meso,first=first,second=second) 
         if os.path.isfile(filename):
             # Load this bin
             with open(filename,'rb') as handle:
@@ -1213,7 +1216,8 @@ def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,
     # Save file
     if not missing:
         filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            ['visual_strategy_session'],'running_engaged_{}'.format(strategy))
+            ['visual_strategy_session'],'running_engaged_{}'.format(strategy),
+            meso=meso,first=first,second=second)
         print('saving bootstraps to: '+filepath)
         bootstraps.to_feather(filepath)
     return bootstraps
@@ -1228,9 +1232,11 @@ def get_running_bootstraps(cell_type, condition,data,nboots,meso=False,first=Fal
     else:
         print('file not found, compute the running bootstraps first')
 
-def get_engagement_running_bootstraps(cell_type, condition,data,nboots,strategy):
+def get_engagement_running_bootstraps(cell_type, condition,data,nboots,strategy,
+    meso=False,first=False,second=False):
     filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_engaged_{}'.format(strategy)) 
+        ['visual_strategy_session'],'running_engaged_{}'.format(strategy),
+        meso=meso,first=first,second=second) 
     if os.path.isfile(filepath):
         bootstraps = pd.read_feather(filepath)
         return bootstraps
@@ -1454,7 +1460,7 @@ def pre_change_running_responses(df, condition, cre='vip', bootstraps=None, save
 
 def engagement_running_responses(df, condition, cre='vip', vis_boots=None, 
     tim_boots=None, savefig=False, data='events', split='visual_strategy_session',
-    plot_list=['visual','timing']):
+    plot_list=['visual','timing'],first=False,second=False,meso=False):
 
     if condition =='omission':
         bin_width=5        
@@ -1579,9 +1585,16 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
     # Save fig
     if savefig:
         plot_str = '_'.join(plot_list)
+        extra =''
+        if meso:
+            extra += '_meso'
+        if first:
+            extra += '_first'
+        if second:
+            extra += '_second'
         filename = PSTH_DIR + data+'/running/'+\
-            'engagement_running_{}_familiar_{}_{}_{}.svg'.\
-            format(cre,condition,split,plot_str)
+            'engagement_running_{}{}_familiar_{}_{}_{}.svg'.\
+            format(cre,extra,condition,split,plot_str)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
@@ -2270,7 +2283,7 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
 
 
 def compute_summary_bootstrap_strategy_engaged_miss(df,data='events',nboots=10000,
-    cell_type='exc',first=True,second=False):
+    cell_type='exc',first=True,second=False,meso=False,image=False):
 
     df = df.query('miss==1').copy()
     df['group'] = df['visual_strategy_session'].astype(str)\
@@ -2292,6 +2305,10 @@ def compute_summary_bootstrap_strategy_engaged_miss(df,data='events',nboots=1000
         filepath += '_first'
     if second:
         filepath += '_second'
+    if meso:
+        filepath += '_meso'
+    if image:
+        filepath += '_image'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:

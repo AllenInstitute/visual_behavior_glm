@@ -670,7 +670,7 @@ def plot_PSTH_perturbation(dfs,labels,condition,run_params=None,savefig=False,
         else:
             filepath = run_params['figure_dir']+'/strategy/'+condition+\
                 '_strategy_perturbation{}_PSTH_2D_{}_{}_{}.svg'.\
-                format(meso,experience_level,x,y)
+                format(extra,experience_level,x,y)
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
     return ax
@@ -749,8 +749,9 @@ def plot_PSTH_2D(dfs,labels, condition, strategy, run_params,
         plt.savefig(filepath) 
     return ax
 
-def plot_PSTH_3D(dfs,labels, condition,run_params, 
-    experience_level="Familiar",savefig=True,add_2D=True,supp_fig=False):
+def plot_PSTH_3D(dfs,labels, condition,run_params,experience_level="Familiar",
+    savefig=True,add_2D=True,supp_fig=False,meso=False):
+
     traces = get_PSTH_2D_traces(dfs,labels,condition,
         experience_level=experience_level)
     
@@ -776,9 +777,11 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
         zorder=10)
 
     if add_2D:
-        zs = .03
+        zs = .054# .03
         if condition in ['omission','hit','miss']:
             zs = 0 
+        if (condition == 'image') & supp_fig:
+            zs = 0
         ax.plot(traces['visual_Exc'][ts],traces['visual_Vip'][ts],
             zdir='y',color='burlywood',zorder=5,zs=zs)
         ax.plot(traces['visual_Sst'][ts],traces['visual_Vip'][ts],
@@ -811,9 +814,9 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
     ax.yaxis.set_tick_params(labelsize=12)
     ax.zaxis.set_tick_params(labelsize=12)
     if supp_fig:
-        ax.set_zlim(0,0.05)
-        ax.set_xlim(0,0.01)
-        ax.set_ylim(0,0.05)   
+        ax.set_zlim(0,0.062)
+        ax.set_xlim(0,0.0135)
+        ax.set_ylim(0,0.054)   
         ax.view_init(elev=15,azim=80)
     else:
         ax.set_zlim(bottom=0)
@@ -822,8 +825,12 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
         ax.view_init(elev=15,azim=-55)
 
     if savefig:
-        filepath = run_params['figure_dir']+\
-            '/strategy/'+condition+'_strategy_perturbation_PSTH_3D_{}.svg'.format(experience_level)
+        if meso:
+            filepath = run_params['figure_dir']+'/strategy/'+condition+\
+                '_strategy_perturbation_meso_PSTH_3D_{}.svg'.format(experience_level)   
+        else:
+            filepath = run_params['figure_dir']+'/strategy/'+condition+\
+                '_strategy_perturbation_PSTH_3D_{}.svg'.format(experience_level)
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
 

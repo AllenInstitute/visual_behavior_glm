@@ -128,7 +128,7 @@ gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params,meso=True)
 gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params,meso=True)
 
 # Plot 3D state space plots
-gpt.plot_PSTH_3D(dfs,labels,'image',run_params)
+gpt.plot_PSTH_3D(dfs,labels,'image',run_params,meso=True)
 
 # Supplemental figures
 gpt.plot_PSTH_perturbation(dfs,labels,'image',run_params,x='Sst',meso=True)
@@ -141,10 +141,10 @@ gpt.plot_PSTH_perturbation(dfs,labels,'omission',run_params,y='Sst',meso=True)
 gpt.plot_PSTH_perturbation(dfs,labels,'hit',run_params,y='Sst',meso=True)
 gpt.plot_PSTH_perturbation(dfs,labels,'miss',run_params,y='Sst',meso=True)
 
-gpt.plot_PSTH_3D(dfs,labels,'image',run_params,supp_fig=True)
-gpt.plot_PSTH_3D(dfs,labels,'omission',run_params,supp_fig=True)
-gpt.plot_PSTH_3D(dfs,labels,'hit',run_params,supp_fig=True)
-gpt.plot_PSTH_3D(dfs,labels,'miss',run_params,supp_fig=True)
+gpt.plot_PSTH_3D(dfs,labels,'image',run_params,supp_fig=True,meso=True)
+gpt.plot_PSTH_3D(dfs,labels,'omission',run_params,supp_fig=True,meso=True)
+gpt.plot_PSTH_3D(dfs,labels,'hit',run_params,supp_fig=True,meso=True)
+gpt.plot_PSTH_3D(dfs,labels,'miss',run_params,supp_fig=True,meso=True)
 
 ## Fig S5 - GLM Supplement
 ################################################################################

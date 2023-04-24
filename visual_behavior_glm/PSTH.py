@@ -1552,9 +1552,9 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
     ax.yaxis.set_tick_params(labelsize=12) 
 
     if (cre == 'vip') and (condition =='omission'):
-        ax.set_ylim(0,.07) 
+        ax.set_ylim(0,.1) 
     elif (cre == 'vip') and (condition =='image'):
-        ax.set_ylim(0,.015)
+        ax.set_ylim(0,.027)
     else:
         ax.set_ylim(bottom=0)
 

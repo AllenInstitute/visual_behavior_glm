@@ -1714,7 +1714,7 @@ def plot_summary_bootstrap_image_strategy(df,cell_type,savefig=False,data='event
 
 
 def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,post=False,meso=False):
+    first=True,second=False,image=False,post=False,meso=False):
 
     df['group'] = df['visual_strategy_session'].astype(str)
     mapper = {
@@ -1734,6 +1734,8 @@ def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,ce
         filepath += '_post'
     if meso:
         filepath += '_meso'
+    if image:
+        filepath += '_image'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -1741,7 +1743,7 @@ def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,ce
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,post=False,meso=False):
+    first=True,second=False,post=False,meso=False,image=False):
 
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
         +'_omission_strategy_summary_'+str(nboots)
@@ -1753,6 +1755,8 @@ def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type
         filepath += '_post'
     if meso:
         filepath += '_meso'
+    if image:
+        filepath += '_image'
     filepath = filepath+'.feather'
 
     if os.path.isfile(filepath):
@@ -1772,10 +1776,10 @@ def print_bootstrap_summary(means,bootstrap, p,keys=['visual','timing']):
     print('p: {}'.format(p))
 
 def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False,post=False,meso=False):
+    nboots=10000,first=True, second=False,post=False,meso=False,image=False):
     
     bootstrap = get_summary_bootstrap_omission_strategy(data, nboots,cell_type,
-        first,second,post,meso)   
+        first,second,post,meso,image)   
  
     fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_mean = df.query('visual_strategy_session')['response'].mean()
@@ -1828,6 +1832,8 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
             filepath += '_post'
         if meso:
             filepath += '_meso'
+        if image:
+            filepath += '_image'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
@@ -2882,13 +2888,13 @@ def load_change_df(summary_df,cre,data='events',first=False,second=False,image=F
 
     return df
 
-def load_image_df(summary_df, cre,data='events',first=False,second=False,meso=False):
+def load_image_df(summary_df, cre,data='events',first=False,second=False,meso=False,image=False):
     '''
         This function is optimized for memory conservation
     '''
 
     # Load everything
-    df = bd.load_population_df(data,'image_df',cre,first=first,second=second)
+    df = bd.load_population_df(data,'image_df',cre,first=first,second=second,image=image)
 
     # Drop changes and omissions
     df.drop(df[df['is_change'] | df['omitted']].index,inplace=True)

@@ -149,7 +149,14 @@ psth.plot_engagement(dfs,data='events',meso=True)
 
 exc_change = psth.load_change_df(summary_df, cre='Slc17a7-IRES2-Cre',data='events')
 psth.plot_summary_bootstrap_strategy_engaged_miss(exc_change,cell_type='exc',
-    first=True, second=False,nboots=10000)
+    first=False, second=False,nboots=10000,image=True,meso=True)
+
+exc_image = psth.load_image_df(summary_df,cre='Slc17a7-IRES2-Cre',data='events',
+    first=False, second=False, image=True, meso=True,nboots=10000)
+exc_post = exc_image.query('post_omitted_1')
+psth.plot_summary_bootstrap_omission_strategy(exc_post,data='events',nboots=10000,
+    cell_type='exc', first=False,second=False,post=False,meso=True,image=True)
+
 
 
 ## Fig. S6 - Running VIP control image

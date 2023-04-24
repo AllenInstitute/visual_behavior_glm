@@ -3321,6 +3321,16 @@ def bootstrap_summary_multiple_comparisons():
     p = bootstrap_significance(vip_image,'visual','timing')
     tests['vip_image']=p
 
+    sst_image = get_summary_bootstrap_image_strategy(cell_type='sst',second=False,first=True,
+        meso=True)
+    p = bootstrap_significance(sst_image,'visual','timing')
+    tests['sst_image']=p
+    
+    sst_post_omission = get_summary_bootstrap_omission_strategy(cell_type='sst',second=False,
+        first=True,meso=True,post=True)
+    p = bootstrap_significance(sst_post_omission,'visual','timing')
+    tests['sst_post_omission']=p   
+
     sst_omission = get_summary_bootstrap_omission_strategy(cell_type='sst',first=False,
         second=True,meso=True)
     p = bootstrap_significance(sst_omission,'visual','timing')
@@ -3388,7 +3398,10 @@ def bootstrap_summary_multiple_comparisons():
     print('\nThe following tests are significant with multiple comparisons corrections: ')
     print(tests.query('bh_significant').sort_values(by='imq')[cols])   
 
-    print('\nThe following significance tests do not survive multiple comparisons corrections:')
+    print('\nThe following significant tests do not survive multiple comparisons corrections:')
     print(tests.query('significant & (not bh_significant)').sort_values(by='imq')[cols])
+
+    print('\nThe following tests were not significant:')
+    print(tests.query('not significant').sort_values(by='imq')[cols])
 
     return tests

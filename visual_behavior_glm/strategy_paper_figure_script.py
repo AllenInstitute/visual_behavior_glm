@@ -69,6 +69,8 @@ vip_image = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
 psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False, 
     second=True,meso=True)
 
+# Check multiple comparisons
+tests = psth.bootstrap_summary_multiple_comparisons()
 
 ## Fig. 4F - Running VIP control image
 ################################################################################

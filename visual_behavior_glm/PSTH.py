@@ -3313,4 +3313,82 @@ def plot_equipment_comparison_inner(df,cell_type,comparison_type,depths,data,sav
 
 
 
+def bootstrap_summary_multiple_comparisons():
+    tests = {}
 
+    vip_image = get_summary_bootstrap_image_strategy(cell_type='vip',second=True,first=False,
+        meso=True)
+    p = bootstrap_significance(vip_image,'visual','timing')
+    tests['vip_image']=p
+
+    sst_omission = get_summary_bootstrap_omission_strategy(cell_type='sst',first=False,
+        second=True,meso=True)
+    p = bootstrap_significance(sst_omission,'visual','timing')
+    tests['sst_omission']=p
+
+    vip_omission = get_summary_bootstrap_omission_strategy(cell_type='vip',first=False,second=False,
+        meso=True)
+    p = bootstrap_significance(vip_omission,'visual','timing')
+    tests['vip_omission']=p   
+
+    exc_hit = get_summary_bootstrap_strategy_hit(cell_type='exc', first=False, second=False,
+        image=True,meso=True)
+    phh = bootstrap_significance(exc_hit, 'visual_hit','timing_hit')
+    pmm = bootstrap_significance(exc_hit, 'visual_miss','timing_miss')
+    pvhm = bootstrap_significance(exc_hit, 'visual_hit','visual_miss')
+    pthm = bootstrap_significance(exc_hit, 'timing_hit','timing_miss')
+    tests['exc_hit_hit']=phh
+    tests['exc_miss_miss']=pmm
+    tests['exc_visual_hit_miss']=pvhm
+    #tests['exc_timing_hit_timing_miss']=pthm
+
+
+    sst_hit = get_summary_bootstrap_strategy_hit(cell_type='sst', first=False, second=True,
+        image=False,meso=True)
+    phh = bootstrap_significance(sst_hit, 'visual_hit','timing_hit')
+    pmm = bootstrap_significance(sst_hit, 'visual_miss','timing_miss')
+    pvhm = bootstrap_significance(sst_hit, 'visual_hit','visual_miss')
+    pthm = bootstrap_significance(sst_hit, 'timing_hit','timing_miss')
+    tests['sst_hit_hit']=phh
+    tests['sst_miss_miss']=pmm
+    tests['sst_visual_hit_miss']=pvhm
+    #tests['sst_timing_hit_timing_miss']=pthm
+
+    vip_hit = get_summary_bootstrap_strategy_pre_change(cell_type='vip', first=False, second=True,
+        meso=True)
+    phh = bootstrap_significance(vip_hit, 'visual_hit','timing_hit')
+    pmm = bootstrap_significance(vip_hit, 'visual_miss','timing_miss')
+    pvhm = bootstrap_significance(vip_hit, 'visual_hit','visual_miss')
+    pthm = bootstrap_significance(vip_hit, 'timing_hit','timing_miss')
+    tests['vip_hit_hit']=phh
+    tests['vip_miss_miss']=pmm
+    tests['vip_visual_hit_miss']=pvhm
+    #tests['vip_timing_hit_timing_miss']=pthm
+
+    exc_miss = get_summary_bootstrap_strategy_engaged_miss(data='events',nboots=10000,
+        cell_type='exc',first=False,second=False,image=True,meso=True)
+    pved = bootstrap_significance(exc_miss, 'visual_engaged','visual_disengaged')
+    tests['exc_visual_engaged_disengaged']=pved
+
+
+    #return tests
+    tests = pd.DataFrame.from_dict(tests,orient='index')
+    tests = tests.rename(columns = {0:'p'})
+    tests['p'] = [1-p if p > .5 else p for p in tests['p']]
+    
+    tests = tests.reset_index()
+    tests = tests.rename(columns={
+        'index':'location',
+        'p':'p_boot'
+        })
+    tests['significant'] = tests['p_boot'] < 0.05
+    tests = add_hochberg_correction(tests)
+
+    cols=['location','p_boot','imq','bh_significant']
+    print('\nThe following tests are significant with multiple comparisons corrections: ')
+    print(tests.query('bh_significant').sort_values(by='imq')[cols])   
+
+    print('\nThe following significance tests do not survive multiple comparisons corrections:')
+    print(tests.query('significant & (not bh_significant)').sort_values(by='imq')[cols])
+
+    return tests

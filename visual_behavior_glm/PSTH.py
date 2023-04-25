@@ -2247,7 +2247,8 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
     ax.set_ylim(bottom=0)
     
     p = bootstrap_significance(bootstrap, 'visual_hit','timing_hit')
-    if (p < 0.05) or (p >.95):
+    if (cell_type != 'exc') and ((p < 0.05) or (p >.95)):
+        # Excitatory cell does not survive multiple comparisons corrections
         ylim = ax.get_ylim()[1]
         plt.plot([x1,x3],[ylim*1.1,ylim*1.1],'k-')
         plt.plot([x1,x1],[ylim*1.05,ylim*1.1],'k-')
@@ -2503,7 +2504,7 @@ def get_summary_bootstrap_strategy_engaged_omission(data='events',nboots=10000,c
 def plot_summary_bootstrap_strategy_engaged_omission(df,cell_type,savefig=False,data='events',
     nboots=10000,first=True, second=False,post=False,meso=False,image=False):
    
-    bootstrap = get_summary_bootstrap_omission_strategy(data, nboots,cell_type,
+    bootstrap = get_summary_bootstrap_strategy_engaged_omission(data, nboots,cell_type,
         first,second,post,meso,image)   
 
     fig,ax = plt.subplots(figsize=(3,2.75))
@@ -2594,12 +2595,13 @@ def plot_summary_bootstrap_strategy_engaged_omission(df,cell_type,savefig=False,
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
-    print_bootstrap_summary(means,bootstrap,p)
 
  
 def bootstrap_significance(bootstrap, k1, k2):
     diff = np.array(bootstrap[k1]) - np.array(bootstrap[k2])
     p = np.sum(diff >= 0)/len(diff)
+    if p > 0.5:
+        p = 1-p
     return p
 
 

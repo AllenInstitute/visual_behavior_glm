@@ -155,11 +155,10 @@ psth.plot_summary_bootstrap_strategy_engaged_miss(exc_change,cell_type='exc',
     first=False, second=False,nboots=10000,image=True,meso=True)
 
 exc_image = psth.load_image_df(summary_df,cre='Slc17a7-IRES2-Cre',data='events',
-    first=False, second=False, image=True, meso=True)
-exc_post = exc_image.query('post_omitted_1')
-psth.plot_summary_bootstrap_omission_strategy(exc_post,data='events',nboots=10000,
-    cell_type='exc', first=False,second=False,post=True,meso=True,image=True)
-
+    first=False,second=False,image=True,meso=True)
+exc_post=exc_image.query('post_omitted_1').copy()
+psth.plot_summary_bootstrap_strategy_engaged_omission(exc_post,data='events',nboots=10000,
+    cell_type='exc',first=False,second=False,post=True,meso=True,image=True)
 
 ## Fig. S6 - Running VIP control image
 ################################################################################

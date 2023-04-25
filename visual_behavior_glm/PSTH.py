@@ -3527,16 +3527,12 @@ def bootstrap_summary_multiple_comparisons():
         cell_type='exc',first=False,second=False,image=True,meso=True)
     pved = bootstrap_significance(exc_miss, 'visual_engaged','visual_disengaged')
     tests['exc_misses_visual_engaged_disengaged']=pved
-    pted = bootstrap_significance(exc_miss, 'timing_engaged','timing_disengaged')
-    tests['exc_misses_timing_engaged_disengaged']=pted
-
 
     # Exc, post omission, comparing engagement
-    #exc_post_engagement = get_summary_bootstrap_strategy_engaged_omission(data='events',
-    #    nboots=10000,cell_type = 'exc', first=False, second=False, image=True,meso=True,post=True)
-    #pved = bootstrap_significance(exc_post_engagement, 'visual_engaged','visual_disengaged')
-    #tests['exc_post_omission_visual_engaged_disengaged']=pved
-    tests['exc_post_omission_visual_engaged_disengaged']=.5
+    exc_post_engagement = get_summary_bootstrap_strategy_engaged_omission(data='events',
+        nboots=10000,cell_type = 'exc', first=False, second=False, image=True,meso=True,post=True)
+    pved = bootstrap_significance(exc_post_engagement, 'visual_engaged','visual_disengaged')
+    tests['exc_post_omission_visual_engaged_disengaged']=pved  
 
     #return tests
     tests = pd.DataFrame.from_dict(tests,orient='index')

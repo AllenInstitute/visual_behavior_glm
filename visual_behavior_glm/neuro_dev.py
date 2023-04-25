@@ -251,17 +251,6 @@ psth.plot_equipment_comparison(summary_df, experiment_table,
 psth.plot_equipment_comparison(summary_df, experiment_table,
     'Vip','pre_change',depths=['175'],second=True)
 
-# SST, post omission images, compare strategies
-sst_post_omission = get_summary_bootstrap_omission_strategy(cell_type='sst',second=False,
-    first=True,meso=True,post=True)
-p = bootstrap_significance(sst_post_omission,'visual','timing')
-
-# Exc, post omission images, compare strategies
-exc_post_omission = get_summary_bootstrap_omission_strategy(cell_type='exc',second=False,
-    first=False,image=True,meso=True,post=True)
-p = bootstrap_significance(exc_post_omission,'visual','timing')
-
-
 ## effects of running on other cell types 
 ################################################################################
 

@@ -72,6 +72,7 @@ psth.plot_summary_bootstrap_strategy_pre_change(vip_image,'vip',first=False,
 # Check multiple comparisons
 tests = psth.bootstrap_summary_multiple_comparisons()
 
+
 ## Fig. 4F - Running VIP control image
 ################################################################################
 
@@ -158,7 +159,6 @@ exc_image = psth.load_image_df(summary_df,cre='Slc17a7-IRES2-Cre',data='events',
 exc_post = exc_image.query('post_omitted_1')
 psth.plot_summary_bootstrap_omission_strategy(exc_post,data='events',nboots=10000,
     cell_type='exc', first=False,second=False,post=True,meso=True,image=True)
-
 
 
 ## Fig. S6 - Running VIP control image

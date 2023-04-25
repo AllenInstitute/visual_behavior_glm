@@ -104,6 +104,7 @@ bd.build_population_df(summary_df,'full_df','Vip-IRES-Cre','dff')
 vip_image_filtered = bd.load_population_df('filtered_events','image_df','Vip-IRES-Cre')
 vip_full_filtered = bd.load_population_df('filtered_events','full_df','Vip-IRES-Cre')
 
+
 ## Running controls
 ################################################################################
 
@@ -135,6 +136,7 @@ psth.running_responses(vip_image, 'image')
 psth.running_responses(vip_omission, 'omission',split='engagement_v2')
 psth.running_responses(vip_image, 'image',split='engagement_v2')
 
+
 ## VIP Engagement Running
 ################################################################################
 
@@ -145,17 +147,6 @@ boot_image_timing = psth.get_engagement_running_bootstraps('vip','image',
 psth.engagement_running_responses(vip_image,'image',vis_boots=boot_image_visual,
     tim_boots=boot_image_timing)
 
-## VIP Omission
-################################################################################
-
-# Make summary plot of mean response
-vip_omission, bootstrap_means = psth.load_vip_omission_df(summary_df,bootstrap=True)
-psth.plot_vip_omission_summary(vip_omission, bootstrap_means)
-
-## EXC Hit/Miss
-################################################################################
-psth.plot_exc_change_summary()
-
 ## Hierarchy plots with bootstraps
 ################################################################################
 
@@ -164,6 +155,7 @@ psth.get_and_plot('vip','omission','events','binned_depth',
 
 psth.get_and_plot('vip',['change','image'],'events','binned_depth',
     nboots, strategy='visual')
+
 
 ## PSTH - Population average response
 ################################################################################
@@ -186,16 +178,9 @@ exc_full_filtered = pd.merge(exc_full_filtered, experiment_table.reset_index()[[
 # merge cell types
 dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]
 labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
-
-# Make Figure 4 panels
-psth.plot_figure_4_averages(dfs_filtered, data='filtered_events')
-    
+ 
 # Plot population response
 ax = psth.plot_condition(dfs_filtered,'omission',labels,data='filtered_events')
-ax = psth.plot_condition(dfs_filtered,'image',labels,data='filtered_events')
-ax = psth.plot_condition(dfs_filtered,'change',labels,data='filtered_events')
-ax = psth.plot_condition(dfs_filtered,'hit',labels,data='filtered_events')
-ax = psth.plot_condition(dfs_filtered,'miss',labels,data='filtered_events')
 
 # Can split by engagement, generally should plot one strategy at a time
 ax = psth.plot_condition(dfs_filtered, 'omission',labels,
@@ -207,10 +192,12 @@ ax = psth.plot_condition(dfs_filtered, 'omission',labels,
 ax = psth.compare_conditions(dfs_filtered, ['hit','miss'], labels, plot_strategy='visual',
     data='filtered_events')
 
+
 ## Population heatmaps
 ################################################################################
 psth.plot_heatmap(vip_full_filtered,'Vip', 'omission','Familiar',\
 	data='filtered_events')
+
 
 ## QQ Plots 
 ################################################################################
@@ -218,6 +205,7 @@ ax = psth.plot_QQ_strategy(vip_full_filtered, 'Vip','omission','Familiar',\
 	data='filtered_events')
 ax = psth.plot_QQ_engagement(vip_full_filtered, 'Vip','omission','Familiar',\
 	data='filtered_events')
+
 
 ## Mesoscope check
 ################################################################################
@@ -274,7 +262,7 @@ exc_post_omission = get_summary_bootstrap_omission_strategy(cell_type='exc',seco
 p = bootstrap_significance(exc_post_omission,'visual','timing')
 
 
-## Running Supplement
+## effects of running on other cell types 
 ################################################################################
 
 sst_image = psth.load_image_df(summary_df, cre='Sst-IRES-Cre',data='events')
@@ -295,7 +283,7 @@ psth.running_responses(exc_omission, 'omission',bootstraps=bootstraps_omission,c
 
 
 
-## Fig S5 - GLM Supplement
+## Microcircuit with GLM 
 ################################################################################
 GLM_VERSION = '24_events_all_L2_optimize_by_session'
 run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(GLM_VERSION)
@@ -321,7 +309,7 @@ gpt.plot_perturbation(weights_beh, run_params, 'misses')
 
 
 
-## Cell Selection Supplement
+## effects of cell selection with mixed or no-strategy labels
 ################################################################################
 
 # Plot what the labels look like

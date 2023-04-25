@@ -2440,6 +2440,161 @@ def plot_summary_bootstrap_strategy_engaged_miss(df,cell_type,savefig=False,data
         plt.savefig(filepath)
 
 
+def compute_summary_bootstrap_strategy_engaged_omission(df,data='events',nboots=10000,
+    cell_type='exc',first=True,second=False,image=False,post=False,meso=False):
+
+    df['group'] = df['visual_strategy_session'].astype(str)\
+        +df['engagement_v2'].astype(str)
+    mapper = {
+        'TrueTrue':'visual_engaged',
+        'TrueFalse':'visual_disengaged',
+        'FalseTrue':'timing_engaged',
+        'FalseFalse':'timing_disengaged',
+    }
+
+    df['group'] = [mapper[x] for x in df['group']]
+    bootstrap = hb.bootstrap(df, levels=['group','ophys_experiment_id','cell_specimen_id'],
+        nboots=nboots)
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+\
+        '_engaged_omission_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    if second:
+        filepath += '_second'
+    if post:
+        filepath += '_post'
+    if meso:
+        filepath += '_meso'
+    if image:
+        filepath += '_image'
+    filepath = filepath+'.feather'
+
+    with open(filepath,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bootstrap saved to {}'.format(filepath)) 
+
+def get_summary_bootstrap_strategy_engaged_omission(data='events',nboots=10000,cell_type='exc',
+    first=True,second=False,post=False,meso=False,image=False):
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
+        +'_engaged_omission_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    if second:
+        filepath += '_second'
+    if post:
+        filepath += '_post'
+    if meso:
+        filepath += '_meso'
+    if image:
+        filepath += '_image'
+    filepath = filepath+'.feather'
+
+    if os.path.isfile(filepath):
+        # Load this bin
+        with open(filepath,'rb') as handle:
+            this_boot = pickle.load(handle)
+        print('loading from file')
+        return this_boot
+    else:
+        print('file not found')
+
+def plot_summary_bootstrap_strategy_engaged_omission(df,cell_type,savefig=False,data='events',
+    nboots=10000,first=True, second=False,post=False,meso=False,image=False):
+   
+    bootstrap = get_summary_bootstrap_omission_strategy(data, nboots,cell_type,
+        first,second,post,meso,image)   
+
+    fig,ax = plt.subplots(figsize=(3,2.75))
+    visual_engaged_mean = df.query('(visual_strategy_session)&(engagement_v2)')['response'].mean()
+    visual_disengaged_mean = df.query('(visual_strategy_session)&(not engagement_v2)')['response'].mean()
+    timing_engaged_mean = df.query('(not visual_strategy_session)&(engagement_v2)')['response'].mean()
+    timing_disengaged_mean = df.query('(not visual_strategy_session)&(not engagement_v2)')['response'].mean()
+    visual_engaged_sem = np.std(bootstrap['visual_engaged'])
+    timing_engaged_sem = np.std(bootstrap['timing_engaged'])
+    visual_disengaged_sem = np.std(bootstrap['visual_disengaged'])
+    timing_disengaged_sem = np.std(bootstrap['timing_disengaged'])
+
+    plt.plot(-.05,visual_engaged_mean,'x',color='darkorange',label='visual engaged')
+    plt.plot(0.05,visual_disengaged_mean,'x',color='burlywood',label='visual disengaged')
+    plt.plot(.95, timing_engaged_mean,'x',color='blue',label='timing engaged')
+    plt.plot(1.05,timing_disengaged_mean,'x',color='lightblue',label='timing disengaged')
+    plt.plot([-.05,-0.05],[visual_engaged_mean-visual_engaged_sem,
+        visual_engaged_mean+visual_engaged_sem],
+        '-',color='darkorange')
+    plt.plot([.05,0.05],[visual_disengaged_mean-visual_disengaged_sem,
+        visual_disengaged_mean+visual_disengaged_sem],
+        '-',color='burlywood')
+    plt.plot([.95,.95],[timing_engaged_mean-timing_engaged_sem,
+        timing_engaged_mean+timing_engaged_sem],
+        '-',color='blue')
+    plt.plot([1.05,1.05],[timing_disengaged_mean-timing_disengaged_sem,
+        timing_disengaged_mean+timing_disengaged_sem],
+        '-',color='lightblue')
+
+    mapper={
+        'exc':'Excitatory',
+        'sst':'Sst Inhibitory',
+        'vip':'Vip Inhibitory'
+        }
+    nice_cell =mapper[cell_type] 
+
+    ax.set_ylabel(nice_cell+' \n(avg. Ca$^{2+}$ events)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_xticks([0,1])
+    ax.set_xticklabels(['Vis.','Tim.'],fontsize=16)
+    ax.set_xlim(-.5,1.5)
+    ax.set_ylim(bottom=0)
+    
+    p = bootstrap_significance(bootstrap, 'visual_engaged','timing_engaged')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'visual_engaged','visual_disengaged')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'timing_engaged','timing_disengaged')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([.95,1.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([1.05,1.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(1,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    plt.tight_layout()   
+
+    if savefig:
+        filepath = PSTH_DIR + data +'/summary/'+cell_type+'_engaged_omission_strategy_summary_'+str(nboots)
+        if first:
+            filepath += '_first'
+        if second:
+            filepath += '_second'
+        if post:
+            filepath += '_post'
+        if meso:
+            filepath += '_meso'
+        if image:
+            filepath += '_image'
+        filepath = filepath+'.svg'
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath)
+    print_bootstrap_summary(means,bootstrap,p)
 
  
 def bootstrap_significance(bootstrap, k1, k2):
@@ -3316,70 +3471,72 @@ def plot_equipment_comparison_inner(df,cell_type,comparison_type,depths,data,sav
 def bootstrap_summary_multiple_comparisons():
     tests = {}
 
+    # Vip, image repeats, comparing strategies
     vip_image = get_summary_bootstrap_image_strategy(cell_type='vip',second=True,first=False,
         meso=True)
     p = bootstrap_significance(vip_image,'visual','timing')
     tests['vip_image']=p
 
+    # Sst, image repeats, comparing strategies
     sst_image = get_summary_bootstrap_image_strategy(cell_type='sst',second=False,first=True,
         meso=True)
     p = bootstrap_significance(sst_image,'visual','timing')
     tests['sst_image']=p
-    
-    sst_post_omission = get_summary_bootstrap_omission_strategy(cell_type='sst',second=False,
-        first=True,meso=True,post=True)
-    p = bootstrap_significance(sst_post_omission,'visual','timing')
-    tests['sst_post_omission']=p   
 
+    # Sst, omissions, comparing strategies    
     sst_omission = get_summary_bootstrap_omission_strategy(cell_type='sst',first=False,
         second=True,meso=True)
     p = bootstrap_significance(sst_omission,'visual','timing')
     tests['sst_omission']=p
 
+    # Vip, omissions, comparing strategies
     vip_omission = get_summary_bootstrap_omission_strategy(cell_type='vip',first=False,second=False,
         meso=True)
     p = bootstrap_significance(vip_omission,'visual','timing')
     tests['vip_omission']=p   
 
+    # Exc, changes, comparing strategies
     exc_hit = get_summary_bootstrap_strategy_hit(cell_type='exc', first=False, second=False,
         image=True,meso=True)
     phh = bootstrap_significance(exc_hit, 'visual_hit','timing_hit')
-    pmm = bootstrap_significance(exc_hit, 'visual_miss','timing_miss')
     pvhm = bootstrap_significance(exc_hit, 'visual_hit','visual_miss')
-    pthm = bootstrap_significance(exc_hit, 'timing_hit','timing_miss')
     tests['exc_hit_hit']=phh
-    tests['exc_miss_miss']=pmm
     tests['exc_visual_hit_miss']=pvhm
-    #tests['exc_timing_hit_timing_miss']=pthm
 
-
+    # Sst, changes, comparing strategies
     sst_hit = get_summary_bootstrap_strategy_hit(cell_type='sst', first=False, second=True,
         image=False,meso=True)
     phh = bootstrap_significance(sst_hit, 'visual_hit','timing_hit')
-    pmm = bootstrap_significance(sst_hit, 'visual_miss','timing_miss')
     pvhm = bootstrap_significance(sst_hit, 'visual_hit','visual_miss')
-    pthm = bootstrap_significance(sst_hit, 'timing_hit','timing_miss')
     tests['sst_hit_hit']=phh
-    tests['sst_miss_miss']=pmm
     tests['sst_visual_hit_miss']=pvhm
-    #tests['sst_timing_hit_timing_miss']=pthm
 
+    # Vip, changes, comparing strategies
     vip_hit = get_summary_bootstrap_strategy_pre_change(cell_type='vip', first=False, second=True,
         meso=True)
     phh = bootstrap_significance(vip_hit, 'visual_hit','timing_hit')
     pmm = bootstrap_significance(vip_hit, 'visual_miss','timing_miss')
     pvhm = bootstrap_significance(vip_hit, 'visual_hit','visual_miss')
-    pthm = bootstrap_significance(vip_hit, 'timing_hit','timing_miss')
     tests['vip_hit_hit']=phh
     tests['vip_miss_miss']=pmm
     tests['vip_visual_hit_miss']=pvhm
-    #tests['vip_timing_hit_timing_miss']=pthm
 
+    ## Engagement
+    # Exc, misses, comparing engagement 
     exc_miss = get_summary_bootstrap_strategy_engaged_miss(data='events',nboots=10000,
         cell_type='exc',first=False,second=False,image=True,meso=True)
     pved = bootstrap_significance(exc_miss, 'visual_engaged','visual_disengaged')
-    tests['exc_visual_engaged_disengaged']=pved
+    tests['exc_misses_visual_engaged_disengaged']=pved
+    pted = bootstrap_significance(exc_miss, 'timing_engaged','timing_disengaged')
+    tests['exc_misses_timing_engaged_disengaged']=pted
 
+
+    # Exc, post omission, comparing engagement
+    #exc_post_engagement = get_summary_bootstrap_strategy_engaged_omission(data='events',
+    #    nboots=10000,cell_type = 'exc', first=False, second=False, image=True,meso=True,post=True)
+    #pved = bootstrap_significance(exc_post_engagement, 'visual_engaged','visual_disengaged')
+    #tests['exc_post_omission_visual_engaged_disengaged']=pved
+    tests['exc_post_omission_visual_engaged_disengaged']=.5
 
     #return tests
     tests = pd.DataFrame.from_dict(tests,orient='index')

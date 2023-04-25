@@ -263,13 +263,15 @@ psth.plot_equipment_comparison(summary_df, experiment_table,
 psth.plot_equipment_comparison(summary_df, experiment_table,
     'Vip','pre_change',depths=['175'],second=True)
 
-# compute bootstraps
-vip_image_meso = psth.load_image_df(summary_df, cre='Vip-IRES-Cre',data='events',
-    first=False, second=False, meso=True)
-psth.compute_summary_bootstrap_image_strategy(vip_image_meso,cell_type='vip',
-    first=False, second=False, post=False, meso=True)
-psth.plot_summary_bootstrap_image_strategy(vip_image_meso, 'vip',
-    first=False, second=False,meso=True)
+# SST, post omission images, compare strategies
+sst_post_omission = get_summary_bootstrap_omission_strategy(cell_type='sst',second=False,
+    first=True,meso=True,post=True)
+p = bootstrap_significance(sst_post_omission,'visual','timing')
+
+# Exc, post omission images, compare strategies
+exc_post_omission = get_summary_bootstrap_omission_strategy(cell_type='exc',second=False,
+    first=False,image=True,meso=True,post=True)
+p = bootstrap_significance(exc_post_omission,'visual','timing')
 
 
 ## Running Supplement

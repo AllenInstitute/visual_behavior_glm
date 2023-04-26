@@ -532,9 +532,10 @@ def get_average_kernels_inner(df):
     return df_norm.mean(axis=0),df_norm.std(axis=0)/np.sqrt(np.shape(df_norm)[0])
 
 
-def plot_PSTH_perturbation(dfs,labels,condition,
-    run_params=None,savefig=False,experience_level="Familiar",
-    x='Exc',y='Vip',min_time=-.75,plot_error=False):
+def plot_PSTH_perturbation(dfs,labels,condition,run_params=None,savefig=False,
+    experience_level="Familiar",x='Exc',y='Vip',min_time=-.75,plot_error=False,
+    meso=False):
+
     traces = get_PSTH_2D_traces(dfs,labels,condition)
 
     height = 4
@@ -641,16 +642,16 @@ def plot_PSTH_perturbation(dfs,labels,condition,
     else:
         if (x=='Exc'):
             if condition in ['hit','miss']:
-                ax.set_xlim(0,.01)
+                ax.set_xlim(0,.0135)
             if condition in ['image','omission']:
-                ax.set_xlim( 0,0.01)
+                ax.set_xlim( 0,0.0135)
                 #ax.set_xlim( 0,0.0045)
         if x=='Sst':
-            ax.set_xlim(0,.05)
+            ax.set_xlim(0,.062)
         if y=='Sst':
-            ax.set_ylim(0,.05)
+            ax.set_ylim(0,.062)
         if y=='Vip':
-            ax.set_ylim(0, .05)
+            ax.set_ylim(0, .054)
         if y=='y':
             ax.set_ylim(-0.03,0.05)
 
@@ -658,20 +659,24 @@ def plot_PSTH_perturbation(dfs,labels,condition,
     ax.axvline(0,color='k',linestyle='--',alpha=.25)
     ax.set_title(condition,fontsize=16)
     if savefig:
+        if meso:
+            extra = '_meso'
+        else:
+            extra = ''
         if plot_error:
              filepath = run_params['figure_dir']+'/strategy/'+condition+\
-                '_strategy_perturbation_PSTH_2D_{}_{}_{}_with_error.svg'.\
-                format(experience_level,x,y)   
+                '_strategy_perturbation{}_PSTH_2D_{}_{}_{}_with_error.svg'.\
+                format(extra,experience_level,x,y)   
         else:
             filepath = run_params['figure_dir']+'/strategy/'+condition+\
-                '_strategy_perturbation_PSTH_2D_{}_{}_{}.svg'.\
-                format(experience_level,x,y)
+                '_strategy_perturbation{}_PSTH_2D_{}_{}_{}.svg'.\
+                format(extra,experience_level,x,y)
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
     return ax
 
 def plot_PSTH_2D(dfs,labels, condition, strategy, run_params, 
-        experience_level="Familiar",savefig=True,times=[-.75,2]):
+        experience_level="Familiar",savefig=True,times=[-.75,2],meso=False):
     traces = get_PSTH_2D_traces(dfs,labels,condition,
         experience_level=experience_level)
 
@@ -712,7 +717,7 @@ def plot_PSTH_2D(dfs,labels, condition, strategy, run_params,
     ax.set_xlabel('time from {} (s)'.format(condition),fontsize=16)
     ax.set_ylabel(condition+' response\n(Ca$^{2+}$ events)',
         fontsize=16)
-    ax.set_ylim(0,.049)
+    ax.set_ylim(0,.064)
     ax.set_xlim(time[0],time[-1])
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
@@ -734,14 +739,19 @@ def plot_PSTH_2D(dfs,labels, condition, strategy, run_params,
         ax.plot(1.5,0,'o',color='gray',zorder=10,clip_on=False,ms=8)
 
     if savefig:
-        filepath = run_params['figure_dir']+\
-            '/strategy/'+condition+'_strategy_perturbation_PSTH_{}_{}.svg'.format(strategy, experience_level)
+        if meso:
+            filepath = run_params['figure_dir']+'/strategy/'+condition+\
+                '_strategy_perturbation_meso_PSTH_{}_{}.svg'.format(strategy, experience_level)
+        else:
+            filepath = run_params['figure_dir']+'/strategy/'+condition+\
+                '_strategy_perturbation_PSTH_{}_{}.svg'.format(strategy, experience_level)
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
     return ax
 
-def plot_PSTH_3D(dfs,labels, condition,run_params, 
-    experience_level="Familiar",savefig=True,add_2D=True,supp_fig=False):
+def plot_PSTH_3D(dfs,labels, condition,run_params,experience_level="Familiar",
+    savefig=True,add_2D=True,supp_fig=False,meso=False):
+
     traces = get_PSTH_2D_traces(dfs,labels,condition,
         experience_level=experience_level)
     
@@ -767,9 +777,11 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
         zorder=10)
 
     if add_2D:
-        zs = .03
+        zs = .054# .03
         if condition in ['omission','hit','miss']:
             zs = 0 
+        if (condition == 'image') & supp_fig:
+            zs = 0
         ax.plot(traces['visual_Exc'][ts],traces['visual_Vip'][ts],
             zdir='y',color='burlywood',zorder=5,zs=zs)
         ax.plot(traces['visual_Sst'][ts],traces['visual_Vip'][ts],
@@ -802,9 +814,9 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
     ax.yaxis.set_tick_params(labelsize=12)
     ax.zaxis.set_tick_params(labelsize=12)
     if supp_fig:
-        ax.set_zlim(0,0.05)
-        ax.set_xlim(0,0.01)
-        ax.set_ylim(0,0.05)   
+        ax.set_zlim(0,0.062)
+        ax.set_xlim(0,0.0135)
+        ax.set_ylim(0,0.054)   
         ax.view_init(elev=15,azim=80)
     else:
         ax.set_zlim(bottom=0)
@@ -813,8 +825,12 @@ def plot_PSTH_3D(dfs,labels, condition,run_params,
         ax.view_init(elev=15,azim=-55)
 
     if savefig:
-        filepath = run_params['figure_dir']+\
-            '/strategy/'+condition+'_strategy_perturbation_PSTH_3D_{}.svg'.format(experience_level)
+        if meso:
+            filepath = run_params['figure_dir']+'/strategy/'+condition+\
+                '_strategy_perturbation_meso_PSTH_3D_{}.svg'.format(experience_level)   
+        else:
+            filepath = run_params['figure_dir']+'/strategy/'+condition+\
+                '_strategy_perturbation_PSTH_3D_{}.svg'.format(experience_level)
         print('Figure saved to: '+filepath)
         plt.savefig(filepath) 
 
@@ -847,15 +863,15 @@ def get_PSTH_2D_traces(dfs,labels,condition,experience_level="Familiar"):
     traces['time'] = dfs[0].query('condition ==@condition').iloc[0]['time']
     return traces
 
-def PSTH_analysis(dfs, condition, run_params, 
-    experience_level="Familiar",savefig=False):
+def PSTH_analysis(dfs, condition, run_params,experience_level="Familiar",
+    savefig=False,meso=False):
   
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
     # error bars on 2D 
     ax1= plot_PSTH_2D(dfs,labels, condition,'visual',run_params, 
-        experience_level,savefig)
+        experience_level,savefig,meso=meso)
     ax2= plot_PSTH_2D(dfs,labels, condition,'timing',run_params, 
-        experience_level,savefig)
+        experience_level,savefig,meso=meso)
 
 def PSTH_perturbation(dfs,labels, condition, run_params, 
     experience_level='Familiar',savefig=False):

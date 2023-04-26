@@ -59,6 +59,12 @@ if __name__ == '__main__':
         args.response,
         args.data,
         args.nboots,
-        args.bin_num
+        args.bin_num,
+        meso=True,
+        first=False,
+        second=False
         )
     print('finished') 
+
+
+

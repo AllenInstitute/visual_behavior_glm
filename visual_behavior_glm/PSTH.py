@@ -218,7 +218,7 @@ def plot_condition(dfs, condition,labels=None,savefig=False,error_type='sem',
 
     return ax
 
-def get_figure_4_psth(data='events',experience_level='Familiar'):
+def get_figure_4_psth(data='events',experience_level='Familiar',mesoscope_only=False):
  
     # Load each cell type
     vip_full_filtered = bd.load_population_df(data,'full_df',\
@@ -240,6 +240,21 @@ def get_figure_4_psth(data='events',experience_level='Familiar'):
     exc_full_filtered = pd.merge(exc_full_filtered, experiment_table.reset_index()\
         [['ophys_experiment_id','binned_depth']],on='ophys_experiment_id')
 
+    if mesoscope_only:
+        experiment_table = glm_params.get_experiment_table().reset_index()
+        vip_full_filtered = pd.merge(vip_full_filtered,
+            experiment_table[['ophys_experiment_id','equipment_name']],
+            on='ophys_experiment_id')
+        vip_full_filtered = vip_full_filtered.query('equipment_name == "MESO.1"').copy()
+        sst_full_filtered = pd.merge(sst_full_filtered,
+            experiment_table[['ophys_experiment_id','equipment_name']],
+            on='ophys_experiment_id')
+        sst_full_filtered = sst_full_filtered.query('equipment_name == "MESO.1"').copy()
+        exc_full_filtered = pd.merge(exc_full_filtered,
+            experiment_table[['ophys_experiment_id','equipment_name']],
+            on='ophys_experiment_id')
+        exc_full_filtered = exc_full_filtered.query('equipment_name == "MESO.1"').copy()
+
     # merge cell types
     dfs_filtered = [exc_full_filtered, sst_full_filtered, vip_full_filtered]
     labels =['Excitatory','Sst Inhibitory','Vip Inhibitory']
@@ -249,7 +264,7 @@ def get_figure_4_psth(data='events',experience_level='Familiar'):
 
 def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
     areas=['VISp','VISl'],depths=['upper','lower'],experience_level='Familiar',
-    strategy = 'visual_strategy_session',depth='layer'):
+    strategy = 'visual_strategy_session',depth='layer',meso=False):
 
     fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
@@ -275,8 +290,12 @@ def plot_figure_4_averages(dfs,data='filtered_events',savefig=False,\
     # Clean up
     plt.tight_layout()
     if savefig:
-        filename = PSTH_DIR + data + '/population_averages/'+\
-            'figure_4_comparisons_psth_'+experience_level+'.svg' 
+        if meso:
+            filename = PSTH_DIR + data + '/population_averages/'+\
+                'figure_4_comparisons_psth_meso_'+experience_level+'.svg'        
+        else:
+            filename = PSTH_DIR + data + '/population_averages/'+\
+                'figure_4_comparisons_psth_'+experience_level+'.svg' 
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 
@@ -330,7 +349,7 @@ def plot_figure_4_averages_cell_selection(dfs,data='filtered_events',savefig=Fal
 
 def plot_engagement(dfs, data='filtered_events',savefig=False,\
     areas=['VISp','VISl'],depths=['upper','lower'],error_type='sem',\
-    version='v2'):
+    version='v2',meso=False):
 
     fig, ax = plt.subplots(3,3,figsize=(10,7.75),sharey='row',squeeze=False) 
     labels=['Excitatory','Sst Inhibitory','Vip Inhibitory']
@@ -354,8 +373,12 @@ def plot_engagement(dfs, data='filtered_events',savefig=False,\
 
     plt.tight_layout()
     if savefig:
-        filename = PSTH_DIR + data + '/population_averages/'+\
-            'engagement_comparisons_psth.svg' 
+        if meso:
+            filename = PSTH_DIR + data + '/population_averages/'+\
+                'engagement_comparisons_psth.svg' 
+        else:
+            filename = PSTH_DIR + data + '/population_averages/'+\
+                'engagement_comparisons_meso_psth.svg' 
         print('Figure saved to: '+filename)
         plt.savefig(filename)
 
@@ -741,10 +764,12 @@ def plot_strategy_histogram(full_df,cre,condition,experience_level,savefig=False
     return ax
 
 def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=10000,
-    data='events'):
+    data='events',meso=False,first=False, second=False):
 
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_{}'.format(bin_num))  
+        ['visual_strategy_session'],'running_{}'.format(bin_num),
+        meso=meso,first=first,second=second)  
+
     if os.path.isfile(filename):
         print('Already computed {}'.format(bin_num))
         return 
@@ -792,13 +817,14 @@ def compute_running_bootstrap_bin(df, condition, cell_type, bin_num, nboots=1000
 
     # Save to file
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_{}'.format(bin_num))
+        ['visual_strategy_session'],'running_{}'.format(bin_num),meso=meso,
+        first=first,second=second)
     with open(filename,'wb') as handle:
         pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print('bin saved to {}'.format(filename)) 
 
 def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
-    compute=True,split='visual_strategy_session'):
+    compute=True,split='visual_strategy_session',meso=False,first=False,second=False):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -811,7 +837,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
     for b in bins:
         # First check if this running bin has already been computed
         filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            [split],'running_{}'.format(int(b)))
+            [split],'running_{}'.format(int(b)),meso=meso,first=first,second=second)
         if os.path.isfile(filename):
             # Load this bin
             with open(filename,'rb') as handle:
@@ -863,7 +889,7 @@ def compute_running_bootstrap(df,condition,cell_type,nboots=10000,data='events',
     # Save file
     if not missing:
         filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            ['visual_strategy_session'],'running')
+            ['visual_strategy_session'],'running',meso=meso,first=first,second=second)
         print('saving bootstraps to: '+filepath)
         bootstraps.to_feather(filepath)
     return bootstraps
@@ -1036,10 +1062,11 @@ def compute_pre_change_running_bootstrap(df,condition,cell_type,strategy,
 
 
 def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
-    bin_num, nboots=10000, data='events'):
+    bin_num, nboots=10000, data='events',meso=False,first=False,second=False):
 
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num))  
+        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num),
+        meso=meso,first=first,second=second)  
     if os.path.isfile(filename):
         print('Already computed {}'.format(bin_num))
         return 
@@ -1104,7 +1131,8 @@ def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
 
     # Save to file
     filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num))
+        ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,bin_num),
+        meso=meso,first=first,second=second)
     with open(filename,'wb') as handle:
         pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print('bin saved to {}'.format(filename)) 
@@ -1112,7 +1140,8 @@ def compute_engagement_running_bootstrap_bin(df, condition, cell_type, strategy,
 
 
 def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,
-    nboots=10000,data='events',compute=True,split='engagement_v2'):
+    nboots=10000,data='events',compute=True,split='engagement_v2',
+    meso=False,first=False,second=False):
     
     # set up running bins
     if condition =='omission':
@@ -1135,7 +1164,8 @@ def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,
     for b in bins:
         # First check if this running bin has already been computed
         filename = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,int(b))) 
+            ['visual_strategy_session'],'running_engaged_{}_{}'.format(strategy,int(b)),
+            meso=meso,first=first,second=second) 
         if os.path.isfile(filename):
             # Load this bin
             with open(filename,'rb') as handle:
@@ -1187,24 +1217,27 @@ def compute_engagement_running_bootstrap(df,condition,cell_type,strategy,
     # Save file
     if not missing:
         filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-            ['visual_strategy_session'],'running_engaged_{}'.format(strategy))
+            ['visual_strategy_session'],'running_engaged_{}'.format(strategy),
+            meso=meso,first=first,second=second)
         print('saving bootstraps to: '+filepath)
         bootstraps.to_feather(filepath)
     return bootstraps
 
 
-def get_running_bootstraps(cell_type, condition,data,nboots):
+def get_running_bootstraps(cell_type, condition,data,nboots,meso=False,first=False,second=False):
     filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running') 
+        ['visual_strategy_session'],'running',meso=meso,first=first,second=second) 
     if os.path.isfile(filepath):
         bootstraps = pd.read_feather(filepath)
         return bootstraps
     else:
         print('file not found, compute the running bootstraps first')
 
-def get_engagement_running_bootstraps(cell_type, condition,data,nboots,strategy):
+def get_engagement_running_bootstraps(cell_type, condition,data,nboots,strategy,
+    meso=False,first=False,second=False):
     filepath = get_hierarchy_filename(cell_type,condition,data,'all',nboots,
-        ['visual_strategy_session'],'running_engaged_{}'.format(strategy)) 
+        ['visual_strategy_session'],'running_engaged_{}'.format(strategy),
+        meso=meso,first=first,second=second) 
     if os.path.isfile(filepath):
         bootstraps = pd.read_feather(filepath)
         return bootstraps
@@ -1221,7 +1254,7 @@ def get_pre_change_running_bootstraps(cell_type, condition,data,nboots,strategy)
         print('file not found, compute the running bootstraps first')
 
 def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
-    data='events', split='visual_strategy_session'):
+    data='events', split='visual_strategy_session',meso=False):
     if condition =='omission':
         bin_width=5        
     elif condition =='image':
@@ -1267,11 +1300,17 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
         ttemp = timing.set_index('running_bins')
         bootstraps = bootstraps.set_index('running_bin')
         for b in visual['running_bins'].unique():
-            plt.errorbar(b*bin_width, vtemp.loc[b].response,
-                yerr=bootstraps.loc[b]['visual_sem'],color=vis_color,fmt='o')   
+            if b in bootstraps.index.values:
+                plt.errorbar(b*bin_width, vtemp.loc[b].response,
+                    yerr=bootstraps.loc[b]['visual_sem'],color=vis_color,fmt='o')   
+            else:
+                print('missing value')
         for b in timing['running_bins'].unique():
-            plt.errorbar(b*bin_width, ttemp.loc[b].response,
-                yerr=bootstraps.loc[b]['timing_sem'],color=tim_color,fmt='o')     
+            if b in bootstraps.index.values:
+                plt.errorbar(b*bin_width, ttemp.loc[b].response,
+                    yerr=bootstraps.loc[b]['timing_sem'],color=tim_color,fmt='o')    
+            else:
+                print('missing value')
         plt.plot(visual.running_bins*bin_width, visual.response,'o',
             color=vis_color,label=vis_label)
         plt.plot(timing.running_bins*bin_width, timing.response,'o',
@@ -1289,9 +1328,9 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
     ax.yaxis.set_tick_params(labelsize=12) 
 
     if (cre == 'vip') and (condition =='omission'):
-        ax.set_ylim(0,.06) 
+        ax.set_ylim(0,.07) 
     elif (cre == 'vip') and (condition =='image'):
-        ax.set_ylim(0,.015)
+        ax.set_ylim(0,.02)
     else:
         ax.set_ylim(bottom=0)
 
@@ -1306,15 +1345,19 @@ def running_responses(df, condition, cre='vip', bootstraps=None, savefig=False,
                     ax.plot(row.running_bin*bin_width, y, 'k*')  
         ax.set_ylim(top=y*1.075)
 
-    ax.set_xlim(-1,61)
+    ax.set_xlim(-1,51)
     plt.legend()
 
     plt.tight_layout() 
 
     # Save fig
     if savefig:
-        filename = PSTH_DIR + data+'/running/'+\
-            'running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
+        if meso:
+            filename = PSTH_DIR + data+'/running/'+\
+                'running_{}_familiar_meso_{}_{}.svg'.format(cre,condition,split)   
+        else:
+            filename = PSTH_DIR + data+'/running/'+\
+                'running_{}_familiar_{}_{}.svg'.format(cre,condition,split)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename)
 
@@ -1418,7 +1461,7 @@ def pre_change_running_responses(df, condition, cre='vip', bootstraps=None, save
 
 def engagement_running_responses(df, condition, cre='vip', vis_boots=None, 
     tim_boots=None, savefig=False, data='events', split='visual_strategy_session',
-    plot_list=['visual','timing']):
+    plot_list=['visual','timing'],first=False,second=False,meso=False):
 
     if condition =='omission':
         bin_width=5        
@@ -1509,9 +1552,9 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
     ax.yaxis.set_tick_params(labelsize=12) 
 
     if (cre == 'vip') and (condition =='omission'):
-        ax.set_ylim(0,.07) 
+        ax.set_ylim(0,.1) 
     elif (cre == 'vip') and (condition =='image'):
-        ax.set_ylim(0,.015)
+        ax.set_ylim(0,.027)
     else:
         ax.set_ylim(bottom=0)
 
@@ -1543,14 +1586,21 @@ def engagement_running_responses(df, condition, cre='vip', vis_boots=None,
     # Save fig
     if savefig:
         plot_str = '_'.join(plot_list)
+        extra =''
+        if meso:
+            extra += '_meso'
+        if first:
+            extra += '_first'
+        if second:
+            extra += '_second'
         filename = PSTH_DIR + data+'/running/'+\
-            'engagement_running_{}_familiar_{}_{}_{}.svg'.\
-            format(cre,condition,split,plot_str)
+            'engagement_running_{}{}_familiar_{}_{}_{}.svg'.\
+            format(cre,extra,condition,split,plot_str)
         print('Figure saved to {}'.format(filename))
         plt.savefig(filename) 
 
 def compute_summary_bootstrap_image_strategy(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,post=False):
+    first=True,second=False,post=False,meso=False):
 
     df['group'] = df['visual_strategy_session'].astype(str)
     mapper = {
@@ -1568,6 +1618,8 @@ def compute_summary_bootstrap_image_strategy(df,data='events',nboots=10000,cell_
         filepath += '_second'
     if post:
         filepath += '_post'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -1575,7 +1627,7 @@ def compute_summary_bootstrap_image_strategy(df,data='events',nboots=10000,cell_
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_image_strategy(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,post=False):
+    first=True,second=False,post=False,meso=False):
 
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
         +'_image_strategy_summary_'+str(nboots)
@@ -1585,6 +1637,8 @@ def get_summary_bootstrap_image_strategy(data='events',nboots=10000,cell_type='e
         filepath += '_second'
     if post:
         filepath += '_post'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
 
     if os.path.isfile(filepath):
@@ -1597,10 +1651,10 @@ def get_summary_bootstrap_image_strategy(data='events',nboots=10000,cell_type='e
         print('file not found')
 
 def plot_summary_bootstrap_image_strategy(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False,post=False):
+    nboots=10000,first=True, second=False,post=False,meso=False):
     
     bootstrap = get_summary_bootstrap_image_strategy(data, nboots,cell_type,
-        first,second,post)   
+        first,second,post,meso)   
  
     fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_mean = df.query('visual_strategy_session')['response'].mean()
@@ -1651,6 +1705,8 @@ def plot_summary_bootstrap_image_strategy(df,cell_type,savefig=False,data='event
             filepath += '_second'
         if post:
             filepath += '_post'
+        if meso:
+            filepath += '_meso'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
@@ -1658,7 +1714,7 @@ def plot_summary_bootstrap_image_strategy(df,cell_type,savefig=False,data='event
 
 
 def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,post=False):
+    first=True,second=False,image=False,post=False,meso=False):
 
     df['group'] = df['visual_strategy_session'].astype(str)
     mapper = {
@@ -1676,6 +1732,10 @@ def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,ce
         filepath += '_second'
     if post:
         filepath += '_post'
+    if meso:
+        filepath += '_meso'
+    if image:
+        filepath += '_image'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -1683,7 +1743,7 @@ def compute_summary_bootstrap_omission_strategy(df,data='events',nboots=10000,ce
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,post=False):
+    first=True,second=False,post=False,meso=False,image=False):
 
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
         +'_omission_strategy_summary_'+str(nboots)
@@ -1693,6 +1753,10 @@ def get_summary_bootstrap_omission_strategy(data='events',nboots=10000,cell_type
         filepath += '_second'
     if post:
         filepath += '_post'
+    if meso:
+        filepath += '_meso'
+    if image:
+        filepath += '_image'
     filepath = filepath+'.feather'
 
     if os.path.isfile(filepath):
@@ -1712,10 +1776,10 @@ def print_bootstrap_summary(means,bootstrap, p,keys=['visual','timing']):
     print('p: {}'.format(p))
 
 def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False,post=False):
+    nboots=10000,first=True, second=False,post=False,meso=False,image=False):
     
     bootstrap = get_summary_bootstrap_omission_strategy(data, nboots,cell_type,
-        first,second,post)   
+        first,second,post,meso,image)   
  
     fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_mean = df.query('visual_strategy_session')['response'].mean()
@@ -1766,6 +1830,10 @@ def plot_summary_bootstrap_omission_strategy(df,cell_type,savefig=False,data='ev
             filepath += '_second'
         if post:
             filepath += '_post'
+        if meso:
+            filepath += '_meso'
+        if image:
+            filepath += '_image'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
@@ -1917,7 +1985,7 @@ def plot_summary_bootstrap_strategy_omission_lick(df,cell_type,savefig=False,dat
 
 
 def compute_summary_bootstrap_strategy_pre_change(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False):
+    first=True,second=False,meso=False):
 
     df = df.query('(pre_hit_1 ==1)or(pre_miss_1==1)').copy()
     df['group'] = df['visual_strategy_session'].astype(str)+df['pre_hit_1'].astype(str)
@@ -1936,6 +2004,8 @@ def compute_summary_bootstrap_strategy_pre_change(df,data='events',nboots=10000,
         filepath += '_first'
     if second:
         filepath += '_second'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -1943,12 +2013,14 @@ def compute_summary_bootstrap_strategy_pre_change(df,data='events',nboots=10000,
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_strategy_pre_change(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False):
+    first=True,second=False,meso=False):
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_pre_change_strategy_summary_'+str(nboots)
     if first:
         filepath += '_first'
     if second:
         filepath += '_second'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
     if os.path.isfile(filepath):
         # Load this bin
@@ -1960,7 +2032,7 @@ def get_summary_bootstrap_strategy_pre_change(data='events',nboots=10000,cell_ty
         print('file not found')
   
 def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False):
+    nboots=10000,first=True, second=False,meso=False):
    
     df = df.query('(pre_hit_1 ==1)or(pre_miss_1==1)').copy()
     bootstrap = get_summary_bootstrap_strategy_pre_change(data, nboots,cell_type,
@@ -2058,6 +2130,8 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
             filepath += '_first'
         if second:
             filepath += '_second'
+        if meso:
+            filepath += '_meso'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
@@ -2066,7 +2140,7 @@ def plot_summary_bootstrap_strategy_pre_change(df,cell_type,savefig=False,data='
  
 
 def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,image=False):
+    first=True,second=False,image=False,meso=False):
 
     df['group'] = df['visual_strategy_session'].astype(str)+df['hit'].astype(str)
     mapper = {
@@ -2086,6 +2160,8 @@ def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_ty
         filepath += '_second'
     if image:
         filepath += '_image_period'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -2093,7 +2169,7 @@ def compute_summary_bootstrap_strategy_hit(df,data='events',nboots=10000,cell_ty
     print('bootstrap saved to {}'.format(filepath)) 
 
 def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc',
-    first=True,second=False,image=False):
+    first=True,second=False,image=False,meso=False):
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_hit_strategy_summary_'+str(nboots)
     if first:
         filepath += '_first'
@@ -2101,6 +2177,8 @@ def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc
         filepath += '_second'
     if image:
         filepath += '_image_period'
+    if meso:
+        filepath += '_meso'
 
     filepath = filepath+'.feather'
     if os.path.isfile(filepath):
@@ -2113,10 +2191,10 @@ def get_summary_bootstrap_strategy_hit(data='events',nboots=10000,cell_type='exc
         print('file not found')
    
 def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False,image=False):
+    nboots=10000,first=True, second=False,image=False,meso=False):
     
     bootstrap = get_summary_bootstrap_strategy_hit(data, nboots,cell_type,
-        first,second,image)   
+        first,second,image,meso)   
  
     fig,ax = plt.subplots(figsize=(2.5,2.75))
     visual_hit_mean = df.query('(visual_strategy_session)&(hit==1)')['response'].mean()
@@ -2204,13 +2282,15 @@ def plot_summary_bootstrap_strategy_hit(df,cell_type,savefig=False,data='events'
             filepath += '_second'
         if image:
             filepath += '_image_period'
+        if meso:
+            filepath += '_meso'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
 
 
 def compute_summary_bootstrap_strategy_engaged_miss(df,data='events',nboots=10000,
-    cell_type='exc',first=True,second=False):
+    cell_type='exc',first=True,second=False,meso=False,image=False):
 
     df = df.query('miss==1').copy()
     df['group'] = df['visual_strategy_session'].astype(str)\
@@ -2232,6 +2312,10 @@ def compute_summary_bootstrap_strategy_engaged_miss(df,data='events',nboots=1000
         filepath += '_first'
     if second:
         filepath += '_second'
+    if meso:
+        filepath += '_meso'
+    if image:
+        filepath += '_image'
     filepath = filepath+'.feather'
 
     with open(filepath,'wb') as handle:
@@ -2240,13 +2324,17 @@ def compute_summary_bootstrap_strategy_engaged_miss(df,data='events',nboots=1000
 
 
 def get_summary_bootstrap_strategy_engaged_miss(data='events',nboots=10000,
-    cell_type='exc',first=True,second=False):
+    cell_type='exc',first=True,second=False,image=False,meso=False):
 
     filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+'_engaged_miss_strategy_summary_'+str(nboots)
     if first:
         filepath += '_first'
     if second:
         filepath += '_second'
+    if meso:
+        filepath += '_meso'
+    if image:
+        filepath += '_image'
     filepath = filepath+'.feather'
     if os.path.isfile(filepath):
         # Load this bin
@@ -2258,10 +2346,10 @@ def get_summary_bootstrap_strategy_engaged_miss(data='events',nboots=10000,
         print('file not found')
    
 def plot_summary_bootstrap_strategy_engaged_miss(df,cell_type,savefig=False,data='events',
-    nboots=10000,first=True, second=False):
+    nboots=10000,first=True, second=False,image=False,meso=False):
     
     bootstrap = get_summary_bootstrap_strategy_engaged_miss(data, nboots,cell_type,
-        first,second)   
+        first,second,image=image,meso=meso)   
  
     fig,ax = plt.subplots(figsize=(3,2.75))
     df = df.query('miss==1').copy()
@@ -2273,23 +2361,28 @@ def plot_summary_bootstrap_strategy_engaged_miss(df,cell_type,savefig=False,data
     timing_engaged_sem = np.std(bootstrap['timing_engaged'])
     visual_disengaged_sem = np.std(bootstrap['visual_disengaged'])
     timing_disengaged_sem = np.std(bootstrap['timing_disengaged'])
+    means = {}
+    means['visual_engaged'] = visual_engaged_mean
+    means['visual_disengaged'] = visual_disengaged_mean
+    means['timing_engaged'] = timing_engaged_mean
+    means['timing_disengaged'] = timing_disengaged_mean 
 
-    plt.plot(-.05,visual_engaged_mean,'o',color='darkorange',label='visual engaged')
-    plt.plot(0.05,visual_disengaged_mean,'x',color='darkorange',label='visual disengaged')
-    plt.plot(.95, timing_engaged_mean,'o',color='blue',label='timing engaged')
-    plt.plot(1.05,timing_disengaged_mean,'x',color='blue',label='timing mis')
+    plt.plot(-.05,visual_engaged_mean,'x',color='darkorange',label='visual engaged')
+    plt.plot(0.05,visual_disengaged_mean,'x',color='burlywood',label='visual disengaged')
+    plt.plot(.95, timing_engaged_mean,'x',color='blue',label='timing engaged')
+    plt.plot(1.05,timing_disengaged_mean,'x',color='lightblue',label='timing disengaged')
     plt.plot([-.05,-0.05],[visual_engaged_mean-visual_engaged_sem,
         visual_engaged_mean+visual_engaged_sem],
         '-',color='darkorange')
     plt.plot([.05,0.05],[visual_disengaged_mean-visual_disengaged_sem,
         visual_disengaged_mean+visual_disengaged_sem],
-        '-',color='darkorange')
+        '-',color='burlywood')
     plt.plot([.95,.95],[timing_engaged_mean-timing_engaged_sem,
         timing_engaged_mean+timing_engaged_sem],
         '-',color='blue')
     plt.plot([1.05,1.05],[timing_disengaged_mean-timing_disengaged_sem,
         timing_disengaged_mean+timing_disengaged_sem],
-        '-',color='blue')
+        '-',color='lightblue')
 
     mapper={
         'exc':'Excitatory',
@@ -2343,43 +2436,238 @@ def plot_summary_bootstrap_strategy_engaged_miss(df,cell_type,savefig=False,data
             filepath += '_first'
         if second:
             filepath += '_second'
+        if image:
+            filepath += '_image'
+        if meso:
+            filepath += '_meso'
+        filepath = filepath+'.svg'
+        print('Figure saved to: '+filepath)
+        plt.savefig(filepath)
+    pee = bootstrap_significance(bootstrap, 'visual_engaged','timing_engaged')
+    pdd = bootstrap_significance(bootstrap, 'visual_disengaged','timing_disengaged')
+    pved = bootstrap_significance(bootstrap, 'visual_engaged','visual_disengaged')
+    pted = bootstrap_significance(bootstrap, 'timing_engaged','timing_disengaged')
+    print_bootstrap_summary(means, bootstrap, pee,keys=['visual_engaged','timing_engaged'])
+    print_bootstrap_summary(means, bootstrap, pdd,keys=['visual_disengaged','timing_disengaged'])
+    print_bootstrap_summary(means, bootstrap, pved,keys=['visual_engaged','visual_disengaged'])
+    print_bootstrap_summary(means, bootstrap, pted,keys=['timing_engaged','timing_disengaged'])
+
+
+
+def compute_summary_bootstrap_strategy_engaged_omission(df,data='events',nboots=10000,
+    cell_type='exc',first=True,second=False,image=False,post=False,meso=False):
+
+    df['group'] = df['visual_strategy_session'].astype(str)\
+        +df['engagement_v2'].astype(str)
+    mapper = {
+        'TrueTrue':'visual_engaged',
+        'TrueFalse':'visual_disengaged',
+        'FalseTrue':'timing_engaged',
+        'FalseFalse':'timing_disengaged',
+    }
+
+    df['group'] = [mapper[x] for x in df['group']]
+    bootstrap = hb.bootstrap(df, levels=['group','ophys_experiment_id','cell_specimen_id'],
+        nboots=nboots)
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type+\
+        '_engaged_omission_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    if second:
+        filepath += '_second'
+    if post:
+        filepath += '_post'
+    if meso:
+        filepath += '_meso'
+    if image:
+        filepath += '_image'
+    filepath = filepath+'.feather'
+
+    with open(filepath,'wb') as handle:
+        pickle.dump(bootstrap, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print('bootstrap saved to {}'.format(filepath)) 
+
+def get_summary_bootstrap_strategy_engaged_omission(data='events',nboots=10000,cell_type='exc',
+    first=True,second=False,post=False,meso=False,image=False):
+
+    filepath = PSTH_DIR + data +'/bootstraps/'+cell_type\
+        +'_engaged_omission_strategy_summary_'+str(nboots)
+    if first:
+        filepath += '_first'
+    if second:
+        filepath += '_second'
+    if post:
+        filepath += '_post'
+    if meso:
+        filepath += '_meso'
+    if image:
+        filepath += '_image'
+    filepath = filepath+'.feather'
+
+    if os.path.isfile(filepath):
+        # Load this bin
+        with open(filepath,'rb') as handle:
+            this_boot = pickle.load(handle)
+        print('loading from file')
+        return this_boot
+    else:
+        print('file not found')
+
+def plot_summary_bootstrap_strategy_engaged_omission(df,cell_type,savefig=False,data='events',
+    nboots=10000,first=True, second=False,post=False,meso=False,image=False):
+   
+    bootstrap = get_summary_bootstrap_strategy_engaged_omission(data, nboots,cell_type,
+        first,second,post,meso,image)   
+
+    fig,ax = plt.subplots(figsize=(3,2.75))
+    visual_engaged_mean = df.query('(visual_strategy_session)&(engagement_v2)')['response'].mean()
+    visual_disengaged_mean = df.query('(visual_strategy_session)&(not engagement_v2)')['response'].mean()
+    timing_engaged_mean = df.query('(not visual_strategy_session)&(engagement_v2)')['response'].mean()
+    timing_disengaged_mean = df.query('(not visual_strategy_session)&(not engagement_v2)')['response'].mean()
+    visual_engaged_sem = np.std(bootstrap['visual_engaged'])
+    timing_engaged_sem = np.std(bootstrap['timing_engaged'])
+    visual_disengaged_sem = np.std(bootstrap['visual_disengaged'])
+    timing_disengaged_sem = np.std(bootstrap['timing_disengaged'])
+    means = {}
+    means['visual_engaged'] = visual_engaged_mean
+    means['visual_disengaged'] = visual_disengaged_mean
+    means['timing_engaged'] = timing_engaged_mean
+    means['timing_disengaged'] = timing_disengaged_mean 
+
+    plt.plot(-.05,visual_engaged_mean,'x',color='darkorange',label='visual engaged')
+    plt.plot(0.05,visual_disengaged_mean,'x',color='burlywood',label='visual disengaged')
+    plt.plot(.95, timing_engaged_mean,'x',color='blue',label='timing engaged')
+    plt.plot(1.05,timing_disengaged_mean,'x',color='lightblue',label='timing disengaged')
+    plt.plot([-.05,-0.05],[visual_engaged_mean-visual_engaged_sem,
+        visual_engaged_mean+visual_engaged_sem],
+        '-',color='darkorange')
+    plt.plot([.05,0.05],[visual_disengaged_mean-visual_disengaged_sem,
+        visual_disengaged_mean+visual_disengaged_sem],
+        '-',color='burlywood')
+    plt.plot([.95,.95],[timing_engaged_mean-timing_engaged_sem,
+        timing_engaged_mean+timing_engaged_sem],
+        '-',color='blue')
+    plt.plot([1.05,1.05],[timing_disengaged_mean-timing_disengaged_sem,
+        timing_disengaged_mean+timing_disengaged_sem],
+        '-',color='lightblue')
+
+    mapper={
+        'exc':'Excitatory',
+        'sst':'Sst Inhibitory',
+        'vip':'Vip Inhibitory'
+        }
+    nice_cell =mapper[cell_type] 
+
+    ax.set_ylabel(nice_cell+' \n(avg. Ca$^{2+}$ events)',fontsize=16)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.xaxis.set_tick_params(labelsize=12)
+    ax.yaxis.set_tick_params(labelsize=12)
+    ax.set_xticks([0,1])
+    ax.set_xticklabels(['Vis.','Tim.'],fontsize=16)
+    ax.set_xlim(-.5,1.5)
+    ax.set_ylim(bottom=0)
+    
+    p = bootstrap_significance(bootstrap, 'visual_engaged','timing_engaged')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.95],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0.5,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'visual_engaged','visual_disengaged')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([-.05,.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([-.05,-.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([.05,.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(0,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    p = bootstrap_significance(bootstrap, 'timing_engaged','timing_disengaged')
+    if (p < 0.05) or (p >.95):
+        ylim = ax.get_ylim()[1]
+        plt.plot([.95,1.05],[ylim*1.1,ylim*1.1],'k-')
+        plt.plot([.95,.95],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot([1.05,1.05],[ylim*1.05,ylim*1.1],'k-')
+        plt.plot(1,ylim*1.15, 'k*')
+        ax.set_ylim(top=ylim*1.2)
+
+    plt.tight_layout()   
+
+    if savefig:
+        filepath = PSTH_DIR + data +'/summary/'+cell_type+'_engaged_omission_strategy_summary_'+str(nboots)
+        if first:
+            filepath += '_first'
+        if second:
+            filepath += '_second'
+        if post:
+            filepath += '_post'
+        if meso:
+            filepath += '_meso'
+        if image:
+            filepath += '_image'
         filepath = filepath+'.svg'
         print('Figure saved to: '+filepath)
         plt.savefig(filepath)
 
+    pee = bootstrap_significance(bootstrap, 'visual_engaged','timing_engaged')
+    pdd = bootstrap_significance(bootstrap, 'visual_disengaged','timing_disengaged')
+    pved = bootstrap_significance(bootstrap, 'visual_engaged','visual_disengaged')
+    pted = bootstrap_significance(bootstrap, 'timing_engaged','timing_disengaged')
+    print_bootstrap_summary(means, bootstrap, pee,keys=['visual_engaged','timing_engaged'])
+    print_bootstrap_summary(means, bootstrap, pdd,keys=['visual_disengaged','timing_disengaged'])
+    print_bootstrap_summary(means, bootstrap, pved,keys=['visual_engaged','visual_disengaged'])
+    print_bootstrap_summary(means, bootstrap, pted,keys=['timing_engaged','timing_disengaged'])
 
 
  
 def bootstrap_significance(bootstrap, k1, k2):
     diff = np.array(bootstrap[k1]) - np.array(bootstrap[k2])
     p = np.sum(diff >= 0)/len(diff)
+    if p > 0.5:
+        p = 1-p
     return p
 
 
-def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, bin_num):
-    mapper = {
-        'exc':'Slc17a7-IRES2-Cre',
-        'sst':'Sst-IRES-Cre',
-        'vip':'Vip-IRES-Cre'
-        }
-    if response == 'image':
-        df = load_image_df(summary_df, mapper[cell_type], data)
-    elif response == 'omission':
-        df = load_omission_df(summary_df, mapper[cell_type], data)
-    compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots)
+def load_df_and_compute_running(summary_df, cell_type, response, data, nboots, 
+    bin_num,meso=False,first=False, second=False):
 
-def load_df_and_compute_engagement_running(summary_df, cell_type, response, data, nboots, bin_num):
     mapper = {
         'exc':'Slc17a7-IRES2-Cre',
         'sst':'Sst-IRES-Cre',
         'vip':'Vip-IRES-Cre'
         }
     if response == 'image':
-        df = load_image_df(summary_df, mapper[cell_type], data)
+        df = load_image_df(summary_df, mapper[cell_type], data,
+            meso=meso,first=first, second=second)
     elif response == 'omission':
-        df = load_omission_df(summary_df, mapper[cell_type], data)
-    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'visual',bin_num, nboots=nboots)
-    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'timing',bin_num, nboots=nboots)
+        df = load_omission_df(summary_df, mapper[cell_type], data,
+            meso=meso,first=first,second=second)
+    compute_running_bootstrap_bin(df,response, cell_type, bin_num, nboots=nboots,
+            meso=meso,first=first,second=second)
+
+def load_df_and_compute_engagement_running(summary_df, cell_type, response, data, 
+    nboots, bin_num,meso=False,first=False,second=False):
+
+    mapper = {
+        'exc':'Slc17a7-IRES2-Cre',
+        'sst':'Sst-IRES-Cre',
+        'vip':'Vip-IRES-Cre'
+        }
+    if response == 'image':
+        df = load_image_df(summary_df, mapper[cell_type], data,
+            meso=meso,first=first,second=second)
+    elif response == 'omission':
+        df = load_omission_df(summary_df, mapper[cell_type], data,
+            meso=meso,first=first,second=second)
+    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'visual',bin_num, 
+        nboots=nboots,meso=meso,first=first,second=second)
+    compute_engagement_running_bootstrap_bin(df,response, cell_type, 'timing',bin_num, 
+        nboots=nboots,meso=meso,first=first,second=second)
 
 
 
@@ -2536,7 +2824,7 @@ def add_hochberg_correction(table):
     return table
 
 def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, extra,
-    first=False,second=False):
+    first=False,second=False,meso=False):
     filepath = PSTH_DIR + data +'/bootstraps/' +\
         '_'.join([cell_type,response,depth,str(nboots)]+splits)
     if extra != '':
@@ -2545,6 +2833,8 @@ def get_hierarchy_filename(cell_type, response, data, depth, nboots, splits, ext
         filepath += '_first'
     if second:
         filepath += '_second'
+    if meso:
+        filepath += '_meso'
     filepath = filepath+'.feather'
     return filepath
 
@@ -2758,7 +3048,7 @@ def plot_hierarchy(hierarchy, cell_type, response, data, depth, splits, savefig=
     
     return ax
 
-def load_change_df(summary_df,cre,data='events',first=False,second=False,image=False):
+def load_change_df(summary_df,cre,data='events',first=False,second=False,image=False,meso=False):
 
     # Load everything
     df = bd.load_population_df(data,'image_df',cre,first=first,second=second,image=image)
@@ -2770,22 +3060,26 @@ def load_change_df(summary_df,cre,data='events',first=False,second=False,image=F
     experiment_table = glm_params.get_experiment_table()
     df = bd.add_area_depth(df,experiment_table)
     df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
-    'binned_depth']],on='ophys_experiment_id')
+    'binned_depth','equipment_name']],on='ophys_experiment_id')
     df = pd.merge(df, summary_df[['behavior_session_id',
         'visual_strategy_session','experience_level']])
 
     # limit to familiar
     df = df.query('experience_level == "Familiar"')
+    
+    # limit to meso
+    if meso:
+        df = df.query('equipment_name == "MESO.1"').copy()
 
     return df
 
-def load_image_df(summary_df, cre,data='events',first=False,second=False):
+def load_image_df(summary_df, cre,data='events',first=False,second=False,meso=False,image=False):
     '''
         This function is optimized for memory conservation
     '''
 
     # Load everything
-    df = bd.load_population_df(data,'image_df',cre,first=first,second=second)
+    df = bd.load_population_df(data,'image_df',cre,first=first,second=second,image=image)
 
     # Drop changes and omissions
     df.drop(df[df['is_change'] | df['omitted']].index,inplace=True)
@@ -2800,7 +3094,11 @@ def load_image_df(summary_df, cre,data='events',first=False,second=False):
     experiment_table = glm_params.get_experiment_table()
     df = bd.add_area_depth(df, experiment_table)
     df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
-        'binned_depth']],on='ophys_experiment_id')
+        'binned_depth','equipment_name']],on='ophys_experiment_id')
+
+    # Limit to Mesoscope
+    if meso:
+        df = df.query('equipment_name == "MESO.1"').copy()
 
     return df
 
@@ -2824,7 +3122,7 @@ def load_image_and_change_df(summary_df, cre,data='events',first=False,second=Fa
         'binned_depth']],on='ophys_experiment_id')
     return df
 
-def load_omission_df(summary_df, cre, data='events',first=False,second=False):
+def load_omission_df(summary_df, cre, data='events',first=False,second=False,meso=False):
     # load everything
     df = bd.load_population_df(data,'image_df',cre,first=first,second=second)
     
@@ -2841,7 +3139,11 @@ def load_omission_df(summary_df, cre, data='events',first=False,second=False):
     experiment_table = glm_params.get_experiment_table()
     df = bd.add_area_depth(df, experiment_table)
     df = pd.merge(df, experiment_table.reset_index()[['ophys_experiment_id',
-        'binned_depth']],on='ophys_experiment_id')
+        'binned_depth','equipment_name']],on='ophys_experiment_id')
+
+    # Limit to Mesoscope
+    if meso:
+        df = df.query('equipment_name == "MESO.1"').copy()
     return df
 
 def load_vip_omission_df(summary_df,bootstrap=False,data='events'):
@@ -3196,4 +3498,93 @@ def plot_equipment_comparison_inner(df,cell_type,comparison_type,depths,data,sav
 
 
 
+def bootstrap_summary_multiple_comparisons():
+    tests = {}
 
+    # Vip, image repeats, comparing strategies
+    vip_image = get_summary_bootstrap_image_strategy(cell_type='vip',second=True,first=False,
+        meso=True)
+    p = bootstrap_significance(vip_image,'visual','timing')
+    tests['vip_image']=p
+
+    # Sst, image repeats, comparing strategies
+    sst_image = get_summary_bootstrap_image_strategy(cell_type='sst',second=False,first=True,
+        meso=True)
+    p = bootstrap_significance(sst_image,'visual','timing')
+    tests['sst_image']=p
+
+    # Sst, omissions, comparing strategies    
+    sst_omission = get_summary_bootstrap_omission_strategy(cell_type='sst',first=False,
+        second=True,meso=True)
+    p = bootstrap_significance(sst_omission,'visual','timing')
+    tests['sst_omission']=p
+
+    # Vip, omissions, comparing strategies
+    vip_omission = get_summary_bootstrap_omission_strategy(cell_type='vip',first=False,second=False,
+        meso=True)
+    p = bootstrap_significance(vip_omission,'visual','timing')
+    tests['vip_omission']=p   
+
+    # Exc, changes, comparing strategies
+    exc_hit = get_summary_bootstrap_strategy_hit(cell_type='exc', first=False, second=False,
+        image=True,meso=True)
+    phh = bootstrap_significance(exc_hit, 'visual_hit','timing_hit')
+    pvhm = bootstrap_significance(exc_hit, 'visual_hit','visual_miss')
+    tests['exc_hit_hit']=phh
+    tests['exc_visual_hit_miss']=pvhm
+
+    # Sst, changes, comparing strategies
+    sst_hit = get_summary_bootstrap_strategy_hit(cell_type='sst', first=False, second=True,
+        image=False,meso=True)
+    phh = bootstrap_significance(sst_hit, 'visual_hit','timing_hit')
+    pvhm = bootstrap_significance(sst_hit, 'visual_hit','visual_miss')
+    tests['sst_hit_hit']=phh
+    tests['sst_visual_hit_miss']=pvhm
+
+    # Vip, changes, comparing strategies
+    vip_hit = get_summary_bootstrap_strategy_pre_change(cell_type='vip', first=False, second=True,
+        meso=True)
+    phh = bootstrap_significance(vip_hit, 'visual_hit','timing_hit')
+    pmm = bootstrap_significance(vip_hit, 'visual_miss','timing_miss')
+    pvhm = bootstrap_significance(vip_hit, 'visual_hit','visual_miss')
+    tests['vip_hit_hit']=phh
+    tests['vip_miss_miss']=pmm
+    tests['vip_visual_hit_miss']=pvhm
+
+    ## Engagement
+    # Exc, misses, comparing engagement 
+    exc_miss = get_summary_bootstrap_strategy_engaged_miss(data='events',nboots=10000,
+        cell_type='exc',first=False,second=False,image=True,meso=True)
+    pved = bootstrap_significance(exc_miss, 'visual_engaged','visual_disengaged')
+    tests['exc_misses_visual_engaged_disengaged']=pved
+
+    # Exc, post omission, comparing engagement
+    exc_post_engagement = get_summary_bootstrap_strategy_engaged_omission(data='events',
+        nboots=10000,cell_type = 'exc', first=False, second=False, image=True,meso=True,post=True)
+    pved = bootstrap_significance(exc_post_engagement, 'visual_engaged','visual_disengaged')
+    tests['exc_post_omission_visual_engaged_disengaged']=pved  
+
+    #return tests
+    tests = pd.DataFrame.from_dict(tests,orient='index')
+    tests = tests.rename(columns = {0:'p'})
+    tests['p'] = [1-p if p > .5 else p for p in tests['p']]
+    
+    tests = tests.reset_index()
+    tests = tests.rename(columns={
+        'index':'location',
+        'p':'p_boot'
+        })
+    tests['significant'] = tests['p_boot'] < 0.05
+    tests = add_hochberg_correction(tests)
+
+    cols=['location','p_boot','imq','bh_significant']
+    print('\nThe following tests are significant with multiple comparisons corrections: ')
+    print(tests.query('bh_significant').sort_values(by='imq')[cols])   
+
+    print('\nThe following significant tests do not survive multiple comparisons corrections:')
+    print(tests.query('significant & (not bh_significant)').sort_values(by='imq')[cols])
+
+    print('\nThe following tests were not significant:')
+    print(tests.query('not significant').sort_values(by='imq')[cols])
+
+    return tests

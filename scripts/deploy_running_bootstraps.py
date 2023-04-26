@@ -18,7 +18,10 @@ def already_fit(row):
         'all',
         row.nboots,
         ['visual_strategy_session'],
-        'running_engaged_{}_{}'.format('visual',row.bin_num))
+        'running_engaged_{}_{}'.format('visual',row.bin_num),
+        meso=True,
+        first=False,
+        second=False)
     filename2 = psth.get_hierarchy_filename(
         row.cell_type,
         row.response,
@@ -26,15 +29,30 @@ def already_fit(row):
         'all',
         row.nboots,
         ['visual_strategy_session'],
-        'running_engaged_{}_{}'.format('timing',row.bin_num))
+        'running_engaged_{}_{}'.format('timing',row.bin_num),
+        meso=True,
+        first=False,
+        second=False)
     return os.path.exists(filename1) & os.path.exists(filename2)
+    #filename = psth.get_hierarchy_filename(
+    #    row.cell_type,
+    #    row.response,
+    #    row['data'],
+    #    'all',
+    #    row.nboots,
+    #    ['visual_strategy_session'],
+    #    'running_engaged_{}_{}'.format('timing',row.bin_num),
+    #    meso=True,
+    #    first=False,
+    #    second=True)
+    #return os.path.exists(filename)
 
 def get_bootstrap_jobs():
     nboots=10000
     base_jobs = [
         #{'cell_type':'exc','response':'image','data':'events','nboots':nboots}, 
         #{'cell_type':'sst','response':'image','data':'events','nboots':nboots},
-        {'cell_type':'vip','response':'image','data':'events','nboots':nboots}, 
+        #{'cell_type':'vip','response':'image','data':'events','nboots':nboots}, 
         #{'cell_type':'exc','response':'omission','data':'events','nboots':nboots},
         #{'cell_type':'sst','response':'omission','data':'events','nboots':nboots},
         {'cell_type':'vip','response':'omission','data':'events','nboots':nboots}
@@ -79,15 +97,15 @@ if __name__ == "__main__":
             print('starting cluster job. job count = {}'.format(job_count))
             print('   ' + args_string)
             job_title = 'bootstraps'
-            walltime = '10:00:00'
-            mem = '100gb'
+            walltime = '5:00:00'
+            mem = '50gb'
             job_id = Slurm.JOB_ARRAY_ID
             job_array_id = Slurm.JOB_ARRAY_MASTER_ID
             output = stdout_location+"/"+str(job_array_id)+"_"+str(job_id)+"_bootstrap.out"
             
             # instantiate a SLURM object
             slurm = Slurm(
-                cpus_per_task=4,
+                cpus_per_task=1,
                 job_name=job_title,
                 time=walltime,
                 mem=mem,

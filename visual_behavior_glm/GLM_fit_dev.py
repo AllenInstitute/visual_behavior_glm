@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
 import visual_behavior_glm.GLM_clustering as gc
 import visual_behavior_glm.GLM_across_session as gas
 import visual_behavior_glm.GLM_params as glm_params
@@ -356,6 +357,25 @@ def get_analysis_dfs(VERSION):
         results_summary=results
         )
     weights_df = gat.build_weights_df(run_params, results_pivoted)  
+    return run_params, results, results_pivoted, weights_df
+
+def load_analysis_dfs(VERSION):
+    OUTPUT_DIR_BASE = r'//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm'
+    r_filename = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(VERSION), 'results.pkl')
+    rp_filename = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(VERSION), 'results_pivoted.pkl')
+    weights_filename = os.path.join(OUTPUT_DIR_BASE, 'v_'+str(VERSION), 'weights_df.pkl')
+
+    print('loading run_params')
+    run_params = glm_params.load_run_json(VERSION) 
+
+    print('loading results df')
+    results = pd.read_pickle(r_filename)
+
+    print('loading results_pivoted df')
+    results_pivoted = pd.read_pickle(rp_filename)
+
+    print('loading weights_df')
+    weights_df = pd.read_pickle(weights_filename)
     return run_params, results, results_pivoted, weights_df
 
 def make_baseline_figures(VERSION=None,run_params=None, results=None, results_pivoted=None, full_results=None, weights_df = None):

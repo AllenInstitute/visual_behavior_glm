@@ -32,19 +32,11 @@ from visual_behavior_glm.glm import GLM
 import matplotlib.pyplot as plt
 plt.ion()
 
-
-
 ### Define model version
 VERSION = '24_events_all_L2_optimize_by_session'
 
-
-
 ### Load data
-# This function requires access to Allen Institute internal resources
-# I should save out these dataframes to a file
-# Takes abouts 10 minutes to load and process data
-run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
-
+run_params, results, results_pivoted, weights_df = gfd.load_analysis_dfs(VERSION)
 
 
 ### Main paper figures

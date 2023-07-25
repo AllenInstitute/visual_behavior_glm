@@ -1,7 +1,9 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='visual-behavior-glm',
-      packages=['visual_behavior_glm'],
+      # packages=['visual_behavior_glm'],
+      packages=find_packages(exclude=("notebooks","documents")),
+      include_package_data=True, 
       version='0.0.1',
       description='GLM for Visual Behavior ophys data',
       url='https://github.com/AllenInstitute/visual_behavior_glm',

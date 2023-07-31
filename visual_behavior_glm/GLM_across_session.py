@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -9,6 +10,13 @@ import visual_behavior.data_access.utilities as utilities
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
+
+def load_across_session(run_params):
+    glm_version = run_params['version']
+    across_run_params = make_across_run_params(glm_version)
+    filename = os.path.join(run_params['output_dir'],'across_df.pkl')
+    across_df = pd.read_pickle(filename)
+    return across_run_params, across_df
 
 def make_across_run_params(glm_version):
     '''

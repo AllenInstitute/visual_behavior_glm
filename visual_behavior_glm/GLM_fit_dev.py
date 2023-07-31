@@ -305,6 +305,9 @@ if False: # Code snippets for doing analyses.
     version = '24_events_all_L2_optimize_by_session'
     across_run_params = gas.make_across_run_params(version)
     across_df, fail_to_load = gas.load_cells(glm_version=version)
+    
+    # easy access function
+    across_run_params, across_df = gas.load_cells(run_params)
 
     # Add kernel excitation labels
     across_df = gas.append_kernel_excitation_across(weights_df, across_df)

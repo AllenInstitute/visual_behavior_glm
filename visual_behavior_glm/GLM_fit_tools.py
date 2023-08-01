@@ -39,7 +39,9 @@ def load_fit_experiment(ophys_experiment_id, run_params):
         fit         fit dictionary with model results
         design      DesignMatrix object for this experiment
     '''
+    print('loading fit')
     fit = gat.load_fit_pkl(run_params, ophys_experiment_id)
+    print('loading sdk object')
     session = load_data(ophys_experiment_id, run_params)
     
     # num_weights gets populated during stimulus interpolation

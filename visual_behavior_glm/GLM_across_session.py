@@ -23,7 +23,8 @@ def make_across_run_params(glm_version):
         Makes a dummy dictionary with the figure directory hard coded
         This is only used as a quick fix for saving figures
     '''
-    figdir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/figures/across_session/'
+    figdir = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
+        +glm_version+'/figures/across_session/'
     run_params = {}
     run_params['version'] = glm_version+'_across'
     run_params['figure_dir'] = figdir[:-1]
@@ -53,7 +54,8 @@ def fraction_same(across_df):
 
     for dropout in dropouts:
         across_df[dropout+'_same'] = across_df[dropout+'_within'] == across_df[dropout+'_across']
-    x = across_df.groupby(['cre_line','experience_level'])[['omissions_same','all-images_same','behavioral_same','task_same']].mean()
+    x = across_df.groupby(['cre_line','experience_level'])[['omissions_same','all-images_same',\
+        'behavioral_same','task_same']].mean()
     print(x)
     return across_df
 
@@ -84,7 +86,8 @@ def plot_dropout(across_df, dropout, ax):
     colors = gvt.project_colors()
     for elevel in experience_levels:
         eacross_df = across_df.query('experience_level == @elevel')
-        ax.plot(-eacross_df[dropout+'_within'],-eacross_df[dropout+'_across'],'o',color=colors[elevel])
+        ax.plot(-eacross_df[dropout+'_within'],-eacross_df[dropout+'_across'],'o',\
+            color=colors[elevel])
     ax.set_xlabel(dropout+' within',fontsize=18)
     ax.set_ylabel(dropout+' across',fontsize=18)
     ax.tick_params(axis='both',labelsize=16)
@@ -92,7 +95,8 @@ def plot_dropout(across_df, dropout, ax):
 def get_cell_list(glm_version):
     run_params = glm_params.load_run_json(glm_version)
     include_4x2_data = run_params['include_4x2_data']
-    cells_table = loading.get_cell_table(platform_paper_only=True,include_4x2_data=include_4x2_data).reset_index()
+    cells_table = loading.get_cell_table(platform_paper_only=True,\
+        include_4x2_data=include_4x2_data).reset_index()
     cells_table['passive'] = cells_table['passive'].astype(bool)
     cells_table = cells_table.query('not passive').copy()
     cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
@@ -124,11 +128,13 @@ def load_cells(glm_version,clean_df=True):
     print('Loading across session normalized dropout scores')
     for cell in tqdm(cells):
         try:
-            filename = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell)+'.csv'
+            filename = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
+                +glm_version+'/across_session/'+str(cell)+'.csv'
             score_df = pd.read_csv(filename)
             score_df['cell_specimen_id'] = cell
             if clean_df:
-                columns = ['ophys_experiment_id','cell_specimen_id']+[x for x in score_df.columns if ('_within' in x) or ('_across' in x)]
+                columns = ['ophys_experiment_id','cell_specimen_id']+\
+                    [x for x in score_df.columns if ('_within' in x) or ('_across' in x)]
                 score_df = score_df[columns]
             else:
                 score_df = score_df.drop(columns=['fit_index'],errors='ignore')

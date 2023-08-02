@@ -189,7 +189,7 @@ def compute_many_cells(cells,glm_version):
         except:
             print(str(cell) +' crashed')
  
-def across_session_normalization(cell_specimen_id, glm_version):
+def across_session_normalization(cell_specimen_id, glm_version,do_folds=True):
     '''
         Computes the across session normalization for a cell
         This is very slow because we have to load the design matrices for each object
@@ -198,9 +198,18 @@ def across_session_normalization(cell_specimen_id, glm_version):
     '''
     run_params = glm_params.load_run_json(glm_version)
     data = get_across_session_data(run_params,cell_specimen_id)
-    score_df = compute_across_session_dropouts(data, run_params, cell_specimen_id)
-    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'+glm_version+'/across_session/'+str(cell_specimen_id)+'.csv' 
-    score_df.to_csv(filename)
+    if not do_folds:
+        score_df = compute_across_session_dropouts(data, run_params, cell_specimen_id)
+        filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
+            +glm_version+'/across_session/'+str(cell_specimen_id)+'.csv' 
+        score_df.to_csv(filename)
+
+    if do_folds:
+        for i in range(0,5):
+            score_df = compute_across_session_dropouts(data, run_params, cell_specimen_id,fold)
+            filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
+                +glm_version+'/across_session/'+str(cell_specimen_id)+'_{}.csv'.format(fold) 
+            score_df.to_csv(filename)
 
     return data, score_df
 
@@ -354,4 +363,207 @@ def append_kernel_excitation_across(weights_df, across_df):
         assert np.all(across_df[kernel+'_across_negative']<=0), "Dropout scores must be negative"
     return across_df
 
+def build_cv_across_dataframe_from_dropouts(fit,run_params,fold):
+    '''
+        INPUTS:
+        threshold (0.005 default) is the minimum amount of variance explained by the full model. The minimum amount of variance explained by a dropout model        
 
+        Returns a dataframe with 
+        Index: Cell specimen id
+        Columns: Average (across CV folds) variance explained on the test and training sets for each model defined in fit['dropouts']
+    '''
+        
+    cellids = fit['fit_trace_arr']['cell_specimen_id'].values
+    results = pd.DataFrame(index=pd.Index(cellids, name='cell_specimen_id'))
+    
+    # Determines the minimum variance explained for the full model
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']   
+    else:
+        threshold = 0.005
+    
+    # Determines whether to record VE and dropout scores without dealing with -Inf on CV splits with no activity
+    if 'compute_with_infs' in run_params:
+        compute_with_infs = run_params['compute_with_infs']
+    else:
+        compute_with_infs = True
+
+    # Check for cells with no activity in entire trace
+    nan_cells = np.where(np.all(fit['fit_trace_arr'] == 0, axis=0))[0]
+    if len(nan_cells) > 0:
+        print('I found {} cells with all 0 in the fit_trace_arr'.format(len(nan_cells)))
+        if not run_params['use_events']:
+            raise Exception('All 0 in df/f trace')
+        else:
+            print('Setting Variance Explained to 0')
+            fit['nan_cell_ids'] = fit['fit_trace_arr'].cell_specimen_id.values[nan_cells]
+ 
+    # Iterate over models
+    for model_label in fit['dropouts'].keys():
+        # Screen for cells with all 0, and set their variance explained to 0
+        if len(nan_cells) > 0:
+            fit['dropouts'][model_label]['cv_var_train'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_var_test'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_adjvar_train'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_adjvar_test'][nan_cells,:] = 0     
+            fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'][nan_cells,:] = 0     
+
+        # For each model, average over CV splits for variance explained on train/test
+        # The CV splits can have NaN for variance explained on the training set if the cell had no detected events in that split
+        # Similarly, the test set will have negative infinity. The negative infinities are set to 0 before averaging across CV splits
+        # if `compute_with_infs` is True, then a version of the variance explained and dropout scores will be logged where the negative
+        # infinities are not set to 0. This is just for debugging purposes.
+        results[model_label+"__avg_cv_var_train"] = fit['dropouts'][model_label]['cv_var_train'][:,fold] 
+        if compute_with_infs:
+            results[model_label+"__avg_cv_var_train_raw"] = fit['dropouts'][model_label]['cv_var_train'][:,fold]
+            results[model_label+"__avg_cv_var_test_raw"]  = fit['dropouts'][model_label]['cv_var_test'][:,fold] 
+            results[model_label+"__avg_cv_var_test_full_comparison_raw"] = fit['dropouts']['Full']['cv_var_test'][:,fold]
+ 
+        # Screen for -Inf values in dropout model
+        temp = fit['dropouts'][model_label]['cv_var_test']
+        temp[np.isinf(temp)] = 0 
+        results[model_label+"__avg_cv_var_test"]  = temp[:,fold]
+    
+        # Screen for -Inf values in full model
+        full_temp = fit['dropouts']['Full']['cv_var_test']
+        full_temp[np.isinf(full_temp)] = 0 
+        results[model_label+"__avg_cv_var_test_full_comparison"] = full_temp[:,fold]
+
+        # For each model, average over CV splits for adjusted variance explained on train/test, and the full model comparison
+        # If a CV split did not have an event in a test split, so the kernel has no support, the CV is NAN. Here we use nanmean to
+        # ignore those CV splits without information
+        results[model_label+"__avg_cv_adjvar_train"] = fit['dropouts'][model_label]['cv_adjvar_train'][:,fold]
+        if compute_with_infs:
+            results[model_label+"__avg_cv_adjvar_test_raw"] = fit['dropouts'][model_label]['cv_adjvar_test'][:,fold]
+            results[model_label+"__avg_cv_adjvar_test_full_comparison_raw"] = fit['dropouts'][model_label]['cv_adjvar_test_full_comparison'][:,fold]
+    
+        # Screen for -Inf values in dropout model
+        temp = fit['dropouts'][model_label]['cv_adjvar_test']
+        temp[np.isinf(temp)] = 0 
+        results[model_label+"__avg_cv_adjvar_test"]  = temp[:,fold] 
+
+        # Screen for -Inf values in dropout model
+        full_temp = fit['dropouts'][model_label]['cv_adjvar_test_full_comparison']
+        full_temp[np.isinf(full_temp)] = 0 
+        results[model_label+"__avg_cv_adjvar_test_full_comparison"] = full_temp[:,fold] 
+        
+        # Clip the variance explained values to >= 0
+        results.loc[results[model_label+"__avg_cv_var_test"] < 0,model_label+"__avg_cv_var_test"] = 0
+        results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < 0,model_label+"__avg_cv_var_test_full_comparison"] = 0
+        results.loc[results[model_label+"__avg_cv_adjvar_test"] < 0,model_label+"__avg_cv_adjvar_test"] = 0
+        results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < 0,model_label+"__avg_cv_adjvar_test_full_comparison"] = 0
+        if compute_with_infs:
+            results.loc[results[model_label+"__avg_cv_var_test_raw"] < 0,model_label+"__avg_cv_var_test_raw"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison_raw"] < 0,model_label+"__avg_cv_var_test_full_comparison_raw"] = 0
+            results.loc[results[model_label+"__avg_cv_adjvar_test_raw"] < 0,model_label+"__avg_cv_adjvar_test_raw"] = 0
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison_raw"] < 0,model_label+"__avg_cv_adjvar_test_full_comparison_raw"] = 0
+
+        # Compute the absolute change in variance
+        results[model_label+"__absolute_change_from_full"] = results[model_label+"__avg_cv_var_test"] - results[model_label+"__avg_cv_var_test_full_comparison"] 
+
+        # Compute the dropout scores, which is dependent on whether this was a single-dropout or not
+        if fit['dropouts'][model_label]['is_single']:  
+            # Compute the dropout
+            results[model_label+"__dropout"] = -results[model_label+"__avg_cv_var_test"]/results[model_label+"__avg_cv_var_test_full_comparison"]
+            results[model_label+"__adj_dropout"] = -results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]
+            if compute_with_infs:
+                results[model_label+"__adj_dropout_raw"] = -results[model_label+"__avg_cv_adjvar_test_raw"]/results[model_label+"__avg_cv_adjvar_test_full_comparison_raw"]
+
+            # Cleaning Steps, careful eye here! 
+            # If the single-dropout explained more variance than the full_comparison, clip dropout to -1
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = -1 
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < results[model_label+"__avg_cv_var_test"], model_label+"__dropout"] = -1
+            if compute_with_infs:
+                results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison_raw"] < results[model_label+"__avg_cv_adjvar_test_raw"], model_label+"__adj_dropout_raw"] = -1 
+
+            # If the single-dropout explained less than THRESHOLD variance, clip dropout to 0            
+            results.loc[results[model_label+"__avg_cv_adjvar_test"] < threshold, model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test"] < threshold, model_label+"__dropout"] = 0
+            if compute_with_infs:
+                results.loc[results[model_label+"__avg_cv_adjvar_test_raw"] < threshold, model_label+"__adj_dropout_raw"] = 0
+    
+            # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0.
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0
+            if compute_with_infs:
+                results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison_raw"] < threshold, model_label+"__adj_dropout_raw"] = 0
+        else:
+            # Compute the dropout
+            if compute_with_infs:
+                results[model_label+"__adj_dropout_raw"] = -(1-results[model_label+"__avg_cv_adjvar_test_raw"]/results[model_label+"__avg_cv_adjvar_test_full_comparison_raw"]) 
+            results[model_label+"__adj_dropout"] = -(1-results[model_label+"__avg_cv_adjvar_test"]/results[model_label+"__avg_cv_adjvar_test_full_comparison"]) 
+            results[model_label+"__dropout"] = -(1-results[model_label+"__avg_cv_var_test"]/results[model_label+"__avg_cv_var_test_full_comparison"]) 
+   
+            # Cleaning Steps, careful eye here!             
+            # If the dropout explained more variance than the full_comparison, clip the dropout to 0
+            if compute_with_infs:
+                results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison_raw"] < results[model_label+"__avg_cv_adjvar_test_raw"], model_label+"__adj_dropout_raw"] = 0
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < results[model_label+"__avg_cv_adjvar_test"], model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < results[model_label+"__avg_cv_var_test"], model_label+"__dropout"] = 0
+
+            # If the full_comparison model explained less than THRESHOLD variance, clip the dropout to 0
+            if compute_with_infs:
+                results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison_raw"] < threshold, model_label+"__adj_dropout_raw"] = 0
+            results.loc[results[model_label+"__avg_cv_adjvar_test_full_comparison"] < threshold, model_label+"__adj_dropout"] = 0
+            results.loc[results[model_label+"__avg_cv_var_test_full_comparison"] < threshold, model_label+"__dropout"] = 0
+
+    ## Check for NaNs in any column 
+    assert results['Full__avg_cv_var_test'].isnull().sum() == 0, "NaNs in variance explained"  
+    assert results['Full__avg_cv_var_train'].isnull().sum() == 0, "NaNs in variance explained"  
+
+    return results
+
+def compute_cv_across_session_dropouts(data, run_params, cell_specimen_id,fold):
+    '''
+        Computes the across session dropout scores
+        data                a dictionary containing the session object, fit dictionary, 
+                            and design matrix for each experiment
+        run_params          the paramater dictionary for this version
+        cell_speciemn_id    the cell to compute the dropout scores for
+    
+    '''
+
+    # Set up a dataframe to store across session coding scores
+    df = pd.DataFrame()
+    df['ophys_experiment_id'] =data['ophys_experiment_id']
+    score_df = df.set_index('ophys_experiment_id')
+    
+    # Get list of dropouts to compute across session coding score
+    dropouts = ['omissions','all-images','behavioral','task']
+
+    # Iterate across three sessions to get VE of the dropout and full model
+    for oeid in score_df.index.values:
+        # Get the full comparison values and test values
+        results_df = build_cv_across_dataframe_from_dropouts(data[str(oeid)+'_fit'], run_params,fold)
+
+        # Iterate over dropouts
+        for dropout in dropouts:
+            score_df.at[oeid, dropout] = results_df.loc[cell_specimen_id][dropout+'__avg_cv_adjvar_test']
+            score_df.at[oeid, dropout+'_fc'] = results_df.loc[cell_specimen_id][dropout+'__avg_cv_adjvar_test_full_comparison']
+            score_df.at[oeid, dropout+'_within'] = results_df.loc[cell_specimen_id][dropout+'__adj_dropout']
+
+            # Get number of timestamps each kernel was active
+            dropped_kernels = set(run_params['dropouts'][dropout]['dropped_kernels'])
+            design_kernels = set(data[str(oeid)+'_design'].kernel_dict.keys())
+            X = data[str(oeid)+'_design'].get_X(kernels=design_kernels.intersection(dropped_kernels))
+            score_df.at[oeid, dropout+'_timestamps'] = np.sum(np.sum(np.abs(X.values),axis=1) > 0)
+
+    # Iterate over dropouts and compute coding scores
+    for dropout in dropouts:
+
+        # Adjust variance explained based on number of timestamps
+        score_df[dropout+'_pt'] = score_df[dropout]/score_df[dropout+'_timestamps']   
+        score_df[dropout+'_fc_pt'] = score_df[dropout+'_fc']/score_df[dropout+'_timestamps'] 
+
+        # Determine which session had the highest variance explained    
+        score_df[dropout+'_max'] = score_df[dropout+'_fc_pt'].max()
+
+        # calculate across session coding scores
+        score_df[dropout+'_across'] = -(score_df[dropout+'_fc_pt'] - score_df[dropout+'_pt'])/(score_df[dropout+'_max'])
+        score_df.loc[score_df[dropout+'_across'] > 0,dropout+'_across'] = 0
+
+        # Cleaning step for low VE dropouts
+        score_df.loc[score_df[dropout+'_within'] == 0,dropout+'_across'] = 0
+
+    return score_df 
+ 

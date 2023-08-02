@@ -3197,12 +3197,12 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
     dax3.set_xticks([])   
     #dax3.set_xticks([dax3.get_xlim()[1]/2])
     #dax3.set_xticklabels(['Coding\n Score'],rotation=-70,fontsize=16)
-    #if savefig:
-    #    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.svg')
-    #    plt.savefig(filename) 
-    #    print('Figure saved to: '+filename)
-    #    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.png')
-    #    plt.savefig(filename) 
+    if savefig:
+        filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout_by_experience'+extra+cell_filter+'.svg')
+        plt.savefig(filename) 
+        print('Figure saved to: '+filename)
+        filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout_by_experience'+extra+cell_filter+'.png')
+        plt.savefig(filename) 
     return zlims
 
 
@@ -4965,13 +4965,13 @@ def plot_dropout_summary_population_with_experience(results, run_params,dropouts
         extra=''
     if savefig:
         if use_violin:
-            filename = run_params['figure_dir']+'/dropout_summary'+extra+'.svg'
+            filename = run_params['figure_dir']+'/dropout_summary'+extra+'_by_experience.svg'
             plt.savefig(filename)
         else:
-            filename = run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'.svg'
+            filename = run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'_by_experience.svg'
             print('Figure saved to: '+filename)
             plt.savefig(filename)
-            plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'.png')
+            plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'_by_experience.png')
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe() 
 
 def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,dropout_cleaning_threshold=None, exclusion_threshold=None,savefig=False): 

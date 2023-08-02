@@ -2243,6 +2243,189 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot_err
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
+def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results=False, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level',plot_dropout_sorted=True):  
+    '''
+        Plots the average kernel for each cell line. 
+        Plots the heatmap of the kernels sorted by time. 
+        Plots the distribution of dropout scores for this kernel.   
+        Does that analysis for all cells, just cells with a significant variance_explained, and just cells with a significant dropout score. 
+
+        INPUTS:
+        run_params              = glm_params.load_run_params(<version>) 
+        results_pivoted         = gat.build_pivoted_results_summary('adj_fraction_change_from_full',results_summary=results)
+        weights_df              = gat.build_weights_df(run_params, results_pivoted)
+        kernel                  The name of the kernel to be plotted
+        save_results            if True, saves a figure to the directory in run_params['output_dir']
+        drop_threshold,         the minimum adj_fraction_change_from_full for the dropout model of just dropping this kernel
+        session_filter,         The list of session numbers to include
+        equipment_filter,       "scientifica" or "mesoscope" filter, anything else plots both 
+    '''
+    
+    # Check for confusing sign
+    if drop_threshold > 0:
+        print('Are you sure you dont want to use -'+str(drop_threshold)+' ?')
+    if drop_threshold <= -1:
+        print('Are you sure you mean to use a drop threshold beyond -1?')
+
+    # Filter by Equipment
+    filter_string=''
+    equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5","MESO.1"]
+    if equipment_filter == "scientifica": 
+        equipment_list = ["CAM2P.3","CAM2P.4","CAM2P.5"]
+        filter_string += '_scientifica'
+    elif equipment_filter == "mesoscope":
+        equipment_list = ["MESO.1"]
+        filter_string += '_mesoscope'
+    
+    # Filter by Cell Type    
+    cell_list = ['Sst-IRES-Cre','Slc17a7-IRES2-Cre','Vip-IRES-Cre']     
+    if (cell_filter == "sst") or (cell_filter == "Sst-IRES-Cre"):
+        cell_list = ['Sst-IRES-Cre']
+        filter_string += '_sst'
+    elif (cell_filter == "vip") or (cell_filter == "Vip-IRES-Cre"):
+        cell_list = ['Vip-IRES-Cre']
+        filter_string += '_vip'
+    elif (cell_filter == "slc") or (cell_filter == "Slc17a7-IRES2-Cre"):
+        cell_list = ['Slc17a7-IRES2-Cre']
+        filter_string += '_slc'
+
+    # Determine filename
+    if session_filter != ['Familiar','Novel 1','Novel >1']:
+        filter_string+= '_sessions_'+'_'.join([str(x) for x in session_filter])   
+    if depth_filter !=[0,1000]:
+        filter_string+='_depth_'+str(depth_filter[0])+'_'+str(depth_filter[1])
+    if area_filter != ['VISp','VISl']:
+        filter_string+='_area_'+'_'.join(area_filter)
+    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_evaluation_'+filter_string+'.png')
+    filename_svg = os.path.join(run_params['fig_kernels_dir'],kernel+'_evaluation_'+filter_string+'.svg')
+    problem_sessions = get_problem_sessions()
+
+    # Filter by overall VE
+    if 'dropout_threshold' in run_params:
+        threshold = run_params['dropout_threshold']
+    else:
+        threshold = 0.005
+
+    # Set up time vectors.
+    if kernel in ['preferred_image', 'all-images']:
+        run_params['kernels'][kernel] = run_params['kernels']['image0'].copy()
+    if kernel == 'all-omissions':
+        run_params['kernels'][kernel] = run_params['kernels']['omissions'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['omissions']['length'] + run_params['kernels']['post-omissions']['length']
+    if kernel == 'all-hits':
+        run_params['kernels'][kernel] = run_params['kernels']['hits'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['hits']['length'] + run_params['kernels']['post-hits']['length']   
+    if kernel == 'all-misses':
+        run_params['kernels'][kernel] = run_params['kernels']['misses'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['misses']['length'] + run_params['kernels']['post-misses']['length']   
+    if kernel == 'all-passive_change':
+        run_params['kernels'][kernel] = run_params['kernels']['passive_change'].copy()
+        run_params['kernels'][kernel]['length'] = run_params['kernels']['passive_change']['length'] + run_params['kernels']['post-passive_change']['length']   
+    if kernel == 'task':
+        run_params['kernels'][kernel] = run_params['kernels']['hits'].copy()   
+    time_vec = np.arange(run_params['kernels'][kernel]['offset'], run_params['kernels'][kernel]['offset'] + run_params['kernels'][kernel]['length'],1/31)
+    time_vec = np.round(time_vec,2)
+    if 'image' in kernel:
+        time_vec = time_vec[:-1]
+    if ('omissions' == kernel) & ('post-omissions' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('hits' == kernel) & ('post-hits' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('misses' == kernel) & ('post-misses' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+    if ('passive_change' == kernel) & ('post-passive_change' in run_params['kernels']):
+        time_vec = time_vec[:-1]
+
+    # Make dropout list
+    drop_list = [d for d in run_params['dropouts'].keys() if (
+                    (run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['kernels'])) 
+                    or ((not run_params['dropouts'][d]['is_single']) & (kernel in run_params['dropouts'][d]['dropped_kernels']))]
+    if (len(drop_list) == 0) & (kernel == 'all-images'):
+        drop_list = ['all_images']
+    if (len(drop_list) == 0) & (kernel == 'all-omissions'):
+        drop_list = ['all_omissions']
+    if (len(drop_list) == 0) & (kernel == 'task'):
+        drop_list = ['task']
+
+    if '-' in kernel:
+        weights_df= weights_df.rename(columns={
+            'all-omissions':'all_omissions',
+            'all-omissions_weights':'all_omissions_weights',
+            'post-omissions':'post_omissions',
+            'post-omissions_weights':'post_omissions_weights', 
+            'all-hits':'all_hits',
+            'all-hits_weights':'all_hits_weights',
+            'post-hits':'post_hits',
+            'post-hits_weights':'post_hits_weights', 
+            'all-misses':'all_misses',
+            'all-misses_weights':'all_misses_weights',
+            'post-misses':'post_misses',
+            'post-misses_weights':'post_misses_weights', 
+            'all-passive_change':'all_passive_change',
+            'all-passive_change_weights':'all_passive_change_weights',
+            'post-passive_change':'post_passive_change',
+            'post-passive_change_weights':'post_passive_change_weights',  
+            'all-images':'all_images',
+            'all-images_weights':'all_images_weights',
+            'single-post-omissions':'single_post_omissions',
+            'single-all-images':'single_all_omissions',
+            })
+
+        kernel = kernel.replace('-','_')
+        drop_list = [x.replace('-','_') for x in drop_list]
+
+    # Applying hard thresholds to dataset
+    # don't apply overall VE, or dropout threshold limits here, since we look at the effects of those criteria below. 
+    # we do remove NaN dropouts here
+    if kernel in weights_df:
+        weights = weights_df.query('(not passive)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > 0) & ({1} <= 0)'.format(filter_sessions_on, kernel))
+        use_dropouts=True
+    else:
+        weights = weights_df.query('(not passive)&(targeted_structure in @area_filter)& (cre_line in @cell_list)&(equipment_name in @equipment_list)&({0} in @session_filter) & (ophys_session_id not in @problem_sessions) & (imaging_depth < @depth_filter[1]) & (imaging_depth > @depth_filter[0])& (variance_explained_full > 0)'.format(filter_sessions_on)) 
+        print('Dropouts not included, cannot use drop filter')
+        use_dropouts=False
+
+    # Have to do a manual filtering step here because weird things happen when combining
+    # two kernels
+    if kernel == 'task':
+        weights = weights[~weights['task_weights'].isnull()]
+
+    # Plotting settings
+    colors = project_colors()
+    line_alpha = 0.25
+    width=0.25
+
+    # Get all cells data and plot Average Trajectories
+    sst_table = weights.query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+    vip_table = weights.query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+    slc_table = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
+    sst_table_F = weights.query('experience_level=="Familiar"').query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+    vip_table_F = weights.query('experience_level=="Familiar"').query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+    slc_table_F = weights.query('experience_level=="Familiar"').query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
+    sst_table_N = weights.query('experience_level=="Novel 1"').query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+    vip_table_N = weights.query('experience_level=="Novel 1"').query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+    slc_table_N = weights.query('experience_level=="Novel 1"').query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
+    sst_table_Np = weights.query('experience_level=="Novel >1"').query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+    vip_table_Np = weights.query('experience_level=="Novel >1"').query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+    slc_table_Np = weights.query('experience_level=="Novel >1"').query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
+  
+    ## Right Column, Dropout Scores 
+    ncells={
+        'vip':len(vip_table),
+        'sst':len(sst_table),
+        'exc':len(slc_table),
+        }   
+    zlims = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, 
+        kernel, run_params,ncells,session_filter=session_filter,zlims=None,savefig=save_results)
+    zlims = plot_kernel_heatmap_with_dropout_by_experience(vip_table_F, vip_table_N, vip_table_Np,time_vec, 
+        kernel, run_params,ncells,cell_filter='Vip',zlims=None,savefig=save_results)
+    zlims = plot_kernel_heatmap_with_dropout_by_experience(sst_table_F, sst_table_N, sst_table_Np,time_vec, 
+        kernel, run_params,ncells,cell_filter='Sst',zlims=None,savefig=save_results)
+    zlims = plot_kernel_heatmap_with_dropout_by_experience(slc_table_F, slc_table_N, slc_table_Np,time_vec, 
+        kernel, run_params,ncells,cell_filter='Exc',zlims=None,savefig=save_results)
+
+   
+
 def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level',plot_dropout_sorted=True):  
     '''
         Plots the average kernel for each cell line. 
@@ -2873,6 +3056,155 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
         plt.savefig(filename) 
     return zlims
     #plt.tight_layout()
+
+def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_table, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,session_filter=['Familiar','Novel 1','Novel >1'],savefig=False,cell_filter=''):
+    if ax==None:
+        #fig,ax = plt.subplots(figsize=(8,4))
+        height = 4
+        width=8
+        pre_horz_offset = 1.5
+        post_horz_offset = 2.5
+        vertical_offset = .75
+        fig = plt.figure(figsize=(width,height))
+        h = [Size.Fixed(pre_horz_offset),Size.Fixed(width-pre_horz_offset-post_horz_offset-.25)]
+        v = [Size.Fixed(vertical_offset),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax3 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+        v = [Size.Fixed(vertical_offset+(height-vertical_offset-.5)/3),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax2 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+        v = [Size.Fixed(vertical_offset+2*(height-vertical_offset-.5)/3),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        ax1 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))
+        
+        h = [Size.Fixed(width-post_horz_offset-.25),Size.Fixed(.25)]
+        v = [Size.Fixed(vertical_offset+2*(height-vertical_offset-.5)/3),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        dax1 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+        v = [Size.Fixed(vertical_offset+(height-vertical_offset-.5)/3),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        dax2 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+        v = [Size.Fixed(vertical_offset),Size.Fixed((height-vertical_offset-.5)/3)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        dax3 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+
+        h = [Size.Fixed(width-post_horz_offset+.25),Size.Fixed(.25)]
+        v = [Size.Fixed(vertical_offset+(height-vertical_offset-.5)/2)+.125,Size.Fixed((height-vertical_offset-.5)/2-.125)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        cax1 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+
+        h = [Size.Fixed(width-post_horz_offset+.25),Size.Fixed(.25)]
+        v = [Size.Fixed(vertical_offset/4),Size.Fixed((height-vertical_offset-.5)/2-.125)]
+        divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
+        cax2 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
+
+
+    # Sort cells
+    # convert kernels to columns
+    ncols = len(vip_table[kernel+'_weights'].values[0])
+    vip_df = pd.DataFrame(vip_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
+    vip_df['dropout'] = vip_table.reset_index()[kernel]*-1
+    vip_df = vip_df.sort_values(by=['dropout'],ascending=False)    
+    sst_df = pd.DataFrame(sst_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
+    sst_df['dropout'] = sst_table.reset_index()[kernel]*-1
+    sst_df = sst_df.sort_values(by=['dropout'],ascending=False) 
+    slc_df = pd.DataFrame(slc_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
+    slc_df['dropout'] = slc_table.reset_index()[kernel]*-1
+    slc_df = slc_df.sort_values(by=['dropout'],ascending=False) 
+
+    weights_sorted = np.concatenate([slc_df.to_numpy(),sst_df.to_numpy(), vip_df.to_numpy()])[:,0:-1].T
+    drop_sorted = np.concatenate([slc_df.to_numpy(),sst_df.to_numpy(), vip_df.to_numpy()])[:,-1].T
+    slc_weights_sorted =slc_df.to_numpy()[:,0:-1].T
+    slc_drop_sorted =   slc_df.to_numpy()[:,-1].T
+    sst_weights_sorted =sst_df.to_numpy()[:,0:-1].T
+    sst_drop_sorted =   sst_df.to_numpy()[:,-1].T
+    vip_weights_sorted =vip_df.to_numpy()[:,0:-1].T
+    vip_drop_sorted =   vip_df.to_numpy()[:,-1].T
+
+    cbar1 = ax1.imshow(vip_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(slc_weights_sorted)[1]],cmap='bwr')
+    if zlims is None:
+        zlims =[-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95)]
+    cbar1.set_clim(zlims[0], zlims[1])
+    cbar2 = ax2.imshow(sst_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(sst_weights_sorted)[1]],cmap='bwr')
+    cbar2.set_clim(zlims[0], zlims[1])
+    cbar3 = ax3.imshow(slc_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(vip_weights_sorted)[1]],cmap='bwr')
+    cbar3.set_clim(zlims[0], zlims[1])
+
+    color_bar=fig.colorbar(cbar1, cax=cax1)
+    color_bar.ax.set_title('Weight',fontsize=16,loc='left')  
+    color_bar.ax.tick_params(axis='both',labelsize=16)
+    if kernel == 'omissions':
+        ax3.set_xlabel('Time from omission (s)',fontsize=20)  
+    elif kernel in ['hits','misses']:
+        ax3.set_xlabel('Time from image change (s)',fontsize=20)          
+    else:
+        ax3.set_xlabel('Time (s)',fontsize=20)
+
+    ax1.set_yticks([ax1.get_ylim()[1]/2])
+    ax1.set_yticklabels(['Familiar'])
+    ax2.set_yticks([ax2.get_ylim()[1]/2])
+    ax2.set_yticklabels(['Novel'])
+    ax3.set_yticks([ax3.get_ylim()[1]/2])
+    ax3.set_yticklabels(['Novel+'])
+    ax1.set_xticks([])
+    ax2.set_xticks([])
+    ax1.tick_params(axis='both',labelsize=16)
+    ax2.tick_params(axis='both',labelsize=16)
+    ax3.tick_params(axis='both',labelsize=16)
+    title = kernel +' kernels'
+    if len(cell_filter) >0:
+        title = ', '.join([title,cell_filter])
+    all_cells=False
+    dropout=False
+    VE = False
+    if extra == '':
+        all_cells=True
+    elif extra == 'dropout':
+        dropout = True
+    else:
+        VE = True
+
+    if len(session_filter) ==1:
+        mapper={
+            'Familiar':'Familiar',
+            'Novel 1':'Novel',
+            'Novel >1':'Novel +'
+            }
+        extra=extra+'_'+session_filter[0].replace(' ','_').replace('>','p')
+        title = title + ', '+mapper[session_filter[0]]
+    if dropout:
+        #title =title +  '\n coding cells'
+        ax2.set_ylabel('Coding Cells',fontsize=16)
+    if VE:
+        ax2.set_ylabel('VE > 0.005 Cells',fontsize=16)
+
+    ax1.set_title(title,fontsize=20)
+    cmap = copy.copy(plt.cm.get_cmap('plasma'))
+    cmap.set_under('black')
+    cbar2=dax1.imshow(np.sqrt(vip_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 
+    dax1.set_yticks([])
+    dax1.set_xticks([])
+    color_bar=fig.colorbar(cbar2, cax=cax2,extend='min')
+    color_bar.ax.set_title('Coding \nScore',fontsize=16,loc='left') 
+    color_bar.set_ticks([0,.5,1]) 
+    color_bar.ax.tick_params(axis='both',labelsize=16)
+
+    dax2.imshow(np.sqrt(sst_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 
+    dax2.set_yticks([])
+    dax2.set_xticks([])
+    dax3.imshow(np.sqrt(slc_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 
+    dax3.set_yticks([])
+    dax3.set_xticks([])   
+    #dax3.set_xticks([dax3.get_xlim()[1]/2])
+    #dax3.set_xticklabels(['Coding\n Score'],rotation=-70,fontsize=16)
+    #if savefig:
+    #    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.svg')
+    #    plt.savefig(filename) 
+    #    print('Figure saved to: '+filename)
+    #    filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout'+extra+'.png')
+    #    plt.savefig(filename) 
+    return zlims
+
 
 def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,session_filter=['Familiar','Novel 1','Novel >1'],savefig=False):
     if ax==None:

@@ -1,10 +1,10 @@
 from setuptools import setup
 
-setup(name='visual-behavior-glm',
-      packages=['visual_behavior_glm'],
+setup(name='visual-behavior-glm-strategy',
+      packages=['visual_behavior_glm_strategy'],
       version='0.0.1',
       description='GLM for Visual Behavior ophys data',
-      url='https://github.com/AllenInstitute/visual_behavior_glm',
+      url='https://github.com/AllenInstitute/visual_behavior_glm_strategy',
       author='Alex Piet, Nick Ponvert, Doug Ollerenshaw, Marina Garrett',
       author_email="alex.piet@alleninstitute.org, nick.ponvert@alleninstitute.org, dougo@alleninstitute.org, marinag@alleninstitute.org",
       license='Allen Institute',

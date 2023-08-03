@@ -6224,3 +6224,43 @@ def coarse_bin_depth(x):
     else:
         return 'lower'
 
+def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False):
+    fig,ax = plt.subplots(3,4,figsize=(12,8))
+    cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    dropouts = ['all-images','omissions','behavioral','task']
+    for cindex, cre in enumerate(cres):
+        for dindex, dropout in enumerate(dropouts):
+            plot_dropout_summary_population_cdf_inner(results_pivoted,run_params,
+                ax=ax[cindex,dindex],cre_line=cre,dropout=dropout)
+            if not ((dindex ==3)&(cindex==0)):
+                ax[cindex,dindex].get_legend().remove()
+            if dindex == 0:
+                ax[cindex,dindex].set_ylabel(cre+'\nProportion (1-CDF)',fontsize=16)
+            if cindex == 2:
+                ax[cindex,dindex].set_xlabel(dropout, fontsize=16)
+
+    plt.tight_layout()
+    if savefig:
+        filename = run_params['figure_dir']+'/dropout_summary_cdf.svg'
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+        plt.savefig(run_params['figure_dir']+'/dropout_summary_cdf.png')
+   
+
+def plot_dropout_summary_population_cdf_inner(results_pivoted, run_params,
+    ax=None,cre_line = 'Vip-IRES-Cre',dropout = 'all-images'):
+    data_to_plot = results_pivoted.query('cre_line == @cre_line').copy()
+    data_to_plot[dropout] = -data_to_plot[dropout]
+    if ax is None:
+        fig,ax = plt.subplots(figsize=(4,3))
+    sns.ecdfplot(data=data_to_plot, x=dropout, hue='experience_level',complementary=True,ax=ax,
+        palette=project_colors(),linewidth=2)
+    ax.set_xlim(0,1)
+    ax.tick_params(axis='x',labelsize=12)
+    ax.tick_params(axis='y',labelsize=12)
+    ax.set_ylabel('')
+    ax.set_xlabel('')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout() 
+

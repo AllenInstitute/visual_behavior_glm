@@ -18,6 +18,13 @@ def load_across_session(run_params):
     across_df = pd.read_pickle(filename)
     return across_run_params, across_df
 
+def load_cv_across_session(run_params,fold=0):
+    glm_version = run_params['version']
+    across_run_params = make_across_run_params(glm_version)
+    filename = os.path.join(run_params['output_dir'],'across_df_{}.pkl'.format(fold))
+    across_df = pd.read_pickle(filename)
+    return across_run_params, across_df
+
 def make_across_run_params(glm_version):
     '''
         Makes a dummy dictionary with the figure directory hard coded
@@ -103,7 +110,7 @@ def get_cell_list(glm_version):
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     return cells_table
 
-def load_cells(glm_version,clean_df=True,fold=None): 
+def load_cells(glm_version,clean_df=True,fold=None,save_output=False): 
     '''
         Loads all cells that have across session coding scores computed.
         prints the cell_specimen_id for any cell that cannot be loaded.
@@ -179,6 +186,14 @@ def load_cells(glm_version,clean_df=True,fold=None):
     # Assert that we have the correct number of cells
     assert len(across_df) + len(fail_df) == len(cells)*3, "incorrect number of cells"
     assert len(across_df['cell_specimen_id'].unique())+len(fail_df['cell_specimen_id'].unique()) == len(cells), "incorrect number of cells"
+
+    if save_output:
+        run_params = glm_params.load_run_json(glm_version)
+        if fold is None:
+            filename = os.path.join(run_params['output_dir'],'across_df.pkl')
+        else:
+            filename = os.path.join(run_params['output_dir'],'across_df_{}.pkl'.format(fold))
+        across_df.to_pickle(filename)
 
     return across_df, fail_df 
 

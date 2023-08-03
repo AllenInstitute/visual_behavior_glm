@@ -289,10 +289,12 @@ gvt.kernel_evaluation(weights_df, run_params, 'running', session_filter=['Novel 
 
 
 # S19 - Across Session normalized average dropout scores
-across_run_params, across_df = gas.load_cells(run_params)
+across_run_params, across_df = gas.load_across_session(run_params)
 across_df = gas.append_kernel_excitation_across(weights_df, across_df)
 
 # Plot the population averages across experience/cre line
 gas.plot_across_summary(across_df, across_run_params) 
 
+# Get Across session normalized average dropout scores for each cv fold
+across_df_fold0, fail_df = gas.load_cells(version,fold0)
 

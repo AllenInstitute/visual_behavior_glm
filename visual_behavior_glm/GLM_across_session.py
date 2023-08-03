@@ -210,7 +210,7 @@ def across_session_normalization(cell_specimen_id, glm_version,do_folds=True):
 
     if do_folds:
         for fold in range(0,5):
-            score_df = compute_across_session_dropouts(data, run_params, cell_specimen_id,fold)
+            score_df = compute_cv_across_session_dropouts(data, run_params, cell_specimen_id,fold)
             filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
                 +glm_version+'/across_session/'+str(cell_specimen_id)+'_{}.csv'.format(fold) 
             score_df.to_csv(filename)

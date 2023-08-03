@@ -103,7 +103,7 @@ def get_cell_list(glm_version):
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     return cells_table
 
-def load_cells(glm_version,clean_df=True): 
+def load_cells(glm_version,clean_df=True,fold=None): 
     '''
         Loads all cells that have across session coding scores computed.
         prints the cell_specimen_id for any cell that cannot be loaded.
@@ -128,8 +128,12 @@ def load_cells(glm_version,clean_df=True):
     print('Loading across session normalized dropout scores')
     for cell in tqdm(cells):
         try:
-            filename = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
-                +glm_version+'/across_session/'+str(cell)+'.csv'
+            if fold is None:
+                filename = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
+                    +glm_version+'/across_session/'+str(cell)+'.csv'
+            else:
+                filename = '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
+                    +glm_version+'/across_session/'+str(cell)+'_{}.csv'.format(fold)
             score_df = pd.read_csv(filename)
             score_df['cell_specimen_id'] = cell
             if clean_df:
@@ -205,7 +209,7 @@ def across_session_normalization(cell_specimen_id, glm_version,do_folds=True):
         score_df.to_csv(filename)
 
     if do_folds:
-        for i in range(0,5):
+        for fold in range(0,5):
             score_df = compute_across_session_dropouts(data, run_params, cell_specimen_id,fold)
             filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
                 +glm_version+'/across_session/'+str(cell_specimen_id)+'_{}.csv'.format(fold) 

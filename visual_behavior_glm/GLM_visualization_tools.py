@@ -86,6 +86,8 @@ def project_colors():
         'Familiar':(0.66,0.06,0.086),
         'Novel 1':(0.044,0.33,0.62),
         'Novel >1':(0.34,.17,0.57),
+        'Novel':(0.044,0.33,0.62),
+        'Novel+':(0.34,.17,0.57),
         'deep':'r',
         'shallow':'b',
         'VISp':'C0',
@@ -6227,7 +6229,10 @@ def coarse_bin_depth(x):
 def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False):
     fig,ax = plt.subplots(3,4,figsize=(12,8))
     cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    clean_cres=['Vip Inhibitory','Sst Inhibitory','Excitatory']
     dropouts = ['all-images','omissions','behavioral','task']
+    clean_dropouts = ['images','omissions','behavioral','task']
+    tests = compute_cdf_tests(results_pivoted) 
     for cindex, cre in enumerate(cres):
         for dindex, dropout in enumerate(dropouts):
             plot_dropout_summary_population_cdf_inner(results_pivoted,run_params,
@@ -6235,9 +6240,10 @@ def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False
             if not ((dindex ==3)&(cindex==0)):
                 ax[cindex,dindex].get_legend().remove()
             if dindex == 0:
-                ax[cindex,dindex].set_ylabel(cre+'\nProportion (1-CDF)',fontsize=16)
+                ax[cindex,dindex].set_ylabel(clean_cres[cindex]+'\nproportion (1-CDF)',fontsize=16)
             if cindex == 2:
-                ax[cindex,dindex].set_xlabel(dropout, fontsize=16)
+                ax[cindex,dindex].set_xlabel(clean_dropouts[dindex], fontsize=16)
+            plot_cdf_test(ax[cindex,dindex],cre,dropout,tests)
 
     plt.tight_layout()
     if savefig:
@@ -6245,16 +6251,60 @@ def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False
         print('Figure saved to: '+filename)
         plt.savefig(filename)
         plt.savefig(run_params['figure_dir']+'/dropout_summary_cdf.png')
-   
+
+    return tests
+
+def plot_cdf_test(ax,cre,dropout, tests):   
+
+    this_test = tests.query('cre_line==@cre').query('dropout==@dropout')
+    this_test = this_test.set_index('test')
+
+    y0=.74
+    y1 = .8
+    y1h = .825
+    y1m = .865
+    y2 = .875
+    y2h = .9
+    y2m = .94
+    x1=.75
+    x2=.85
+    x3=.95 
+    if this_test.loc['F_N']['bh_significant']:
+        ax.plot([x1,x1],[y1,y1h],'k-')    
+        ax.plot([x2,x2],[y1,y1h],'k-') 
+        ax.plot([x1,x2],[y1h,y1h],'k-')
+        ax.plot(np.mean([x1,x2]),[y1m],'k*')
+    if this_test.loc['N_Np']['bh_significant']:
+        ax.plot([x2,x2],[y1,y1h],'k-')    
+        ax.plot([x3,x3],[y1,y1h],'k-') 
+        ax.plot([x2,x3],[y1h,y1h],'k-')
+        ax.plot(np.mean([x2,x3]),[y1m],'k*')
+    if this_test.loc['F_Np']['bh_significant']:
+        ax.plot([x1,x1],[y2,y2h],'k-')    
+        ax.plot([x3,x3],[y2,y2h],'k-') 
+        ax.plot([x1,x3],[y2h,y2h],'k-')
+        ax.plot(np.mean([x1,x3]),[y2m],'k*')
+    ax.text(x1-.025,y0,'F')
+    ax.text(x2-.025,y0,'N')
+    ax.text(x3-.025,y0,'N+')
 
 def plot_dropout_summary_population_cdf_inner(results_pivoted, run_params,
     ax=None,cre_line = 'Vip-IRES-Cre',dropout = 'all-images'):
     data_to_plot = results_pivoted.query('cre_line == @cre_line').copy()
     data_to_plot[dropout] = -data_to_plot[dropout]
+    clean_experience={
+        'Familiar':'Familiar',
+        'Novel 1':'Novel',
+        'Novel >1':'Novel+'
+        }
+
+    data_to_plot['experience_level'] = \
+        [clean_experience[x] for x in data_to_plot['experience_level']]
     if ax is None:
         fig,ax = plt.subplots(figsize=(4,3))
-    sns.ecdfplot(data=data_to_plot, x=dropout, hue='experience_level',complementary=True,ax=ax,
+    g=sns.ecdfplot(data=data_to_plot, x=dropout, hue='experience_level',complementary=True,ax=ax,
         palette=project_colors(),linewidth=2)
+    g.legend_.set_title(None)
     ax.set_xlim(0,1)
     ax.tick_params(axis='x',labelsize=12)
     ax.tick_params(axis='y',labelsize=12)
@@ -6264,3 +6314,48 @@ def plot_dropout_summary_population_cdf_inner(results_pivoted, run_params,
     ax.spines['right'].set_visible(False)
     plt.tight_layout() 
 
+def compute_cdf_tests(results_pivoted):
+    cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    dropouts = ['all-images','omissions','behavioral','task']
+    
+    tests = []
+    for cre in cres:
+        cre_df = results_pivoted.query('cre_line ==@cre')
+        for drop in dropouts:
+            F = cre_df.query('experience_level == "Familiar"')[drop].values
+            N = cre_df.query('experience_level == "Novel 1"')[drop].values
+            Np = cre_df.query('experience_level == "Novel >1"')[drop].values
+            tests.append({'cre_line':cre,'dropout':drop,'test':'F_N',\
+                'pvalue':stats.kstest(F,N)[1]})
+            tests.append({'cre_line':cre,'dropout':drop,'test':'F_Np',\
+                'pvalue':stats.kstest(F,Np)[1]})
+            tests.append({'cre_line':cre,'dropout':drop,'test':'N_Np',\
+                'pvalue':stats.kstest(N,Np)[1]})
+
+    tests = pd.DataFrame(tests)
+    tests = add_hochberg_correction(tests)
+    return tests
+
+def add_hochberg_correction(table):
+    '''
+        Performs the Benjamini Hochberg correction
+    '''    
+    # Sort table by pvalues
+    table = table.sort_values(by='pvalue').reset_index().rename(columns={'index':'original'})
+    
+    # compute the corrected pvalue based on the rank of each test
+    # Need to use rank starting at 1
+    table['imq'] = (1+table.index.values)/len(table)*0.05
+
+    # Find the largest pvalue less than its corrected pvalue
+    # all tests above that are significant
+    table['bh_significant'] = False
+    passing_tests = table[table['pvalue'] < table['imq']]
+    if len(passing_tests) >0:
+        last_index = table[table['pvalue'] < table['imq']].tail(1).index.values[0]
+        table.at[last_index,'bh_significant'] = True
+        table.at[0:last_index,'bh_significant'] = True
+    
+    # reset order of table and return
+    return table.sort_values(by='original').set_index('original') 
+ 

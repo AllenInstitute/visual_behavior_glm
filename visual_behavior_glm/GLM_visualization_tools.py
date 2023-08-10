@@ -6228,38 +6228,58 @@ def coarse_bin_depth(x):
 
 def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False,
     use_hierarchical=True):
+    '''
+        Plot the CDF for each experience/cre/dropout combination
+        Adds statistical tests, either bootstrapped or not
+    '''
+    # Set up figure and cre/dropout combinations
     fig,ax = plt.subplots(3,4,figsize=(12,8))
     cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
-    clean_cres=['Vip Inhibitory','Sst Inhibitory','Excitatory']
     dropouts = ['all-images','omissions','behavioral','task']
+
+    # Labels for plotting
+    clean_cres=['Vip Inhibitory','Sst Inhibitory','Excitatory']
     clean_dropouts = ['images','omissions','behavioral','task']
+    
+    # Get statistical test results
     if use_hierarchical:
         tests = load_cdf_shuffles(run_params)
     else:
         tests = compute_cdf_tests(results_pivoted) 
 
+    # Iterate through each cre/dropout combination
     for cindex, cre in enumerate(cres):
         for dindex, dropout in enumerate(dropouts):
+            # Plot the CDFs for this cre/dropout combination
             plot_dropout_summary_population_cdf_inner(results_pivoted,run_params,
                 ax=ax[cindex,dindex],cre_line=cre,dropout=dropout)
+
+            # clean up x/y labels
             if not ((dindex ==3)&(cindex==0)):
                 ax[cindex,dindex].get_legend().remove()
             if dindex == 0:
                 ax[cindex,dindex].set_ylabel(clean_cres[cindex]+'\nprop. > x (1-CDF)',fontsize=16)
             if cindex == 2:
                 ax[cindex,dindex].set_xlabel(clean_dropouts[dindex], fontsize=16)
+            
+            # Plot statistics
             plot_cdf_test(ax[cindex,dindex],cre,dropout,tests)
-
     plt.tight_layout()
+
+    # Save the figure
     if savefig:
         filename = run_params['figure_dir']+'/dropout_summary_cdf.svg'
         print('Figure saved to: '+filename)
         plt.savefig(filename)
         plt.savefig(run_params['figure_dir']+'/dropout_summary_cdf.png')
 
+    # Return the statistical tests
     return tests
 
-def plot_cdf_test(ax,cre,dropout, tests):   
+def plot_cdf_test(ax,cre,dropout, tests):
+    '''
+        Plotting function for CDF tests (either bootstrapped or not)
+    '''
 
     this_test = tests.query('cre_line==@cre').query('dropout==@dropout')
     this_test = this_test.set_index('test')
@@ -6295,6 +6315,9 @@ def plot_cdf_test(ax,cre,dropout, tests):
 
 def plot_dropout_summary_population_cdf_inner(results_pivoted, run_params,
     ax=None,cre_line = 'Vip-IRES-Cre',dropout = 'all-images'):
+    '''
+        Plots the CDFs of one cre-line/dropout combination
+    '''
     data_to_plot = results_pivoted.query('cre_line == @cre_line').copy()
     data_to_plot[dropout] = -data_to_plot[dropout]
     clean_experience={
@@ -6320,6 +6343,10 @@ def plot_dropout_summary_population_cdf_inner(results_pivoted, run_params,
     plt.tight_layout() 
 
 def compute_cdf_tests(results_pivoted):
+    '''
+        Compute KS tests between the CDFs of each group
+        Does multiple comparisons corrections, does NOT do bootstrapping
+    '''
     cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
     dropouts = ['all-images','omissions','behavioral','task']
     
@@ -6348,70 +6375,97 @@ def compute_cdf_tests(results_pivoted):
     tests = add_hochberg_correction(tests)
     return tests
 
-def compute_cdf_shuffles(results_pivoted,run_params,nshuffles=1000):
+def compute_cdf_shuffles(results_pivoted,run_params,nshuffles=10000,save=False):
+    '''
+        Computes bootstrapped tests of the difference between the CDF functions
+        of different groups
+    '''
     cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
     dropouts = ['all-images','omissions','behavioral','task']
     
     tests = []
     for cre in cres:
+        # Get the experience level data for this cre line
         cre_df = results_pivoted.query('cre_line ==@cre')
         F = cre_df.query('experience_level == "Familiar"')
         N = cre_df.query('experience_level == "Novel 1"')
         Np = cre_df.query('experience_level == "Novel >1"')
         for drop in dropouts:
+            # Iterate over coding scores
             print('{} {}'.format(cre,drop))
 
+            # Do bootstrapping between Familiar and Novel data
             full_test = stats.kstest(F[drop].values,N[drop].values)
             test = shuffle_cdfs(F,N,drop,nshuffles)
             tests.append({'cre_line':cre,'dropout':drop,'test':'F_N',\
                 'pvalues':test[0],'test_statistics':test[1],
                 'full_pvalue':full_test[1],'full_statistic':full_test[0]})
 
+            # Do bootstrapping between Familiar and Novel+ data
             full_test = stats.kstest(F[drop].values,Np[drop].values)
             test = shuffle_cdfs(F,Np,drop,nshuffles)
             tests.append({'cre_line':cre,'dropout':drop,'test':'F_Np',\
                 'pvalues':test[0],'test_statistics':test[1],
                 'full_pvalue':full_test[1],'full_statistic':full_test[0]})
 
+            # Do bootstrapping between Novel and Novel+ data
             full_test = stats.kstest(N[drop].values,Np[drop].values)
             test = shuffle_cdfs(N,Np,drop,nshuffles)
             tests.append({'cre_line':cre,'dropout':drop,'test':'N_Np',\
                 'pvalues':test[0],'test_statistics':test[1],
                 'full_pvalue':full_test[1],'full_statistic':full_test[0]})
 
+            # Sanity check bootstrapping between Familiar and Familar data
             full_test = stats.kstest(F[drop].values,F[drop].values)
             test = shuffle_cdfs(F,F,drop,nshuffles)
             tests.append({'cre_line':cre,'dropout':drop,'test':'F_F',\
                 'pvalues':test[0],'test_statistics':test[1],
                 'full_pvalue':full_test[1],'full_statistic':full_test[0]})
     
+    # Construct dataframe and determine p-values by asking what percentage of shuffles
+    # show significant differences between the two groups
     tests = pd.DataFrame(tests)
     tests['mean_pvalue'] = [np.mean(x) for x in tests['pvalues']]
     tests['num_pvalues'] = [np.sum(x<0.05) for x in tests['pvalues']]
     tests['bootstrap_pvalues'] = [1-x/nshuffles for x in tests['num_pvalues']]
 
+    # Do multiple comparisons corrections, but remove the sanity checks first
     checks = tests.query('test == "F_F"')
     tests = add_hochberg_correction(tests.query('test != "F_F"'),on='bootstrap_pvalues')
     tests = pd.concat([tests,checks],sort=False)
 
-    filename = run_params['output_dir']+'/cdf_bootstraps.csv'
-    tests.to_csv(filename,index=False)
-    print('Saved to: {}'.format(filename))
+    # Save the results to file so we don't need to recompute
+    if save:
+        filename = run_params['output_dir']+'/cdf_bootstraps.csv'
+        tests.to_csv(filename,index=False)
+        print('Saved to: {}'.format(filename))
 
     return tests
 
 def load_cdf_shuffles(run_params):
+    '''
+        loads a dataframe of bootstrapped results 
+    '''
     filename = run_params['output_dir']+'/cdf_bootstraps.csv'
     tests = pd.read_csv(filename)
     return tests
 
 def shuffle_cdfs(x,y,dropout,nshuffles=100,sample_on='ophys_experiment_id'):
-    
+    '''
+        Performs hierarchycal bootstrapping shuffles on the column <dropout> in data frames
+        x and y. In x and y on each shuffle we sample hierarchically from the values of
+        <sample_on>
+    '''    
+
+    # Get sample options
     options_x = x[sample_on].unique()
     options_y = y[sample_on].unique()
+
+    # Number of samples in each dataset
     n_samples_x = len(options_x)
     n_samples_y = len(options_y)
     
+    # construct dictionary of lists
     dict_x = {}
     dict_y = {}
     for option in options_x:
@@ -6422,19 +6476,28 @@ def shuffle_cdfs(x,y,dropout,nshuffles=100,sample_on='ophys_experiment_id'):
     pvalues = []
     test_statistics = []
     for i in tqdm(range(0,nshuffles)):
+        # Pick samples
         choice_x = np.random.choice(options_x,n_samples_x)
         choice_y = np.random.choice(options_y,n_samples_y)
+        
+        # Get all values for each sample
         sample_x = []
         sample_y = []
         for choice in choice_x:
             sample_x.append(dict_x[choice])       
         for choice in choice_y:
             sample_y.append(dict_y[choice]) 
+    
+        # concatenate into array
         sample_x = np.concatenate(sample_x)
         sample_y = np.concatenate(sample_y)
+        
+        # do KS test and log results
         output = stats.kstest(sample_x,sample_y)
         pvalues.append(output[1])
         test_statistics.append(output[0])
+
+    # return outputs
     return np.array(pvalues), np.array(test_statistics)
     
 def add_hochberg_correction(table,on='pvalue'):

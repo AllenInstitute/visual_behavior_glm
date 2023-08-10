@@ -6226,13 +6226,18 @@ def coarse_bin_depth(x):
     else:
         return 'lower'
 
-def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False):
+def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False,
+    use_hierarchical=True):
     fig,ax = plt.subplots(3,4,figsize=(12,8))
     cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
     clean_cres=['Vip Inhibitory','Sst Inhibitory','Excitatory']
     dropouts = ['all-images','omissions','behavioral','task']
     clean_dropouts = ['images','omissions','behavioral','task']
-    tests = compute_cdf_tests(results_pivoted) 
+    if use_hierarchical:
+        tests = load_cdf_shuffles(run_params)
+    else:
+        tests = compute_cdf_tests(results_pivoted) 
+
     for cindex, cre in enumerate(cres):
         for dindex, dropout in enumerate(dropouts):
             plot_dropout_summary_population_cdf_inner(results_pivoted,run_params,
@@ -6325,23 +6330,119 @@ def compute_cdf_tests(results_pivoted):
             F = cre_df.query('experience_level == "Familiar"')[drop].values
             N = cre_df.query('experience_level == "Novel 1"')[drop].values
             Np = cre_df.query('experience_level == "Novel >1"')[drop].values
+
+            ks_test = stats.kstest(F,N)
             tests.append({'cre_line':cre,'dropout':drop,'test':'F_N',\
-                'pvalue':stats.kstest(F,N)[1]})
+                'pvalue':ks_test[1],'test_statistic':ks_test[0]})
+
+            ks_test = stats.kstest(F,Np)
             tests.append({'cre_line':cre,'dropout':drop,'test':'F_Np',\
-                'pvalue':stats.kstest(F,Np)[1]})
+                'pvalue':ks_test[1],'test_statistic':ks_test[0]})
+
+            ks_test = stats.kstest(N,Np)
             tests.append({'cre_line':cre,'dropout':drop,'test':'N_Np',\
-                'pvalue':stats.kstest(N,Np)[1]})
+                'pvalue':ks_test[1],'test_statistic':ks_test[0]})
+
 
     tests = pd.DataFrame(tests)
     tests = add_hochberg_correction(tests)
     return tests
 
-def add_hochberg_correction(table):
+def compute_cdf_shuffles(results_pivoted,run_params,nshuffles=1000):
+    cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    dropouts = ['all-images','omissions','behavioral','task']
+    
+    tests = []
+    for cre in cres:
+        cre_df = results_pivoted.query('cre_line ==@cre')
+        F = cre_df.query('experience_level == "Familiar"')
+        N = cre_df.query('experience_level == "Novel 1"')
+        Np = cre_df.query('experience_level == "Novel >1"')
+        for drop in dropouts:
+            print('{} {}'.format(cre,drop))
+
+            full_test = stats.kstest(F[drop].values,N[drop].values)
+            test = shuffle_cdfs(F,N,drop,nshuffles)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'F_N',\
+                'pvalues':test[0],'test_statistics':test[1],
+                'full_pvalue':full_test[1],'full_statistic':full_test[0]})
+
+            full_test = stats.kstest(F[drop].values,Np[drop].values)
+            test = shuffle_cdfs(F,Np,drop,nshuffles)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'F_Np',\
+                'pvalues':test[0],'test_statistics':test[1],
+                'full_pvalue':full_test[1],'full_statistic':full_test[0]})
+
+            full_test = stats.kstest(N[drop].values,Np[drop].values)
+            test = shuffle_cdfs(N,Np,drop,nshuffles)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'N_Np',\
+                'pvalues':test[0],'test_statistics':test[1],
+                'full_pvalue':full_test[1],'full_statistic':full_test[0]})
+
+            full_test = stats.kstest(F[drop].values,F[drop].values)
+            test = shuffle_cdfs(F,F,drop,nshuffles)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'F_F',\
+                'pvalues':test[0],'test_statistics':test[1],
+                'full_pvalue':full_test[1],'full_statistic':full_test[0]})
+    
+    tests = pd.DataFrame(tests)
+    tests['mean_pvalue'] = [np.mean(x) for x in tests['pvalues']]
+    tests['num_pvalues'] = [np.sum(x<0.05) for x in tests['pvalues']]
+    tests['bootstrap_pvalues'] = [1-x/nshuffles for x in tests['num_pvalues']]
+
+    checks = tests.query('test == "F_F"')
+    tests = add_hochberg_correction(tests.query('test != "F_F"'),on='bootstrap_pvalues')
+    tests = pd.concat([tests,checks],sort=False)
+
+    filename = run_params['output_dir']+'/cdf_bootstraps.csv'
+    tests.to_csv(filename,index=False)
+    print('Saved to: {}'.format(filename))
+
+    return tests
+
+def load_cdf_shuffles(run_params):
+    filename = run_params['output_dir']+'/cdf_bootstraps.csv'
+    tests = pd.read_csv(filename)
+    return tests
+
+def shuffle_cdfs(x,y,dropout,nshuffles=100,sample_on='ophys_experiment_id'):
+    
+    options_x = x[sample_on].unique()
+    options_y = y[sample_on].unique()
+    n_samples_x = len(options_x)
+    n_samples_y = len(options_y)
+    
+    dict_x = {}
+    dict_y = {}
+    for option in options_x:
+        dict_x[option] = x.query('{} == @option'.format(sample_on))[dropout].values
+    for option in options_y:
+        dict_y[option] = y.query('{} == @option'.format(sample_on))[dropout].values
+
+    pvalues = []
+    test_statistics = []
+    for i in tqdm(range(0,nshuffles)):
+        choice_x = np.random.choice(options_x,n_samples_x)
+        choice_y = np.random.choice(options_y,n_samples_y)
+        sample_x = []
+        sample_y = []
+        for choice in choice_x:
+            sample_x.append(dict_x[choice])       
+        for choice in choice_y:
+            sample_y.append(dict_y[choice]) 
+        sample_x = np.concatenate(sample_x)
+        sample_y = np.concatenate(sample_y)
+        output = stats.kstest(sample_x,sample_y)
+        pvalues.append(output[1])
+        test_statistics.append(output[0])
+    return np.array(pvalues), np.array(test_statistics)
+    
+def add_hochberg_correction(table,on='pvalue'):
     '''
         Performs the Benjamini Hochberg correction
     '''    
     # Sort table by pvalues
-    table = table.sort_values(by='pvalue').reset_index().rename(columns={'index':'original'})
+    table = table.sort_values(by=on).reset_index().rename(columns={'index':'original'})
     
     # compute the corrected pvalue based on the rank of each test
     # Need to use rank starting at 1
@@ -6350,9 +6451,9 @@ def add_hochberg_correction(table):
     # Find the largest pvalue less than its corrected pvalue
     # all tests above that are significant
     table['bh_significant'] = False
-    passing_tests = table[table['pvalue'] < table['imq']]
+    passing_tests = table[table[on] < table['imq']]
     if len(passing_tests) >0:
-        last_index = table[table['pvalue'] < table['imq']].tail(1).index.values[0]
+        last_index = table[table[on] < table['imq']].tail(1).index.values[0]
         table.at[last_index,'bh_significant'] = True
         table.at[0:last_index,'bh_significant'] = True
     

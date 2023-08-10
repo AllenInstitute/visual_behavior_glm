@@ -86,6 +86,8 @@ def project_colors():
         'Familiar':(0.66,0.06,0.086),
         'Novel 1':(0.044,0.33,0.62),
         'Novel >1':(0.34,.17,0.57),
+        'Novel':(0.044,0.33,0.62),
+        'Novel+':(0.34,.17,0.57),
         'deep':'r',
         'shallow':'b',
         'VISp':'C0',
@@ -6224,10 +6226,18 @@ def coarse_bin_depth(x):
     else:
         return 'lower'
 
-def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False):
+def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False,
+    use_hierarchical=True):
     fig,ax = plt.subplots(3,4,figsize=(12,8))
     cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    clean_cres=['Vip Inhibitory','Sst Inhibitory','Excitatory']
     dropouts = ['all-images','omissions','behavioral','task']
+    clean_dropouts = ['images','omissions','behavioral','task']
+    if use_hierarchical:
+        tests = load_cdf_shuffles(run_params)
+    else:
+        tests = compute_cdf_tests(results_pivoted) 
+
     for cindex, cre in enumerate(cres):
         for dindex, dropout in enumerate(dropouts):
             plot_dropout_summary_population_cdf_inner(results_pivoted,run_params,
@@ -6235,9 +6245,10 @@ def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False
             if not ((dindex ==3)&(cindex==0)):
                 ax[cindex,dindex].get_legend().remove()
             if dindex == 0:
-                ax[cindex,dindex].set_ylabel(cre+'\nProportion (1-CDF)',fontsize=16)
+                ax[cindex,dindex].set_ylabel(clean_cres[cindex]+'\nprop. > x (1-CDF)',fontsize=16)
             if cindex == 2:
-                ax[cindex,dindex].set_xlabel(dropout, fontsize=16)
+                ax[cindex,dindex].set_xlabel(clean_dropouts[dindex], fontsize=16)
+            plot_cdf_test(ax[cindex,dindex],cre,dropout,tests)
 
     plt.tight_layout()
     if savefig:
@@ -6245,16 +6256,60 @@ def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False
         print('Figure saved to: '+filename)
         plt.savefig(filename)
         plt.savefig(run_params['figure_dir']+'/dropout_summary_cdf.png')
-   
+
+    return tests
+
+def plot_cdf_test(ax,cre,dropout, tests):   
+
+    this_test = tests.query('cre_line==@cre').query('dropout==@dropout')
+    this_test = this_test.set_index('test')
+
+    y0=.74
+    y1 = .8
+    y1h = .825
+    y1m = .865
+    y2 = .875
+    y2h = .9
+    y2m = .94
+    x1=.75
+    x2=.85
+    x3=.95 
+    if this_test.loc['F_N']['bh_significant']:
+        ax.plot([x1,x1],[y1,y1h],'k-')    
+        ax.plot([x2,x2],[y1,y1h],'k-') 
+        ax.plot([x1,x2],[y1h,y1h],'k-')
+        ax.plot(np.mean([x1,x2]),[y1m],'k*')
+    if this_test.loc['N_Np']['bh_significant']:
+        ax.plot([x2,x2],[y1,y1h],'k-')    
+        ax.plot([x3,x3],[y1,y1h],'k-') 
+        ax.plot([x2,x3],[y1h,y1h],'k-')
+        ax.plot(np.mean([x2,x3]),[y1m],'k*')
+    if this_test.loc['F_Np']['bh_significant']:
+        ax.plot([x1,x1],[y2,y2h],'k-')    
+        ax.plot([x3,x3],[y2,y2h],'k-') 
+        ax.plot([x1,x3],[y2h,y2h],'k-')
+        ax.plot(np.mean([x1,x3]),[y2m],'k*')
+    ax.text(x1-.025,y0,'F',color=project_colors()['Familiar'])
+    ax.text(x2-.025,y0,'N',color=project_colors()['Novel'])
+    ax.text(x3-.025,y0,'N+',color=project_colors()['Novel+'])
 
 def plot_dropout_summary_population_cdf_inner(results_pivoted, run_params,
     ax=None,cre_line = 'Vip-IRES-Cre',dropout = 'all-images'):
     data_to_plot = results_pivoted.query('cre_line == @cre_line').copy()
     data_to_plot[dropout] = -data_to_plot[dropout]
+    clean_experience={
+        'Familiar':'Familiar',
+        'Novel 1':'Novel',
+        'Novel >1':'Novel+'
+        }
+
+    data_to_plot['experience_level'] = \
+        [clean_experience[x] for x in data_to_plot['experience_level']]
     if ax is None:
         fig,ax = plt.subplots(figsize=(4,3))
-    sns.ecdfplot(data=data_to_plot, x=dropout, hue='experience_level',complementary=True,ax=ax,
+    g=sns.ecdfplot(data=data_to_plot, x=dropout, hue='experience_level',complementary=True,ax=ax,
         palette=project_colors(),linewidth=2)
+    g.legend_.set_title(None)
     ax.set_xlim(0,1)
     ax.tick_params(axis='x',labelsize=12)
     ax.tick_params(axis='y',labelsize=12)
@@ -6264,3 +6319,144 @@ def plot_dropout_summary_population_cdf_inner(results_pivoted, run_params,
     ax.spines['right'].set_visible(False)
     plt.tight_layout() 
 
+def compute_cdf_tests(results_pivoted):
+    cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    dropouts = ['all-images','omissions','behavioral','task']
+    
+    tests = []
+    for cre in cres:
+        cre_df = results_pivoted.query('cre_line ==@cre')
+        for drop in dropouts:
+            F = cre_df.query('experience_level == "Familiar"')[drop].values
+            N = cre_df.query('experience_level == "Novel 1"')[drop].values
+            Np = cre_df.query('experience_level == "Novel >1"')[drop].values
+
+            ks_test = stats.kstest(F,N)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'F_N',\
+                'pvalue':ks_test[1],'test_statistic':ks_test[0]})
+
+            ks_test = stats.kstest(F,Np)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'F_Np',\
+                'pvalue':ks_test[1],'test_statistic':ks_test[0]})
+
+            ks_test = stats.kstest(N,Np)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'N_Np',\
+                'pvalue':ks_test[1],'test_statistic':ks_test[0]})
+
+
+    tests = pd.DataFrame(tests)
+    tests = add_hochberg_correction(tests)
+    return tests
+
+def compute_cdf_shuffles(results_pivoted,run_params,nshuffles=1000):
+    cres= ['Vip-IRES-Cre','Sst-IRES-Cre','Slc17a7-IRES2-Cre']
+    dropouts = ['all-images','omissions','behavioral','task']
+    
+    tests = []
+    for cre in cres:
+        cre_df = results_pivoted.query('cre_line ==@cre')
+        F = cre_df.query('experience_level == "Familiar"')
+        N = cre_df.query('experience_level == "Novel 1"')
+        Np = cre_df.query('experience_level == "Novel >1"')
+        for drop in dropouts:
+            print('{} {}'.format(cre,drop))
+
+            full_test = stats.kstest(F[drop].values,N[drop].values)
+            test = shuffle_cdfs(F,N,drop,nshuffles)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'F_N',\
+                'pvalues':test[0],'test_statistics':test[1],
+                'full_pvalue':full_test[1],'full_statistic':full_test[0]})
+
+            full_test = stats.kstest(F[drop].values,Np[drop].values)
+            test = shuffle_cdfs(F,Np,drop,nshuffles)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'F_Np',\
+                'pvalues':test[0],'test_statistics':test[1],
+                'full_pvalue':full_test[1],'full_statistic':full_test[0]})
+
+            full_test = stats.kstest(N[drop].values,Np[drop].values)
+            test = shuffle_cdfs(N,Np,drop,nshuffles)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'N_Np',\
+                'pvalues':test[0],'test_statistics':test[1],
+                'full_pvalue':full_test[1],'full_statistic':full_test[0]})
+
+            full_test = stats.kstest(F[drop].values,F[drop].values)
+            test = shuffle_cdfs(F,F,drop,nshuffles)
+            tests.append({'cre_line':cre,'dropout':drop,'test':'F_F',\
+                'pvalues':test[0],'test_statistics':test[1],
+                'full_pvalue':full_test[1],'full_statistic':full_test[0]})
+    
+    tests = pd.DataFrame(tests)
+    tests['mean_pvalue'] = [np.mean(x) for x in tests['pvalues']]
+    tests['num_pvalues'] = [np.sum(x<0.05) for x in tests['pvalues']]
+    tests['bootstrap_pvalues'] = [1-x/nshuffles for x in tests['num_pvalues']]
+
+    checks = tests.query('test == "F_F"')
+    tests = add_hochberg_correction(tests.query('test != "F_F"'),on='bootstrap_pvalues')
+    tests = pd.concat([tests,checks],sort=False)
+
+    filename = run_params['output_dir']+'/cdf_bootstraps.csv'
+    tests.to_csv(filename,index=False)
+    print('Saved to: {}'.format(filename))
+
+    return tests
+
+def load_cdf_shuffles(run_params):
+    filename = run_params['output_dir']+'/cdf_bootstraps.csv'
+    tests = pd.read_csv(filename)
+    return tests
+
+def shuffle_cdfs(x,y,dropout,nshuffles=100,sample_on='ophys_experiment_id'):
+    
+    options_x = x[sample_on].unique()
+    options_y = y[sample_on].unique()
+    n_samples_x = len(options_x)
+    n_samples_y = len(options_y)
+    
+    dict_x = {}
+    dict_y = {}
+    for option in options_x:
+        dict_x[option] = x.query('{} == @option'.format(sample_on))[dropout].values
+    for option in options_y:
+        dict_y[option] = y.query('{} == @option'.format(sample_on))[dropout].values
+
+    pvalues = []
+    test_statistics = []
+    for i in tqdm(range(0,nshuffles)):
+        choice_x = np.random.choice(options_x,n_samples_x)
+        choice_y = np.random.choice(options_y,n_samples_y)
+        sample_x = []
+        sample_y = []
+        for choice in choice_x:
+            sample_x.append(dict_x[choice])       
+        for choice in choice_y:
+            sample_y.append(dict_y[choice]) 
+        sample_x = np.concatenate(sample_x)
+        sample_y = np.concatenate(sample_y)
+        output = stats.kstest(sample_x,sample_y)
+        pvalues.append(output[1])
+        test_statistics.append(output[0])
+    return np.array(pvalues), np.array(test_statistics)
+    
+def add_hochberg_correction(table,on='pvalue'):
+    '''
+        Performs the Benjamini Hochberg correction
+    '''    
+    # Sort table by pvalues
+    table = table.sort_values(by=on).reset_index().rename(columns={'index':'original'})
+    
+    # compute the corrected pvalue based on the rank of each test
+    # Need to use rank starting at 1
+    table['imq'] = (1+table.index.values)/len(table)*0.05
+
+    # Find the largest pvalue less than its corrected pvalue
+    # all tests above that are significant
+    table['bh_significant'] = False
+    passing_tests = table[table[on] < table['imq']]
+    if len(passing_tests) >0:
+        last_index = table[table[on] < table['imq']].tail(1).index.values[0]
+        table.at[last_index,'bh_significant'] = True
+        table.at[0:last_index,'bh_significant'] = True
+    
+    # reset order of table and return
+    return table.sort_values(by='original').set_index('original') 
+ 

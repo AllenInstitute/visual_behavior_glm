@@ -94,6 +94,8 @@ stats_E = gvt.plot_population_averages(results_pivoted, run_params)
 # cells coding for each regressor, and the CI value (which is the value +/- from the mean)
 stats_F = gvt.plot_fraction_summary_population(results_pivoted, run_params)
 
+## New Panel B, replaces D,E,F
+stats_B = gvt.plot_dropout_summary_population_cdf(results_pivoted, run_params)
 
 
 ### Supplemental figures

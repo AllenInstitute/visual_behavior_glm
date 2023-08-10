@@ -217,13 +217,13 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
 
         ecolor ='k'
         if index == 8:
-            ticklabels[top-index]='Omission' + get_kernel_duration('omissions',run_params)
+            ticklabels[top-index]='omission'# + get_kernel_duration('omissions',run_params)
             fcolor='k'
             if add_stimulus:
                 for t in image_times:
                     ax.axvline(t, color=gvt.project_colors()['schematic_omission'], linestyle='--', linewidth=1.5,zorder=-np.inf)
         else:
-            ticklabels[top-index]='Image '+str(image) + get_kernel_duration('image'+str(index),run_params,force_int=False)
+            ticklabels[top-index]='image '+str(image)# + get_kernel_duration('image'+str(index),run_params,force_int=False)
             image_name = 'image'+str(image)
             fcolor ='k'#palette_df.query('kernel_name == @image_name')['kernel_color'].values[0]
             if add_stimulus:
@@ -242,7 +242,7 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
     run['normalized_speed'] = run['speed'].apply(lambda x: (x - run['speed'].min())/(run['speed'].max() - run['speed'].min()))
     run['normalized_speed'] = run['normalized_speed'] + top-10
     ax.plot(run.timestamps,run.normalized_speed,'k')
-    ticklabels[top-9.5]='Running Speed'+ get_kernel_duration('running',run_params)
+    ticklabels[top-9.5]='running speed'#+ get_kernel_duration('running',run_params)
 
     # Pupil
     eye = g.session.eye_tracking.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
@@ -250,7 +250,7 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
     eye['normalized_pupil_radius'] = eye['pupil_radius'].apply(lambda x: (x - eye['pupil_radius'].min())/(eye['pupil_radius'].max() - eye['pupil_radius'].min()))
     eye['normalized_pupil_radius'] = eye['normalized_pupil_radius'] + top-12
     ax.plot(eye.timestamps,eye.normalized_pupil_radius,'k')
-    ticklabels[top-11.5]='Pupil Radius'+ get_kernel_duration('pupil',run_params)
+    ticklabels[top-11.5]='pupil radius'#+ get_kernel_duration('pupil',run_params)
 
     # licking
     licks = g.session.licks.query('(timestamps > @times[0])&(timestamps < @times[1])').copy()
@@ -258,7 +258,7 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
     for t in licks.timestamps:
         rect =patches.Rectangle((t,top-13-.5),0.025,1,edgecolor='k',facecolor='k',alpha=1,zorder=np.inf)
         ax.add_patch(rect)
-    ticklabels[top-13]='Licking'+ get_kernel_duration('licks',run_params)
+    ticklabels[top-13]='licking'#+ get_kernel_duration('licks',run_params)
 
     # Trials
     trials = g.session.trials.query('(change_time >= @times[0])&(change_time <=@times[1])').copy()
@@ -268,14 +268,14 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
         #ax.plot([t,t], [top-13.5, top-14.5], color='k',linewidth=2)
         rect =patches.Rectangle((t,top-14-.5),0.025,1,edgecolor='k',facecolor='k',alpha=1,zorder=np.inf)
         ax.add_patch(rect)
-    ticklabels[top-14]='Hit'+ get_kernel_duration('hits',run_params)
+    ticklabels[top-14]='hit'#+ get_kernel_duration('hits',run_params)
     if add_stimulus:
         for t in hits.change_time.values:
             ax.axvspan(t,t+0.25, color=gvt.project_colors()['schematic_change'], alpha=.5,zorder=-np.inf)
 
     miss = trials.query('miss')
     ax.plot(miss.change_time, np.ones((len(miss),))*(top-15),'k|',markersize=20)
-    ticklabels[top-15]='Miss'+ get_kernel_duration('misses',run_params)
+    ticklabels[top-15]='miss'#+ get_kernel_duration('misses',run_params)
 
     #fa = trials.query('false_alarm')
     #ax.plot(fa.change_time, np.ones((len(fa),))*(top-16),'r|',markersize=20)
@@ -287,7 +287,7 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
 
     ax.yaxis.set_ticks(list(ticklabels.keys()))
     ax.yaxis.set_ticklabels(list(ticklabels.values()),fontsize=style['fs2'])
-    ax.set_xlabel('Time in Session (s)',fontsize=style['fs1'])
+    ax.set_xlabel('time in session (s)',fontsize=style['fs1'])
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.set_xlim(times)
     ax.set_ylim(top-15.5,top+.5)

@@ -6245,7 +6245,7 @@ def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False
             if not ((dindex ==3)&(cindex==0)):
                 ax[cindex,dindex].get_legend().remove()
             if dindex == 0:
-                ax[cindex,dindex].set_ylabel(clean_cres[cindex]+'\nproportion (1-CDF)',fontsize=16)
+                ax[cindex,dindex].set_ylabel(clean_cres[cindex]+'\nprop. > x (1-CDF)',fontsize=16)
             if cindex == 2:
                 ax[cindex,dindex].set_xlabel(clean_dropouts[dindex], fontsize=16)
             plot_cdf_test(ax[cindex,dindex],cre,dropout,tests)
@@ -6289,9 +6289,9 @@ def plot_cdf_test(ax,cre,dropout, tests):
         ax.plot([x3,x3],[y2,y2h],'k-') 
         ax.plot([x1,x3],[y2h,y2h],'k-')
         ax.plot(np.mean([x1,x3]),[y2m],'k*')
-    ax.text(x1-.025,y0,'F')
-    ax.text(x2-.025,y0,'N')
-    ax.text(x3-.025,y0,'N+')
+    ax.text(x1-.025,y0,'F',color=project_colors()['Familiar'])
+    ax.text(x2-.025,y0,'N',color=project_colors()['Novel'])
+    ax.text(x3-.025,y0,'N+',color=project_colors()['Novel+'])
 
 def plot_dropout_summary_population_cdf_inner(results_pivoted, run_params,
     ax=None,cre_line = 'Vip-IRES-Cre',dropout = 'all-images'):

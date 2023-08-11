@@ -2245,7 +2245,10 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot_err
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
-def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results=False, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level',plot_dropout_sorted=True):  
+def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results=False, 
+    drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",
+    cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],
+    filter_sessions_on='experience_level',plot_dropout_sorted=True,limited=False):  
     '''
         Plots the average kernel for each cell line. 
         Plots the heatmap of the kernels sorted by time. 
@@ -2401,15 +2404,24 @@ def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results
     sst_table = weights.query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
     vip_table = weights.query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
     slc_table = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
-    sst_table_F = weights.query('experience_level=="Familiar"').query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
-    vip_table_F = weights.query('experience_level=="Familiar"').query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
-    slc_table_F = weights.query('experience_level=="Familiar"').query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
-    sst_table_N = weights.query('experience_level=="Novel 1"').query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
-    vip_table_N = weights.query('experience_level=="Novel 1"').query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
-    slc_table_N = weights.query('experience_level=="Novel 1"').query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
-    sst_table_Np = weights.query('experience_level=="Novel >1"').query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
-    vip_table_Np = weights.query('experience_level=="Novel >1"').query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
-    slc_table_Np = weights.query('experience_level=="Novel >1"').query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
+    sst_table_F = weights.query('experience_level=="Familiar"')\
+        .query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+    vip_table_F = weights.query('experience_level=="Familiar"')\
+        .query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+    slc_table_F = weights.query('experience_level=="Familiar"')\
+        .query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
+    sst_table_N = weights.query('experience_level=="Novel 1"')\
+        .query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+    vip_table_N = weights.query('experience_level=="Novel 1"')\
+        .query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+    slc_table_N = weights.query('experience_level=="Novel 1"')\
+        .query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
+    sst_table_Np = weights.query('experience_level=="Novel >1"')\
+        .query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+    vip_table_Np = weights.query('experience_level=="Novel >1"')\
+        .query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+    slc_table_Np = weights.query('experience_level=="Novel >1"')\
+        .query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
   
     ## Right Column, Dropout Scores 
     ncells={
@@ -2425,14 +2437,19 @@ def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results
 
     #zlims = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, 
     #    kernel, run_params,ncells,session_filter=session_filter,zlims=None,savefig=save_results)
-    zlims = plot_kernel_heatmap_with_dropout_by_experience(vip_table_F, vip_table_N, vip_table_Np,time_vec, 
-        kernel, run_params,ncells,cell_filter='Vip',zlims=zlim_table['vip'],savefig=save_results,sort_by_dropout=plot_dropout_sorted,limited=True)
-    zlims = plot_kernel_heatmap_with_dropout_by_experience(sst_table_F, sst_table_N, sst_table_Np,time_vec, 
-        kernel, run_params,ncells,cell_filter='Sst',zlims=zlim_table['sst'],savefig=save_results,sort_by_dropout=plot_dropout_sorted)
-    zlims = plot_kernel_heatmap_with_dropout_by_experience(slc_table_F, slc_table_N, slc_table_Np,time_vec, 
-        kernel, run_params,ncells,cell_filter='Exc',zlims=zlim_table['exc'],savefig=save_results,sort_by_dropout=plot_dropout_sorted)
-
-   
+    zlims = plot_kernel_heatmap_with_dropout_by_experience(vip_table_F, vip_table_N, 
+        vip_table_Np,time_vec, kernel, run_params,ncells,cell_filter='Vip',
+        zlims=zlim_table['vip'],savefig=save_results,sort_by_dropout=plot_dropout_sorted,
+        limited=limited)
+    zlims = plot_kernel_heatmap_with_dropout_by_experience(sst_table_F, sst_table_N, 
+        sst_table_Np,time_vec, kernel, run_params,ncells,cell_filter='Sst',
+        zlims=zlim_table['sst'],savefig=save_results,sort_by_dropout=plot_dropout_sorted,
+        limited=limited)
+    zlims = plot_kernel_heatmap_with_dropout_by_experience(slc_table_F, slc_table_N, 
+        slc_table_Np,time_vec, kernel, run_params,ncells,cell_filter='Exc',
+        zlims=zlim_table['exc'],savefig=save_results,sort_by_dropout=plot_dropout_sorted,
+        limited=limited)
+ 
 
 def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level',plot_dropout_sorted=True):  
     '''
@@ -6273,6 +6290,59 @@ def coarse_bin_depth(x):
     else:
         return 'lower'
 
+def plot_dropout_summary_population_cdf_area(results_pivoted,run_params,cre='Vip-IRES-Cre',
+    savefig=False, use_hierarchical=True, area_type='area_depth'):
+    '''
+        Plot the CDF for each experience/cre/dropout combination
+        Adds statistical tests, either bootstrapped or not
+    '''
+    # Set up figure and cre/dropout combinations
+    fig,ax = plt.subplots(3,4,figsize=(12,8))
+    experiences = ['Familiar','Novel 1','Novel >1']
+    dropouts = ['all-images','omissions','behavioral','task']
+
+    # Labels for plotting
+    clean_experiences = ['Familiar','Novel','Novel+']
+    clean_dropouts = ['images','omissions','behavioral','task']
+    
+    # Get statistical test results
+    #if use_hierarchical:
+    #    tests = load_cdf_shuffles(run_params)
+    #else:
+    #    tests = compute_cdf_tests(results_pivoted) 
+
+    # Iterate through each cre/dropout combination
+    for eindex, experience_level in enumerate(experiences):
+        for dindex, dropout in enumerate(dropouts):
+            # Plot the CDFs for this cre/dropout combination
+            plot_dropout_summary_population_cdf_area_inner(results_pivoted,run_params,
+                ax=ax[eindex,dindex],experience_level=experience_level,cre_line=cre,
+                dropout=dropout,area_type=area_type)
+
+            # clean up x/y labels
+            if not ((dindex ==3)&(eindex==0)):
+                ax[eindex,dindex].get_legend().remove()
+            if dindex == 0:
+                ax[eindex,dindex].set_ylabel(clean_experiences[eindex]+'\nprop. > x (1-CDF)',
+                    fontsize=16)
+            if eindex == 2:
+                ax[eindex,dindex].set_xlabel(clean_dropouts[dindex], fontsize=16)
+            
+            # Plot statistics
+            #plot_cdf_test(ax[eindex,dindex],cre,dropout,tests)
+    plt.tight_layout()
+
+    # Save the figure
+    if savefig:
+        filename = run_params['figure_dir']+'/dropout_summary_cdf_areas.svg'
+        print('Figure saved to: '+filename)
+        plt.savefig(filename)
+        plt.savefig(run_params['figure_dir']+'/dropout_summary_cdf_areas.png')
+
+    # Return the statistical tests
+    #return tests
+
+
 def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False,
     use_hierarchical=True):
     '''
@@ -6359,6 +6429,41 @@ def plot_cdf_test(ax,cre,dropout, tests):
     ax.text(x1-.025,y0,'F',color=project_colors()['Familiar'])
     ax.text(x2-.025,y0,'N',color=project_colors()['Novel'])
     ax.text(x3-.025,y0,'N+',color=project_colors()['Novel+'])
+
+
+def plot_dropout_summary_population_cdf_area_inner(results_pivoted, run_params,
+    ax=None,cre_line = 'Vip-IRES-Cre',dropout = 'all-images',experience_level='Familiar',
+    area_type='area_depth'):
+    '''
+        Plots the CDFs of one cre-line/dropout combination
+    '''
+    data_to_plot = results_pivoted.query('cre_line == @cre_line')\
+        .query('experience_level == @experience_level').copy()
+    data_to_plot[dropout] = -data_to_plot[dropout]
+
+    data_to_plot['coarse_binned_depth'] = \
+        [coarse_bin_depth(x) for x in data_to_plot['imaging_depth']]  
+    if area_type == 'area_depth':
+        data_to_plot['area'] = \
+            data_to_plot['targeted_structure'] +'_' + data_to_plot['coarse_binned_depth'] 
+    elif area_type == 'area':
+        data_to_plot['area'] = data_to_plot['targeted_structure']
+    elif area_type == 'depth':
+        data_to_plot['area'] = data_to_plot['coarse_binned_depth']
+
+    if ax is None:
+        fig,ax = plt.subplots(figsize=(4,3))
+    g=sns.ecdfplot(data=data_to_plot, x=dropout, hue='area',complementary=True,ax=ax,linewidth=2)
+    g.legend_.set_title(None)
+    ax.set_xlim(0,1)
+    ax.tick_params(axis='x',labelsize=12)
+    ax.tick_params(axis='y',labelsize=12)
+    ax.set_ylabel('')
+    ax.set_xlabel('')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout() 
+
 
 def plot_dropout_summary_population_cdf_inner(results_pivoted, run_params,
     ax=None,cre_line = 'Vip-IRES-Cre',dropout = 'all-images'):

@@ -2245,7 +2245,10 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot_err
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
-def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results=False, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level',plot_dropout_sorted=True):  
+def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results=False, 
+    drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",
+    cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],
+    filter_sessions_on='experience_level',plot_dropout_sorted=True,limited=False):  
     '''
         Plots the average kernel for each cell line. 
         Plots the heatmap of the kernels sorted by time. 
@@ -2401,15 +2404,24 @@ def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results
     sst_table = weights.query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
     vip_table = weights.query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
     slc_table = weights.query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
-    sst_table_F = weights.query('experience_level=="Familiar"').query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
-    vip_table_F = weights.query('experience_level=="Familiar"').query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
-    slc_table_F = weights.query('experience_level=="Familiar"').query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
-    sst_table_N = weights.query('experience_level=="Novel 1"').query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
-    vip_table_N = weights.query('experience_level=="Novel 1"').query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
-    slc_table_N = weights.query('experience_level=="Novel 1"').query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
-    sst_table_Np = weights.query('experience_level=="Novel >1"').query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
-    vip_table_Np = weights.query('experience_level=="Novel >1"').query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
-    slc_table_Np = weights.query('experience_level=="Novel >1"').query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
+    sst_table_F = weights.query('experience_level=="Familiar"')\
+        .query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+    vip_table_F = weights.query('experience_level=="Familiar"')\
+        .query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+    slc_table_F = weights.query('experience_level=="Familiar"')\
+        .query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
+    sst_table_N = weights.query('experience_level=="Novel 1"')\
+        .query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+    vip_table_N = weights.query('experience_level=="Novel 1"')\
+        .query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+    slc_table_N = weights.query('experience_level=="Novel 1"')\
+        .query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
+    sst_table_Np = weights.query('experience_level=="Novel >1"')\
+        .query('cre_line == "Sst-IRES-Cre"')[[kernel+'_weights',kernel]]
+    vip_table_Np = weights.query('experience_level=="Novel >1"')\
+        .query('cre_line == "Vip-IRES-Cre"')[[kernel+'_weights',kernel]]
+    slc_table_Np = weights.query('experience_level=="Novel >1"')\
+        .query('cre_line == "Slc17a7-IRES2-Cre"')[[kernel+'_weights',kernel]]
   
     ## Right Column, Dropout Scores 
     ncells={
@@ -2425,14 +2437,19 @@ def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results
 
     #zlims = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, 
     #    kernel, run_params,ncells,session_filter=session_filter,zlims=None,savefig=save_results)
-    zlims = plot_kernel_heatmap_with_dropout_by_experience(vip_table_F, vip_table_N, vip_table_Np,time_vec, 
-        kernel, run_params,ncells,cell_filter='Vip',zlims=zlim_table['vip'],savefig=save_results,sort_by_dropout=plot_dropout_sorted,limited=True)
-    zlims = plot_kernel_heatmap_with_dropout_by_experience(sst_table_F, sst_table_N, sst_table_Np,time_vec, 
-        kernel, run_params,ncells,cell_filter='Sst',zlims=zlim_table['sst'],savefig=save_results,sort_by_dropout=plot_dropout_sorted)
-    zlims = plot_kernel_heatmap_with_dropout_by_experience(slc_table_F, slc_table_N, slc_table_Np,time_vec, 
-        kernel, run_params,ncells,cell_filter='Exc',zlims=zlim_table['exc'],savefig=save_results,sort_by_dropout=plot_dropout_sorted)
-
-   
+    zlims = plot_kernel_heatmap_with_dropout_by_experience(vip_table_F, vip_table_N, 
+        vip_table_Np,time_vec, kernel, run_params,ncells,cell_filter='Vip',
+        zlims=zlim_table['vip'],savefig=save_results,sort_by_dropout=plot_dropout_sorted,
+        limited=limited)
+    zlims = plot_kernel_heatmap_with_dropout_by_experience(sst_table_F, sst_table_N, 
+        sst_table_Np,time_vec, kernel, run_params,ncells,cell_filter='Sst',
+        zlims=zlim_table['sst'],savefig=save_results,sort_by_dropout=plot_dropout_sorted,
+        limited=limited)
+    zlims = plot_kernel_heatmap_with_dropout_by_experience(slc_table_F, slc_table_N, 
+        slc_table_Np,time_vec, kernel, run_params,ncells,cell_filter='Exc',
+        zlims=zlim_table['exc'],savefig=save_results,sort_by_dropout=plot_dropout_sorted,
+        limited=limited)
+ 
 
 def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level',plot_dropout_sorted=True):  
     '''

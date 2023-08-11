@@ -57,6 +57,8 @@ gvt.kernel_evaluation(weights_df, run_params, 'omissions', session_filter=['Fami
 # This generates 6 figures,  3 by experience, and 3 by cre-line
 # only the 3 by experience are used in the main figure
 gvt.plot_kernel_comparison_by_experience(weights_df, run_params, 'omissions')
+gvt.kernel_evaluation_by_experience(weights_df, run_params, 'all-images',limited=False)   
+gvt.kernel_evaluation_by_experience(weights_df, run_params, 'omissions',limited=True)
 
 ## Panel D - Dropout summaries
 # Returns a dataframe with rows for cre/dropout, and columns describing

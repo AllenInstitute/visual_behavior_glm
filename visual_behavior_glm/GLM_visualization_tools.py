@@ -2417,14 +2417,20 @@ def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results
         'sst':len(sst_table),
         'exc':len(slc_table),
         }   
-    zlims = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, 
-        kernel, run_params,ncells,session_filter=session_filter,zlims=None,savefig=save_results)
+    zlim_table={
+        'vip':[-0.0095,0.0095],
+        'sst':[-0.0256,0.0256],
+        'exc':[-0.0038,0.0038],
+        }
+
+    #zlims = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, 
+    #    kernel, run_params,ncells,session_filter=session_filter,zlims=None,savefig=save_results)
     zlims = plot_kernel_heatmap_with_dropout_by_experience(vip_table_F, vip_table_N, vip_table_Np,time_vec, 
-        kernel, run_params,ncells,cell_filter='Vip',zlims=None,savefig=save_results)
+        kernel, run_params,ncells,cell_filter='Vip',zlims=zlim_table['vip'],savefig=save_results,sort_by_dropout=plot_dropout_sorted,limited=True)
     zlims = plot_kernel_heatmap_with_dropout_by_experience(sst_table_F, sst_table_N, sst_table_Np,time_vec, 
-        kernel, run_params,ncells,cell_filter='Sst',zlims=None,savefig=save_results)
+        kernel, run_params,ncells,cell_filter='Sst',zlims=zlim_table['sst'],savefig=save_results,sort_by_dropout=plot_dropout_sorted)
     zlims = plot_kernel_heatmap_with_dropout_by_experience(slc_table_F, slc_table_N, slc_table_Np,time_vec, 
-        kernel, run_params,ncells,cell_filter='Exc',zlims=None,savefig=save_results)
+        kernel, run_params,ncells,cell_filter='Exc',zlims=zlim_table['exc'],savefig=save_results,sort_by_dropout=plot_dropout_sorted)
 
    
 
@@ -3059,11 +3065,19 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
     return zlims
     #plt.tight_layout()
 
-def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_table, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,session_filter=['Familiar','Novel 1','Novel >1'],savefig=False,cell_filter=''):
+def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_table, 
+    time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,
+    session_filter=['Familiar','Novel 1','Novel >1'],savefig=False,
+    cell_filter='',sort_by_dropout=False,limited=False):
+
     if ax==None:
         #fig,ax = plt.subplots(figsize=(8,4))
         height = 4
-        width=8
+        if kernel == 'all_images':
+            kernel_length = run_params['kernels']['all-images']['length']       
+        else:
+            kernel_length = run_params['kernels'][kernel]['length']
+        width=4+((4/3)*kernel_length)
         pre_horz_offset = 1.5
         post_horz_offset = 2.5
         vertical_offset = .75
@@ -3106,13 +3120,30 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
     ncols = len(vip_table[kernel+'_weights'].values[0])
     vip_df = pd.DataFrame(vip_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
     vip_df['dropout'] = vip_table.reset_index()[kernel]*-1
-    vip_df = vip_df.sort_values(by=['dropout'],ascending=False)    
+    if sort_by_dropout:
+        vip_df = vip_df.sort_values(by=['dropout'],ascending=False)    
+    else:
+        vip_df['peak'] = [np.argmax(x) for x in vip_table[kernel+'_weights']]
+        vip_df = vip_df.sort_values(by=['peak'],ascending=True)    
+        vip_df = vip_df.drop(columns='peak')
+ 
     sst_df = pd.DataFrame(sst_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
     sst_df['dropout'] = sst_table.reset_index()[kernel]*-1
-    sst_df = sst_df.sort_values(by=['dropout'],ascending=False) 
+    if sort_by_dropout:
+        sst_df = sst_df.sort_values(by=['dropout'],ascending=False)    
+    else:
+        sst_df['peak'] = [np.argmax(x) for x in sst_table[kernel+'_weights']]
+        sst_df = sst_df.sort_values(by=['peak'],ascending=True)    
+        sst_df = sst_df.drop(columns='peak')
+
     slc_df = pd.DataFrame(slc_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
     slc_df['dropout'] = slc_table.reset_index()[kernel]*-1
-    slc_df = slc_df.sort_values(by=['dropout'],ascending=False) 
+    if sort_by_dropout:
+        slc_df = slc_df.sort_values(by=['dropout'],ascending=False)    
+    else:
+        slc_df['peak'] = [np.argmax(x) for x in slc_table[kernel+'_weights']]
+        slc_df = slc_df.sort_values(by=['peak'],ascending=True)    
+        slc_df = slc_df.drop(columns='peak')
 
     weights_sorted = np.concatenate([slc_df.to_numpy(),sst_df.to_numpy(), vip_df.to_numpy()])[:,0:-1].T
     drop_sorted = np.concatenate([slc_df.to_numpy(),sst_df.to_numpy(), vip_df.to_numpy()])[:,-1].T
@@ -3136,24 +3167,33 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
     color_bar.ax.set_title('Weight',fontsize=16,loc='left')  
     color_bar.ax.tick_params(axis='both',labelsize=16)
     if kernel == 'omissions':
-        ax3.set_xlabel('Time from omission (s)',fontsize=20)  
+        ax3.set_xlabel('time from omission (s)',fontsize=20)  
     elif kernel in ['hits','misses']:
-        ax3.set_xlabel('Time from image change (s)',fontsize=20)          
+        ax3.set_xlabel('time from change (s)',fontsize=20)          
     else:
-        ax3.set_xlabel('Time (s)',fontsize=20)
+        ax3.set_xlabel('time (s)',fontsize=20)
 
-    ax1.set_yticks([ax1.get_ylim()[1]/2])
-    ax1.set_yticklabels(['Familiar'])
-    ax2.set_yticks([ax2.get_ylim()[1]/2])
-    ax2.set_yticklabels(['Novel'])
-    ax3.set_yticks([ax3.get_ylim()[1]/2])
-    ax3.set_yticklabels(['Novel+'])
+    if limited:
+        ax1.set_yticks([])
+        ax2.set_yticks([])
+        ax3.set_yticks([])
+    else:
+        ax1.set_yticks([ax1.get_ylim()[1]/2])
+        ax1.set_yticklabels(['Familiar'])
+        ax2.set_yticks([ax2.get_ylim()[1]/2])
+        ax2.set_yticklabels(['Novel'])
+        ax3.set_yticks([ax3.get_ylim()[1]/2])
+        ax3.set_yticklabels(['Novel+'])
     ax1.set_xticks([])
     ax2.set_xticks([])
     ax1.tick_params(axis='both',labelsize=16)
     ax2.tick_params(axis='both',labelsize=16)
     ax3.tick_params(axis='both',labelsize=16)
-    title = kernel +' kernels'
+    if kernel == 'all_images':
+        title = 'images'
+    else:
+        title = kernel 
+
     if len(cell_filter) >0:
         title = ', '.join([title,cell_filter])
     all_cells=False
@@ -3180,10 +3220,11 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
     if VE:
         ax2.set_ylabel('VE > 0.005 Cells',fontsize=16)
 
-    ax1.set_title(title,fontsize=20)
+    ax1.set_title(title,fontsize=16)
     cmap = copy.copy(plt.cm.get_cmap('plasma'))
     cmap.set_under('black')
-    cbar2=dax1.imshow(np.sqrt(vip_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 
+    cbar2=dax1.imshow(np.sqrt(vip_drop_sorted[:,np.newaxis]),aspect='auto',
+        cmap=cmap,vmin=1e-10,vmax=1) 
     dax1.set_yticks([])
     dax1.set_xticks([])
     color_bar=fig.colorbar(cbar2, cax=cax2,extend='min')
@@ -3191,14 +3232,20 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
     color_bar.set_ticks([0,.5,1]) 
     color_bar.ax.tick_params(axis='both',labelsize=16)
 
-    dax2.imshow(np.sqrt(sst_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 
+    dax2.imshow(np.sqrt(sst_drop_sorted[:,np.newaxis]),aspect='auto',
+        cmap=cmap,vmin=1e-10,vmax=1) 
     dax2.set_yticks([])
     dax2.set_xticks([])
-    dax3.imshow(np.sqrt(slc_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 
+    dax3.imshow(np.sqrt(slc_drop_sorted[:,np.newaxis]),aspect='auto',
+        cmap=cmap,vmin=1e-10,vmax=1) 
     dax3.set_yticks([])
     dax3.set_xticks([])   
     #dax3.set_xticks([dax3.get_xlim()[1]/2])
     #dax3.set_xticklabels(['Coding\n Score'],rotation=-70,fontsize=16)
+    if limited:
+        fig.delaxes(cax2)
+        fig.delaxes(cax1)
+        
     if savefig:
         filename = os.path.join(run_params['fig_kernels_dir'],kernel+'_heatmap_with_dropout_by_experience'+extra+cell_filter+'.svg')
         plt.savefig(filename) 

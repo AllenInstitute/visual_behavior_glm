@@ -6375,9 +6375,11 @@ def plot_dropout_summary_population_cdf(results_pivoted,run_params,savefig=False
             if not ((dindex ==3)&(cindex==0)):
                 ax[cindex,dindex].get_legend().remove()
             if dindex == 0:
-                ax[cindex,dindex].set_ylabel(clean_cres[cindex]+'\nprop. > x (1-CDF)',fontsize=16)
+                ax[cindex,dindex].set_ylabel(clean_cres[cindex]+'\n % of cells > x',fontsize=16)
             if cindex == 2:
-                ax[cindex,dindex].set_xlabel(clean_dropouts[dindex], fontsize=16)
+                ax[cindex,dindex].set_xlabel('coding score', fontsize=16)
+            if cindex == 0:
+                ax[cindex,dindex].set_title(clean_dropouts[dindex],fontsize=16)
             
             # Plot statistics
             plot_cdf_test(ax[cindex,dindex],cre,dropout,tests)
@@ -6401,15 +6403,15 @@ def plot_cdf_test(ax,cre,dropout, tests):
     this_test = tests.query('cre_line==@cre').query('dropout==@dropout')
     this_test = this_test.set_index('test')
 
-    y0=.74
-    y1 = .8
-    y1h = .825
-    y1m = .865
-    y2 = .875
-    y2h = .9
-    y2m = .94
-    x1=.75
-    x2=.85
+    y0=.73
+    y1 = .8 + 0.04
+    y1h = .825 + 0.04
+    y1m = .865 + 0.04
+    y2 = .875 + 0.04
+    y2h = .9 + 0.04
+    y2m = .94 + 0.04
+    x1=.65
+    x2=.8
     x3=.95 
     if this_test.loc['F_N']['bh_significant']:
         ax.plot([x1,x1],[y1,y1h],'k-')    
@@ -6426,9 +6428,9 @@ def plot_cdf_test(ax,cre,dropout, tests):
         ax.plot([x3,x3],[y2,y2h],'k-') 
         ax.plot([x1,x3],[y2h,y2h],'k-')
         ax.plot(np.mean([x1,x3]),[y2m],'k*')
-    ax.text(x1-.025,y0,'F',color=project_colors()['Familiar'])
-    ax.text(x2-.025,y0,'N',color=project_colors()['Novel'])
-    ax.text(x3-.025,y0,'N+',color=project_colors()['Novel+'])
+    ax.text(x1-.025,y0,'F',color=project_colors()['Familiar'],fontsize=16)
+    ax.text(x2-.025,y0,'N',color=project_colors()['Novel'],fontsize=16)
+    ax.text(x3-.025,y0,'N+',color=project_colors()['Novel+'],fontsize=16)
 
 
 def plot_dropout_summary_population_cdf_area_inner(results_pivoted, run_params,
@@ -6486,6 +6488,10 @@ def plot_dropout_summary_population_cdf_inner(results_pivoted, run_params,
         palette=project_colors(),linewidth=2)
     g.legend_.set_title(None)
     ax.set_xlim(0,1)
+    ax.set_yticks([0,.2,.4,.6,.8,1])
+    ax.set_yticklabels([0,20,40,60,80,100])
+    ax.set_xticks([0,.25,.50,.75,1])
+    ax.set_xticklabels([0,0.25,0.50,0.75,1])
     ax.tick_params(axis='x',labelsize=12)
     ax.tick_params(axis='y',labelsize=12)
     ax.set_ylabel('')

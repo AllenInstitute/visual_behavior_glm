@@ -32,19 +32,11 @@ from visual_behavior_glm.glm import GLM
 import matplotlib.pyplot as plt
 plt.ion()
 
-
-
 ### Define model version
 VERSION = '24_events_all_L2_optimize_by_session'
 
-
-
 ### Load data
-# This function requires access to Allen Institute internal resources
-# I should save out these dataframes to a file
-# Takes abouts 10 minutes to load and process data
-run_params, results, results_pivoted, weights_df = gfd.get_analysis_dfs(VERSION)
-
+run_params, results, results_pivoted, weights_df = gfd.load_analysis_dfs(VERSION)
 
 
 ### Main paper figures
@@ -65,11 +57,19 @@ gvt.kernel_evaluation(weights_df, run_params, 'omissions', session_filter=['Fami
 # This generates 6 figures,  3 by experience, and 3 by cre-line
 # only the 3 by experience are used in the main figure
 gvt.plot_kernel_comparison_by_experience(weights_df, run_params, 'omissions')
+gvt.kernel_evaluation_by_experience(weights_df, run_params, 'all-images',limited=False)   
+gvt.kernel_evaluation_by_experience(weights_df, run_params, 'omissions',limited=True)
 
 ## Panel D - Dropout summaries
 # Returns a dataframe with rows for cre/dropout, and columns describing
 # the dropout score
 stats_D = gvt.plot_dropout_summary_population(results,run_params) 
+stats_D = gvt.plot_dropout_summary_population_with_experience(results,run_params) 
+results_pivoted_active = results_pivoted.query('not passive').copy()
+anova, tukey = gvt.test_significant_across_cell(results_pivoted_active,'all-images')
+anova, tukey = gvt.test_significant_across_cell(results_pivoted_active,'omissions')
+anova, tukey = gvt.test_significant_across_cell(results_pivoted_active,'behavioral')
+anova, tukey = gvt.test_significant_across_cell(results_pivoted_active,'task')
 
 ## Panel E - Dropout averages for experience and cre-line
 '''
@@ -96,6 +96,8 @@ stats_E = gvt.plot_population_averages(results_pivoted, run_params)
 # cells coding for each regressor, and the CI value (which is the value +/- from the mean)
 stats_F = gvt.plot_fraction_summary_population(results_pivoted, run_params)
 
+## New Panel B, replaces D,E,F
+stats_B = gvt.plot_dropout_summary_population_cdf(results_pivoted, run_params)
 
 
 ### Supplemental figures
@@ -119,7 +121,7 @@ stats_S3A = gvt.plot_population_averages(results_pivoted, run_params,
 
 # Panel B - Cells with explained variance > 0.5%
 stats_S3B = gvt.plot_population_averages(results_pivoted, run_params,
-        include_zero_cells=False)
+        matched_with_variance_explained=True, matched_ve_threshold=0.05)
 
 
 ## S4 - area
@@ -134,12 +136,15 @@ stats_S4 = gvt.plot_population_averages_by_area(results_pivoted, run_params)
 
 ## S5 - Depth V1
 stats_S5_V1 = gvt.plot_population_averages_by_depth(results_pivoted,run_params, 
-        area='VISp') 
+        area=['VISp']) 
 
 
 ## S5 - Depth LM
 stats_S5_LM = gvt.plot_population_averages_by_depth(results_pivoted,run_params, 
-        area='VISl')   
+        area=['VISl'])   
+
+stats_S5 = gvt.plot_population_averages_by_depth(results_pivoted,run_params, 
+        area=['VISl','VISp'])   
 
 
 ## For Supplemental figures S6-S9, you need to load the results from a different version
@@ -288,11 +293,13 @@ gvt.kernel_evaluation(weights_df, run_params, 'running', session_filter=['Novel 
 
 
 # S19 - Across Session normalized average dropout scores
-across_run_params = gas.make_across_run_params(VERSION)
-across_df, fail_to_load = gas.load_cells(glm_version=VERSION)
+across_run_params, across_df = gas.load_across_session(run_params)
 across_df = gas.append_kernel_excitation_across(weights_df, across_df)
 
 # Plot the population averages across experience/cre line
 gas.plot_across_summary(across_df, across_run_params) 
+
+# Get Across session normalized average dropout scores for each cv fold
+across_run_params, across_df_fold_0 = gas.load_cv_across_session(run_params,fold=0)
 
 

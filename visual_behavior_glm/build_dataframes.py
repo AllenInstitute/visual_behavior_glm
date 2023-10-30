@@ -11,6 +11,10 @@ import psy_output_tools as po
 BEHAVIOR_VERSION = 21
 
 def add_area_depth(df,experiment_table):
+    '''
+        Adds targeted_structure, and layer columns from experiment table 
+        index on oeid
+    '''
     df = pd.merge(df, 
         experiment_table.reset_index()[[\
             'ophys_experiment_id',
@@ -19,11 +23,33 @@ def add_area_depth(df,experiment_table):
         on='ophys_experiment_id')
     return df
 
-def load_population_df(data,df_type,cre,summary_df=None):
+def load_population_df(data,df_type,cre,summary_df=None,first=False,second=False,
+    image=False,experience_level='Familiar'):
+    '''
+        Loads a summary dataframe
+        data should be 'events', 'filtered_events', or 'dff'
+        df_type should be 'full_df', or 'image_df'
+    '''
+    if first:
+        extra = '_first_half'
+    elif second:
+        extra = '_second_half'
+    elif image:
+        extra = '_image_period'
+    else:
+        extra =  ''
+
+    if experience_level == 'Novel 1':
+        extra +='_novel'
+    elif experience_level == "Novel >1":
+        extra +='_novelp'
+
+    # load summary file
     path ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-        +df_type+'s/'+data+'/summary_'+cre+'.feather'
+        +df_type+'s/'+data+'/summary_'+cre+extra+'.feather'
     df = pd.read_feather(path)
 
+    # Add columsn from summary_df
     if (df_type =='image_df') and (summary_df is not None):
         cols = ['behavior_session_id','visual_strategy_session',
             'experience_level']
@@ -33,7 +59,12 @@ def load_population_df(data,df_type,cre,summary_df=None):
 
 
 def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
-    data='filtered_events',savefile=True,):
+    data='filtered_events',savefile=True,first=False,second=False,image=False,
+    experience_level='Familiar'):
+    '''
+        Generates the summary data files by aggregating over ophys experiment
+    '''
+
 
     batch_size=50
     batch=False
@@ -45,6 +76,7 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
 
     # get list of experiments
     summary_df = summary_df.query('cre_line == @cre')
+    summary_df = summary_df.query('experience_level == @experience_level')
     oeids = np.concatenate(summary_df['ophys_experiment_id'].values) 
 
     # make list of columns to drop for space
@@ -77,35 +109,40 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
     if batch:
         batch_num=0
 
+    failed_to_load = 0
     for idx,value in tqdm(enumerate(oeids),total = num_rows):
         try:
-            path=get_path('',value, 'experiment',df_type,data)
+            path=get_path('',value, 'experiment',df_type,data,first,second,image)
             this_df = pd.read_hdf(path)
             if df_type == 'image_df':
                 this_df = this_df.drop(columns=cols_to_drop)
             dfs.append(this_df)
         except:
+            failed_to_load += 1
+            print(value)
             pass 
         if batch:
             if np.mod(idx,batch_size) == batch_size-1:
                 temp = pd.concat(dfs, ignore_index=True, sort=False)
                 path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-                    +df_type+'s/'+data+'/temp_'+str(batch_num)+'_'+cre+'.feather'
+                    +df_type+'s/'+data+'/temp_'+experience_level+str(batch_num)+'_'+cre+'.feather'
                 temp.to_feather(path)
                 batch_num+=1
                 dfs = []
 
+    print('Experiments that did not load: {}'.format(failed_to_load))
+
     if batch:
         temp = pd.concat(dfs, ignore_index=True, sort=False)
         path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-            +df_type+'s/'+data+'/temp_'+str(batch_num)+'_'+cre+'.feather'
+            +df_type+'s/'+data+'/temp_'+experience_level+str(batch_num)+'_'+cre+'.feather'
         temp.to_feather(path)
 
         n = list(range(0,batch_num+1))
         dfs = []
         for i in n:
             path='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-                +df_type+'s/'+data+'/temp_'+str(i)+'_'+cre+'.feather'
+                +df_type+'s/'+data+'/temp_'+experience_level+str(i)+'_'+cre+'.feather'
             temp = pd.read_feather(path)
             dfs.append(temp)
  
@@ -117,8 +154,21 @@ def build_population_df(summary_df,df_type='image_df',cre='Vip-IRES-Cre',
     # save
     if savefile:
         print('saving')
+        if first:
+            extra = '_first_half'
+        elif second:
+            extra = '_second_half'  
+        elif image:
+            extra = '_image_period' 
+        else:
+            extra = ''
+        if experience_level == 'Novel 1':
+            extra +='_novel'
+        elif experience_level == "Novel >1":
+            extra +='_novelp'
+
         path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'\
-            +df_type+'s/'+data+'/summary_'+cre+'.feather'
+            +df_type+'s/'+data+'/summary_'+cre+extra+'.feather'
         try:
             population_df.to_feather(path)
         except Exception as e:
@@ -154,7 +204,7 @@ def temporary_engagement_updates(session):
         & session.behavior_df['lick_bout_rate'] > 0.1
 
 
-def build_behavior_df_experiment(session):
+def build_behavior_df_experiment(session,first=False,second=False,image=False):
     '''
         For each cell in this experiment
     '''
@@ -196,7 +246,8 @@ def build_behavior_df_experiment(session):
      
             # Save
             ophys_experiment_id = session.metadata['ophys_experiment_id']
-            path = get_path('', ophys_experiment_id, 'experiment','full_df',data)
+            path = get_path('', ophys_experiment_id, 'experiment','full_df',
+                data,first,second,image)
             averages.to_hdf(path,key='df')
         except Exception as e:
             print(e)
@@ -207,10 +258,19 @@ def build_behavior_df_experiment(session):
         print('errors')
 
 
-def build_response_df_experiment(session,data):
+def build_response_df_experiment(session,data,first=False,second=False,image=False):
     '''
         For each cell in this experiment
     '''
+    
+    if first:
+        time = [0.05, 0.425]
+    elif second:
+        time = [0.425, 0.8]
+    elif image:
+        time = [.150, .250]
+    else:
+        time = [0.05, 0.8]
 
     # get session level behavior metrics
     load_behavior_summary(session)
@@ -225,7 +285,8 @@ def build_response_df_experiment(session,data):
     for index, cell_id in tqdm(enumerate(cell_specimen_ids),
         total=len(cell_specimen_ids),desc='Iterating Cells'):
         try:
-            this_image = build_response_df_cell(session, cell_id,data)
+            this_image = build_response_df_cell(session, cell_id,data,time,
+                first,second,image)
             image_dfs.append(this_image)
         except Exception as e:
             print('error with '+str(cell_id))
@@ -233,9 +294,22 @@ def build_response_df_experiment(session,data):
 
     print('saving combined image df')
     path = get_path('',session.metadata['ophys_experiment_id'],'experiment',
-        'image_df',data)
+        'image_df',data,first,second,image)
     image_df = pd.concat(image_dfs)
     image_df.to_hdf(path, key='df')
+
+    if first:
+        print('skipping full_df because first=True')
+        print('Finished!')
+        return
+    if second:
+        print('skipping full_df because second=True')
+        print('Finished!')
+        return
+    if image:
+        print('skipping full_df because image=True')
+        print('Finished!')
+        return
 
     print('Iterating over cells for this experiment to build full dataframes')
     full_dfs = []
@@ -249,28 +323,39 @@ def build_response_df_experiment(session,data):
             print(e)
 
     print('saving combined full df')
-    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','full_df',data)
+    path = get_path('',session.metadata['ophys_experiment_id'],'experiment','full_df',
+        data,first=False,second=False,image=False)
     full_df = pd.concat(full_dfs)
     full_df.to_hdf(path, key='df')
 
     print('Finished!')
 
 
-def get_path(cell_id, oeid, filetype,df_type,data):
+def get_path(cell_id, oeid, filetype,df_type,data,first=False,second=False,image=False):
     root = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/'
-    filepath = root+df_type+'s/'+data+'/'+filetype+'s/'+str(oeid)+'_'+str(cell_id)+'.h5'
+    if first:
+        extra = '_1'
+    elif second:
+        extra = '_2'
+    elif image:
+        extra = '_image'
+    else:
+        extra = ''
+    filepath = root+df_type+'s/'+data+'/'+filetype+'s/'+str(oeid)+'_'+str(cell_id)+\
+        extra+'.h5'
    
     return filepath
 
 
-def build_response_df_cell(session, cell_specimen_id,data):
+def build_response_df_cell(session, cell_specimen_id,data,time=[0.05,0.8],
+    first=False,second=False,image=False):
 
     # Get neural activity
     cell_df = get_cell_df(session,cell_specimen_id,data)
 
     # get running speed
     try:
-        run = get_running_etr(session)
+        run = get_running_etr(session,time=time)
         run_df = run.groupby('stimulus_presentations_id')['speed'].mean()
     except Exception as e:
         print('error procesing running '+str(cell_specimen_id))
@@ -279,7 +364,7 @@ def build_response_df_cell(session, cell_specimen_id,data):
 
     # get pupil
     try:
-        pupil = get_pupil_etr(session)
+        pupil = get_pupil_etr(session,time=time)
         pupil_df = pupil.groupby('stimulus_presentations_id')['pupil_width'].mean()  
     except Exception as e:
         print('error processing pupil '+str(cell_specimen_id))
@@ -287,7 +372,8 @@ def build_response_df_cell(session, cell_specimen_id,data):
         pupil_df = None
  
     # Get the max response to each image presentation   
-    image_df = get_image_df(cell_df, run_df, pupil_df, session, cell_specimen_id,data) 
+    image_df = get_image_df(cell_df, run_df, pupil_df, session, cell_specimen_id,
+        data,time,first,second,image) 
     return image_df
 
 
@@ -349,11 +435,12 @@ def get_cell_etr(df,session,time = [0.05,0.8]):
     return etr
 
    
-def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data):
+def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data,
+    time=[0.05,0.8],first=False,second=False,image=False):
 
     # Interpolate neural activity onto stimulus timestamps
     # then align to stimulus times
-    etr = get_cell_etr(cell_df, session)
+    etr = get_cell_etr(cell_df, session,time=time)
 
     # Get max response for each image
     image_df = etr.groupby('stimulus_presentations_id')['response'].mean()
@@ -363,6 +450,26 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data):
     image_df['behavior_session_id'] = session.metadata['behavior_session_id']   
     image_df['ophys_experiment_id'] = session.metadata['ophys_experiment_id']
     image_df['cre_line'] = session.metadata['cre_line']
+
+    # Add post omission
+    image_df['post_omitted_1'] = image_df['omitted'].shift(1,fill_value=False)
+    image_df['post_omitted_2'] = image_df['omitted'].shift(2,fill_value=False)
+
+    # Add post change
+    image_df['post_miss_1'] = image_df['miss'].shift(1)
+    image_df['post_miss_2'] = image_df['miss'].shift(2)
+    image_df['post_hit_1'] = image_df['hit'].shift(1)
+    image_df['post_hit_2'] = image_df['hit'].shift(2)
+
+    # Add pre change
+    image_df['pre_miss_1'] = image_df['miss'].shift(-1)
+    image_df['pre_hit_1'] = image_df['hit'].shift(-1)
+
+    # Add pre omission licking
+    image_df['pre_omission_lick'] = image_df['omitted'] & \
+        image_df['lick_bout_start'].shift(-1)
+    image_df['pre_omission_no_lick'] = image_df['omitted'] & \
+        (~image_df['lick_bout_start']).shift(-1) 
 
     # Add running speed
     if run_df is not None:
@@ -375,7 +482,8 @@ def get_image_df(cell_df,run_df, pupil_df, session,cell_specimen_id,data):
 
     # Save
     ophys_experiment_id = session.metadata['ophys_experiment_id']
-    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','image_df',data)
+    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','image_df',\
+        data,first=first,second=second,image=image)
     image_df.to_hdf(path,key='df')
 
     return image_df
@@ -391,7 +499,8 @@ def build_full_df_cell(session, cell_specimen_id,summary_df,data):
     return full_df
 
     
-def get_full_df(cell_df, session,cell_specimen_id,summary_df,data):
+def get_full_df(cell_df, session,cell_specimen_id,summary_df,data,
+    first=False,second=False,image=False):
     
     # Interpolate, then align to all images with long window
     full_df = get_cell_etr(cell_df, session, time = [-2,2])
@@ -422,7 +531,8 @@ def get_full_df(cell_df, session,cell_specimen_id,summary_df,data):
  
     # Save
     ophys_experiment_id = session.metadata['ophys_experiment_id']
-    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','full_df',data)
+    path = get_path(cell_specimen_id, ophys_experiment_id, 'cell','full_df',data,\
+        first=first,second=second,image=image)
     averages.to_hdf(path,key='df')
 
     return averages

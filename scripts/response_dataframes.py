@@ -14,6 +14,20 @@ parser.add_argument(
 if __name__ == '__main__':
     args = parser.parse_args()
     session = bd.load_data(args.ophys_experiment_id)
-    data = 'filtered_events'
-    bd.build_response_df_experiment(session,data)
-    #bd.build_behavior_df_experiment(session)
+    data = 'events'
+
+    #print('first half') 
+    #bd.build_response_df_experiment(session,data,first=True,second=False,image=False)
+
+    #print('second half') 
+    #bd.build_response_df_experiment(session,data,first=False,second=True,image=False)
+    
+    #print('image period')
+    #bd.build_response_df_experiment(session,data,first=False,second=False, image=True)
+
+    print('full interval') 
+    bd.build_response_df_experiment(session,data,first=False,second=False)
+
+    print('behavior')
+    bd.build_behavior_df_experiment(session)
+    print('grand finished')

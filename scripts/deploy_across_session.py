@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description='deploy glm fits to cluster')
 parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='path to conda environment to use')
 
 def already_fit(cell_id,glm_version):
-    filepath = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_"+glm_version+"/across_session/"+str(cell_id)+".csv" 
+    filepath = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_"+glm_version+"/across_session/"+str(cell_id)+"_0.csv" 
     return os.path.exists(filepath) 
 
 if __name__ == "__main__":
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
     python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/across_session.py"
-    glm_version = '24_dff_all_L2_optimize_by_session'
+    glm_version = '24_events_all_L2_optimize_by_session'
     stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
     stdout_location = os.path.join(stdout_basedir, 'job_records_across_session')
     if not os.path.exists(stdout_location):
@@ -52,7 +52,7 @@ if __name__ == "__main__":
         
             # instantiate a SLURM object
             slurm = Slurm(
-                cpus_per_task=4,
+                cpus_per_task=1,
                 job_name=job_title,
                 time=walltime,
                 mem=mem,

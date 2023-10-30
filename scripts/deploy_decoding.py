@@ -18,20 +18,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
-    python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/response_dataframes.py"
+    python_file = "/home/alex.piet/codebase/GLM/visual_behavior_glm/scripts/decode.py"
     stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
-    stdout_location = os.path.join(stdout_basedir, 'job_records_response_dataframes_events')
+    stdout_location = os.path.join(stdout_basedir, 'job_records_decoding')
     if not os.path.exists(stdout_location):
         print('making folder {}'.format(stdout_location))
         os.mkdir(stdout_location)
     print('stdout files will be at {}'.format(stdout_location))
 
     summary_df = po.get_ophys_summary_table(BEHAVIOR_VERSION)
-    #print('limiting to familiar')
-    #summary_df = summary_df.query('experience_level == "Familiar"')
-    print('limiting to Novel')
-    summary_df = summary_df.query('experience_level in ["Novel 1","Novel >1"]')
-
     oeids = np.concatenate(summary_df['ophys_experiment_id'].values) 
 
     job_count = 0

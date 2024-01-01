@@ -102,8 +102,7 @@ def plot_dropout(across_df, dropout, ax):
 def get_cell_list(glm_version):
     run_params = glm_params.load_run_json(glm_version)
     include_4x2_data = run_params['include_4x2_data']
-    cells_table = loading.get_cell_table(platform_paper_only=True,\
-        include_4x2_data=include_4x2_data).reset_index()
+    cells_table = loading.get_cell_table(platform_paper_only=True, include_4x2_data=include_4x2_data).reset_index()
     cells_table['passive'] = cells_table['passive'].astype(bool)
     cells_table = cells_table.query('not passive').copy()
     cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)

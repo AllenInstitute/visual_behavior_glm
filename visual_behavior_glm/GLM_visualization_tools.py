@@ -2245,6 +2245,7 @@ def plot_kernel_comparison_inner(ax, df,label,color,linestyle,time_vec, plot_err
     ax.plot(time_vec, df_norm.mean(axis=0),linestyle=linestyle,label=label,color=color,linewidth=linewidth)
     return df_norm.mean(axis=0)
 
+
 def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results=False, 
     drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",
     cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],
@@ -2451,7 +2452,9 @@ def kernel_evaluation_by_experience(weights_df, run_params, kernel, save_results
         limited=limited)
  
 
-def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level',plot_dropout_sorted=True):  
+def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_threshold=0,
+    session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',
+    area_filter=['VISp','VISl'],depth_filter=[0,1000],filter_sessions_on='experience_level',plot_dropout_sorted=True):  
     '''
         Plots the average kernel for each cell line. 
         Plots the heatmap of the kernels sorted by time. 
@@ -2753,7 +2756,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
         vip_drop_sorted = vip[:,vip_drop.values.argsort()] 
         slc_drop_sorted = slc[:,slc_drop.values.argsort()]
     weights_sorted = np.hstack([slc_sorted,sst_sorted, vip_sorted])
-    cbar = ax[0,1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='bwr')
+    cbar = ax[0,1].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='PRGn')
     cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95))
     color_bar=fig.colorbar(cbar, ax=ax[0,1])
     color_bar.ax.set_ylabel('Weights')   
@@ -2774,7 +2777,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
         vip_drop_sorted_f = vip_f[:,vip_drop_f.values.argsort()] 
         slc_drop_sorted_f = slc_f[:,slc_drop_f.values.argsort()]
     weights_sorted_f = np.hstack([slc_sorted_f,sst_sorted_f, vip_sorted_f])
-    cbar = ax[1,1].imshow(weights_sorted_f.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_f)[1]],cmap='bwr')
+    cbar = ax[1,1].imshow(weights_sorted_f.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_f)[1]],cmap='PRGn')
     cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_f),95),np.nanpercentile(np.abs(weights_sorted_f),95))
     color_bar = fig.colorbar(cbar, ax=ax[1,1])
     color_bar.ax.set_ylabel('Weights')   
@@ -2796,7 +2799,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
             vip_drop_sorted_df = vip_df[:,vip_drop_df.values.argsort()]
             slc_drop_sorted_df = slc_df[:,slc_drop_df.values.argsort()]
         weights_sorted_df = np.hstack([slc_sorted_df,sst_sorted_df, vip_sorted_df])
-        cbar = ax[2,1].imshow(weights_sorted_df.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_df)[1]],cmap='bwr')
+        cbar = ax[2,1].imshow(weights_sorted_df.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_df)[1]],cmap='PRGn')
         cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_df),95),np.nanpercentile(np.abs(weights_sorted_df),95))
         color_bar = fig.colorbar(cbar, ax=ax[2,1])
         color_bar.ax.set_ylabel('Weights')   
@@ -2814,7 +2817,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
 
     if plot_dropout_sorted:
         weights_sorted = np.hstack([slc_drop_sorted,sst_drop_sorted, vip_drop_sorted])
-        cbar = ax[0,2].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='bwr')
+        cbar = ax[0,2].imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='PRGn')
         cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95))
         color_bar=fig.colorbar(cbar, ax=ax[0,2])
         color_bar.ax.set_ylabel('Weights')   
@@ -2837,7 +2840,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
             }
 
         zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,session_filter=session_filter,savefig=save_results)
-        #zlims_test = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, kernel, run_params,ncells,session_filter=session_filter)
+        zlims_test = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, kernel, run_params,ncells,session_filter=session_filter)
     else:
     
         # All Cells
@@ -2870,7 +2873,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
     # Filtered by Full model
     if plot_dropout_sorted:
         weights_sorted_f = np.hstack([slc_drop_sorted_f,sst_drop_sorted_f, vip_drop_sorted_f])
-        cbar = ax[1,2].imshow(weights_sorted_f.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_f)[1]],cmap='bwr')
+        cbar = ax[1,2].imshow(weights_sorted_f.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_f)[1]],cmap='PRGn')
         cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_f),95),np.nanpercentile(np.abs(weights_sorted_f),95))
         color_bar = fig.colorbar(cbar, ax=ax[1,2])
         color_bar.ax.set_ylabel('Weights')   
@@ -2891,7 +2894,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
             'sst':np.shape(sst_f)[1],
             'exc':np.shape(slc_f)[1],
             }
-        zlims = plot_kernel_heatmap(weights_sorted_f,time_vec, kernel, run_params,ncells_f,extra='full_model',zlims=zlims,session_filter=session_filter,savefig=save_results) 
+        # zlims = plot_kernel_heatmap(weights_sorted_f,time_vec, kernel, run_params,ncells_f,extra='full_model',zlims=zlims,session_filter=session_filter,savefig=save_results) 
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2922,7 +2925,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
     # Filtered by Dropout Score
     if plot_dropout_sorted:
         weights_sorted_df = np.hstack([slc_drop_sorted_df,sst_drop_sorted_df, vip_drop_sorted_df])
-        cbar = ax[2,2].imshow(weights_sorted_df.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_df)[1]],cmap='bwr')
+        cbar = ax[2,2].imshow(weights_sorted_df.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted_df)[1]],cmap='PRGn')
         cbar.set_clim(-np.nanpercentile(np.abs(weights_sorted_df),95),np.nanpercentile(np.abs(weights_sorted_df),95))
         color_bar = fig.colorbar(cbar, ax=ax[2,2])
         color_bar.ax.set_ylabel('Weights')   
@@ -2943,11 +2946,11 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
             'sst':np.shape(sst_df)[1],
             'exc':np.shape(slc_df)[1],
             }
-        zlims = plot_kernel_heatmap(weights_sorted_df,time_vec, kernel, run_params,ncells_df,extra='dropout',zlims=None,session_filter=session_filter,savefig=save_results)
-        zlims_test = plot_kernel_heatmap_with_dropout(vip_table_df, sst_table_df, slc_table_df,time_vec, kernel, run_params,ncells_df,session_filter=session_filter,zlims=zlims,extra='dropout',savefig=save_results)
+        # zlims = plot_kernel_heatmap(weights_sorted_df,time_vec, kernel, run_params,ncells_df,extra='dropout',zlims=None,session_filter=session_filter,savefig=save_results)
+        # zlims_test = plot_kernel_heatmap_with_dropout(vip_table_df, sst_table_df, slc_table_df,time_vec, kernel, run_params,ncells_df,session_filter=session_filter,zlims=zlims,extra='dropout',savefig=save_results)
 
-        zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,zlims=zlims,session_filter=session_filter,savefig=save_results)
-        zlims_test = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, kernel, run_params,ncells,session_filter=session_filter,zlims=zlims,savefig=save_results)
+        # zlims = plot_kernel_heatmap(weights_sorted,time_vec, kernel, run_params,ncells,zlims=zlims,session_filter=session_filter,savefig=save_results)
+        # zlims_test = plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table,time_vec, kernel, run_params,ncells,session_filter=session_filter,zlims=zlims,savefig=save_results)
     else:
         # For each dropout, plot score
         for index, dropout in enumerate(drop_list):
@@ -2981,6 +2984,7 @@ def kernel_evaluation(weights_df, run_params, kernel, save_results=False, drop_t
         print('Figure Saved to: '+filename)
         plt.savefig(filename) 
         plt.savefig(filename_svg)
+
 
 def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,session_filter=['Familiar','Novel 1','Novel >1'],equipment_filter="all",cell_filter='all',area_filter=['VISp','VISl'],depth_filter=[0,1000]): 
     '''
@@ -3023,6 +3027,7 @@ def all_kernels_evaluation(weights_df, run_params, drop_threshold=0,session_filt
 
     for k in crashed:
         print('Crashed - '+k) 
+        
 
 def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {},ax=None,extra='',zlims=None,session_filter=['Familiar','Novel 1','Novel >1'],savefig=False):
     if ax==None:
@@ -3041,7 +3046,7 @@ def plot_kernel_heatmap(weights_sorted, time_vec,kernel, run_params, ncells = {}
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         cax = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
 
-    cbar = ax.imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='bwr')
+    cbar = ax.imshow(weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(weights_sorted)[1]],cmap='PRGn')
     if zlims is None:
         zlims =[-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95)]
     cbar.set_clim(zlims[0], zlims[1])
@@ -3171,13 +3176,13 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
     vip_weights_sorted =vip_df.to_numpy()[:,0:-1].T
     vip_drop_sorted =   vip_df.to_numpy()[:,-1].T
 
-    cbar1 = ax1.imshow(vip_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(slc_weights_sorted)[1]],cmap='bwr')
+    cbar1 = ax1.imshow(vip_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(slc_weights_sorted)[1]],cmap='PRGn')
     if zlims is None:
         zlims =[-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95)]
     cbar1.set_clim(zlims[0], zlims[1])
-    cbar2 = ax2.imshow(sst_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(sst_weights_sorted)[1]],cmap='bwr')
+    cbar2 = ax2.imshow(sst_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(sst_weights_sorted)[1]],cmap='PRGn')
     cbar2.set_clim(zlims[0], zlims[1])
-    cbar3 = ax3.imshow(slc_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(vip_weights_sorted)[1]],cmap='bwr')
+    cbar3 = ax3.imshow(slc_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(vip_weights_sorted)[1]],cmap='PRGn')
     cbar3.set_clim(zlims[0], zlims[1])
 
     color_bar=fig.colorbar(cbar1, cax=cax1)
@@ -3238,7 +3243,7 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
         ax2.set_ylabel('VE > 0.005 Cells',fontsize=16)
 
     ax1.set_title(title,fontsize=16)
-    cmap = copy.copy(plt.cm.get_cmap('plasma'))
+    cmap = copy.copy(plt.cm.get_cmap('Blues'))
     cmap.set_under('black')
     cbar2=dax1.imshow(np.sqrt(vip_drop_sorted[:,np.newaxis]),aspect='auto',
         cmap=cmap,vmin=1e-10,vmax=1) 
@@ -3336,13 +3341,13 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
     vip_weights_sorted =vip_df.to_numpy()[:,0:-1].T
     vip_drop_sorted =   vip_df.to_numpy()[:,-1].T
 
-    cbar1 = ax1.imshow(vip_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(slc_weights_sorted)[1]],cmap='bwr')
+    cbar1 = ax1.imshow(vip_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(slc_weights_sorted)[1]],cmap='PRGn')
     if zlims is None:
         zlims =[-np.nanpercentile(np.abs(weights_sorted),95),np.nanpercentile(np.abs(weights_sorted),95)]
     cbar1.set_clim(zlims[0], zlims[1])
-    cbar2 = ax2.imshow(sst_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(sst_weights_sorted)[1]],cmap='bwr')
+    cbar2 = ax2.imshow(sst_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(sst_weights_sorted)[1]],cmap='PRGn')
     cbar2.set_clim(zlims[0], zlims[1])
-    cbar3 = ax3.imshow(slc_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(vip_weights_sorted)[1]],cmap='bwr')
+    cbar3 = ax3.imshow(slc_weights_sorted.T,aspect='auto',extent=[time_vec[0], time_vec[-1], 0, np.shape(vip_weights_sorted)[1]],cmap='PRGn')
     cbar3.set_clim(zlims[0], zlims[1])
 
     color_bar=fig.colorbar(cbar1, cax=cax1)
@@ -3392,7 +3397,7 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
         ax2.set_ylabel('VE > 0.005 Cells',fontsize=16)
 
     ax1.set_title(title,fontsize=20)
-    cmap = copy.copy(plt.cm.get_cmap('plasma'))
+    cmap = copy.copy(plt.cm.get_cmap('Blues'))
     cmap.set_under('black')
     cbar2=dax1.imshow(np.sqrt(vip_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 
     dax1.set_yticks([])
@@ -4027,14 +4032,17 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
+    experience_colors = []
+    for exp_level in ['Familiar', 'Novel', 'Novel >1']:
+        experience_colors.append(project_colors()[exp_level])
 
     summary = {}
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
         if len(dropouts_to_show) ==3:
-            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(8.1,4), sharey=sharey)       
+            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(8, 2.5), sharey=sharey)       
         else:
-            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
+            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10, 2.5), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         stats = {}
         summary[cell_type + ' data'] = {}
@@ -4066,6 +4074,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                 ax[index].get_legend().remove()
             else:
                 ax[index].get_legend().set_title('Depth') 
+                ax[index].legend(bbox_to_anchor=(1,1))
             title_feature = feature.replace('all-images','images')
             title_feature = title_feature.replace('omissions_positive','excited')
             title_feature = title_feature.replace('omissions_negative','inhibited')
@@ -4076,6 +4085,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
             ax[index].set_xlabel('')
             ax[index].set_xticks([0,1,2])
             ax[index].set_xticklabels(experience_level_labels, rotation=90)
+            [t.set_color(i) for (i,t) in zip(experience_colors, ax[index].xaxis.get_ticklabels())]
             ax[index].set_xlim(-.5,2.5)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
@@ -4088,15 +4098,15 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
             for index, feature in enumerate(dropouts_to_show):
                 y1h = ax[index].get_ylim()[1]*1.05
                 if stats[feature]['Familiar'].pvalue<0.05:
-                    ax[index].text(0,y1h,'*')
+                    ax[index].text(0,y1h,'*', color='r')
                 if stats[feature]['Novel 1'].pvalue<0.05:
-                    ax[index].text(1,y1h,'*')
+                    ax[index].text(1,y1h,'*', color='r')
                 if stats[feature]['Novel >1'].pvalue<0.05:
-                    ax[index].text(2,y1h,'*')
-                ax[index].set_ylim(0,y1h*1.05)
-        ax[0].set_ylabel('Coding Score',fontsize=20)
-        plt.suptitle(cell_type+', '+' & '.join(area),fontsize=20)
-        fig.tight_layout() 
+                    ax[index].text(2,y1h,'*', color='r')
+                ax[index].set_ylim(0,y1h*1.15)
+        ax[0].set_ylabel('Coding score',fontsize=20)
+        plt.suptitle(cell_type, fontsize=20, x=0.5, y=1.15)
+        fig.subplots_adjust(wspace=0.5, hspace=0.3)
         filename = run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.svg'
         if savefig:
             plt.savefig(run_params['figure_dir']+'/dropout_average_by_depth_'+cell_type[0:3]+extra+'.png')
@@ -4151,6 +4161,10 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
+    experience_colors = []
+    for exp_level in ['Familiar', 'Novel', 'Novel >1']:
+        experience_colors.append(project_colors()[exp_level])
+
     if run_params['include_4x2_data']:
         areas = ['VISp','VISl','VISam','VISal']
         area_colors = {"VISp":'black',"VISl":'gray','VISam':'blue','VISal':'red'}       
@@ -4167,9 +4181,9 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     # Iterate cell types and make a plot for each
     for cell_type in cell_types:
         if len(dropouts_to_show) == 3:
-            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(8.1,4), sharey=sharey)       
+            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(8, 2.5), sharey=sharey)       
         else:
-            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10.8,4), sharey=sharey)
+            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10, 2.5), sharey=sharey)
         all_data = results_pivoted.query('cell_type ==@cell_type')
         stats = {}
         summary[cell_type + ' data'] = {}
@@ -4201,6 +4215,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
                 ax[index].get_legend().remove()
             else:
                 ax[index].get_legend().set_title('Area')
+                ax[index].legend(bbox_to_anchor=(1,1))
             title_feature = feature.replace('all-images','images')
             title_feature = title_feature.replace('omissions_positive','excited')
             title_feature = title_feature.replace('omissions_negative','inhibited')
@@ -4210,6 +4225,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             ax[index].set_xlabel('')
             ax[index].set_xticks([0,1,2])
             ax[index].set_xticklabels(experience_level_labels, rotation=90)
+            [t.set_color(i) for (i,t) in zip(experience_colors, ax[index].xaxis.get_ticklabels())]
             ax[index].set_xlim(-.5,2.5)
             ax[index].tick_params(axis='x',labelsize=16)
             ax[index].tick_params(axis='y',labelsize=16)
@@ -4222,15 +4238,15 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             for index, feature in enumerate(dropouts_to_show):
                 y1h = ax[index].get_ylim()[1]*1.05
                 if stats[feature]['Familiar'].pvalue<0.05:
-                    ax[index].text(0,y1h,'*')
+                    ax[index].text(0,y1h,'*', color='r')
                 if stats[feature]['Novel 1'].pvalue<0.05:
-                    ax[index].text(1,y1h,'*')
+                    ax[index].text(1,y1h,'*', color='r')
                 if stats[feature]['Novel >1'].pvalue<0.05:
-                    ax[index].text(2,y1h,'*')
-                ax[index].set_ylim(0,y1h*1.05)
-        ax[0].set_ylabel('Coding Score',fontsize=20)
-        plt.suptitle(cell_type,fontsize=20)
-        fig.tight_layout() 
+                    ax[index].text(2,y1h,'*', color='r')
+                ax[index].set_ylim(0,y1h*1.15)
+        ax[0].set_ylabel('Coding score',fontsize=20)
+        plt.suptitle(cell_type, fontsize=20, x=0.5, y=1.15)
+        fig.subplots_adjust(wspace=0.5, hspace=0.3)
         filename = run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.svg'
         if savefig:
             plt.savefig(run_params['figure_dir']+'/dropout_average_by_area_'+cell_type[0:3]+extra+'.png')
@@ -4892,7 +4908,9 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
 
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe()
 
-def plot_dropout_summary_population_with_experience(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,dropout_cleaning_threshold=None, exclusion_threshold=None,savefig=False): 
+def plot_dropout_summary_population_with_experience(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],
+    ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,
+    dropout_cleaning_threshold=None, exclusion_threshold=None, savefig=False): 
     '''
         Makes a bar plot that shows the population dropout summary by cre line for different regressors 
         palette , color palette to use. If None, uses gvt.project_colors()
@@ -5040,7 +5058,9 @@ def plot_dropout_summary_population_with_experience(results, run_params,dropouts
             plt.savefig(run_params['figure_dir']+'/dropout_summary_boxplot'+extra+'_by_experience.png')
     return data_to_plot.groupby(['cre_line','dropout'])['explained_variance'].describe() 
 
-def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,dropout_cleaning_threshold=None, exclusion_threshold=None,savefig=False): 
+def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['all-images','omissions','behavioral','task'],
+    ax=None,palette=None,use_violin=False,add_median=True,include_zero_cells=True,add_title=False,
+    dropout_cleaning_threshold=None, exclusion_threshold=None,savefig=False): 
     '''
         Makes a bar plot that shows the population dropout summary by cre line for different regressors 
         palette , color palette to use. If None, uses gvt.project_colors()
@@ -6197,7 +6217,7 @@ def clustering_kernels(weights_df, run_params, kernel,just_coding=False,pca_by_e
             else:           
                 sorted_x = np.vstack(weights.query('experience_level ==@experience_level')[kernel+'_weights'].values)
 
-            cbar=ax[index,2+eindex].imshow(sorted_x,aspect='auto',extent=[time_vec[0], time_vec[-1],0,np.shape(sorted_x)[1]],cmap='bwr')    
+            cbar=ax[index,2+eindex].imshow(sorted_x,aspect='auto',extent=[time_vec[0], time_vec[-1],0,np.shape(sorted_x)[1]],cmap='PRGn')    
             cbar.set_clim(-np.nanpercentile(np.abs(sorted_x),95),np.nanpercentile(np.abs(sorted_x),95))
             ax[0,2+eindex].set_title(experience_level,fontsize=18)
             ax[index,2+eindex].set_xlabel('Time (s)',fontsize=16)
@@ -6243,7 +6263,7 @@ def depth_heatmap(weights_df, run_params,metric='omission_responsive',just_codin
     for index, cell in enumerate(cre_lines):    
         values = fraction.unstack().loc[cell][metric].values
         ci = fraction.unstack().loc[cell][metric+'_ci'].values
-        cbar = ax[0,index].imshow(np.fliplr(values.T),cmap='plasma')
+        cbar = ax[0,index].imshow(np.fliplr(values.T),cmap='Blues')
         cbar.set_clim(np.min(values),np.max(values))
         color_bar = fig.colorbar(cbar, ax = ax[0,index])
         if just_coding:

@@ -162,7 +162,7 @@ def compute_proportion_cre(df, cre='none', areas=[]):
     '''
 
     # Count cells in each area/cluster
-    if cre is 'none':
+    if cre == 'none':
         table = df.groupby(['cluster_id', 'location'])[
             'cell_specimen_id'].count().unstack()
     else:
@@ -234,7 +234,7 @@ def compute_proportion_differences_cre(df, cre='none', areas=[]):
         compute proportion differences relative to 1/n average
     '''
     # count cells in each area/cluster
-    if cre is 'none':
+    if cre == 'none':
         table = df.groupby(['cluster_id', 'location'])[
             'cell_specimen_id'].count().unstack()
     else:
@@ -354,7 +354,7 @@ def plot_cluster_percentage_cre(df, areas, fig, ax, cre='none', test='chi_square
         Fraction of cells per area&depth 
     '''
     # count cells in each area/cluster
-    if cre is 'none':
+    if cre == 'none':
         table = df.groupby(['cluster_id', 'location'])[
             'cell_specimen_id'].count().unstack()
     else:
@@ -371,7 +371,7 @@ def plot_cluster_percentage_cre(df, areas, fig, ax, cre='none', test='chi_square
     table['mean'] = table.mean(axis=1)
 
     # build second table with cells in each area/cluster
-    if cre is 'none':
+    if cre == 'none':
         table2 = df.groupby(['cluster_id', 'location'])[
             'cell_specimen_id'].count().unstack()
     else:
@@ -414,7 +414,7 @@ def stats(df, cre='none', areas=[], test='chi_squared_', lambda_str='log-likelih
     '''
 
     # compute cell counts in each area/cluster
-    if cre is 'none':
+    if cre == 'none':
         table = df.groupby(['cluster_id', 'location'])[
             'cell_specimen_id'].count().unstack()
     else:
@@ -430,7 +430,7 @@ def stats(df, cre='none', areas=[], test='chi_squared_', lambda_str='log-likelih
         np.sum(table['total_cells'])
 
     # second table of cell counts in each area/cluster
-    if cre is 'none':
+    if cre == 'none':
         table2 = df.groupby(['cluster_id', 'location'])[
             'cell_specimen_id'].count().unstack()
     else:

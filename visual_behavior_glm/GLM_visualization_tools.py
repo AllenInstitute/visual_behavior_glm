@@ -3140,6 +3140,7 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
     # Sort cells
     # convert kernels to columns
     ncols = len(vip_table[kernel+'_weights'].values[0])
+    vip_table = vip_table.dropna()
     vip_df = pd.DataFrame(vip_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
     vip_df['dropout'] = vip_table.reset_index()[kernel]*-1
     if sort_by_dropout:
@@ -3149,6 +3150,7 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
         vip_df = vip_df.sort_values(by=['peak'],ascending=True)    
         vip_df = vip_df.drop(columns='peak')
  
+    sst_table = sst_table.dropna()
     sst_df = pd.DataFrame(sst_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
     sst_df['dropout'] = sst_table.reset_index()[kernel]*-1
     if sort_by_dropout:
@@ -3158,6 +3160,7 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
         sst_df = sst_df.sort_values(by=['peak'],ascending=True)    
         sst_df = sst_df.drop(columns='peak')
 
+    slc_table = slc_table.dropna()
     slc_df = pd.DataFrame(slc_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
     slc_df['dropout'] = slc_table.reset_index()[kernel]*-1
     if sort_by_dropout:
@@ -3246,7 +3249,7 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
     cmap = copy.copy(plt.cm.get_cmap('Blues'))
     cmap.set_under('black')
     cbar2=dax1.imshow(np.sqrt(vip_drop_sorted[:,np.newaxis]),aspect='auto',
-        cmap=cmap,vmin=1e-10,vmax=1) 
+        cmap=cmap, vmin=1e-10, vmax=1) 
     dax1.set_yticks([])
     dax1.set_xticks([])
     color_bar=fig.colorbar(cbar2, cax=cax2,extend='min')
@@ -3254,12 +3257,10 @@ def plot_kernel_heatmap_with_dropout_by_experience(vip_table, sst_table, slc_tab
     color_bar.set_ticks([0,.5,1]) 
     color_bar.ax.tick_params(axis='both',labelsize=16)
 
-    dax2.imshow(np.sqrt(sst_drop_sorted[:,np.newaxis]),aspect='auto',
-        cmap=cmap,vmin=1e-10,vmax=1) 
+    dax2.imshow(np.sqrt(sst_drop_sorted[:,np.newaxis]),aspect='auto', cmap=cmap,vmin=1e-10,vmax=1) 
     dax2.set_yticks([])
     dax2.set_xticks([])
-    dax3.imshow(np.sqrt(slc_drop_sorted[:,np.newaxis]),aspect='auto',
-        cmap=cmap,vmin=1e-10,vmax=1) 
+    dax3.imshow(np.sqrt(slc_drop_sorted[:,np.newaxis]),aspect='auto', cmap=cmap,vmin=1e-10,vmax=1) 
     dax3.set_yticks([])
     dax3.set_xticks([])   
     #dax3.set_xticks([dax3.get_xlim()[1]/2])

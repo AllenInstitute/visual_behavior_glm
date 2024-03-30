@@ -16,40 +16,54 @@ import pandas as pd
 import visual_behavior.database as db
 import numpy as np
 
+
 class GLM(object):
     '''
     GLM class
-    inputs: 
+    inputs:
         ophys_experiment_id (int): ID of experiment to fit
         version (int): version of code to use
-       
+
         log_results (bool): if True, logs results to mongoDB
-        log_weights (bool): if True, logs weights to mongoDB 
+        log_weights (bool): if True, logs weights to mongoDB
         use_previous_fit (bool): if True, attempts to load existing results instead of fitting the model
         recompute (bool): if True, if the attempt to load the existing results fails, will fit the model instead of crashing
         use_inputs (bool): if True, gets session, fit, and design objects from inputs=[session, fit, design]
         inputs (List): if use_inputs, this must be a list of session, fit, and design objects
     '''
 
-    def __init__(self, ophys_experiment_id, version, log_results=True, log_weights=True,use_previous_fit=False, 
-                recompute=True, use_inputs=False, inputs=None, NO_DROPOUTS=False, TESTING=False):
-        
+    def __init__(
+            self,
+            ophys_experiment_id,
+            version,
+            log_results=True,
+            log_weights=True,
+            use_previous_fit=False,
+            recompute=True,
+            use_inputs=False,
+            inputs=None,
+            NO_DROPOUTS=False,
+            TESTING=False):
+
         self.version = version
         self.ophys_experiment_id = ophys_experiment_id
-        self.ophys_session_id = db.lims_query('select ophys_session_id from ophys_experiments where id = {}'.format(self.ophys_experiment_id))
+        self.ophys_session_id = db.lims_query(
+            'select ophys_session_id from ophys_experiments where id = {}'.format(
+                self.ophys_experiment_id))
         self.oeid = self.ophys_experiment_id
         self.run_params = glm_params.load_run_json(self.version)
         # self.run_params['experiment_output_dir'] = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\ophys_glm\v_24_events_all_L2_optimize_by_session\experiment_model_files'
         self.kernels = self.run_params['kernels']
         self.current_model = 'Full'
-        self.NO_DROPOUTS=NO_DROPOUTS
-        self.TESTING=TESTING
+        self.NO_DROPOUTS = NO_DROPOUTS
+        self.TESTING = TESTING
 
         # Import the version's codebase
         self._import_glm_fit_tools()
 
         if use_inputs & (inputs is not None):
-            # If user supplied session, fit, and design objects we dont need to load from file or fit model
+            # If user supplied session, fit, and design objects we dont need to
+            # load from file or fit model
             self.session = inputs[0]
             self.fit = inputs[1]
             self.design = inputs[2]
@@ -57,19 +71,21 @@ class GLM(object):
             # Attempts to load existing results
             try:
                 print('loading previous fit...')
-                self.load_fit_model()  
-                print('done loading previous fit')     
-            except:
-                print('failed to load previous fit, reload flag is set to {}'.format(recompute))
+                self.load_fit_model()
+                print('done loading previous fit')
+            except BaseException:
+                print(
+                    'failed to load previous fit, reload flag is set to {}'.format(recompute))
                 if recompute:
                     # Just computes the model, since it crashed on load
                     self.fit_model()
                 else:
-                    raise Exception('Crash during load_fit_model(), check if file exists') 
+                    raise Exception(
+                        'Crash during load_fit_model(), check if file exists')
         else:
             # Fit the model, can be slow
             self.fit_model()
-        
+
         print('done fitting model, collecting results')
         self.collect_results()
         print('done collecting results')
@@ -81,27 +97,33 @@ class GLM(object):
             # in these older versions, the fit trace was always the dff trace
             # fill in missing keys in this case so that code below will run
             self.timestamps = self.fit['dff_trace_arr']['dff_trace_timestamps'].values
-            self.fit['fit_trace_arr'] = self.fit['dff_trace_arr'].copy().rename({'dff_trace_timestamps':'fit_trace_timestamps'})
-            self.fit['events_trace_arr'] = self.fit['dff_trace_arr'].copy().rename({'dff_trace_timestamps':'fit_trace_timestamps'})
-            self.fit['dff_trace_arr'] = self.fit['dff_trace_arr'].rename({'dff_trace_timestamps':'fit_trace_timestamps'})
+            self.fit['fit_trace_arr'] = self.fit['dff_trace_arr'].copy().rename(
+                {'dff_trace_timestamps': 'fit_trace_timestamps'})
+            self.fit['events_trace_arr'] = self.fit['dff_trace_arr'].copy().rename(
+                {'dff_trace_timestamps': 'fit_trace_timestamps'})
+            self.fit['dff_trace_arr'] = self.fit['dff_trace_arr'].rename(
+                {'dff_trace_timestamps': 'fit_trace_timestamps'})
             # fill events xarray with filtered events values from session
             for idx in range(np.shape(self.fit['events_trace_arr'])[1]):
-                csid = int(self.fit['events_trace_arr']['cell_specimen_id'][idx])
+                csid = int(self.fit['events_trace_arr']
+                           ['cell_specimen_id'][idx])
                 all_events = self.session.events.loc[csid]['filtered_events']
-                # only include events during task (excluding gray screens at beginning/end)
-                first_index = np.where(self.session.ophys_timestamps >= self.timestamps[0])[0][0]
-                self.fit['events_trace_arr'][:,idx] = all_events[first_index:first_index + len(self.timestamps)]
+                # only include events during task (excluding gray screens at
+                # beginning/end)
+                first_index = np.where(
+                    self.session.ophys_timestamps >= self.timestamps[0])[0][0]
+                self.fit['events_trace_arr'][:,
+                                             idx] = all_events[first_index:first_index + len(self.timestamps)]
 
         if log_results:
             print('logging results to mongo')
-            gat.log_results_to_mongo(self) 
+            gat.log_results_to_mongo(self)
             print('done logging results to mongo')
         if log_weights:
             print('logging W matrix to mongo')
             gat.log_weights_matrix_to_mongo(self)
             print('done logging W matrix to mongo')
         print('done building GLM object')
-
 
     def _import_glm_fit_tools(self):
         # TODO, need more documentation here
@@ -119,12 +141,12 @@ class GLM(object):
 
         # ADDED BY MARINA ON 3/30/24 TO DEAL WITH CHANGES TO ALLENSDK==2.16.2
         # UPDATED SDK HAS STIMULUS BLOCKS IN STIM TABLE WHICH BREAKS LOTS OF THINGS
-        # USE REPO VERSION OF GFT WHICH HAS BEEN MODIFIED TO HANDLE THE STIMULUS BLOCKS
+        # USE REPO VERSION OF GFT WHICH HAS BEEN MODIFIED TO HANDLE THE
+        # STIMULUS BLOCKS
         print('using repo version of GLM_fit_tools rather than the copy in frozen_model_files to deal with SDK updates')
         import visual_behavior_glm.GLM_fit_tools as gft
 
         self.gft = gft
-
 
     def fit_model(self):
         '''
@@ -145,9 +167,10 @@ class GLM(object):
             Organizes dropout and model selection results, and adds three dataframes to the object
             self.results is a dataframe of every model-dropout, and information about it.
             self.dropout_summary is the original dropout summary doug implemented, using the non-adjusted variance explained/dropout
-            self.adj_dropout_summary uses the adjusted dropout and variance explained 
+            self.adj_dropout_summary uses the adjusted dropout and variance explained
         '''
-        self.results = self.gft.build_dataframe_from_dropouts(self.fit,self.run_params)
+        self.results = self.gft.build_dataframe_from_dropouts(
+            self.fit, self.run_params)
         self.dropout_summary = gat.generate_results_summary(self)
 
         # add roi_ids
@@ -164,8 +187,8 @@ class GLM(object):
             right_index=True,
             how='left'
         )
- 
-    def get_cells_above_threshold(self, threshold=None): 
+
+    def get_cells_above_threshold(self, threshold=None):
         '''
             Returns a list of cells whose full model variance explained is above some threshold
         '''
@@ -174,7 +197,8 @@ class GLM(object):
                 threshold = self.run_params['dropout_threshold']
             else:
                 threshold = 0.005
-        return self.dropout_summary.query('dropout=="Full" & variance_explained > @threshold')['cell_specimen_id'].unique()
+        return self.dropout_summary.query(
+            'dropout=="Full" & variance_explained > @threshold')['cell_specimen_id'].unique()
 
     def plot_dropout_summary(self, cell_specimen_id, ax=None):
         '''
@@ -187,14 +211,13 @@ class GLM(object):
             ax (1x3 or 3x1 array or list of matplotlib axes): axes on which to plot. If not passed, new axes will be created
         '''
         if ax is None:
-            fig,ax = plt.subplots(1,3,figsize=(15,5))
+            fig, ax = plt.subplots(1, 3, figsize=(15, 5))
         gvt.plot_dropout_summary(self.dropout_summary, cell_specimen_id, ax)
 
     def plot_filters(self, cell_specimen_id, n_cols=5):
         '''plots all filters for a given cell'''
         gvt.plot_filters(self, cell_specimen_id, n_cols)
 
-    
     @cached_property
     def dropout_models(self):
         '''
@@ -202,7 +225,6 @@ class GLM(object):
         these are the models that were fit with a limited subset of regressors
         '''
         return list(self.fit['dropouts'].keys())
-    
 
     def load_alternate_model(self, desired_model):
         '''
@@ -221,12 +243,13 @@ class GLM(object):
         desired_model : str
             desired model to load. Must be among list of possible dropout models
             call self.dropout_models to see a full list of possible models
-        
+
         Returns:
         --------
         None
         '''
-        assert desired_model in self.dropout_models, 'desired model must be an existing dropout model: {}'.format(self.dropout_models)
+        assert desired_model in self.dropout_models, 'desired model must be an existing dropout model: {}'.format(
+            self.dropout_models)
 
         self.current_model = desired_model
 
@@ -251,25 +274,27 @@ class GLM(object):
             'model_prediction': The output of the model - Should be similar to 'fit_array' (better model performance = more similar)
         '''
 
-        # build a dataframe with columns for 'fit_array', 'dff_trace_arr', 'events_trace_arr'
+        # build a dataframe with columns for 'fit_array', 'dff_trace_arr',
+        # 'events_trace_arr'
         fit_df = self.fit['fit_trace_arr'].to_dataframe(name='fit_array')
         dff_df = self.fit['dff_trace_arr'].to_dataframe(name='dff')
         try:
             event_df = self.fit['events_trace_arr'].to_dataframe(name='events')
         except AttributeError:
             timestamps_to_use = gft.get_ophys_frames_to_use(self.session)
-            events_trace_arr = gft.get_events_arr(self.session, timestamps_to_use) 
+            events_trace_arr = gft.get_events_arr(
+                self.session, timestamps_to_use)
             event_df = events_trace_arr.to_dataframe(name='events')
         df = fit_df.reset_index().merge(
             dff_df.reset_index(),
-            left_on=['fit_trace_timestamps','cell_specimen_id'],
-            right_on=['fit_trace_timestamps','cell_specimen_id'],
+            left_on=['fit_trace_timestamps', 'cell_specimen_id'],
+            right_on=['fit_trace_timestamps', 'cell_specimen_id'],
         )
-        
+
         df = df.merge(
             event_df.reset_index(),
-            left_on=['fit_trace_timestamps','cell_specimen_id'],
-            right_on=['fit_trace_timestamps','cell_specimen_id'],
+            left_on=['fit_trace_timestamps', 'cell_specimen_id'],
+            right_on=['fit_trace_timestamps', 'cell_specimen_id'],
         )
 
         # calculate the prediction matrix Y
@@ -290,31 +315,35 @@ class GLM(object):
             .to_dataframe()
             .reset_index(drop=True)
             .reset_index()
-            .rename(columns = {'index':'frame_index'})
+            .rename(columns={'index': 'frame_index'})
         )
 
         # merge in time
         df = df.merge(
             time_df,
-            left_on = 'fit_trace_timestamps',
-            right_on = 'fit_trace_timestamps',
+            left_on='fit_trace_timestamps',
+            right_on='fit_trace_timestamps',
         )
 
-        # adjust frame indices to account for frames that may have been trimmed from start of movie
-        first_frame = np.where(self.session.ophys_timestamps >= df.fit_trace_timestamps.min())[0][0]
+        # adjust frame indices to account for frames that may have been trimmed
+        # from start of movie
+        first_frame = np.where(
+            self.session.ophys_timestamps >= df.fit_trace_timestamps.min())[0][0]
         df['frame_index'] += first_frame
 
         return df
 
     @cached_property
     def df_dropout(self):
-        # TODO: add a long form (aka 'tidy') dataframe for every dropout condition
+        # TODO: add a long form (aka 'tidy') dataframe for every dropout
+        # condition
         warnings.warn('this property is not yet implemented')
         pass
 
     @property
     def X(self):
-        return self.design.get_X(kernels=self.fit['dropouts'][self.current_model]['kernels'])
+        return self.design.get_X(
+            kernels=self.fit['dropouts'][self.current_model]['kernels'])
 
     @property
     def W(self):
@@ -327,7 +356,16 @@ class GLM(object):
             warnings.warn('could not locate weights array')
             return None
 
-    def make_movie(self, cell_specimen_id, action='make_movie', start_frame=0, end_frame=None, frame_interval=1, fps=10, destination_folder=None, verbose=False):
+    def make_movie(
+            self,
+            cell_specimen_id,
+            action='make_movie',
+            start_frame=0,
+            end_frame=None,
+            frame_interval=1,
+            fps=10,
+            destination_folder=None,
+            verbose=False):
         '''
         generate a movie to visualize the contribution of various regressors to the model prediction
         inputs:
@@ -337,22 +375,22 @@ class GLM(object):
                 display_first_frame will display a static plot of just start_frame
         '''
         if end_frame is None:
-            end_frame = len(self.timestamps)-1
+            end_frame = len(self.timestamps) - 1
 
         glm_movie = gvt.GLM_Movie(
-            self, 
-            cell_specimen_id=cell_specimen_id, 
-            start_frame=start_frame, 
-            end_frame=end_frame, 
-            frame_interval=frame_interval, 
-            fps=fps, 
-            destination_folder=destination_folder, 
+            self,
+            cell_specimen_id=cell_specimen_id,
+            start_frame=start_frame,
+            end_frame=end_frame,
+            frame_interval=frame_interval,
+            fps=fps,
+            destination_folder=destination_folder,
             verbose=verbose
         )
         if action == 'make_movie':
             glm_movie.make_movie()
         elif action == 'display_first_frame':
-            glm_movie.make_cell_movie_frame(glm_movie.ax, glm_movie.glm, start_frame, cell_specimen_id)
+            glm_movie.make_cell_movie_frame(
+                glm_movie.ax, glm_movie.glm, start_frame, cell_specimen_id)
 
         return glm_movie
-

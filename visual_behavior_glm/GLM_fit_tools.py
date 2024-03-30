@@ -1101,6 +1101,17 @@ def interpolate_to_stimulus(fit, session, run_params):
 
     # Find first non omitted stimulus
     filtered_stimulus_presentations = session.stimulus_presentations
+
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
+    import allensdk
+    if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
+        if 'stimulus_block_name' in filtered_stimulus_presentations:
+            # limit to change detection block (gets rid of NaNs in omitted column)
+            filtered_stimulus_presentations = filtered_stimulus_presentations[filtered_stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
+            # convert to bool instead of Boolean so subsequent query works properly
+            filtered_stimulus_presentations['omitted'] = filtered_stimulus_presentations['omitted'].astype('bool')
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######               
+
     while filtered_stimulus_presentations.iloc[0]['omitted'] == True:
         filtered_stimulus_presentations = filtered_stimulus_presentations.iloc[1:]
 
@@ -1267,6 +1278,17 @@ def check_interpolation_to_stimulus(fit, session):
     '''
     lens = []
     temp = session.stimulus_presentations.copy()
+
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
+    import allensdk
+    if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
+        if 'stimulus_block_name' in temp:
+            # limit to change detection block (gets rid of NaNs in omitted column)
+            temp = temp[temp.stimulus_block_name.str.contains('change_detection')]
+            # convert to bool instead of Boolean so subsequent query works properly
+            temp['omitted'] = temp['omitted'].astype('bool')
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######   
+
     temp['next_start'] = temp.shift(-1)['start_time']
     temp.at[temp.index.values[-1],'next_start'] = temp.iloc[-1]['start_time']+0.75
     for index, row in temp.iterrows():
@@ -1285,10 +1307,22 @@ def plot_interpolation_debug(fit,session):
     # Stim start
     ax[0].plot(fit['stimulus_interpolation']['original_timestamps'][0:50],fit['stimulus_interpolation']['original_fit_arr'][0:50,0], 'ko',markerfacecolor='None',label='Original')
     ax[0].plot(fit['fit_trace_timestamps'][0:50],fit['fit_trace_arr'][0:50,0], 'bo',markerfacecolor='None',label='Stimulus Aligned')
-    for dex in range(0,len(session.stimulus_presentations)):
-        if session.stimulus_presentations.loc[dex].start_time > fit['stimulus_interpolation']['original_timestamps'][50]:
+    
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
+    stimulus_presentations = session.stimulus_presentations.copy()
+    import allensdk
+    if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
+        if 'stimulus_block_name' in stimulus_presentations:
+            # limit to change detection block (gets rid of NaNs in omitted column)
+            stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
+            # convert to bool instead of Boolean so subsequent query works properly
+            stimulus_presentations['omitted'] = stimulus_presentations['omitted'].astype('bool')
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######   
+
+    for dex in range(0,len(stimulus_presentations)):
+        if stimulus_presentations.loc[dex].start_time > fit['stimulus_interpolation']['original_timestamps'][50]:
             break
-        ax[0].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+        ax[0].axvline(stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
     for dex, val in enumerate(fit['stimulus_interpolation']['original_fit_arr'][0:50,0]):
         ax[0].plot([fit['stimulus_interpolation']['original_bins'][dex],fit['stimulus_interpolation']['original_bins'][dex+1]],[val,val],'k-',alpha=.5)
     for dex, val in enumerate(fit['fit_trace_arr'][0:50,0]):
@@ -1301,9 +1335,10 @@ def plot_interpolation_debug(fit,session):
     # Stim end
     ax[1].plot(fit['stimulus_interpolation']['original_timestamps'][-50:],fit['stimulus_interpolation']['original_fit_arr'][-50:,0], 'ko',markerfacecolor='None')
     ax[1].plot(fit['fit_trace_timestamps'][-50:],fit['fit_trace_arr'][-50:,0], 'bo',markerfacecolor='None')
-    for dex in range(0,len(session.stimulus_presentations)):
-        if session.stimulus_presentations.loc[dex].start_time > fit['stimulus_interpolation']['original_timestamps'][-50]:
-            ax[1].axvline(session.stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
+
+    for dex in range(0,len(stimulus_presentations)):
+        if stimulus_presentations.loc[dex].start_time > fit['stimulus_interpolation']['original_timestamps'][-50]:
+            ax[1].axvline(stimulus_presentations.loc[dex].start_time,color='r',markerfacecolor='None')
     for dex, val in enumerate(fit['stimulus_interpolation']['original_fit_arr'][-50:,0]):
         ax[1].plot([fit['stimulus_interpolation']['original_bins'][-51+dex],fit['stimulus_interpolation']['original_bins'][-50+dex]],[val,val],'k-',alpha=.5)
     for dex, val in enumerate(fit['fit_trace_arr'][-50:,0]):
@@ -1331,15 +1366,26 @@ def add_engagement_labels(fit, session, run_params):
     win_dur=320
     win_type='triang'
 
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
+    stimulus_presentations = session.stimulus_presentations.copy()
+    import allensdk
+    if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
+        if 'stimulus_block_name' in stimulus_presentations:
+            # limit to change detection block (gets rid of NaNs in omitted column)
+            stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
+            # convert to bool instead of Boolean so subsequent query works properly
+            stimulus_presentations['omitted'] = stimulus_presentations['omitted'].astype('bool')
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######   
+
     # Get reward rate
-    session.stimulus_presentations = reformat.add_rewards_each_flash(session.stimulus_presentations,session.rewards)
-    session.stimulus_presentations['rewarded'] = [len(x) > 0 for x in session.stimulus_presentations['rewards']]
-    session.stimulus_presentations['reward_rate'] = session.stimulus_presentations['rewarded'].rolling(win_dur,min_periods=1,win_type=win_type).mean()/.75
-    session.stimulus_presentations['engaged']= [x > reward_threshold for x in session.stimulus_presentations['reward_rate']]    
+    stimulus_presentations = reformat.add_rewards_each_flash(stimulus_presentations,session.rewards)
+    stimulus_presentations['rewarded'] = [len(x) > 0 for x in stimulus_presentations['rewards']]
+    stimulus_presentations['reward_rate'] = stimulus_presentations['rewarded'].rolling(win_dur,min_periods=1,win_type=win_type).mean()/.75
+    stimulus_presentations['engaged']= [x > reward_threshold for x in stimulus_presentations['reward_rate']]    
 
     # Make dataframe with start/end of each image cycle pinned with correct engagement value
-    start_df = session.stimulus_presentations[['start_time','engaged']].copy()
-    end_df = session.stimulus_presentations[['start_time','engaged']].copy()
+    start_df = stimulus_presentations[['start_time','engaged']].copy()
+    end_df = stimulus_presentations[['start_time','engaged']].copy()
     end_df['start_time'] = end_df['start_time']+0.75
     engaged_df = pd.concat([start_df,end_df])
     engaged_df = engaged_df.sort_values(by='start_time').rename(columns={'start_time':'timestamps','engaged':'values'})  
@@ -1445,6 +1491,18 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
+
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
+    stimulus_presentations = session.stimulus_presentations.copy()
+    import allensdk
+    if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
+        if 'stimulus_block_name' in stimulus_presentations:
+            # limit to change detection block (gets rid of NaNs in omitted column)
+            stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
+            # convert to bool instead of Boolean so subsequent query works properly
+            stimulus_presentations['omitted'] = stimulus_presentations['omitted'].astype('bool')
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######   
+
     print('    Adding kernel: '+kernel_name)
     try:
         event = run_params['kernels'][kernel_name]['event']
@@ -1485,7 +1543,7 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
             weight_name = event[6:]
             weight = get_model_weight(bsid, weight_name, run_params)
             weight_df = pd.DataFrame()
-            weight_df['timestamps'] = session.stimulus_presentations.start_time.values
+            weight_df['timestamps'] = stimulus_presentations.start_time.values
             weight_df['values'] = weight.values
             timeseries = interpolate_to_ophys_timestamps(fit, weight_df)
             timeseries['values'].fillna(method='ffill',inplace=True) # TODO investigate where these NaNs come from
@@ -1568,6 +1626,18 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         session         the SDK session object for this experiment
         fit             the fit object for this model       
     ''' 
+    
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
+    stimulus_presentations = session.stimulus_presentations.copy()
+    import allensdk
+    if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
+        if 'stimulus_block_name' in stimulus_presentations:
+            # limit to change detection block (gets rid of NaNs in omitted column)
+            stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
+            # convert to bool instead of Boolean so subsequent query works properly
+            stimulus_presentations['omitted'] = stimulus_presentations['omitted'].astype('bool')
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######   
+
     print('    Adding kernel: '+kernel_name)
     try:
         if not fit['ok_to_fit_preferred_engagement']:
@@ -1593,7 +1663,7 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
             event_times = session.rewards['timestamps'].values
         elif event == 'change':
             #event_times = session.trials.query('go')['change_time'].values # This method drops auto-rewarded changes
-            event_times = session.stimulus_presentations.query('is_change')['start_time'].values
+            event_times = stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]
         elif event in ['hit', 'miss', 'false_alarm', 'correct_reject']:
             if event == 'hit': # Includes auto-rewarded changes as hits, since they include a reward. 
@@ -1606,20 +1676,20 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
         elif event == 'passive_change':
             if len(session.rewards) > 5: 
                 raise Exception('\tPassive Change kernel cant be added to active sessions')               
-            event_times = session.stimulus_presentations.query('is_change')['start_time'].values
+            event_times = stimulus_presentations.query('is_change')['start_time'].values
             event_times = event_times[~np.isnan(event_times)]           
         elif event == 'any-image':
-            event_times = session.stimulus_presentations.query('not omitted')['start_time'].values
+            event_times = stimulus_presentations.query('not omitted')['start_time'].values
         elif event == 'image_expectation':
-            event_times = session.stimulus_presentations['start_time'].values
+            event_times = stimulus_presentations['start_time'].values
             # Append last image
             event_times = np.concatenate([event_times,[event_times[-1]+.75]])
         elif event == 'omissions':
-            event_times = session.stimulus_presentations.query('omitted')['start_time'].values
+            event_times = stimulus_presentations.query('omitted')['start_time'].values
         elif (len(event)>5) & (event[0:5] == 'image') & ('change' not in event):
-            event_times = session.stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
+            event_times = stimulus_presentations.query('image_index == {}'.format(int(event[-1])))['start_time'].values
         elif (len(event)>5) & (event[0:5] == 'image') & ('change' in event):
-            event_times = session.stimulus_presentations.query('is_change & (image_index == {})'.format(int(event[-1])))['start_time'].values
+            event_times = stimulus_presentations.query('is_change & (image_index == {})'.format(int(event[-1])))['start_time'].values
         else:
             raise Exception('\tCould not resolve kernel label')
 
@@ -1915,7 +1985,18 @@ def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
         ophys_frames_to_use (np.array of bool): Boolean mask with which ophys frames to use
     '''
     # filter out omitted flashes to avoid omitted flashes at the start of the session from affecting analysis range
-    filtered_stimulus_presentations = session.stimulus_presentations
+    filtered_stimulus_presentations = session.stimulus_presentations.copy()
+
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
+    import allensdk
+    if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
+        if 'stimulus_block_name' in filtered_stimulus_presentations:
+            # limit to change detection block (gets rid of NaNs in omitted column)
+            filtered_stimulus_presentations = filtered_stimulus_presentations[filtered_stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
+            # convert to bool instead of Boolean so subsequent query works properly
+            filtered_stimulus_presentations['omitted'] = filtered_stimulus_presentations['omitted'].astype('bool')
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######               
+    
     while filtered_stimulus_presentations.iloc[0]['omitted'] == True:
         filtered_stimulus_presentations = filtered_stimulus_presentations.iloc[1:]
     

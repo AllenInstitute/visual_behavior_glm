@@ -33,10 +33,13 @@ def load_fit_pkl(run_params, ophys_experiment_id):
 
     filenamepkl = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pkl')
     filenamepbz2 = os.path.join(run_params['experiment_output_dir'],str(ophys_experiment_id)+'.pbz2')
+    print(filenamepbz2)
+    print('file exists', os.path.isfile(filenamepbz2))
 
     if os.path.isfile(filenamepbz2):
         fit = bz2.BZ2File(filenamepbz2, 'rb')
         fit = cPickle.load(fit)
+        print('fit loaded')
         return fit
     elif os.path.isfile(filenamepkl):
         with open(filenamepkl,'rb') as f:

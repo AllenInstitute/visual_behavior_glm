@@ -39,6 +39,7 @@ class GLM(object):
         self.ophys_session_id = db.lims_query('select ophys_session_id from ophys_experiments where id = {}'.format(self.ophys_experiment_id))
         self.oeid = self.ophys_experiment_id
         self.run_params = glm_params.load_run_json(self.version)
+        # self.run_params['experiment_output_dir'] = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\ophys_glm\v_24_events_all_L2_optimize_by_session\experiment_model_files'
         self.kernels = self.run_params['kernels']
         self.current_model = 'Full'
         self.NO_DROPOUTS=NO_DROPOUTS
@@ -101,20 +102,29 @@ class GLM(object):
             print('done logging W matrix to mongo')
         print('done building GLM object')
 
+
     def _import_glm_fit_tools(self):
         # TODO, need more documentation here
         # we only know the path for loading GLM_fit_tools after loading the run_params
         # therefore, we have to import here, and set the module as an attribute
-        import_dir = self.run_params['model_freeze_dir'].rstrip('/')
-        module_name = 'GLM_fit_tools'
-        file_path = os.path.join(import_dir, module_name+'.py')
-        print('importing {} from {}'.format(module_name, file_path))
+        # import_dir = self.run_params['model_freeze_dir'].rstrip('/')
+        # module_name = 'GLM_fit_tools'
+        # file_path = os.path.join(import_dir, module_name+'.py')
+        # print('importing {} from {}'.format(module_name, file_path))
 
-        spec = importlib.util.spec_from_file_location(module_name, file_path)
-        gft = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = gft
-        spec.loader.exec_module(gft)
+        # spec = importlib.util.spec_from_file_location(module_name, file_path)
+        # gft = importlib.util.module_from_spec(spec)
+        # sys.modules[module_name] = gft
+        # spec.loader.exec_module(gft)
+
+        # ADDED BY MARINA ON 3/30/24 TO DEAL WITH CHANGES TO ALLENSDK==2.16.2
+        # UPDATED SDK HAS STIMULUS BLOCKS IN STIM TABLE WHICH BREAKS LOTS OF THINGS
+        # USE REPO VERSION OF GFT WHICH HAS BEEN MODIFIED TO HANDLE THE STIMULUS BLOCKS
+        print('using repo version of GLM_fit_tools rather than the copy in frozen_model_files to deal with SDK updates')
+        import visual_behavior_glm.GLM_fit_tools as gft
+
         self.gft = gft
+
 
     def fit_model(self):
         '''

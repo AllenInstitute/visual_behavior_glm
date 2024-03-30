@@ -1,4 +1,5 @@
 import os
+import allensdk
 import matplotlib
 import numpy as np
 import pandas as pd
@@ -10,6 +11,15 @@ from mpl_toolkits.axes_grid1 import Divider, Size
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_analysis_tools as gat
 import visual_behavior_glm.GLM_visualization_tools as gvt
+
+import visual_behavior.visualization.utils as utils
+
+def get_save_dir():
+    # save_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_figures_final'
+    save_dir = r'/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_figures_final'
+    return save_dir
+
+
 
 def strategy_paper_ophys_example(session, cell_id, time):
     
@@ -64,9 +74,9 @@ def strategy_paper_ophys_example(session, cell_id, time):
     plt.tight_layout()
     
     # Save figure
-    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/ophys_processing_schematic.svg'
-    plt.savefig(filename)
-    print('Figure saved to: '+filename)
+    # filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/ophys_processing_schematic.svg'
+    # plt.savefig(filename)
+    # print('Figure saved to: '+filename)
 
 
 def change_breakdown_schematic(run_params):
@@ -83,9 +93,9 @@ def change_breakdown_schematic(run_params):
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.set_yticks([])
     plt.tight_layout()
-    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/change_breakdown_schematic.svg'
-    print('Figure saved to: '+filename)
-    plt.savefig(filename)
+    # filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/change_breakdown_schematic.svg'
+    # print('Figure saved to: '+filename)
+    # plt.savefig(filename)
 
 
 def omission_breakdown_schematic(run_params):
@@ -102,9 +112,9 @@ def omission_breakdown_schematic(run_params):
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.set_yticks([])
     plt.tight_layout()
-    filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/omission_breakdown_schematic.svg'
-    print('Figure saved to: '+filename)
-    plt.savefig(filename)
+    # filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/omission_breakdown_schematic.svg'
+    # print('Figure saved to: '+filename)
+    # plt.savefig(filename)
 
 def get_example_style():
     style={
@@ -129,17 +139,19 @@ def plot_glm_example(g,cell_specimen_id,run_params,times=[1789,1799],add_stimulu
     index_times=[np.where(g.fit['fit_trace_timestamps']>=times[0])[0][0],np.where(g.fit['fit_trace_timestamps']>times[1])[0][0]+1]
     include_events= g.fit['events_trace_arr'] is not None
     plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events,savefig=savefig)
-    plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events,model='all-images',savefig=savefig)
+    plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events,kernel='all-images',savefig=savefig)
+    plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=include_events,kernel='omissions',savefig=savefig)
     plot_glm_example_dropouts(g,cell_specimen_id,style,savefig=savefig)
-    #ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,times,style)
+    ylims,palette_df = plot_glm_example_components(g,cell_specimen_id,times,style)
+    plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df, savefig=savefig)
     plot_glm_example_inputs(g,times,style,run_params,add_stimulus=add_stimulus,savefig=savefig)
-    #plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df)
     ##gvt.plot_kernel_support(g,plot_bands=False,start=index_times[0],end=index_times[1])
     ##gvt.plot_kernel_support(g,plot_bands=True,start=index_times[0],end=index_times[1])
 
  
-def plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df):
-    fig = plt.figure(figsize=(6,6))
+def plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_df,savefig=False):
+    figsize = (6,6)
+    fig = plt.figure(figsize=figsize)
     h = [Size.Fixed(1.25),Size.Fixed(4.25)]
     v = [Size.Fixed(1.0),Size.Fixed(4.5)]
     divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
@@ -151,9 +163,15 @@ def plot_glm_example_kernel(g,cell_specimen_id,kernel_names,style,ylims,palette_
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.tick_params(axis='y',labelsize=style['fs2'])
     plt.axvspan(0,.25,color='k',alpha=.1)
-    plt.ylim(ylims)
+    # plt.ylim(ylims)
     plt.legend()
-    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_kernels.svg')
+    # plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_kernels.svg')
+    if savefig:
+        save_dir = get_save_dir()
+        m = g.session.metadata.copy()
+        filename = str(m['ophys_experiment_id'])+'_'+m['cre_line'].split('-')[0]+'_'+str(cell_specimen_id)+'_example_kernel'
+        utils.save_figure(fig, figsize, save_dir, 'example_model_fits', filename)
+
     
 def plot_glm_example_kernel_inner(g,cell_specimen_id, kernel_name,ax,style,palette_df):
     weight_names = [w for w in g.fit['dropouts']['Full']['train_weights'].weights.values if w.startswith(kernel_name)]
@@ -168,7 +186,8 @@ def plot_glm_example_dropouts(g,cell_specimen_id,style,savefig=False):
     dropouts_to_plot = ['all-images','omissions','behavioral','running','pupil','licks','task','hits','misses']
     dropouts = dropouts.loc[dropouts.isin({'dropout':dropouts_to_plot})['dropout']].reset_index(drop=True)
 
-    fig = plt.figure(figsize=(6,6))
+    figsize = (6,6)
+    fig = plt.figure(figsize=figsize)
     h = [Size.Fixed(2.5),Size.Fixed(3)]
     v = [Size.Fixed(1.0),Size.Fixed(4.5)]
     divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
@@ -183,7 +202,13 @@ def plot_glm_example_dropouts(g,cell_specimen_id,style,savefig=False):
     ax.set_xlim(0,1)
     
     if savefig:
-        plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_dropouts.svg')
+        save_dir = get_save_dir()
+        m = g.session.metadata.copy()
+        filename = str(m['ophys_experiment_id'])+'_'+m['cre_line'].split('-')[0]+'_'+str(cell_specimen_id)+'_example_dropouts'
+        utils.save_figure(fig, figsize, save_dir, 'example_model_fits', filename)
+
+    # if savefig:
+    #     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_dropouts.svg')
 
 def get_kernel_duration(kernel, run_params,force_int=False):
     d1 = '('+str(run_params['kernels'][kernel]['offset'])
@@ -198,7 +223,8 @@ def get_kernel_duration(kernel, run_params,force_int=False):
 def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True,savefig=False):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,6))
-        fig = plt.figure(figsize=(9,6))
+        figsize = (9,6)
+        fig = plt.figure(figsize=figsize)
         h = [Size.Fixed(3.0),Size.Fixed(5.5)]
         v = [Size.Fixed(1.0),Size.Fixed(4.5)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
@@ -295,15 +321,21 @@ def plot_glm_example_inputs(g,times,style,run_params, ax=None, add_stimulus=True
     ax.spines['right'].set_visible(False)
     #plt.tight_layout()
 
-    if add_stimulus:
-        filename ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs_add_stimulus.svg'
-    else:
-        filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg'
     if savefig:
-        print('Figure saved to: '+filename)
-        plt.savefig(filename)
+        save_dir = get_save_dir()
+        m = g.session.metadata.copy()
+        filename = str(m['ophys_experiment_id'])+'_'+m['cre_line'].split('-')[0]+'_example_inputs'
+        utils.save_figure(fig, figsize, save_dir, 'example_model_fits', filename)
 
-def plot_glm_example_components(g, cell_specimen_id, times, style):
+    # if add_stimulus:
+    #     filename ='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs_add_stimulus.svg'
+    # else:
+    #     filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_inputs.svg'
+    # if savefig:
+    #     print('Figure saved to: '+filename)
+    #     plt.savefig(filename)
+
+def plot_glm_example_components(g, cell_specimen_id, times, style, savefig=False):
     fig = plt.figure(figsize=(8,4))
     h = [Size.Fixed(2.0),Size.Fixed(5.5)]
     v = [Size.Fixed(.7),Size.Fixed(3.)]
@@ -316,11 +348,23 @@ def plot_glm_example_components(g, cell_specimen_id, times, style):
     trace = g.fit['dropouts']['Full']['full_model_train_prediction'][time_vec,celldex]
     ymax = np.max(trace)
 
+
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
+    stimulus_presentations = g.session.stimulus_presentations.copy()
+    if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
+        if 'stimulus_block_name' in stimulus_presentations:
+            # limit to change detection block (gets rid of NaNs in omitted column)
+            stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
+            # convert to bool instead of Boolean so subsequent query works properly
+            stimulus_presentations['omitted'] = stimulus_presentations['omitted'].astype('bool')
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######               
+
+
     # plot stimulus and change bars
-    stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not omitted')
+    stim = stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not omitted')
     for index, time in enumerate(stim['start_time'].values):
         plt.axvspan(time, time+0.25, color='k',alpha=.1)
-    change = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & is_change')
+    change = stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & is_change')
     for index, time in enumerate(change['start_time'].values):
         plt.axvspan(time, time+0.25, color=gvt.project_colors()['schematic_change'],alpha=.5,edgecolor=None)
 
@@ -344,13 +388,21 @@ def plot_glm_example_components(g, cell_specimen_id, times, style):
     ax.tick_params(axis='y',labelsize=style['fs2'])
     ax.set_xlim(times)
     ax.set_ylim(ax.get_ylim()[0]-.05,ymax*1.25)
-    plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_components.svg')
+    # plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_components.svg')
+    if savefig:
+        save_dir = get_save_dir()
+        m = g.session.metadata.copy()
+        filename = str(m['ophys_experiment_id'])+'_'+m['cre_line'].split('-')[0]+'_'+str(cell_specimen_id)+'_example_components'
+        utils.save_figure(fig, figsize, save_dir, 'example_model_fits', filename)
+
     return ax.get_ylim(),palette_df
 
-def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax=None,model=None,savefig=False):
+
+def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax=None,kernel=None,savefig=False):
     if ax is None:
         #fig,ax = plt.subplots(figsize=(12,3))
-        fig = plt.figure(figsize=(8,4))
+        figsize = (8,4)
+        fig = plt.figure(figsize=figsize)
         h = [Size.Fixed(2.0),Size.Fixed(5.5)]
         v = [Size.Fixed(.7),Size.Fixed(3.)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
@@ -360,13 +412,27 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
     celldex = np.where(g.fit['fit_trace_arr'].cell_specimen_id.values == cell_specimen_id)[0][0]
 
     # plot stimulus and change bars
-    stim = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & not omitted & not is_change')
+
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
+    stimulus_presentations = g.session.stimulus_presentations.copy()
+    if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
+        if 'stimulus_block_name' in stimulus_presentations:
+            # limit to change detection block (gets rid of NaNs in omitted column)
+            stimulus_presentations = stimulus_presentations[stimulus_presentations.stimulus_block_name.str.contains('change_detection')]
+            # convert to bool instead of Boolean so subsequent query works properly
+            stimulus_presentations['omitted'] = stimulus_presentations['omitted'].astype('bool')
+    ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######               
+
+    stim = stimulus_presentations.query('start_time > @times[0] & start_time < @times[1]')
+    stim = stim[(stim.omitted==False)&(stim.is_change==False)]
     for index, time in enumerate(stim['start_time'].values):
         plt.axvspan(time, time+0.25, color='k',alpha=.1)
-    change = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & is_change')
+    change = stimulus_presentations.query('start_time > @times[0] & start_time < @times[1]')
+    change = change[change.is_change==True]
     for index, time in enumerate(change['start_time'].values):
         plt.axvspan(time, time+0.25, color=gvt.project_colors()['schematic_change'],alpha=.5,edgecolor=None)
-    omission = g.session.stimulus_presentations.query('start_time > @times[0] & start_time < @times[1] & omitted')
+    omission = stimulus_presentations.query('start_time > @times[0] & start_time < @times[1]')
+    omission = omission[omission.omitted==True]
     for index, time in enumerate(omission['start_time'].values):
         plt.axvline(time, color=gvt.project_colors()['schematic_omission'],linewidth=1.5,linestyle='--')
 
@@ -390,34 +456,43 @@ def plot_glm_example_trace(g,cell_specimen_id,times,style,include_events=True,ax
         style['model'],label='full model',linewidth=style['trace_linewidth'],
         color='lightcoral')
 
-    if model is not None:
-        dropout = np.round(g.results.loc[cell_specimen_id]['all-images__dropout']*-1,3)*100
+    if kernel is not None:
+        cs = np.round(g.results.loc[cell_specimen_id][kernel+'__dropout']*-1, 3)
+        dropout = cs*100
         ax.plot(g.fit['fit_trace_timestamps'][time_vec],
-            g.fit['dropouts'][model]['full_model_train_prediction'][time_vec,celldex],
-            '-',label='without image kernels\n'+str(dropout)+'% reduction in VE\nimage coding score: .953',linewidth=style['trace_linewidth'],
+            g.fit['dropouts'][kernel]['full_model_train_prediction'][time_vec,celldex],
+            '-',label='without '+kernel+' kernels\n'+str(np.round(dropout, 1))+'% reduction in VE\n'+kernel+' coding score: '+str(cs), linewidth=style['trace_linewidth'],
             color='limegreen')
 
     # Clean up plot
-    ax.legend(loc='upper right',fontsize=16)
-    ax.set_ylabel('activity',fontsize=style['fs1'])
-    ax.set_xlabel('Time in Session (s)',fontsize=style['fs1'])
+    ax.legend(loc='upper right',fontsize=12)
+    ax.set_ylabel('Calcium events',fontsize=style['fs1'])
+    ax.set_xlabel('Time in session (s)',fontsize=style['fs1'])
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.tick_params(axis='x',labelsize=style['fs2'])
     ax.tick_params(axis='y',labelsize=style['fs2'])
-    ax.set_ylim(-0.035,.9)
+    # ax.set_ylim(-0.035,.9)
     ax.set_xlim(times)
+    ax.set_title('csid: '+str(cell_specimen_id))
     #plt.tight_layout()
     
-    if model is not None:
-        filename='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace_'+model+'.svg'
-        plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace_'+model+'.png')
-    else:
-        filename='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg'
+    # if model is not None:
+    #     filename='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace_'+model+'.svg'
+    #     plt.savefig('/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace_'+model+'.png')
+    # else:
+    #     filename='/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/figures/example_trace.svg'
 
     if savefig:
-        print('Figure saved to: '+filename)
-        plt.savefig(filename)
+        if kernel is not None: 
+            suffix = '_'+kernel+'_dropout'
+        else: 
+            suffix = ''
+        save_dir = get_save_dir()
+        m = g.session.metadata.copy()
+        filename = str(m['ophys_experiment_id'])+'_'+m['cre_line'].split('-')[0]+'_'+str(cell_specimen_id)+'_model_fit'+suffix
+        utils.save_figure(fig, figsize, save_dir, 'example_model_fits', filename)
+        # plt.savefig(filename)
     return
 
 def plot_all_dropouts(VERSION):
@@ -633,9 +708,9 @@ def plot_dropouts_3(run_params,save_results=True,add_text=False,num_levels=3):
         plt.text(-.555,len(kernels)+.35,'Kernel',fontsize=12)
         
     # Save results
-    if save_results:
-        fig_filename = os.path.join(run_params['figure_dir'],'nested_models_'+str(num_levels)+'_polished.png')
-        plt.savefig(fig_filename)
+    # if save_results:
+    #     fig_filename = os.path.join(run_params['figure_dir'],'nested_models_'+str(num_levels)+'_polished.png')
+    #     plt.savefig(fig_filename)
         #df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
@@ -801,9 +876,9 @@ def plot_dropouts_2(run_params,save_results=True,num_levels=3,add_text=True):
         plt.text(-.555,len(kernels)+.35,'Kernel',fontsize=12)
         
     # Save results
-    if save_results:
-        fig_filename = os.path.join(run_params['figure_dir'],'nested_models_'+str(num_levels)+'_polished.png')
-        plt.savefig(fig_filename)
+    # if save_results:
+    #     fig_filename = os.path.join(run_params['figure_dir'],'nested_models_'+str(num_levels)+'_polished.png')
+    #     plt.savefig(fig_filename)
         #df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
@@ -973,11 +1048,11 @@ def plot_dropouts(run_params,save_results=True,num_levels=6,add_text=True, SAC=F
         plt.text(-.385,len(kernels)+.35,'Support',fontsize=12)
         plt.text(-.555,len(kernels)+.35,'Kernel',fontsize=12)
         
-    # Save results
-    if save_results:
-        fig_filename = os.path.join(run_params['figure_dir'],'nested_models_'+str(num_levels)+'.png')
-        plt.savefig(fig_filename)
-        df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
+    # # Save results
+    # if save_results:
+    #     fig_filename = os.path.join(run_params['figure_dir'],'nested_models_'+str(num_levels)+'.png')
+    #     plt.savefig(fig_filename)
+    #     df.to_csv(run_params['output_dir']+'/kernels_and_dropouts.csv')
     return df
 
 def make_level(df, drops, this_level_num,this_level_drops,run_params):

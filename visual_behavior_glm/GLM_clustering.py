@@ -299,7 +299,7 @@ def compute_cluster_proportion_cre(df, cre, locations=None):
 	'''
 	if locations is None:
         # Get locations
-    	locations = np.sort(df['location'].unique())
+        locations = np.sort(df['location'].unique())
     else:
     	assert set(locations) == set(df['location'].unique()), "locations passed in don't match location column" 
 

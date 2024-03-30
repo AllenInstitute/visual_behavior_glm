@@ -1,12 +1,13 @@
 import os
 import bz2
-import _pickle as cPickle
-import xarray as xr
+import scipy 
+import allensdk
 import numpy as np
 import pandas as pd
-import scipy 
+import xarray as xr
 from tqdm import tqdm
 from copy import copy
+import _pickle as cPickle
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.linear_model import ElasticNetCV
@@ -1103,7 +1104,6 @@ def interpolate_to_stimulus(fit, session, run_params):
     filtered_stimulus_presentations = session.stimulus_presentations
 
     ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
-    import allensdk
     if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
         if 'stimulus_block_name' in filtered_stimulus_presentations:
             # limit to change detection block (gets rid of NaNs in omitted column)
@@ -1280,7 +1280,6 @@ def check_interpolation_to_stimulus(fit, session):
     temp = session.stimulus_presentations.copy()
 
     ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
-    import allensdk
     if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
         if 'stimulus_block_name' in temp:
             # limit to change detection block (gets rid of NaNs in omitted column)
@@ -1310,7 +1309,6 @@ def plot_interpolation_debug(fit,session):
     
     ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
     stimulus_presentations = session.stimulus_presentations.copy()
-    import allensdk
     if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
         if 'stimulus_block_name' in stimulus_presentations:
             # limit to change detection block (gets rid of NaNs in omitted column)
@@ -1368,7 +1366,6 @@ def add_engagement_labels(fit, session, run_params):
 
     ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
     stimulus_presentations = session.stimulus_presentations.copy()
-    import allensdk
     if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
         if 'stimulus_block_name' in stimulus_presentations:
             # limit to change detection block (gets rid of NaNs in omitted column)
@@ -1494,7 +1491,6 @@ def add_continuous_kernel_by_label(kernel_name, design, run_params, session,fit)
 
     ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
     stimulus_presentations = session.stimulus_presentations.copy()
-    import allensdk
     if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
         if 'stimulus_block_name' in stimulus_presentations:
             # limit to change detection block (gets rid of NaNs in omitted column)
@@ -1629,7 +1625,6 @@ def add_discrete_kernel_by_label(kernel_name,design, run_params,session,fit):
     
     ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
     stimulus_presentations = session.stimulus_presentations.copy()
-    import allensdk
     if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
         if 'stimulus_block_name' in stimulus_presentations:
             # limit to change detection block (gets rid of NaNs in omitted column)
@@ -1988,7 +1983,6 @@ def get_ophys_frames_to_use(session, end_buffer=0.5,stim_dur = 0.25):
     filtered_stimulus_presentations = session.stimulus_presentations.copy()
 
     ##### NOTE - ADDED BY MARINA ON 3/30/24 TO HANDLE UPDATES TO ALLENSDK==2.16.2 ######
-    import allensdk
     if allensdk.__version__ == '2.16.2': # new SDK version has stimulus blocks and made the omitted column a Boolean rather than bool
         if 'stimulus_block_name' in filtered_stimulus_presentations:
             # limit to change detection block (gets rid of NaNs in omitted column)

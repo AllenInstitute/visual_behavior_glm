@@ -3276,10 +3276,15 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
     if ax==None:
         #fig,ax = plt.subplots(figsize=(8,4))
         height = 4
-        width=8
+        if kernel == 'all_images':
+            kernel_length = run_params['kernels']['all-images']['length']       
+        else:
+            kernel_length = run_params['kernels'][kernel]['length']
+        width=4+((4/3)*kernel_length)
         pre_horz_offset = 1.5
         post_horz_offset = 2.5
         vertical_offset = .75
+
         fig = plt.figure(figsize=(width,height))
         h = [Size.Fixed(pre_horz_offset),Size.Fixed(width-pre_horz_offset-post_horz_offset-.25)]
         v = [Size.Fixed(vertical_offset),Size.Fixed((height-vertical_offset-.5)/3)]
@@ -3304,12 +3309,15 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
         dax3 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
 
         h = [Size.Fixed(width-post_horz_offset+.25),Size.Fixed(.25)]
-        v = [Size.Fixed(vertical_offset+(height-vertical_offset-.5)/2)+.125,Size.Fixed((height-vertical_offset-.5)/2-.125)]
+        # v = [Size.Fixed(vertical_offset+(height-vertical_offset-.5)/2)+.125,Size.Fixed((height-vertical_offset-.5)/2-.125)]
+        v = [Size.Fixed(vertical_offset+(height-vertical_offset-.5)/2)+.35,Size.Fixed((height-vertical_offset-.5)/2.5-.125)]
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         cax1 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
 
         h = [Size.Fixed(width-post_horz_offset+.25),Size.Fixed(.25)]
-        v = [Size.Fixed(vertical_offset/4),Size.Fixed((height-vertical_offset-.5)/2-.125)]
+        # v = [Size.Fixed(vertical_offset/4),Size.Fixed((height-vertical_offset-.5)/2-.125)]
+        v = [Size.Fixed(vertical_offset/1),Size.Fixed((height-vertical_offset-.5)/2.5-.125)]
+
         divider = Divider(fig, (0,0,1,1),h,v,aspect=False)
         cax2 = fig.add_axes(divider.get_position(), axes_locator=divider.new_locator(nx=1,ny=1))  
 
@@ -3317,12 +3325,17 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
     # Sort cells
     # convert kernels to columns
     ncols = len(vip_table[kernel+'_weights'].values[0])
+    vip_table = vip_table.dropna()
     vip_df = pd.DataFrame(vip_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
     vip_df['dropout'] = vip_table.reset_index()[kernel]*-1
-    vip_df = vip_df.sort_values(by=['dropout'],ascending=False)    
+    vip_df = vip_df.sort_values(by=['dropout'],ascending=False)  
+
+    sst_table = sst_table.dropna()  
     sst_df = pd.DataFrame(sst_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
     sst_df['dropout'] = sst_table.reset_index()[kernel]*-1
     sst_df = sst_df.sort_values(by=['dropout'],ascending=False) 
+
+    slc_table = slc_table.dropna()
     slc_df = pd.DataFrame(slc_table[kernel+'_weights'].to_list(),columns = ['w'+str(x) for x in range(0,ncols)])
     slc_df['dropout'] = slc_table.reset_index()[kernel]*-1
     slc_df = slc_df.sort_values(by=['dropout'],ascending=False) 
@@ -3384,7 +3397,7 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
             'Novel >1':'Novel +'
             }
         extra=extra+'_'+session_filter[0].replace(' ','_').replace('>','p')
-        title = title + ', '+mapper[session_filter[0]]
+        title = title + '\n'+mapper[session_filter[0]]
     if dropout:
         #title =title +  '\n coding cells'
         ax2.set_ylabel('Coding Cells',fontsize=16)

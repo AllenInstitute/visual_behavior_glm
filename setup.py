@@ -10,7 +10,7 @@ setup(name='visual-behavior-glm',
       license='Allen Institute',
       dependency_links=['https://github.com/AllenInstitute/visual_behavior_analysis.git'],
       install_requires=[
-        "allensdk",
+        "allensdk==2.16.2",
         "h5py",
         "matplotlib",
         "plotly",

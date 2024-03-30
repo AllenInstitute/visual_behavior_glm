@@ -3410,7 +3410,7 @@ def plot_kernel_heatmap_with_dropout(vip_table, sst_table, slc_table, time_vec,k
     if VE:
         ax2.set_ylabel('VE > 0.005 Cells',fontsize=16)
 
-    ax1.set_title(title,fontsize=20)
+    ax1.set_title(title, fontsize=16)
     cmap = copy.copy(plt.cm.get_cmap('Blues'))
     cmap.set_under('black')
     cbar2=dax1.imshow(np.sqrt(vip_drop_sorted[:,np.newaxis]),aspect='auto',cmap=cmap,vmin=1e-10,vmax=1) 

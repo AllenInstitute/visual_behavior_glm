@@ -4362,7 +4362,7 @@ def plot_kernel_heatmap_with_dropout_by_experience(
     if VE:
         ax2.set_ylabel('VE > 0.005 Cells', fontsize=16)
 
-    ax1.set_title(title, fontsize=16)
+    ax1.set_title(title,fontsize=20)
     cmap = copy.copy(plt.cm.get_cmap('Blues'))
     cmap.set_under('black')
     cbar2 = dax1.imshow(np.sqrt(vip_drop_sorted[:, np.newaxis]), aspect='auto',

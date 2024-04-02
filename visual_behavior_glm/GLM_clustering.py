@@ -4,8 +4,7 @@ from scipy.stats import chisquare
 from scipy.stats import chi2_contingency
 from scipy.stats import power_divergence
 from scipy.stats import fisher_exact
-# import FisherExact (Used for non2x2 tables of Fisher Exact test, not
-# used but leaving a note)
+# import FisherExact (Used for non2x2 tables of Fisher Exact test, not used but leaving a note)
 import matplotlib.pyplot as plt
 import visual_behavior.data_access.loading as loading
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -35,27 +34,27 @@ def compare_stats(num_shuffles=1000):
 
 def compare_shuffle(n=100,p=.15,pn=.1,num_shuffles=1000):  
     # worried about independence
-    num_h = int(np.floor(pn * n))
-    num_m = n - num_h
-    raw = [1] * (num_h) + [0] * (num_m)
+    num_h = int(np.floor(pn*n))
+    num_m = n-num_h
+    raw = [1]*(num_h)+[0]*(num_m)
 
     # Generate shuffle
     num_hits = []
     for i in np.arange(0, num_shuffles):
-        # shuffle = np.random.rand(n) < pn
+        #shuffle = np.random.rand(n) < pn
         shuffle = np.random.choice(raw, n)
         num_hits.append(np.sum(shuffle))
 
     # Compute chi-square where the data is 15%/85% of cells
     # and null is the mean % across shuffles
-    data = [p * n * 1000000000, (1 - p) * n * 1000000000]
-    null = [np.mean(num_hits), n - np.mean(num_hits)]
+    data = [p*n*1000000000, (1-p)*n*1000000000]
+    null = [np.mean(num_hits), n-np.mean(num_hits)]
     x = np.floor(np.array([data, null])).T
     out = chi2_contingency(x, correction=True)
 
     # Compare that with a p-value where we ask what percentage of the shuffles
     # had more than 15%
-    pval = np.sum(np.array(num_hits) >= p * n) / num_shuffles * 2
+    pval = np.sum(np.array(num_hits) >= p*n)/num_shuffles*2
 
     return pval, out[1]
 
@@ -64,7 +63,7 @@ def final(df, cre='none', areas=None, test='chi_squared_'):
     '''
         Returns two tables
         proportion_table contains the proportion of cells in each location found in each cluster, relative to the average proportion across location for that cluster
-        stats_table returns statistical tests on the proportion of cells in each location
+        stats_table returns statistical tests on the proportion of cells in each location 
 
         Assumes that df has a column called 'location' that contains categorical variables to compute proportions over
 
@@ -86,26 +85,26 @@ def cluster_frequencies():
     '''
         Generates 4 different plots of clustering frequency/proportion analysis
         1. The proportions of each location in each cluster
-        2. The proportions of each location in each cluster
+        2. The proportions of each location in each cluster 
            relative to "chance" of 1/n-clusters (evenly distributed cells across clusters)
         3. The proportions of each location in each cluster
-           relative to the average proportion across locations in that cluster
+           relative to the average proportion across locations in that cluster 
            (clusters have the same proportion across locations)
         4. The proportion of each location in each cluster
            relative to the average proportion across locations in that cluster
-           but using a multiplicative perspective instead of a linear perspective.
+           but using a multiplicative perspective instead of a linear perspective. 
     '''
     df = load_cluster_labels()
     plot_proportions(df)
     plot_proportion_differences(df)
     plot_cluster_proportions(df)
-    plot_cluster_percentages(df)
+    plot_cluster_percentages(df)   
 
-
+ 
 def load_cluster_labels():
     '''
         - Loads a dataframe of cluster labels
-        - merges in cell table data
+        - merges in cell table data 
         - defines a `location` column with depth/location combinations
         - drops clusters with less than 5 cells
     '''
@@ -123,12 +122,11 @@ def load_cluster_labels():
     # Bin depths and annotate
     df['coarse_binned_depth'] = ['upper' if x <
                                  250 else 'lower' for x in df['imaging_depth']]
-    df['location'] = df['targeted_structure'] + '_' + df['coarse_binned_depth']
+    df['location'] = df['targeted_structure']+'_'+df['coarse_binned_depth']
 
     # Remove clusters with less than 5 cells
-    # df = df.drop(df.index[(df['cre_line']=="Sst-IRES-Cre")&(df['cluster_id']==6)])
-    # df =
-    # df.drop(df.index[(df['cre_line']=="Slc17a7-IRES2-Cre")&(df['cluster_id']==10)])
+    #df = df.drop(df.index[(df['cre_line']=="Sst-IRES-Cre")&(df['cluster_id']==6)])
+    #df = df.drop(df.index[(df['cre_line']=="Slc17a7-IRES2-Cre")&(df['cluster_id']==10)])
 
     return df
 
@@ -152,9 +150,9 @@ def plot_proportions(df, areas=None, savefig=False, extra='', test='chi_squared_
     plot_proportion_cre(df, areas,  fig, ax[1], 'Sst-IRES-Cre', test=test)
     plot_proportion_cre(df, areas,  fig, ax[0], 'Vip-IRES-Cre', test=test)
     if savefig:
-        extra = extra + '_' + test
-        plt.savefig(filedir + 'cluster_proportions' + extra + '.svg')
-        plt.savefig(filedir + 'cluster_proportions' + extra + '.png')
+        extra = extra+'_'+test
+        plt.savefig(filedir+'cluster_proportions'+extra+'.svg')
+        plt.savefig(filedir+'cluster_proportions'+extra+'.png')
 
 
 def compute_proportion_cre(df, cre='none', areas=[]):
@@ -166,10 +164,9 @@ def compute_proportion_cre(df, cre='none', areas=[]):
     # Get locations from locations column if not provided
     if locations is None:
         # Get locations from locations column
-        locations = np.sort(df['location'].unique())
+        locations = np.sort(df['location'].unique())   
     else:
-        assert set(locations) == set(
-    df['location'].unique()), "locations passed in don't match location column"
+        assert set(locations) == set(df['location'].unique()), "locations passed in don't match location column" 
 
     # Count cells in each area/cluster
     if cre == 'none':
@@ -183,15 +180,13 @@ def compute_proportion_cre(df, cre='none', areas=[]):
 
     # compute fraction in each location/cluster
     for a in locations:
-        # number of cells per location/cluster divided by total number of cells
-        # per location
-        table[a] = table[a] / table[a].sum()
+        table[a] = table[a]/table[a].sum() # number of cells per location/cluster divided by total number of cells per location
     return table
 
 
 def plot_proportion_cre(df, areas, fig, ax, cre='none', test='chi_squared_'):
     '''
-        Fraction of cells per location&depth
+        Fraction of cells per location&depth 
     '''
 
     # Get proportions
@@ -221,7 +216,7 @@ def plot_proportion_cre(df, areas, fig, ax, cre='none', test='chi_squared_'):
 def plot_proportion_differences(df, areas=None):
     '''
         Computes, then plots, the proportion of cells in each location within each cluster
-        relative to a 1/n average distribution across n clusters.
+        relative to a 1/n average distribution across n clusters. 
     '''
 
     if areas is None:
@@ -234,12 +229,11 @@ def plot_proportion_differences(df, areas=None):
 
     fig, ax = plt.subplots(1, 3, figsize=(8, 4))
     fig.subplots_adjust(left=0.1, bottom=0.25, right=0.9, top=0.9, wspace=1)
-    plot_proportion_differences_cre(
-    df, locations, fig, ax[2], 'Slc17a7-IRES2-Cre')
+    plot_proportion_differences_cre(df, locations, fig, ax[2], 'Slc17a7-IRES2-Cre')
     plot_proportion_differences_cre(df, locations, fig, ax[1], 'Sst-IRES-Cre')
     plot_proportion_differences_cre(df, locations, fig, ax[0], 'Vip-IRES-Cre')
-    plt.savefig(filedir + 'cluster_proportion_differences.svg')
-    plt.savefig(filedir + 'cluster_proportion_differences.png')
+    plt.savefig(filedir+'cluster_proportion_differences.svg')
+    plt.savefig(filedir+'cluster_proportion_differences.png')
 
 
 def compute_proportion_differences_cre(df, cre='none', areas=[]):
@@ -486,7 +480,7 @@ def stats(df, cre='none', areas=[], test='chi_squared_', lambda_str='log-likelih
             if np.shape(contingency)[1] > 2:
                 raise Exception(
                     'Need to import FisherExact package for non 2x2 tables')
-                # pvalue = FisherExact.fisher_exact(contingency)
+                #pvalue = FisherExact.fisher_exact(contingency)
             else:
                 oddsratio, pvalue = fisher_exact(contingency)
             table2.at[index, test+'pvalue'] = pvalue

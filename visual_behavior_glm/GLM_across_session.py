@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 import visual_behavior.data_access.loading as loading
 import visual_behavior.data_access.utilities as utilities
+from visual_behavior.dimensionality_reduction.clustering import processing
 
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_params as glm_params
@@ -208,7 +209,7 @@ def compute_many_cells(cells,glm_version):
         except:
             print(str(cell) +' crashed')
  
-def across_session_normalization(cell_specimen_id, glm_version,do_folds=True):
+def across_session_normalization(cell_specimen_id, glm_version,do_folds=True, familiar_only=False):
     '''
         Computes the across session normalization for a cell
         This is very slow because we have to load the design matrices for each object
@@ -216,34 +217,44 @@ def across_session_normalization(cell_specimen_id, glm_version,do_folds=True):
     
     '''
     run_params = glm_params.load_run_json(glm_version)
-    data = get_across_session_data(run_params,cell_specimen_id)
+    data = get_across_session_data(run_params,cell_specimen_id, familiar_only=familiar_only)
+    # save familiar across normalization in a separate folder
+    if familiar_only:
+        folder='familiar_only/'
+    else:
+        folder=''
+
     if not do_folds:
         score_df = compute_across_session_dropouts(data, run_params, cell_specimen_id)
         filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
-            +glm_version+'/across_session/'+str(cell_specimen_id)+'.csv' 
+            +glm_version+'/across_session/'+folder+str(cell_specimen_id)+'.csv' 
         score_df.to_csv(filename)
 
     if do_folds:
         for fold in range(0,5):
             score_df = compute_cv_across_session_dropouts(data, run_params, cell_specimen_id,fold)
             filename = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_'\
-                +glm_version+'/across_session/'+str(cell_specimen_id)+'_{}.csv'.format(fold) 
+                +glm_version+'/across_session/'+folder+str(cell_specimen_id)+'_{}.csv'.format(fold) 
             score_df.to_csv(filename)
 
     return data, score_df
 
-def get_across_session_data(run_params, cell_specimen_id):
+def get_across_session_data(run_params, cell_specimen_id, familiar_only=False):
     '''
         Loads GLM information for each ophys experiment that this cell participated in.
         Very slow, takes about 3 minutes.
     '''
 
     # Find which experiments this cell was in
-    include_4x2_data = run_params['include_4x2_data']
-    cells_table = loading.get_cell_table(platform_paper_only=True, include_4x2_data=include_4x2_data)
-    cells_table = cells_table.query('not passive').copy()
+    if familiar_only:
+        
+        cells_table = processing.get_cells_matched_in_3_familiar_active_sessions()
+    else:
+        include_4x2_data = run_params['include_4x2_data']
+        cells_table = loading.get_cell_table(platform_paper_only=True, include_4x2_data=include_4x2_data)
+        cells_table = cells_table.query('not passive').copy()
+        cells_table = cells_table.query('last_familiar_active or first_novel or second_novel_active')
     cells_table = cells_table[cells_table['cell_specimen_id'] == cell_specimen_id]
-    cells_table = cells_table.query('last_familiar_active or first_novel or second_novel_active')
     oeids = cells_table['ophys_experiment_id']
 
     # For each experiment, load the session, design matrix, and fit dictionary

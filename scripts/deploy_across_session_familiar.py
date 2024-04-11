@@ -36,10 +36,11 @@ if __name__ == "__main__":
     job_string = "--cell {} --version {}"
 
     n_cell_ids = len(cell_ids)
-
+    check_for_fit = False
     for cell_id in cell_ids:
-        if already_fit(cell_id,glm_version):
-            print('already fit, skipping')
+        if check_for_fit:
+            if already_fit(cell_id,glm_version):
+                print('already fit, skipping')
         else:
             job_count += 1
             print('starting cluster job for {}, job count = {}'.format(cell_id, job_count))

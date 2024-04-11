@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description='deploy glm fits to cluster')
 parser.add_argument('--env-path', type=str, default='visual_behavior', metavar='path to conda environment to use')
 
 def already_fit(cell_id,glm_version):
-    filepath = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_"+glm_version+"/across_session/"+str(cell_id)+"_0.csv" 
+    filepath = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm/v_"+glm_version+"/across_session/familiar_only/"+str(cell_id)+"_0.csv" 
     return os.path.exists(filepath) 
 
 if __name__ == "__main__":
@@ -28,9 +28,9 @@ if __name__ == "__main__":
         print('making folder {}'.format(stdout_location))
         os.mkdir(stdout_location)
     print('stdout files will be at {}'.format(stdout_location))
-    cell_table = gas.get_cell_list(glm_version)
+    cell_table = gas.get_cell_list(glm_version, familiar_only=True)
     cell_ids = cell_table['cell_specimen_id'].unique()
-
+    print ('number of cells to fit = {}'.format(len(cell_ids)))
     job_count = 0
 
     job_string = "--cell {} --version {}"

@@ -20,4 +20,4 @@ parser.add_argument(
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    data, score_df = gas.across_session_normalization(args.cell,args.version)
+    data, score_df = gas.across_session_normalization(args.cell,args.version, familiar_only=True)

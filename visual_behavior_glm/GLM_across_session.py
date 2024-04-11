@@ -11,7 +11,7 @@ from visual_behavior.dimensionality_reduction.clustering import processing
 import visual_behavior_glm.GLM_fit_tools as gft
 import visual_behavior_glm.GLM_params as glm_params
 import visual_behavior_glm.GLM_visualization_tools as gvt
-
+import pickle
 def load_across_session(run_params):
     glm_version = run_params['version']
     across_run_params = make_across_run_params(glm_version)
@@ -250,8 +250,13 @@ def get_across_session_data(run_params, cell_specimen_id, familiar_only=False):
 
     # Find which experiments this cell was in
     if familiar_only:
-        
-        cells_table = processing.get_cells_matched_in_3_familiar_active_sessions()
+        familiar_only_cells_table = os.path.join(run_params['output_dir'], 'across_session/familiar_only','familiar_only_cells_table.pkl')
+        if os.path.exists(familiar_only_cells_table):
+            with open(familiar_only_cells_table,'rb') as f:
+                cells_table = pickle.load(f)
+        else:
+            cells_table = processing.get_cells_matched_in_3_familiar_active_sessions()
+            pickle.dump(cells_table,open(familiar_only_cells_table,'wb'))
     else:
         include_4x2_data = run_params['include_4x2_data']
         cells_table = loading.get_cell_table(platform_paper_only=True, include_4x2_data=include_4x2_data)

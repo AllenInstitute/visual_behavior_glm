@@ -21,6 +21,7 @@ if __name__ == "__main__":
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
     python_file = "/home/iryna.yavorska/code/visual_behavior_glm/scripts/across_session.py"
+
     glm_version = '24_events_all_L2_optimize_by_session'
     stdout_basedir = "/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/ophys_glm"
     stdout_location = os.path.join(stdout_basedir, 'job_records_across_session')
@@ -36,11 +37,9 @@ if __name__ == "__main__":
     job_string = "--cell {} --version {}"
 
     n_cell_ids = len(cell_ids)
-    check_for_fit = True
     for cell_id in cell_ids[:100]:
-        if check_for_fit:
-            if already_fit(cell_id,glm_version):
-                print('already fit, skipping')
+        if already_fit(cell_id,glm_version):
+            print('already fit, skipping')
         else:
             job_count += 1
             print('starting cluster job for {}, job count = {}'.format(cell_id, job_count))

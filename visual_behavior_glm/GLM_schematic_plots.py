@@ -15,8 +15,8 @@ import visual_behavior_glm.GLM_visualization_tools as gvt
 import visual_behavior.visualization.utils as utils
 
 def get_save_dir():
-    # save_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_figures_final'
-    save_dir = r'/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_figures_final'
+    save_dir = r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\platform_paper_figures_final'
+    # save_dir = r'/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/platform_paper_figures_final'
     return save_dir
 
 

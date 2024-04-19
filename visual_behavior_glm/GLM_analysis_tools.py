@@ -60,6 +60,7 @@ def log_error(error_dict, keys_to_check = []):
     )
     conn.close()
 
+
 def get_error_log(search_dict = {}):
     '''
     searches the mongo error log for all entries matching the search_dict
@@ -69,6 +70,7 @@ def get_error_log(search_dict = {}):
     result = conn['ophys_glm']['error_logs'].find(search_dict)
     conn.close()
     return pd.DataFrame(list(result))
+
 
 def build_kernel_df(glm, cell_specimen_id):
     '''
@@ -1721,8 +1723,6 @@ def check_mesoscope(results,filters=['cre_line','targeted_structure','depth','me
     results['meso'] = ['mesoscope' if x == "MESO.1" else 'scientifica' for x in results['equipment_name']]
     results['depth'] = [50 if x < 100 else 150 if x <200 else 250 if x<300 else 350 for x in results['imaging_depth']]
     summary = pd.DataFrame(results.groupby(filters)['Full__avg_cv_var_test'].mean())
-    summary['err']=results.groupby(filters)['Full__avg_cv_var_test'].sem()*2
-    summary['count']=results.groupby(filters)['Full__avg_cv_var_test'].count()
+    summary['err'] = results.groupby(filters)['Full__avg_cv_var_test'].sem()*2
+    summary['count'] = results.groupby(filters)['Full__avg_cv_var_test'].count()
     return summary
-
-

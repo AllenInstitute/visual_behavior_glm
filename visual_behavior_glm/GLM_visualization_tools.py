@@ -83,11 +83,11 @@ def project_colors():
         'passive':(.4,.4,.4),
         'familiar':(222/255,73/255,70/255),
         'novel':(100/255,152/255,193/255),
-        'Familiar':(0.66,0.06,0.086),
-        'Novel 1':(0.044,0.33,0.62),
+        'Familiar':(0.044,0.33,0.62),
+        'Novel 1':(0.66,0.06,0.086),
         'Novel >1':(0.34,.17,0.57),
-        'Novel':(0.044,0.33,0.62),
-        'Novel+':(0.34,.17,0.57),
+        'Novel':(0.66,0.06,0.086),
+        'Novel +':(0.34,.17,0.57),
         'deep':'r',
         'shallow':'b',
         'VISp':'C0',
@@ -4047,7 +4047,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
     experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
     experience_colors = []
-    for exp_level in ['Familiar', 'Novel', 'Novel >1']:
+    for exp_level in ['Familiar', 'Novel', 'Novel +']:
         experience_colors.append(project_colors()[exp_level])
 
     summary = {}
@@ -4070,7 +4070,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                 x = 'experience_level',
                 y= feature,
                 hue='coarse_binned_depth', 
-                order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                order=['Familiar','Novel','Novel +', 'dummy'], #Fix for seaborn bug
                 hue_order=['upper','lower'],
                 palette={'upper':'black','lower':'gray'},
                 linestyles=['-','--'],
@@ -4113,9 +4113,9 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
                 y1h = ax[index].get_ylim()[1]*1.05
                 if stats[feature]['Familiar'].pvalue<0.05:
                     ax[index].text(0,y1h,'*', color='r')
-                if stats[feature]['Novel 1'].pvalue<0.05:
+                if stats[feature]['Novel'].pvalue<0.05:
                     ax[index].text(1,y1h,'*', color='r')
-                if stats[feature]['Novel >1'].pvalue<0.05:
+                if stats[feature]['Novel +'].pvalue<0.05:
                     ax[index].text(2,y1h,'*', color='r')
                 ax[index].set_ylim(0,y1h*1.15)
         ax[0].set_ylabel('Coding score',fontsize=20)
@@ -4128,6 +4128,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
             plt.savefig(filename)
         summary[cell_type + ' stats'] = stats
     return summary
+
 
 def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False,include_zero_cells=True,add_stats=True,extra='',equipment="mesoscope",savefig=False):
     '''
@@ -4176,7 +4177,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
     experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
     experience_colors = []
-    for exp_level in ['Familiar', 'Novel', 'Novel >1']:
+    for exp_level in ['Familiar', 'Novel', 'Novel +']:
         experience_colors.append(project_colors()[exp_level])
 
     if run_params['include_4x2_data']:
@@ -4211,7 +4212,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
                 x = 'experience_level',
                 y= feature,
                 hue='targeted_structure', 
-                order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                order=['Familiar','Novel','Novel +', 'dummy'], #Fix for seaborn bug
                 hue_order=areas,
                 palette=area_colors,
                 linestyles=linestyles,
@@ -4253,9 +4254,9 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
                 y1h = ax[index].get_ylim()[1]*1.05
                 if stats[feature]['Familiar'].pvalue<0.05:
                     ax[index].text(0,y1h,'*', color='r')
-                if stats[feature]['Novel 1'].pvalue<0.05:
+                if stats[feature]['Novel'].pvalue<0.05:
                     ax[index].text(1,y1h,'*', color='r')
-                if stats[feature]['Novel >1'].pvalue<0.05:
+                if stats[feature]['Novel +'].pvalue<0.05:
                     ax[index].text(2,y1h,'*', color='r')
                 ax[index].set_ylim(0,y1h*1.15)
         ax[0].set_ylabel('Coding score',fontsize=20)
@@ -4268,6 +4269,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
             print('Figure saved to: '+filename)
         summary[cell_type + ' stats'] = stats
     return summary
+
 
 def get_matched_cells_with_ve(cells_table, results_pivoted,threshold):
     # determine max VE for each cell
@@ -4426,7 +4428,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                         x = 'experience_level',
                         y= feature,
                         hue='experience_level',
-                        order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                        order=['Familiar','Novel','Novel +', 'dummy'], #Fix for seaborn bug
                         hue_order=experience_levels,
                         palette = colors,
                         showfliers=False,
@@ -4438,7 +4440,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                         x = 'experience_level',
                         y= feature,
                         hue='experience_level', 
-                        order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                        order=['Familiar','Novel','Novel +', 'dummy'], #Fix for seaborn bug
                         hue_order=experience_levels,
                         palette = colors,
                         join=False,
@@ -4585,7 +4587,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                     x = 'experience_level',
                     y= feature,
                     hue='experience_level',
-                    order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                    order=['Familiar','Novel','Novel +', 'dummy'], #Fix for seaborn bug
                     hue_order=experience_levels,
                     palette = colors,
                     showfliers=False,
@@ -4598,7 +4600,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                         x = 'experience_level',
                         y= feature,
                         hue='experience_level', 
-                        order=['Familiar','Novel 1','Novel >1', 'dummy'], #Fix for seaborn bug
+                        order=['Familiar','Novel','Novel +', 'dummy'], #Fix for seaborn bug
                         hue_order=experience_levels,
                         palette = colors,
                         join=False,
@@ -4753,8 +4755,8 @@ def test_significant_dropout_averages(data,feature):
     data = data[~data[feature].isnull()].copy()
     anova = stats.f_oneway(
         data.query('experience_level == "Familiar"')[feature],  
-        data.query('experience_level == "Novel >1"')[feature],  
-        data.query('experience_level == "Novel 1"')[feature]
+        data.query('experience_level == "Novel +"')[feature],  
+        data.query('experience_level == "Novel"')[feature]
         )
     comp = mc.MultiComparison(data[feature], data['experience_level'])
     post_hoc_res = comp.tukeyhsd()
@@ -4762,8 +4764,8 @@ def test_significant_dropout_averages(data,feature):
     tukey_table = tukey_table.reset_index()
     mapper = {
         'Familiar':0,
-        'Novel 1':1,
-        'Novel >1':2,
+        'Novel':1,
+        'Novel +':2,
         }
     tukey_table['x1'] = [mapper[str(x)] for x in tukey_table['group1']]
     tukey_table['x2'] = [mapper[str(x)] for x in tukey_table['group2']]
@@ -4976,7 +4978,7 @@ def plot_dropout_summary_population_with_experience(results, run_params,dropouts
     clean_experience={
         'Familiar':'Familiar',
         'Novel 1':'Novel',
-        'Novel >1':'Novel+'
+        'Novel >1':'Novel +'
         }
     data_to_plot['experience_level'] = [clean_experience[x] for x in data_to_plot['experience_level']]
     data_to_plot['groups'] = data_to_plot['cre_line'] +' ' +data_to_plot['experience_level']

@@ -42,31 +42,31 @@ def project_colors():
         4:set1(4),
         5:set1(5),
         6:set1(6),
-        'Sst-IRES-Cre visual':(50/255,218/255,229/255),
-        'Slc17a7-IRES2-Cre visual':(255/255,100/255,150/255),
-        'Vip-IRES-Cre visual':(197/255,126/255,213/255),
-        'Sst-IRES-Cre timing':(158/255,218/255,229/255),
-        'Slc17a7-IRES2-Cre timing':(255/255,152/255,150/255),
-        'Vip-IRES-Cre timing':(197/255,176/255,213/255),
-        'Sst-IRES-Cre':(158/255,218/255,229/255),
-        'Sst-IRES-Cre Familiar':(158/255,218/255,229/255),
-        'Sst-IRES-Cre Novel':(158/255,218/255,229/255),
-        'Sst-IRES-Cre Novel+':(158/255,218/255,229/255),
-        'sst':(158/255,218/255,229/255),
-        'Sst Inhibitory':(158/255,218/255,229/255),
-        'Slc17a7-IRES2-Cre':(255/255,152/255,150/255),
-        'Slc17a7-IRES2-Cre Familiar':(255/255,152/255,150/255),
-        'Slc17a7-IRES2-Cre Novel':(255/255,152/255,150/255),
-        'Slc17a7-IRES2-Cre Novel+':(255/255,152/255,150/255),
-        'slc':(255/255,152/255,150/255),
-        'Excitatory':(255/255,152/255,150/255),
-        'exc':(255/255,152/255,150/255),
-        'Vip-IRES-Cre':(197/255,176/255,213/255),
-        'Vip-IRES-Cre Familiar':(197/255,176/255,213/255),
-        'Vip-IRES-Cre Novel':(197/255,176/255,213/255),
-        'Vip-IRES-Cre Novel+':(197/255,176/255,213/255),
-        'vip':(197/255,176/255,213/255),
-        'Vip Inhibitory':(197/255,176/255,213/255),
+        'Sst-IRES-Cre visual':(0.8705882352941177, 0.5607843137254902, 0.0196078431372549),
+        'Slc17a7-IRES2-Cre visual':(0.00784313725490196, 0.6196078431372549, 0.45098039215686275),
+        'Vip-IRES-Cre visual':(0.8, 0.47058823529411764, 0.7372549019607844),
+        'Sst-IRES-Cre timing':(0.8705882352941177, 0.5607843137254902, 0.0196078431372549),
+        'Slc17a7-IRES2-Cre timing':(0.00784313725490196, 0.6196078431372549, 0.45098039215686275),
+        'Vip-IRES-Cre timing':(0.8, 0.47058823529411764, 0.7372549019607844),
+        'Sst-IRES-Cre':(0.8705882352941177, 0.5607843137254902, 0.0196078431372549),
+        'Sst-IRES-Cre Familiar':(0.8705882352941177, 0.5607843137254902, 0.0196078431372549),
+        'Sst-IRES-Cre Novel':(0.8705882352941177, 0.5607843137254902, 0.0196078431372549),
+        'Sst-IRES-Cre Novel+':(0.8705882352941177, 0.5607843137254902, 0.0196078431372549),
+        'sst':(0.8705882352941177, 0.5607843137254902, 0.0196078431372549),
+        'Sst Inhibitory':(0.8705882352941177, 0.5607843137254902, 0.0196078431372549),
+        'Slc17a7-IRES2-Cre':(0.00784313725490196, 0.6196078431372549, 0.45098039215686275),
+        'Slc17a7-IRES2-Cre Familiar':(0.00784313725490196, 0.6196078431372549, 0.45098039215686275),
+        'Slc17a7-IRES2-Cre Novel':(0.00784313725490196, 0.6196078431372549, 0.45098039215686275),
+        'Slc17a7-IRES2-Cre Novel+':(0.00784313725490196, 0.6196078431372549, 0.45098039215686275),
+        'slc':(0.00784313725490196, 0.6196078431372549, 0.45098039215686275),
+        'Excitatory':(0.00784313725490196, 0.6196078431372549, 0.45098039215686275),
+        'exc':(0.00784313725490196, 0.6196078431372549, 0.45098039215686275),
+        'Vip-IRES-Cre':(0.8, 0.47058823529411764, 0.7372549019607844),
+        'Vip-IRES-Cre Familiar':(0.8, 0.47058823529411764, 0.7372549019607844),
+        'Vip-IRES-Cre Novel':(0.8, 0.47058823529411764, 0.7372549019607844),
+        'Vip-IRES-Cre Novel+':(0.8, 0.47058823529411764, 0.7372549019607844),
+        'vip':(0.8, 0.47058823529411764, 0.7372549019607844),
+        'Vip Inhibitory':(0.8, 0.47058823529411764, 0.7372549019607844),
         '1':(148/255,29/255,39/255),
         '2':(222/255,73/255,70/255),
         '3':(239/255,169/255,150/255),
@@ -581,7 +581,7 @@ def pc_component_heatmap(pca, figsize=(18,4)):
 
 def var_explained_matched(results_pivoted, run_params):
     # Remove passive sessions
-    results_pivoted = results_pivoted.query('not passive').copy()
+    results_pivoted = results_pivoted[results_pivoted.passive==False].copy()
     colors = project_colors()
     colors['Matched'] = 'k'
     colors['Non-matched'] = 'gray'
@@ -596,7 +596,7 @@ def var_explained_matched(results_pivoted, run_params):
 
     # load cells table to get matched cells
     cells_table = loading.get_cell_table(platform_paper_only=True,include_4x2_data=run_params['include_4x2_data']) 
-    cells_table = cells_table.query('not passive').copy()
+    cells_table = cells_table[cells_table.passive==False].copy()
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     matched_cells = cells_table.cell_specimen_id.unique()
     results_pivoted['matched'] = ['Matched' if x in np.array(matched_cells) else 'Non-matched' for x in results_pivoted['cell_specimen_id']]
@@ -643,7 +643,7 @@ def var_explained_by_experience(results_pivoted, run_params,threshold = 0,savefi
     if threshold != 0:
         results_pivoted = results_pivoted.query('(not passive) & (variance_explained_full > @threshold)').copy()
     else:
-         results_pivoted = results_pivoted.query('not passive').copy()   
+         results_pivoted = results_pivoted[results_pivoted.passive==False].copy()   
 
     colors = project_colors()
     mapper = {
@@ -653,20 +653,21 @@ def var_explained_by_experience(results_pivoted, run_params,threshold = 0,savefi
         }
     results_pivoted['cell_type'] = [mapper[x] for x in results_pivoted['cre_line']]
     results_pivoted['variance_explained_percent'] = results_pivoted['variance_explained_full']*100
-    plt.figure()
+    plt.figure(figsize=(5,4))
     ax = sns.boxplot(
         x='cell_type',
         y='variance_explained_percent',
         hue='experience_level',
         data=results_pivoted,
-        hue_order=['Familiar','Novel 1','Novel >1'],
+        hue_order=['Familiar','Novel','Novel +'],
         order=['Vip Inhibitory','Sst Inhibitory','Excitatory'],
         palette=colors,
         fliersize=0,
         linewidth=1,
     )
-    ax.set_ylabel('Variance Explained (%)',fontsize=18)
-    ax.set_xlabel('Cell Type',fontsize=18)
+    ax.legend(title='', fontsize=14)
+    ax.set_ylabel('Variance explained (%)',fontsize=18)
+    ax.set_xlabel('Cell type',fontsize=18)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     plt.ylim(0,40)
@@ -1915,7 +1916,7 @@ def plot_perturbation(weights_df, run_params, kernel, drop_threshold=0,session_f
     return ax,kernel_means
 
 def plot_kernel_comparison_by_experience(weights_df, run_params, kernel,threshold=0,drop_threshold=0,savefig=False):
-    weights_df = weights_df.query('not passive').copy()
+    weights_df = weights_df[weights_df.passive==False].copy()
     
     extra=''
     if threshold !=0:
@@ -3895,7 +3896,7 @@ def cosyne_make_dropout_summary_plot(dropout_summary, ax=None, palette=None):
 def plot_population_perturbation(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=False, include_zero_cells=True):
     # Filter for cells with low variance explained
     if include_zero_cells:
-        results_pivoted = results_pivoted.query('not passive').copy()       
+        results_pivoted = results_pivoted[results_pivoted.passive==False].copy()       
     else:
         results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
 
@@ -3910,7 +3911,7 @@ def plot_population_perturbation(results_pivoted, run_params, dropouts_to_show =
    
     # Cells Matched across all three experience levels 
     cells_table = loading.get_cell_table(platform_paper_only=True, include_4x2_data=run_params['include_4x2_data'])
-    cells_table = cells_table.query('not passive').copy()
+    cells_table = cells_table[cells_table.passive==False].copy()
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     matched_cells = cells_table.cell_specimen_id.unique()
 
@@ -4024,7 +4025,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
  
     # Filter for cells with low variance explained
     if include_zero_cells:
-        results_pivoted = results_pivoted.query('not passive').copy()       
+        results_pivoted = results_pivoted[results_pivoted.passive==False].copy()       
     else:
         extra = extra + '_no_zero_cells'
         results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()
@@ -4042,7 +4043,7 @@ def plot_population_averages_by_depth(results_pivoted, run_params, dropouts_to_s
     results_pivoted = results_pivoted.merge(experiment_table_columns, on='ophys_experiment_id')
     
     # plotting variables
-    cell_types = results_pivoted.cell_type.unique()
+    cell_types = np.sort(results_pivoted.cell_type.unique())
     experience_levels = np.sort(results_pivoted.experience_level.unique())
     experience_level_labels = ['Familiar','Novel','Novel +']
     colors = project_colors()
@@ -4153,7 +4154,7 @@ def plot_population_averages_by_area(results_pivoted, run_params, dropouts_to_sh
  
     # Filter for cells with low variance explained
     if include_zero_cells:
-        results_pivoted = results_pivoted.query('not passive').copy()       
+        results_pivoted = results_pivoted[results_pivoted.passive==False].copy()       
     else:
         extra = extra + '_no_zero_cells'
         results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()
@@ -4281,7 +4282,12 @@ def get_matched_cells_with_ve(cells_table, results_pivoted,threshold):
     return cells_with_ve.index.values
 
 
-def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['all-images','omissions','behavioral','task'],sharey=True,include_zero_cells=True,boxplot=False,add_stats=True,extra='',strict_experience_matching=False,plot_by_cell_type=False,across_session=False,stats_on_across=True, matched_with_variance_explained=False,matched_ve_threshold=0,savefig=False):
+def plot_population_averages(results_pivoted, run_params, 
+                    dropouts_to_show = ['all-images','omissions','behavioral','task'],
+                    sharey=True,include_zero_cells=True,boxplot=False,
+                    add_stats=True,extra='',strict_experience_matching=False,
+                    plot_by_cell_type=False,across_session=False,stats_on_across=True, 
+                    matched_with_variance_explained=False,matched_ve_threshold=0,savefig=False):
     '''
         Plots the average dropout scores for each cre line, on each experience level. 
         Includes all cells, and matched only cells. 
@@ -4325,7 +4331,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
  
     # Filter for cells with low variance explained
     if include_zero_cells:
-        results_pivoted = results_pivoted.query('not passive').copy()       
+        results_pivoted = results_pivoted[results_pivoted.passive==False].copy()       
     else:
         extra = extra + '_no_zero_cells'
         results_pivoted = results_pivoted.query('(variance_explained_full > 0.005)&(not passive)').copy()    
@@ -4350,14 +4356,14 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
     # Cells Matched across all three experience levels 
     cells_table = loading.get_cell_table(platform_paper_only=True,include_4x2_data=run_params['include_4x2_data'])
-    cells_table = cells_table.query('not passive').copy()
+    cells_table = cells_table[cells_table.passive==False]
     cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
     matched_cells = cells_table.cell_specimen_id.unique()
     
     # Strictly matched cells in the last familiar, and second novel session
     if strict_experience_matching:
         cells_table = loading.get_cell_table(platform_paper_only=True,include_4x2_data=run_params['include_4x2_data'])
-        cells_table = cells_table.query('not passive').copy()
+        cells_table = cells_table[cells_table.passive==False]
         cells_table = utilities.limit_to_last_familiar_second_novel_active(cells_table)
         cells_table = utilities.limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table)
         strict_matched_cells = cells_table.cell_specimen_id.unique()
@@ -4376,7 +4382,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
     if plot_by_cell_type:
         # make combined across cre line plot
-        fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+        fig, ax = plt.subplots(1,len(dropouts_to_show), figsize=(10,6), sharey=sharey)
         for index, feature in enumerate(dropouts_to_show):
             # plots three cre-lines in standard colors
             ax[index] = sns.pointplot(
@@ -4408,7 +4414,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     
         # Iterate cell types and make a plot for each
         for cell_type in cell_types:
-            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,4), sharey=sharey)
+            fig, ax = plt.subplots(1,len(dropouts_to_show),figsize=(10,6), sharey=sharey)
             all_data = results_pivoted.query('cell_type ==@cell_type')
             matched_data = all_data.query('cell_specimen_id in @matched_cells')
             if strict_experience_matching:
@@ -4521,7 +4527,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                             if row.reject:
                                 ax[index].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'k-')
                                 ax[index].text(np.mean([row.x1,row.x2]),yh, '*')
-                    ax[index].set_ylim(0,ytop*1.2)
+                    # ax[index].set_ylim(0,ytop*1.25)
             ax[0].set_ylabel('Coding Score',fontsize=18)
             plt.suptitle(cell_type,fontsize=18)
             fig.tight_layout()
@@ -4534,7 +4540,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
     # Iterate cell types and make a plot for each
     summary_data = {}
     for index, feature in enumerate(dropouts_to_show):   
-        fig, ax = plt.subplots(1,4,figsize=(10.8,4), sharey=sharey) 
+        fig, ax = plt.subplots(1,4,figsize=(10,4.5), sharey=sharey) 
 
         ax[3] = sns.pointplot(
             data = results_pivoted,
@@ -4545,8 +4551,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
             order=experience_levels,
             palette = colors,
             join=True,
-            ax=ax[3],
-            legend=False,
+            ax=ax[3]
         )
         ax[3].get_legend().remove()
         ax[3].axhline(0,color='k',linestyle='--',alpha=.25)
@@ -4678,10 +4683,17 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
 
         if add_stats:
             ytop = ax[0].get_ylim()[1]
+            # y1 = ytop
+            # y1h = ytop*1.05
+            # y2 = ytop*1.1
+            # y2h = ytop*1.15
+
+            scale = 0.05
             y1 = ytop
-            y1h = ytop*1.05
-            y2 = ytop*1.1
-            y2h = ytop*1.15
+            y1h = ytop * (1 + scale)
+            y2 = ytop * (1 + (scale * 3))
+            y2h = ytop * (1 + (scale * 3) + scale)
+
             if across_session & stats_on_across:
                 stats_color = 'olivedrab'
             elif matched_with_variance_explained:
@@ -4702,14 +4714,14 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
                         if row.reject:
                             ax[cindex].plot([row.x1,row.x1,row.x2,row.x2],[y,yh,yh,y],'-',color=stats_color)
                             ax[cindex].text(np.mean([row.x1,row.x2]),yh, '*')
-                #ax[index].set_ylim(0,ytop*1.2)
+                ax[cindex].set_ylim(0,ytop*1.3)
         clean_feature = feature.replace('all-images','images')
         clean_feature = clean_feature.replace('_positive',' excited')
         clean_feature = clean_feature.replace('_negative',' inhibited')
         clean_feature = clean_feature.replace('_within','')
         clean_feature = clean_feature.replace('_', ' ')
-        ax[0].set_ylabel(clean_feature+'\nCoding Score',fontsize=20)
-        plt.suptitle(clean_feature,fontsize=18)
+        ax[0].set_ylabel(clean_feature+'\nCoding score',fontsize=20)
+        plt.suptitle(clean_feature, fontsize=18)
         if '_signed' not in feature:
             ax[0].set_ylim(bottom=0)
             ax[1].set_ylim(bottom=0)
@@ -4727,6 +4739,7 @@ def plot_population_averages(results_pivoted, run_params, dropouts_to_show = ['a
         summary_data[feature+' stats'] = stats
 
     return summary_data
+
 
 def test_significant_across_cell(data, feature):
 
@@ -4806,8 +4819,8 @@ def plot_dropout_individual_population(results, run_params,ax=None,palette=None,
 
     dropouts_to_show = [x for x in dropouts_to_show if (len(x) == 0) or (x in run_params['dropouts']) ]
     if ax is None:
-        height = 8
-        width=18
+        height = 6
+        width=16
         horz_offset = 2
         vertical_offset = 2.5
         fig = plt.figure(figsize=(width,height))
@@ -5086,7 +5099,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
     '''
     if ax is None:
         height = 4
-        width=12
+        width=8
         horz_offset = 2
         vertical_offset = .75
         fig = plt.figure(figsize=(width,height))
@@ -5185,7 +5198,7 @@ def plot_dropout_summary_population(results, run_params,dropouts_to_show =  ['al
         'Vip-IRES-Cre Novel+':'Vip Inhibitory N+'
         }
     mylabels = [clean_labels[x] for x in labels]
-    ax.legend(h,mylabels,loc='upper right',fontsize=16)
+    ax.legend(h,mylabels,loc='upper right',fontsize=14)
     #ax.set_ylabel('Fraction reduction \nin explained variance',fontsize=20)
     ax.set_ylabel('Coding Score',fontsize=20)
     ax.set_xlabel('Withheld component',fontsize=20)
@@ -5221,7 +5234,7 @@ def plot_fraction_summary_population(results_pivoted, run_params,sharey=True,ker
         assert kernel is None, "Kernel Excitation is False, you should not provide a named kernel"
 
     # compute coding fractions
-    results_pivoted = results_pivoted.query('not passive').copy()
+    results_pivoted = results_pivoted[results_pivoted.passive==False].copy()
     results_pivoted['code_anything'] = results_pivoted['variance_explained_full'] > run_params['dropout_threshold'] 
     results_pivoted['code_images'] = results_pivoted['code_anything'] & (results_pivoted['all-images'] < 0)
     results_pivoted['code_omissions'] = results_pivoted['code_anything'] & (results_pivoted['omissions'] < 0)

@@ -14,10 +14,10 @@ def compute_event_metrics(results_pivoted,run_params,groups=['cre_line','equipme
         results_pivoted = results_pivoted.query('(not passive) &(variance_explained_full > @threshold)').copy()
         label='_filtered'
     else:
-        results_pivoted = results_pivoted.query('not passive').copy()
+        results_pivoted = results_pivoted[results_pivoted.passive==False].copy()
         label=''
     metrics_events = get_metrics(use_events=True)
-    results_events = merge_cell_metrics_table(metrics_events,results_pivoted)
+    results_events = merge_cell_metrics_table(metrics_events, results_pivoted)
     r2_events      = compute_r2(results_events,groups=groups).rename(columns={'r2':'glm_events__metrics_events'})
     evaluate_against_metrics(results_events.query('not passive'), ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=savefig,run_params=run_params,title='All cells\n'+run_params['version'],ylim=(0,100),label=label)
     return r2_events
@@ -56,8 +56,13 @@ def compute_r2(results_metrics,groups=['cre_line'],metric1='variance_explained_f
     r2['count'] = g.size()
     return r2
 
-def get_metrics(use_events=True,filter_events=False):
-    metrics_df = cell_metrics.load_metrics_table_for_experiments('all_experiments','traces','full_session','full_session',use_events=use_events,filter_events=filter_events)
+def get_metrics(use_events=True, filter_events=False):
+    if use_events: 
+        data_type = 'events'
+    else:
+        data_type = 'dff'
+    metrics_df = cell_metrics.load_metrics_table_for_experiments('all_experiments','traces','full_session','full_session',
+                                                                data_type=data_type)
     return metrics_df
 
 def merge_cell_metrics_table(metrics_df, results_pivoted):
@@ -73,7 +78,7 @@ def plot_all(results_metrics,version,metric='trace_mean_over_std',savefig=False)
     evaluate_against_metrics(results_metrics.query('equipment_name != "MESO.!"'),xmetric=metric,version=version,savefig=savefig,label='scientifica_events',title='Scientifica')
 
 def evaluate_against_metrics(results_metrics, ymetric='variance_explained_full',xmetric='trace_mean_over_std',savefig=False,run_params=None,label='',title=None,ylim=(0,100)):
-    fig,ax = plt.subplots()
+    fig,ax = plt.subplots(figsize=(5,4))
     mapper = {
         'Slc17a7-IRES2-Cre':'Excitatory',
         'Sst-IRES-Cre':'Sst Inhibitory',

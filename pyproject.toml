@@ -24,12 +24,13 @@ dependencies = [
     "h5py",
     "matplotlib",
     "plotly",
-    "pandas==0.25.3",
+    "pandas",
     "seaborn",
     "numpy",
     "pymongo==3.10.1",
     "xarray==0.15.1",
     "xarray_mongodb",
+    "pkg_resources",
 ]
 
 [tool.hatch.build.targets.wheel]

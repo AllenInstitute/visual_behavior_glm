@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "visual-behavior-glm"
@@ -32,6 +32,5 @@ dependencies = [
     "xarray_mongodb",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["visual_behavior_glm*"]
+[tool.hatch.build.targets.wheel]
+packages = ["visual_behavior_glm"]

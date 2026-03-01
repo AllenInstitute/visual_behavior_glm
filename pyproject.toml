@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "visual-behavior-glm"
+version = "0.0.1"
+description = "GLM for Visual Behavior ophys data"
+license = { text = "Allen Institute" }
+authors = [
+    { name = "Alex Piet",        email = "alex.piet@alleninstitute.org" },
+    { name = "Nick Ponvert",     email = "nick.ponvert@alleninstitute.org" },
+    { name = "Doug Ollerenshaw", email = "dougo@alleninstitute.org" },
+    { name = "Marina Garrett",   email = "marinag@alleninstitute.org" },
+]
+urls = { Homepage = "https://github.com/AllenInstitute/visual_behavior_glm" }
+requires-python = ">=3.7"
+
+# NOTE: allensdk and other pins below are old. Loosen them if you update the codebase.
+# NOTE: visual_behavior_analysis (formerly in dependency_links) must be installed
+#       manually: pip install git+https://github.com/AllenInstitute/visual_behavior_analysis.git
+dependencies = [
+    "allensdk==2.16.2",
+    "h5py",
+    "matplotlib",
+    "plotly",
+    "pandas==0.25.3",
+    "seaborn",
+    "numpy",
+    "pymongo==3.10.1",
+    "xarray==0.15.1",
+    "xarray_mongodb",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["visual_behavior_glm*"]

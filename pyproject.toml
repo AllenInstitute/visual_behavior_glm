@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "setuptools"]
 build-backend = "hatchling.build"
 
 [project]
@@ -30,7 +30,7 @@ dependencies = [
     "pymongo==3.10.1",
     "xarray==0.15.1",
     "xarray_mongodb",
-    "pkg_resources",
+    "setuptools",
 ]
 
 [tool.hatch.build.targets.wheel]
